@@ -219,14 +219,14 @@ class ConfigController extends Controller
 
     public function storeServico(Request $request): RedirectResponse
     {
-        Servico::query()->create($this->servicoPayload($request));
-        return back()->with('success', 'Serviço cadastrado.');
+    Servico::query()->create($this->servicoPayload($request, null));
+    return back()->with('success', 'Serviço cadastrado.');
     }
 
     public function updateServico(Request $request, Servico $servico): RedirectResponse
     {
-        $servico->update($this->servicoPayload($request));
-        return back()->with('success', 'Serviço atualizado.');
+    $servico->update($this->servicoPayload($request, $servico));
+    return back()->with('success', 'Serviço atualizado.');
     }
 
     public function deleteServico(Servico $servico): RedirectResponse
@@ -470,18 +470,25 @@ class ConfigController extends Controller
         ];
     }
 
-    private function servicoPayload(Request $request): array
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string'],
-            'is_active' => ['nullable'],
-            'sort_order' => ['nullable', 'integer'],
-        ]);
-        $data['is_active'] = $request->boolean('is_active');
-        $data['sort_order'] = (int) $request->integer('sort_order');
-        return $data;
-    }
+    private function servicoPayload(Request $request, ?Servico $current = null): array
+{
+    $data = $request->validate([
+        'name' => [
+            'required',
+            'string',
+            'max:150',
+            Rule::unique('servicos', 'name')->ignore($current?->id),
+        ],
+        'description' => ['nullable', 'string'],
+        'is_active' => ['nullable'],
+        'sort_order' => ['nullable', 'integer'],
+    ]);
+
+    $data['is_active'] = $request->boolean('is_active');
+    $data['sort_order'] = (int) $request->integer('sort_order');
+
+    return $data;
+}
 
     private function statusPayload(Request $request): array
     {

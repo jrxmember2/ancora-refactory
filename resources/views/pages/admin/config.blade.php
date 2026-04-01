@@ -517,23 +517,51 @@ document.addEventListener('submit', async (event) => {
     if (submitter) submitter.disabled = true;
     try {
         const response = await fetch(action, {
-            method,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: new FormData(form),
-            credentials: 'same-origin',
-        });
-        const html = await response.text();
-        if (!response.ok) {
-            throw new Error('bad_response');
+    method,
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+    },
+    body: new FormData(form),
+    credentials: 'same-origin',
+});
+
+if (!response.ok) {
+    let message = 'Não foi possível concluir esta ação agora.';
+    try {
+        const data = await response.json();
+        if (data?.message) {
+            message = data.message;
+        } else if (data?.errors) {
+            const firstError = Object.values(data.errors)[0];
+            if (Array.isArray(firstError) && firstError.length) {
+                message = firstError[0];
+            }
         }
-        if (targetSelector) {
-            refreshConfigSection(targetSelector, html);
-        }
-        const successMessage = submitter?.textContent?.trim()?.includes('Excluir') ? 'Registro excluído com sucesso.' : 'Registro salvo com sucesso.';
-        showConfigToast(successMessage);
+    } catch (_) {}
+    throw new Error(message);
+}
+
+const htmlResponse = await fetch(window.location.href, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'same-origin',
+});
+const html = await htmlResponse.text();
+
+if (targetSelector) {
+    refreshConfigSection(targetSelector, html);
+}
+
+form.reset();
+
+const successMessage = submitter?.textContent?.trim()?.includes('Excluir')
+    ? 'Registro excluído com sucesso.'
+    : 'Registro salvo com sucesso.';
+
+showConfigToast(successMessage);
     } catch (error) {
-        showConfigToast('Não foi possível concluir esta ação agora.', 'error');
-    } finally {
+    showConfigToast(error.message || 'Não foi possível concluir esta ação agora.', 'error');
+} finally {
         if (submitter) submitter.disabled = false;
     }
 });
