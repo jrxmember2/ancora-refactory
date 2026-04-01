@@ -30,17 +30,23 @@ class ConfigController extends Controller
         $faviconPath = AppSetting::getValue('branding_favicon_path', '/favicon.svg') ?: '/favicon.svg';
         $premiumLogoVariant = AppSetting::getValue('branding_premium_logo_variant', 'light') === 'dark' ? 'dark' : 'light';
         $routePermissions = RoutePermission::query()->orderBy('group_key')->orderBy('label')->get()->groupBy('group_key');
+        $users = User::query()->with(['modules', 'routePermissions'])->orderByDesc('is_protected')->orderBy('name')->get();
+        $accessProfiles = $this->accessProfiles();
+
+        foreach ($users as $listedUser) {
+            $listedUser->access_mode_value = $this->resolveUserAccessMode($listedUser, $accessProfiles);
+        }
 
         return view('pages.admin.config', [
             'title' => 'Configurações',
             'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
             'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
-            'users' => User::query()->with(['modules', 'routePermissions'])->orderByDesc('is_protected')->orderBy('name')->get(),
+            'users' => $users,
             'modules' => SystemModule::query()->orderBy('sort_order')->orderBy('name')->get(),
             'routePermissionGroups' => $routePermissions,
             'routeCatalog' => AncoraRouteCatalog::groups(),
-            'accessProfiles' => $this->accessProfiles(),
+            'accessProfiles' => $accessProfiles,
             'branding' => [
                 'company_name' => AppSetting::getValue('app_company', 'Serratech Soluções em TI') ?: '',
                 'app_slogan' => AppSetting::getValue('app_slogan', '') ?: '',
@@ -48,15 +54,15 @@ class ConfigController extends Controller
                 'company_phone' => AppSetting::getValue('company_phone', '') ?: '',
                 'company_email' => AppSetting::getValue('company_email', '') ?: '',
                 'logo_light_path' => $logoLightPath,
-                'logo_light_url' => asset(ltrim($logoLightPath, '/')),
+                'logo_light_url' => $this->brandingAssetUrl($logoLightPath, '/imgs/logomarca.svg'),
                 'logo_dark_path' => $logoDarkPath,
-                'logo_dark_url' => asset(ltrim($logoDarkPath, '/')),
+                'logo_dark_url' => $this->brandingAssetUrl($logoDarkPath, '/imgs/logomarca.svg'),
                 'premium_logo_variant' => $premiumLogoVariant,
                 'logo_height_desktop' => (int) AppSetting::getValue('branding_logo_height_desktop', '44'),
                 'logo_height_mobile' => (int) AppSetting::getValue('branding_logo_height_mobile', '36'),
                 'logo_height_login' => (int) AppSetting::getValue('branding_logo_height_login', '82'),
                 'favicon_path' => $faviconPath,
-                'favicon_url' => asset(ltrim($faviconPath, '/')),
+                'favicon_url' => $this->brandingAssetUrl($faviconPath, '/favicon.svg'),
             ],
             'smtp' => AncoraSettings::smtp(),
         ]);
@@ -271,22 +277,23 @@ class ConfigController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
-            'role' => ['required', Rule::in(['superadmin', 'comum'])],
+            'access_mode' => ['required', 'string', 'max:120'],
             'is_active' => ['nullable'],
-            'access_profile_slug' => ['nullable', 'string'],
         ]);
 
-        DB::transaction(function () use ($request, $validated) {
+        [$role, $profileSlug] = $this->parseAccessMode((string) $validated['access_mode']);
+
+        DB::transaction(function () use ($request, $validated, $role, $profileSlug) {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'theme_preference' => 'dark',
                 'password_hash' => password_hash($validated['password'], PASSWORD_DEFAULT),
-                'role' => $validated['role'],
+                'role' => $role,
                 'is_active' => $request->boolean('is_active'),
                 'is_protected' => 0,
             ]);
-            $this->syncUserPermissions($user, $request);
+            $this->syncUserPermissions($user, $request, $profileSlug);
         });
 
         return back()->with('success', 'Usuário cadastrado.');
@@ -298,30 +305,39 @@ class ConfigController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6'],
-            'role' => ['required', Rule::in(['superadmin', 'comum'])],
+            'access_mode' => ['required', 'string', 'max:120'],
             'is_active' => ['nullable'],
-            'access_profile_slug' => ['nullable', 'string'],
         ]);
 
-        if ($user->is_protected && $validated['role'] !== 'superadmin') {
-            return back()->with('error', 'Usuário protegido não pode perder o perfil de superadmin.');
-        }
-        if ($user->is_protected && !$request->boolean('is_active')) {
-            return back()->with('error', 'Usuário protegido não pode ser desativado.');
+        [$role, $profileSlug] = $this->parseAccessMode((string) $validated['access_mode']);
+        $shouldRemainActive = $user->is_protected ? true : $request->boolean('is_active');
+        $demotingSuperadmin = $user->role === 'superadmin' && $role !== 'superadmin';
+
+        if (!$shouldRemainActive && $user->role === 'superadmin' && !$this->hasAnotherSuperadmin($user)) {
+            return back()->with('error', 'É necessário manter ao menos um superadmin ativo no sistema.');
         }
 
-        DB::transaction(function () use ($request, $validated, $user) {
+        if ($demotingSuperadmin && !$this->hasAnotherSuperadmin($user)) {
+            return back()->with('error', 'Crie ou mantenha outro superadmin antes de alterar este usuário para perfil comum.');
+        }
+
+        DB::transaction(function () use ($request, $validated, $user, $role, $profileSlug, $shouldRemainActive, $demotingSuperadmin) {
+            if ($demotingSuperadmin && $user->is_protected) {
+                $user->update(['is_protected' => 0]);
+                $user->refresh();
+            }
+
             $payload = [
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'role' => $validated['role'],
-                'is_active' => $request->boolean('is_active'),
+                'role' => $role,
+                'is_active' => $shouldRemainActive,
             ];
             if (!empty($validated['password'])) {
                 $payload['password_hash'] = password_hash($validated['password'], PASSWORD_DEFAULT);
             }
             $user->update($payload);
-            $this->syncUserPermissions($user, $request);
+            $this->syncUserPermissions($user, $request, $profileSlug);
         });
 
         if (AncoraAuth::user($request)?->id === $user->id) {
@@ -335,6 +351,9 @@ class ConfigController extends Controller
     {
         if ($user->is_protected) {
             return back()->with('error', 'Os superadmins principais não podem ser excluídos.');
+        }
+        if ($user->role === 'superadmin' && !$this->hasAnotherSuperadmin($user)) {
+            return back()->with('error', 'É necessário manter ao menos um superadmin ativo no sistema.');
         }
         $user->delete();
         return back()->with('success', 'Usuário excluído.');
@@ -352,7 +371,7 @@ class ConfigController extends Controller
         }
     }
 
-    private function syncUserPermissions(User $user, Request $request): void
+    private function syncUserPermissions(User $user, Request $request, ?string $forcedProfileSlug = null): void
     {
         if ($user->role === 'superadmin') {
             $user->modules()->sync([]);
@@ -360,7 +379,7 @@ class ConfigController extends Controller
             return;
         }
 
-        $profileSlug = trim((string) $request->input('access_profile_slug', ''));
+        $profileSlug = trim((string) ($forcedProfileSlug ?? $request->input('access_profile_slug', '')));
         if ($profileSlug !== '') {
             $profile = collect($this->accessProfiles())->firstWhere('slug', $profileSlug);
             if ($profile) {
@@ -379,6 +398,60 @@ class ConfigController extends Controller
     private function accessProfiles(): array
     {
         return AncoraSettings::getJson('access_profiles_json', []);
+    }
+
+
+    private function parseAccessMode(string $mode): array
+    {
+        $value = trim($mode);
+        if ($value === 'superadmin') {
+            return ['superadmin', null];
+        }
+        if (str_starts_with($value, 'profile:')) {
+            return ['comum', substr($value, 8) ?: null];
+        }
+
+        return ['comum', null];
+    }
+
+    private function resolveUserAccessMode(User $user, array $profiles): string
+    {
+        if ($user->role === 'superadmin') {
+            return 'superadmin';
+        }
+
+        $currentModuleIds = $user->modules->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+        $currentRouteIds = $user->routePermissions->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+        foreach ($profiles as $profile) {
+            $profileModuleIds = collect($profile['module_ids'] ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all();
+            $profileRouteIds = collect($profile['route_ids'] ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all();
+            if ($profileModuleIds === $currentModuleIds && $profileRouteIds === $currentRouteIds) {
+                return 'profile:' . ($profile['slug'] ?? '');
+            }
+        }
+
+        return 'comum';
+    }
+
+    private function hasAnotherSuperadmin(User $user): bool
+    {
+        return User::query()
+            ->where('id', '!=', $user->id)
+            ->where('role', 'superadmin')
+            ->where('is_active', 1)
+            ->exists();
+    }
+
+    private function brandingAssetUrl(?string $path, string $fallback): string
+    {
+        $relative = '/' . ltrim((string) $path, '/');
+        $absolute = public_path(ltrim($relative, '/'));
+        if ($relative !== '/' && is_file($absolute)) {
+            return asset(ltrim($relative, '/'));
+        }
+
+        return asset(ltrim($fallback, '/'));
     }
 
     private function administradoraPayload(Request $request, ?Administradora $current): array

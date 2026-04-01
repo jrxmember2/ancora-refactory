@@ -6,6 +6,23 @@ use App\Models\AppSetting;
 
 class AncoraSettings
 {
+    private static function assetUrlOrFallback(?string $path, string $fallback): string
+    {
+        $candidate = trim((string) $path);
+        if ($candidate === '') {
+            return $fallback;
+        }
+
+        if (preg_match('#^https?://#i', $candidate)) {
+            return $candidate;
+        }
+
+        $relative = '/' . ltrim($candidate, '/');
+        $absolute = public_path(ltrim($relative, '/'));
+
+        return is_file($absolute) ? $relative : $fallback;
+    }
+
     public static function all(): array
     {
         return AppSetting::query()->pluck('setting_value', 'setting_key')->all();
@@ -31,8 +48,8 @@ class AncoraSettings
     {
         $appName = self::get('app_name', 'Âncora') ?: 'Âncora';
         $company = self::get('app_company', $appName) ?: $appName;
-        $logoLight = self::get('branding_logo_light_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
-        $logoDark = self::get('branding_logo_dark_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
+        $logoLight = self::assetUrlOrFallback(self::get('branding_logo_light_path', '/imgs/logomarca.svg'), '/imgs/logomarca.svg');
+        $logoDark = self::assetUrlOrFallback(self::get('branding_logo_dark_path', '/imgs/logomarca.svg'), '/imgs/logomarca.svg');
         $premiumVariant = self::get('branding_premium_logo_variant', 'light') === 'dark' ? 'dark' : 'light';
 
         return [
@@ -44,7 +61,7 @@ class AncoraSettings
             'logo_dark' => $logoDark,
             'logo_premium' => $premiumVariant === 'dark' ? $logoDark : $logoLight,
             'premium_logo_variant' => $premiumVariant,
-            'favicon' => self::get('branding_favicon_path', '/favicon.ico') ?: '/favicon.ico',
+            'favicon' => self::assetUrlOrFallback(self::get('branding_favicon_path', '/favicon.ico'), '/favicon.svg'),
             'company_phone' => self::get('company_phone', ''),
             'company_email' => self::get('company_email', ''),
             'company_address' => self::get('company_address', ''),

@@ -16,7 +16,8 @@
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">Branding</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Nome, slogan, contatos e logos do sistema.</p>
+<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Nome, slogan, contatos e logos do sistema.</p>
+                    <p class="mt-2 text-xs text-amber-600 dark:text-amber-300"><i class="fa-solid fa-circle-info mr-1"></i>No EasyPanel, mantenha um volume persistente em <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">public/assets/uploads/branding</code> para não perder as imagens ao redeploy.</p>
                 </div>
             </div>
             <form method="post" action="{{ route('config.branding.save') }}" enctype="multipart/form-data" class="mt-6 space-y-6">
@@ -271,16 +272,18 @@
                     <input :type="show ? 'text' : 'password'" name="password" placeholder="Senha" class="{{ $inputClass }} pr-11" required>
                     <button type="button" @click="show = !show" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"><i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i></button>
                 </div>
-                <select name="role" class="{{ $inputClass }}">
+                <select name="access_mode" class="{{ $inputClass }}">
                     <option value="comum">Comum</option>
                     <option value="superadmin">Superadmin</option>
+                    @if(count($accessProfiles))
+                        <optgroup label="Perfis de acesso">
+                            @foreach($accessProfiles as $profile)
+                                <option value="profile:{{ $profile['slug'] }}">{{ $profile['name'] }}</option>
+                            @endforeach
+                        </optgroup>
+                    @endif
                 </select>
-                <select name="access_profile_slug" class="{{ $inputClass }}">
-                    <option value="">Aplicar perfil (opcional)</option>
-                    @foreach($accessProfiles as $profile)
-                        <option value="{{ $profile['slug'] }}">{{ $profile['name'] }}</option>
-                    @endforeach
-                </select>
+                <div class="flex items-center rounded-xl border border-dashed border-gray-300 px-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Escolha o tipo de acesso ou um perfil salvo.</div>
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" checked> Ativo</label>
                 <div class="md:col-span-2 xl:col-span-5"><button class="{{ $buttonClass }}">Cadastrar usuário</button></div>
             </form>
@@ -297,16 +300,18 @@
                                 <input :type="show ? 'text' : 'password'" name="password" placeholder="Nova senha (opcional)" class="{{ $inputClass }} pr-11">
                                 <button type="button" @click="show = !show" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"><i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i></button>
                             </div>
-                            <select name="role" class="{{ $inputClass }}">
-                                <option value="comum" @selected($user->role==='comum')>Comum</option>
-                                <option value="superadmin" @selected($user->role==='superadmin')>Superadmin</option>
+                            <select name="access_mode" class="{{ $inputClass }}">
+                                <option value="comum" @selected(($user->access_mode_value ?? 'comum')==='comum')>Comum</option>
+                                <option value="superadmin" @selected(($user->access_mode_value ?? '')==='superadmin')>Superadmin</option>
+                                @if(count($accessProfiles))
+                                    <optgroup label="Perfis de acesso">
+                                        @foreach($accessProfiles as $profile)
+                                            <option value="profile:{{ $profile['slug'] }}" @selected(($user->access_mode_value ?? '')==='profile:'.$profile['slug'])>{{ $profile['name'] }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             </select>
-                            <select name="access_profile_slug" class="{{ $inputClass }}" @disabled($isSuper)>
-                                <option value="">Aplicar perfil (opcional)</option>
-                                @foreach($accessProfiles as $profile)
-                                    <option value="{{ $profile['slug'] }}">{{ $profile['name'] }}</option>
-                                @endforeach
-                            </select>
+                            <div class="flex items-center rounded-xl border border-dashed border-gray-300 px-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Use superadmin, comum ou um perfil salvo.</div>
                             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" @checked($user->is_active) @disabled($user->is_protected)> Ativo</label>
                         </div>
 
@@ -505,25 +510,31 @@ document.addEventListener('submit', async (event) => {
     const form = event.target.closest('.js-async-form');
     if (!form) return;
     event.preventDefault();
+    const submitter = event.submitter || form.querySelector('button[type="submit"], button:not([type])');
+    const action = submitter?.formAction || form.action;
+    const method = (submitter?.formMethod || form.method || 'POST').toUpperCase();
     const targetSelector = form.dataset.refreshTarget;
-    const button = form.querySelector('button[type="submit"], button:not([type])');
-    if (button) button.disabled = true;
+    if (submitter) submitter.disabled = true;
     try {
-        const response = await fetch(form.action, {
-            method: form.method || 'POST',
+        const response = await fetch(action, {
+            method,
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: new FormData(form),
             credentials: 'same-origin',
         });
         const html = await response.text();
+        if (!response.ok) {
+            throw new Error('bad_response');
+        }
         if (targetSelector) {
             refreshConfigSection(targetSelector, html);
         }
-        showConfigToast('Registro salvo com sucesso.');
+        const successMessage = submitter?.textContent?.trim()?.includes('Excluir') ? 'Registro excluído com sucesso.' : 'Registro salvo com sucesso.';
+        showConfigToast(successMessage);
     } catch (error) {
-        showConfigToast('Não foi possível salvar agora.', 'error');
+        showConfigToast('Não foi possível concluir esta ação agora.', 'error');
     } finally {
-        if (button) button.disabled = false;
+        if (submitter) submitter.disabled = false;
     }
 });
 </script>
