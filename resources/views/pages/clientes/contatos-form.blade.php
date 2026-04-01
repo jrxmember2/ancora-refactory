@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header :title="$title" subtitle="Cadastro de síndicos, administradoras e outros contatos reutilizáveis." />
+<x-ancora.section-header :title="$title" subtitle="Cadastro de síndicos, administradoras, parceiros e fornecedores reutilizáveis." />
 @include('pages.clientes.partials.subnav')
 <form method="post" action="{{ $mode === 'create' ? route('clientes.contatos.store') : route('clientes.contatos.update', $item) }}" enctype="multipart/form-data" class="space-y-6">
     @csrf

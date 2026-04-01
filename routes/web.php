@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ConfigController;
 use App\Http\Controllers\DashboardController;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('ancora.guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::get('/esqueci-a-senha', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('/esqueci-a-senha', [PasswordResetController::class, 'sendLink'])->name('password.email');
+    Route::get('/resetar-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset.form');
+    Route::post('/resetar-senha', [PasswordResetController::class, 'reset'])->name('password.reset.update');
 });
 
 Route::middleware('ancora.auth')->group(function () {
@@ -48,6 +53,9 @@ Route::middleware('ancora.auth')->group(function () {
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);
     Route::post('/config/favicon/save', [ConfigController::class, 'saveFavicon'])->name('config.favicon.save')->middleware(['ancora.superadmin', 'ancora.route:config.favicon.save']);
     Route::post('/config/modules/save', [ConfigController::class, 'saveModules'])->name('config.modules.save')->middleware(['ancora.superadmin', 'ancora.route:config.modules.save']);
+    Route::post('/config/smtp/save', [ConfigController::class, 'saveSmtp'])->name('config.smtp.save')->middleware(['ancora.superadmin', 'ancora.route:config.smtp.save']);
+    Route::post('/config/access-profiles/save', [ConfigController::class, 'saveAccessProfiles'])->name('config.access-profiles.save')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.save']);
+    Route::post('/config/access-profiles/{slug}/delete', [ConfigController::class, 'deleteAccessProfile'])->name('config.access-profiles.delete')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.delete']);
     Route::post('/config/administradoras/store', [ConfigController::class, 'storeAdministradora'])->name('config.administradoras.store')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.store']);
     Route::post('/config/administradoras/{administradora}/update', [ConfigController::class, 'updateAdministradora'])->name('config.administradoras.update')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.update']);
     Route::post('/config/administradoras/{administradora}/delete', [ConfigController::class, 'deleteAdministradora'])->name('config.administradoras.delete')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.delete']);

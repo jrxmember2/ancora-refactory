@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Módulo Clientes" subtitle="Cadastro central do HUB para clientes avulsos, contatos, condomínios e unidades.">
+<x-ancora.section-header title="Cadastro de clientes, parceiros e fornecedores" subtitle="Cadastro central para clientes avulsos, síndicos, administradoras, parceiros, condomínios, blocos e unidades.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('clientes.avulsos') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200"><i class="fa-solid fa-users"></i> Avulsos</a>
         <a href="{{ route('clientes.condominios') }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600"><i class="fa-solid fa-building"></i> Condomínios</a>
@@ -20,7 +20,7 @@
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Fluxo rápido</h3>
         <div class="mt-4 grid gap-4">
             <a href="{{ route('clientes.avulsos') }}" class="rounded-2xl border border-gray-200 px-5 py-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10"><strong class="block text-gray-900 dark:text-white">Clientes avulsos</strong><span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">PF ou PJ com timeline, anexos e observações.</span></a>
-            <a href="{{ route('clientes.contatos') }}" class="rounded-2xl border border-gray-200 px-5 py-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10"><strong class="block text-gray-900 dark:text-white">Contatos</strong><span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">Síndicos, administradoras, proprietários e locatários.</span></a>
+            <a href="{{ route('clientes.contatos') }}" class="rounded-2xl border border-gray-200 px-5 py-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10"><strong class="block text-gray-900 dark:text-white">Parceiros e fornecedores</strong><span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">Síndicos, administradoras e demais parceiros reutilizáveis.</span></a>
             <a href="{{ route('clientes.condominios') }}" class="rounded-2xl border border-gray-200 px-5 py-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10"><strong class="block text-gray-900 dark:text-white">Condomínios</strong><span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">Árvore condominial com blocos, síndico e banco.</span></a>
             <a href="{{ route('clientes.unidades') }}" class="rounded-2xl border border-gray-200 px-5 py-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10"><strong class="block text-gray-900 dark:text-white">Unidades</strong><span class="mt-1 block text-sm text-gray-500 dark:text-gray-400">Vínculo com proprietário e locatário reutilizáveis.</span></a>
         </div>

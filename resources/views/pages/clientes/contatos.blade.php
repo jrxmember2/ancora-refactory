@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
-<x-ancora.section-header title="Contatos" subtitle="Síndicos, administradoras, proprietários, locatários e outros perfis reaproveitáveis.">
-    <a href="{{ route('clientes.contatos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo contato</a>
+<x-ancora.section-header title="Parceiros e fornecedores" subtitle="Cadastre síndicos, administradoras, parceiros estratégicos e fornecedores reutilizáveis.">
+    <a href="{{ route('clientes.contatos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cadastro</a>
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">

@@ -12,6 +12,7 @@ use App\Models\SystemModule;
 use App\Models\User;
 use App\Support\AncoraAuth;
 use App\Support\AncoraRouteCatalog;
+use App\Support\AncoraSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,12 +29,10 @@ class ConfigController extends Controller
         $logoDarkPath = AppSetting::getValue('branding_logo_dark_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $faviconPath = AppSetting::getValue('branding_favicon_path', '/favicon.svg') ?: '/favicon.svg';
         $premiumLogoVariant = AppSetting::getValue('branding_premium_logo_variant', 'light') === 'dark' ? 'dark' : 'light';
-
         $routePermissions = RoutePermission::query()->orderBy('group_key')->orderBy('label')->get()->groupBy('group_key');
 
         return view('pages.admin.config', [
             'title' => 'Configurações',
-            'administradoras' => Administradora::query()->orderBy('sort_order')->orderBy('name')->get(),
             'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
             'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
@@ -41,8 +40,10 @@ class ConfigController extends Controller
             'modules' => SystemModule::query()->orderBy('sort_order')->orderBy('name')->get(),
             'routePermissionGroups' => $routePermissions,
             'routeCatalog' => AncoraRouteCatalog::groups(),
+            'accessProfiles' => $this->accessProfiles(),
             'branding' => [
                 'company_name' => AppSetting::getValue('app_company', 'Serratech Soluções em TI') ?: '',
+                'app_slogan' => AppSetting::getValue('app_slogan', '') ?: '',
                 'company_address' => AppSetting::getValue('company_address', '') ?: '',
                 'company_phone' => AppSetting::getValue('company_phone', '') ?: '',
                 'company_email' => AppSetting::getValue('company_email', '') ?: '',
@@ -57,6 +58,7 @@ class ConfigController extends Controller
                 'favicon_path' => $faviconPath,
                 'favicon_url' => asset(ltrim($faviconPath, '/')),
             ],
+            'smtp' => AncoraSettings::smtp(),
         ]);
     }
 
@@ -64,6 +66,7 @@ class ConfigController extends Controller
     {
         $validated = $request->validate([
             'company_name' => ['nullable', 'string', 'max:180'],
+            'app_slogan' => ['nullable', 'string', 'max:180'],
             'company_address' => ['nullable', 'string', 'max:255'],
             'company_phone' => ['nullable', 'string', 'max:50'],
             'company_email' => ['nullable', 'email', 'max:190'],
@@ -90,6 +93,7 @@ class ConfigController extends Controller
 
         $this->setMany([
             'app_company' => [$validated['company_name'] ?? '', 'Nome da empresa exibido no sistema'],
+            'app_slogan' => [$validated['app_slogan'] ?? '', 'Slogan institucional do sistema'],
             'company_address' => [$validated['company_address'] ?? '', 'Endereço exibido no rodapé e PDF'],
             'company_phone' => [$validated['company_phone'] ?? '', 'Telefone exibido no rodapé e PDF'],
             'company_email' => [$validated['company_email'] ?? '', 'E-mail exibido no rodapé e PDF'],
@@ -99,6 +103,8 @@ class ConfigController extends Controller
             'branding_logo_height_desktop' => [(string) ($validated['logo_height_desktop'] ?? 44), 'Altura da logo no header desktop'],
             'branding_logo_height_mobile' => [(string) ($validated['logo_height_mobile'] ?? 36), 'Altura da logo no header mobile'],
             'branding_logo_height_login' => [(string) ($validated['logo_height_login'] ?? 82), 'Altura da logo na tela de login'],
+            'powered_by_name' => [AppSetting::getValue('powered_by_name', 'Serratech Soluções em TI') ?: 'Serratech Soluções em TI', 'Créditos de desenvolvimento'],
+            'powered_by_url' => [AppSetting::getValue('powered_by_url', 'https://serratech.tec.br') ?: 'https://serratech.tec.br', 'URL dos créditos de desenvolvimento'],
         ]);
 
         return back()->with('success', 'Branding atualizado com sucesso.');
@@ -127,6 +133,64 @@ class ConfigController extends Controller
         }
 
         return back()->with('success', 'Módulos atualizados com sucesso.');
+    }
+
+    public function saveSmtp(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'smtp_host' => ['nullable', 'string', 'max:190'],
+            'smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'smtp_username' => ['nullable', 'string', 'max:190'],
+            'smtp_password' => ['nullable', 'string', 'max:190'],
+            'smtp_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
+            'smtp_from_address' => ['nullable', 'email', 'max:190'],
+            'smtp_from_name' => ['nullable', 'string', 'max:190'],
+        ]);
+
+        $this->setMany([
+            'smtp_host' => [$validated['smtp_host'] ?? '', 'Host SMTP do sistema'],
+            'smtp_port' => [(string) ($validated['smtp_port'] ?? 587), 'Porta SMTP do sistema'],
+            'smtp_username' => [$validated['smtp_username'] ?? '', 'Usuário SMTP do sistema'],
+            'smtp_password' => [$validated['smtp_password'] ?? '', 'Senha SMTP do sistema'],
+            'smtp_encryption' => [$validated['smtp_encryption'] ?? 'tls', 'Criptografia SMTP do sistema'],
+            'smtp_from_address' => [$validated['smtp_from_address'] ?? '', 'E-mail remetente do sistema'],
+            'smtp_from_name' => [$validated['smtp_from_name'] ?? 'Âncora', 'Nome remetente do sistema'],
+        ]);
+
+        return back()->with('success', 'SMTP atualizado com sucesso.');
+    }
+
+    public function saveAccessProfiles(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'profile_slug' => ['required', 'string', 'max:80'],
+            'profile_name' => ['required', 'string', 'max:120'],
+            'profile_modules' => ['array'],
+            'profile_routes' => ['array'],
+        ]);
+
+        $profiles = collect($this->accessProfiles())->keyBy('slug');
+        $slug = Str::slug($validated['profile_slug']);
+        if ($slug === '') {
+            $slug = Str::slug($validated['profile_name']);
+        }
+
+        $profiles[$slug] = [
+            'slug' => $slug,
+            'name' => $validated['profile_name'],
+            'module_ids' => array_values(array_map('intval', (array) ($validated['profile_modules'] ?? []))),
+            'route_ids' => array_values(array_map('intval', (array) ($validated['profile_routes'] ?? []))),
+        ];
+
+        AppSetting::setValue('access_profiles_json', json_encode($profiles->values()->all(), JSON_UNESCAPED_UNICODE), 'Perfis de acesso parametrizados');
+        return back()->with('success', 'Perfil de acesso salvo com sucesso.');
+    }
+
+    public function deleteAccessProfile(string $slug): RedirectResponse
+    {
+        $profiles = collect($this->accessProfiles())->reject(fn (array $profile) => $profile['slug'] === $slug)->values()->all();
+        AppSetting::setValue('access_profiles_json', json_encode($profiles, JSON_UNESCAPED_UNICODE), 'Perfis de acesso parametrizados');
+        return back()->with('success', 'Perfil de acesso excluído.');
     }
 
     public function storeAdministradora(Request $request): RedirectResponse
@@ -209,6 +273,7 @@ class ConfigController extends Controller
             'password' => ['required', 'string', 'min:6'],
             'role' => ['required', Rule::in(['superadmin', 'comum'])],
             'is_active' => ['nullable'],
+            'access_profile_slug' => ['nullable', 'string'],
         ]);
 
         DB::transaction(function () use ($request, $validated) {
@@ -235,6 +300,7 @@ class ConfigController extends Controller
             'password' => ['nullable', 'string', 'min:6'],
             'role' => ['required', Rule::in(['superadmin', 'comum'])],
             'is_active' => ['nullable'],
+            'access_profile_slug' => ['nullable', 'string'],
         ]);
 
         if ($user->is_protected && $validated['role'] !== 'superadmin') {
@@ -294,10 +360,25 @@ class ConfigController extends Controller
             return;
         }
 
+        $profileSlug = trim((string) $request->input('access_profile_slug', ''));
+        if ($profileSlug !== '') {
+            $profile = collect($this->accessProfiles())->firstWhere('slug', $profileSlug);
+            if ($profile) {
+                $user->modules()->sync(array_map('intval', $profile['module_ids'] ?? []));
+                $user->routePermissions()->sync(array_map('intval', $profile['route_ids'] ?? []));
+                return;
+            }
+        }
+
         $moduleIds = array_map('intval', (array) $request->input('module_permissions', []));
         $routeIds = array_map('intval', (array) $request->input('route_permissions', []));
         $user->modules()->sync($moduleIds);
         $user->routePermissions()->sync($routeIds);
+    }
+
+    private function accessProfiles(): array
+    {
+        return AncoraSettings::getJson('access_profiles_json', []);
     }
 
     private function administradoraPayload(Request $request, ?Administradora $current): array

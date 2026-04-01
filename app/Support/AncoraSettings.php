@@ -16,17 +16,29 @@ class AncoraSettings
         return AppSetting::getValue($key, $default);
     }
 
+    public static function getJson(string $key, array $default = []): array
+    {
+        $value = static::get($key);
+        if (!$value) {
+            return $default;
+        }
+
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : $default;
+    }
+
     public static function brand(): array
     {
         $appName = self::get('app_name', 'Âncora') ?: 'Âncora';
         $company = self::get('app_company', $appName) ?: $appName;
-        $logoLight = self::get('branding_logo_light_path', '/branding/logo-light.svg') ?: '/branding/logo-light.svg';
-        $logoDark = self::get('branding_logo_dark_path', '/branding/logo-dark.svg') ?: '/branding/logo-dark.svg';
+        $logoLight = self::get('branding_logo_light_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
+        $logoDark = self::get('branding_logo_dark_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $premiumVariant = self::get('branding_premium_logo_variant', 'light') === 'dark' ? 'dark' : 'light';
 
         return [
             'app_name' => $appName,
             'company_name' => $company,
+            'slogan' => self::get('app_slogan', 'Plataforma modular para gestão jurídica, comercial e condominial.') ?: '',
             'base_url' => self::get('app_base_url', config('app.url')),
             'logo_light' => $logoLight,
             'logo_dark' => $logoDark,
@@ -36,12 +48,25 @@ class AncoraSettings
             'company_phone' => self::get('company_phone', ''),
             'company_email' => self::get('company_email', ''),
             'company_address' => self::get('company_address', ''),
-            'company_website' => self::get('company_website', 'www.serratech.tec.br') ?: 'www.serratech.tec.br',
-            'company_social_primary' => self::get('company_social_primary', '@serratech.br') ?: '@serratech.br',
-            'company_social_secondary' => self::get('company_social_secondary', '@serratech.br') ?: '@serratech.br',
+            'company_website' => self::get('company_website', 'https://serratech.tec.br') ?: 'https://serratech.tec.br',
+            'powered_by_name' => self::get('powered_by_name', 'Serratech Soluções em TI') ?: 'Serratech Soluções em TI',
+            'powered_by_url' => self::get('powered_by_url', 'https://serratech.tec.br') ?: 'https://serratech.tec.br',
             'logo_height_desktop' => (int) (self::get('branding_logo_height_desktop', '44') ?: 44),
             'logo_height_mobile' => (int) (self::get('branding_logo_height_mobile', '36') ?: 36),
             'logo_height_login' => (int) (self::get('branding_logo_height_login', '82') ?: 82),
+        ];
+    }
+
+    public static function smtp(): array
+    {
+        return [
+            'host' => self::get('smtp_host', ''),
+            'port' => self::get('smtp_port', '587'),
+            'username' => self::get('smtp_username', ''),
+            'password' => self::get('smtp_password', ''),
+            'encryption' => self::get('smtp_encryption', 'tls') ?: 'tls',
+            'from_address' => self::get('smtp_from_address', self::get('company_email', '')), 
+            'from_name' => self::get('smtp_from_name', self::get('app_name', 'Âncora')),
         ];
     }
 }

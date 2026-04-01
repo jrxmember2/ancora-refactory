@@ -5,21 +5,21 @@
     :class="{ 'w-[290px]': $store.sidebar.isExpanded || $store.sidebar.isMobileOpen || $store.sidebar.isHovered, 'w-[90px]': !$store.sidebar.isExpanded && !$store.sidebar.isHovered, 'translate-x-0': $store.sidebar.isMobileOpen, '-translate-x-full xl:translate-x-0': !$store.sidebar.isMobileOpen }"
     @mouseenter="if(!$store.sidebar.isExpanded) $store.sidebar.setHovered(true)"
     @mouseleave="$store.sidebar.setHovered(false)">
-    <div class="flex pt-8 pb-7" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-start'">
+    <div class="flex items-center pt-7 pb-6" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center min-h-[72px]' : 'justify-start min-h-[72px]'">
         <a href="{{ route('hub') }}" class="flex items-center gap-3 overflow-hidden">
             <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="w-auto dark:hidden" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
             <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
-            <div x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen" class="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-theme-sm">
+            <div x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen" class="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-theme-sm">
                 <i class="fa-solid fa-anchor text-lg"></i>
             </div>
         </a>
     </div>
 
-    <div class="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
+    <div class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto duration-300 ease-linear">
         <nav class="mb-6 flex flex-col gap-6">
             @foreach($ancoraMenuGroups as $groupIndex => $group)
                 <div>
-                    <h2 class="mb-4 flex text-xs leading-[20px] uppercase text-gray-400" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-start'">
+                    <h2 class="mb-4 flex text-xs leading-[20px] uppercase tracking-[0.16em] text-gray-400" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-start'">
                         <template x-if="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"><span>{{ $group['title'] }}</span></template>
                         <template x-if="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen"><span>•••</span></template>
                     </h2>
@@ -55,9 +55,23 @@
             @endforeach
         </nav>
 
-        <div class="mt-auto pb-6 text-xs text-gray-400" x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen">
-            <p class="font-medium text-gray-600 dark:text-gray-300">{{ $ancoraBrand['app_name'] ?? 'Âncora' }}</p>
-            <p class="mt-1">Core Laravel + TailAdmin</p>
+        <div class="mt-auto rounded-2xl border border-gray-200 bg-gray-50/80 p-4 text-xs text-gray-500 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-300" x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" x-cloak>
+            <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ $ancoraBrand['company_name'] ?? ($ancoraBrand['app_name'] ?? 'Âncora') }}</p>
+            @if(!empty($ancoraBrand['slogan']))
+                <p class="mt-1 text-gray-500 dark:text-gray-400">{{ $ancoraBrand['slogan'] }}</p>
+            @endif
+            <div class="mt-3 space-y-1 leading-relaxed">
+                @if(!empty($ancoraBrand['company_phone']))<p><i class="fa-solid fa-phone mr-2"></i>{{ $ancoraBrand['company_phone'] }}</p>@endif
+                @if(!empty($ancoraBrand['company_email']))<p><i class="fa-solid fa-envelope mr-2"></i>{{ $ancoraBrand['company_email'] }}</p>@endif
+                @if(!empty($ancoraBrand['company_address']))<p><i class="fa-solid fa-location-dot mr-2"></i>{{ $ancoraBrand['company_address'] }}</p>@endif
+            </div>
+            <div class="mt-4 border-t border-gray-200 pt-3 dark:border-gray-800">
+                <p class="text-[11px] uppercase tracking-[0.18em] text-gray-400">Powered by</p>
+                <a href="{{ $ancoraBrand['powered_by_url'] ?? 'https://serratech.tec.br' }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-2 font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
+                    {{ $ancoraBrand['powered_by_name'] ?? 'Serratech Soluções em TI' }}
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+            </div>
         </div>
     </div>
 </aside>
