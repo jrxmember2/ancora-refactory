@@ -42,7 +42,7 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 
-RUN cp .env.example .env \
+RUN touch .env \
     && mkdir -p \
         storage/framework/cache \
         storage/framework/sessions \
