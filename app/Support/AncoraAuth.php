@@ -40,6 +40,7 @@ class AncoraAuth
             'role' => $user->role,
             'theme_preference' => $user->theme_preference ?: 'dark',
             'module_permissions' => $user->accessibleModuleSlugs(),
+            'route_permissions' => $user->accessibleRouteNames(),
         ];
 
         $request->session()->put('auth_user', $payload);

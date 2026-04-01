@@ -8,7 +8,7 @@
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
             <div>
-                <p class="text-xs uppercase tracking-[0.2em] text-gray-400">{{ $ancoraBrand['app_name'] ?? 'Âncora' }}</p>
+                <p class="text-xs uppercase tracking-[0.2em] text-gray-400">{{ $ancoraBrand['company_name'] ?? ($ancoraBrand['app_name'] ?? 'Âncora') }}</p>
                 <h1 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ $title ?? 'Painel' }}</h1>
             </div>
         </div>

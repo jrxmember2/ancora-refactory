@@ -86,6 +86,26 @@ class ProposalService
         $proposal->update($payload);
     }
 
+    public static function attachmentValidation(mixed $file): array
+    {
+        $errors = [];
+        if (!$file) {
+            $errors[] = 'Selecione um arquivo PDF.';
+            return $errors;
+        }
+        if (!$file->isValid()) {
+            $errors[] = 'Falha no upload do arquivo.';
+            return $errors;
+        }
+        if (($file->getSize() ?: 0) > 8 * 1024 * 1024) {
+            $errors[] = 'O arquivo deve ter no máximo 8 MB.';
+        }
+        if (strtolower($file->getClientOriginalExtension()) !== 'pdf') {
+            $errors[] = 'Apenas arquivos PDF são permitidos.';
+        }
+        return $errors;
+    }
+
     public static function moneyToDb(mixed $value): ?float
     {
         if ($value === null || $value === '') {

@@ -7,8 +7,8 @@
     @mouseleave="$store.sidebar.setHovered(false)">
     <div class="flex pt-8 pb-7" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-start'">
         <a href="{{ route('hub') }}" class="flex items-center gap-3 overflow-hidden">
-            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="h-10 w-auto dark:hidden" />
-            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden h-10 w-auto dark:block" />
+            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="w-auto dark:hidden" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
+            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
             <div x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen" class="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-theme-sm">
                 <i class="fa-solid fa-anchor text-lg"></i>
             </div>

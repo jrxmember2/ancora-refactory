@@ -39,6 +39,11 @@ class User extends Model
         return $this->belongsToMany(SystemModule::class, 'user_module_permissions', 'user_id', 'module_id');
     }
 
+    public function routePermissions(): BelongsToMany
+    {
+        return $this->belongsToMany(RoutePermission::class, 'user_route_permissions', 'user_id', 'route_permission_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', 1);
@@ -57,4 +62,14 @@ class User extends Model
 
         return $this->modules()->pluck('slug')->all();
     }
+
+    public function accessibleRouteNames(): array
+    {
+        if ($this->isSuperadmin()) {
+            return [];
+        }
+
+        return $this->routePermissions()->pluck('route_name')->all();
+    }
 }
+

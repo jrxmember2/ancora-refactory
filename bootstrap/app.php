@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAncoraAuthenticated;
 use App\Http\Middleware\EnsureGuest;
+use App\Http\Middleware\EnsureRoutePermission;
+use App\Http\Middleware\EnsureSuperadmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'ancora.auth' => EnsureAncoraAuthenticated::class,
             'ancora.guest' => EnsureGuest::class,
+            'ancora.superadmin' => EnsureSuperadmin::class,
+            'ancora.route' => EnsureRoutePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

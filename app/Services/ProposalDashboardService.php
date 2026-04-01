@@ -42,8 +42,8 @@ class ProposalDashboardService
         $totals = DB::table('propostas as p')
             ->join('status_retorno as st', 'st.id', '=', 'p.response_status_id')
             ->selectRaw('COALESCE(SUM(p.proposal_total),0) as total_amount')
-            ->selectRaw('COALESCE(SUM(CASE WHEN st.system_key = "approved" THEN COALESCE(p.closed_total,0) ELSE 0 END),0) as total_closed_amount')
-            ->selectRaw('COALESCE(SUM(CASE WHEN st.system_key = "declined" THEN COALESCE(p.proposal_total,0) ELSE 0 END),0) as total_declined_amount')
+            ->selectRaw('COALESCE(SUM(CASE WHEN st.system_key = "fechada" THEN COALESCE(p.closed_total,0) ELSE 0 END),0) as total_closed_amount')
+            ->selectRaw('COALESCE(SUM(CASE WHEN st.system_key = "recusada" THEN COALESCE(p.proposal_total,0) ELSE 0 END),0) as total_declined_amount')
             ->whereYear('p.proposal_date', $year)
             ->first();
 

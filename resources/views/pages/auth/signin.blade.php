@@ -7,16 +7,16 @@
             <div class="mx-auto w-full max-w-md pt-10">
                 <a href="https://ancora.serratech.tec.br" class="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                     <i class="fa-solid fa-arrow-left mr-2"></i>
-                    Projeto Âncora
+                    {{ $ancoraBrand['app_name'] ?? 'Âncora' }}
                 </a>
             </div>
             <div class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
                 <div class="mb-8">
-                    <img src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="h-14 w-auto dark:hidden" />
-                    <img src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden h-14 w-auto dark:block" />
+                    <img src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="w-auto dark:hidden" style="height: {{ max(36, (int) ($ancoraBrand['logo_height_login'] ?? 82)) }}px" />
+                    <img src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(36, (int) ($ancoraBrand['logo_height_login'] ?? 82)) }}px" />
                 </div>
                 <div class="mb-5 sm:mb-8">
-                    <h1 class="mb-2 text-title-sm font-semibold text-gray-800 dark:text-white/90 sm:text-title-md">Entrar no Âncora</h1>
+                    <h1 class="mb-2 text-title-sm font-semibold text-gray-800 dark:text-white/90 sm:text-title-md">Entrar no {{ $ancoraBrand['app_name'] ?? 'Âncora' }}</h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400">Nova base Laravel + TailAdmin preservando o mecanismo do sistema.</p>
                 </div>
                 <form method="post" action="{{ route('login.store') }}" class="space-y-5">
