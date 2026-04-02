@@ -7,7 +7,7 @@
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4">
-        <select name="role_tag" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4"><option value="">Todos os papéis</option><option value="sindico" @selected(($filters['role_tag'] ?? '')==='sindico')>Síndico</option><option value="administradora" @selected(($filters['role_tag'] ?? '')==='administradora')>Administradora</option></select>
+        <select name="role_tag" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4"><option value="">Todos os papéis</option>@foreach(($entityRoles ?? collect()) as $role)<option value="{{ $role->name }}" @selected(($filters['role_tag'] ?? '')===$role->name)>{{ $role->name }}</option>@endforeach</select>
         <div class="flex gap-3"><button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Filtrar</button><a href="{{ route('clientes.contatos') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium">Limpar</a></div>
     </form>
 </div>

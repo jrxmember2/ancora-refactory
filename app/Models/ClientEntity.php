@@ -24,6 +24,8 @@ class ClientEntity extends Model
             'phones_json' => 'array',
             'emails_json' => 'array',
             'shareholders_json' => 'array',
+            'birth_date' => 'date',
+            'contract_end_date' => 'date',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

@@ -18,6 +18,7 @@ class ClientCondominium extends Model
             'has_blocks' => 'boolean',
             'is_active' => 'boolean',
             'address_json' => 'array',
+            'contract_end_date' => 'date',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
