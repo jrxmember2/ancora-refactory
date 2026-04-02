@@ -27,8 +27,8 @@ class ClientsController extends Controller
             'unitTypes' => ClientType::query()->where('scope', 'unit')->where('is_active', 1)->orderBy('sort_order')->get(),
             'entityRoles' => ClientType::query()->where('scope', 'entity_role')->where('is_active', 1)->orderBy('sort_order')->orderBy('name')->get(),
             'entitiesAll' => ClientEntity::query()->orderBy('display_name')->get(),
-            'syndics' => ClientEntity::query()->where('role_tag', 'sindico')->orderBy('display_name')->get(),
-            'administradorasList' => ClientEntity::query()->where('role_tag', 'administradora')->orderBy('display_name')->get(),
+            'syndics' => ClientEntity::query()->whereIn('role_tag', ['sindico', 'Síndico', 'síndico'])->orderBy('display_name')->get(),
+            'administradorasList' => ClientEntity::query()->whereIn('role_tag', ['administradora', 'Administradora'])->orderBy('display_name')->get(),
             'condominiumsDropdown' => ClientCondominium::query()->with('blocks')->orderBy('name')->get(),
         ];
     }
@@ -299,6 +299,60 @@ class ClientsController extends Controller
         return (int) ClientEntity::query()->create($payload)->id;
     }
 
+    private function saveClientEntity(Request $request, array $payload, ?ClientEntity $existing, string $successMessage, string $timelineMessage, string $redirectRoute): RedirectResponse
+    {
+        try {
+            $entity = DB::transaction(function () use ($payload, $existing) {
+                if ($existing) {
+                    $payload['created_by'] = $existing->created_by;
+                    $existing->update($payload);
+                    return $existing->fresh();
+                }
+
+                return ClientEntity::query()->create($payload);
+            });
+
+            $this->uploadAttachments('entity', (int) $entity->id, $request);
+            $this->recordTimeline('entity', (int) $entity->id, $timelineMessage, $request);
+
+            return $existing
+                ? back()->with('success', $successMessage)
+                : redirect()->route($redirectRoute, $entity)->with('success', $successMessage);
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->with('error', 'Não foi possível salvar este cadastro agora. Revise os dados e tente novamente.');
+        }
+    }
+
+    private function saveCondominium(Request $request, array $payload, ?ClientCondominium $existing, string $successMessage, string $timelineMessage): RedirectResponse
+    {
+        try {
+            $condo = DB::transaction(function () use ($payload, $existing, $request) {
+                if ($existing) {
+                    $payload['created_by'] = $existing->created_by;
+                    $existing->update($payload);
+                    $this->syncBlocks($existing, $request->input('blocks_text'));
+                    return $existing->fresh();
+                }
+
+                $condo = ClientCondominium::query()->create($payload);
+                $this->syncBlocks($condo, $request->input('blocks_text'));
+                return $condo;
+            });
+
+            $this->uploadAttachments('condominium', (int) $condo->id, $request);
+            $this->uploadCondominiumDocuments((int) $condo->id, $request);
+            $this->recordTimeline('condominium', (int) $condo->id, $timelineMessage, $request);
+
+            return $existing
+                ? back()->with('success', $successMessage)
+                : redirect()->route('clientes.condominios.edit', $condo)->with('success', $successMessage);
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->with('error', 'Não foi possível salvar o condomínio agora. Revise os dados e tente novamente.');
+        }
+    }
+
     public function index(): View
     {
         return view('pages.clientes.index', array_merge([
@@ -367,11 +421,14 @@ class ClientsController extends Controller
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $entity = ClientEntity::query()->create($payload);
-        $this->uploadAttachments('entity', (int) $entity->id, $request);
-        $this->recordTimeline('entity', (int) $entity->id, 'Cliente avulso cadastrado.', $request);
-
-        return redirect()->route('clientes.avulsos.edit', $entity)->with('success', 'Cliente avulso cadastrado.');
+        return $this->saveClientEntity(
+            $request,
+            $payload,
+            null,
+            'Cliente avulso cadastrado.',
+            'Cliente avulso cadastrado.',
+            'clientes.avulsos.edit'
+        );
     }
 
     public function avulsoEdit(ClientEntity $avulso): View
@@ -394,17 +451,19 @@ class ClientsController extends Controller
         abort_if($avulso->profile_scope !== 'avulso', 404);
 
         $payload = $this->entityPayloadFromRequest($request, 'avulso', $avulso->role_tag ?: 'outro');
-        $payload['created_by'] = $avulso->created_by;
         $errors = $this->validateEntity($payload);
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $avulso->update($payload);
-        $this->uploadAttachments('entity', (int) $avulso->id, $request);
-        $this->recordTimeline('entity', (int) $avulso->id, 'Cliente avulso atualizado.', $request);
-
-        return back()->with('success', 'Cliente avulso atualizado.');
+        return $this->saveClientEntity(
+            $request,
+            $payload,
+            $avulso,
+            'Cliente avulso atualizado.',
+            'Cliente avulso atualizado.',
+            'clientes.avulsos.edit'
+        );
     }
 
     public function avulsoDelete(ClientEntity $avulso): RedirectResponse
@@ -450,11 +509,14 @@ class ClientsController extends Controller
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $entity = ClientEntity::query()->create($payload);
-        $this->uploadAttachments('entity', (int) $entity->id, $request);
-        $this->recordTimeline('entity', (int) $entity->id, 'Contato cadastrado.', $request);
-
-        return redirect()->route('clientes.contatos.edit', $entity)->with('success', 'Cadastro concluído com sucesso.');
+        return $this->saveClientEntity(
+            $request,
+            $payload,
+            null,
+            'Cadastro concluído com sucesso.',
+            'Contato cadastrado.',
+            'clientes.contatos.edit'
+        );
     }
 
     public function contatoEdit(ClientEntity $contato): View
@@ -475,17 +537,19 @@ class ClientsController extends Controller
         abort_if($contato->profile_scope !== 'contato', 404);
 
         $payload = $this->entityPayloadFromRequest($request, 'contato', $contato->role_tag ?: 'administradora');
-        $payload['created_by'] = $contato->created_by;
         $errors = $this->validateEntity($payload);
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $contato->update($payload);
-        $this->uploadAttachments('entity', (int) $contato->id, $request);
-        $this->recordTimeline('entity', (int) $contato->id, 'Contato atualizado.', $request);
-
-        return back()->with('success', 'Cadastro atualizado com sucesso.');
+        return $this->saveClientEntity(
+            $request,
+            $payload,
+            $contato,
+            'Cadastro atualizado com sucesso.',
+            'Contato atualizado.',
+            'clientes.contatos.edit'
+        );
     }
 
     public function contatoDelete(ClientEntity $contato): RedirectResponse
@@ -529,17 +593,13 @@ class ClientsController extends Controller
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $condo = DB::transaction(function () use ($payload, $request) {
-            $condo = ClientCondominium::query()->create($payload);
-            $this->syncBlocks($condo, $request->input('blocks_text'));
-            return $condo;
-        });
-
-        $this->uploadAttachments('condominium', (int) $condo->id, $request);
-        $this->uploadCondominiumDocuments((int) $condo->id, $request);
-        $this->recordTimeline('condominium', (int) $condo->id, 'Condomínio cadastrado.', $request);
-
-        return redirect()->route('clientes.condominios.edit', $condo)->with('success', 'Condomínio cadastrado.');
+        return $this->saveCondominium(
+            $request,
+            $payload,
+            null,
+            'Condomínio cadastrado.',
+            'Condomínio cadastrado.'
+        );
     }
 
     public function condominioEdit(ClientCondominium $condominio): View
@@ -557,22 +617,18 @@ class ClientsController extends Controller
     public function condominioUpdate(Request $request, ClientCondominium $condominio): RedirectResponse
     {
         $payload = $this->condominioPayload($request);
-        $payload['created_by'] = $condominio->created_by;
         $errors = $this->validateCondominium($payload);
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        DB::transaction(function () use ($condominio, $payload, $request) {
-            $condominio->update($payload);
-            $this->syncBlocks($condominio, $request->input('blocks_text'));
-        });
-
-        $this->uploadAttachments('condominium', (int) $condominio->id, $request);
-        $this->uploadCondominiumDocuments((int) $condominio->id, $request);
-        $this->recordTimeline('condominium', (int) $condominio->id, 'Condomínio atualizado.', $request);
-
-        return back()->with('success', 'Condomínio atualizado.');
+        return $this->saveCondominium(
+            $request,
+            $payload,
+            $condominio,
+            'Condomínio atualizado.',
+            'Condomínio atualizado.'
+        );
     }
 
     public function condominioDelete(ClientCondominium $condominio): RedirectResponse
@@ -619,11 +675,16 @@ class ClientsController extends Controller
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $unit = ClientUnit::query()->create($payload);
-        $this->uploadAttachments('unit', (int) $unit->id, $request);
-        $this->recordTimeline('unit', (int) $unit->id, 'Unidade cadastrada.', $request);
+        try {
+            $unit = ClientUnit::query()->create($payload);
+            $this->uploadAttachments('unit', (int) $unit->id, $request);
+            $this->recordTimeline('unit', (int) $unit->id, 'Unidade cadastrada.', $request);
 
-        return redirect()->route('clientes.unidades.edit', $unit)->with('success', 'Unidade cadastrada.');
+            return redirect()->route('clientes.unidades.edit', $unit)->with('success', 'Unidade cadastrada.');
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->with('error', 'Não foi possível salvar a unidade agora. Revise os dados e tente novamente.');
+        }
     }
 
     public function unidadeEdit(ClientUnit $unidade): View
@@ -648,11 +709,16 @@ class ClientsController extends Controller
             return back()->withInput()->with('errors_list', $errors);
         }
 
-        $unidade->update($payload);
-        $this->uploadAttachments('unit', (int) $unidade->id, $request);
-        $this->recordTimeline('unit', (int) $unidade->id, 'Unidade atualizada.', $request);
+        try {
+            $unidade->update($payload);
+            $this->uploadAttachments('unit', (int) $unidade->id, $request);
+            $this->recordTimeline('unit', (int) $unidade->id, 'Unidade atualizada.', $request);
 
-        return back()->with('success', 'Unidade atualizada.');
+            return back()->with('success', 'Unidade atualizada.');
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->with('error', 'Não foi possível salvar a unidade agora. Revise os dados e tente novamente.');
+        }
     }
 
     public function unidadeDelete(ClientUnit $unidade): RedirectResponse
