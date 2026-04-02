@@ -201,7 +201,7 @@ class ClientsController extends Controller
             }
 
             $ext = strtolower($file->getClientOriginalExtension());
-            if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp'], true)) {
+            if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx'], true)) {
                 continue;
             }
             if ($role === 'contrato' && $ext !== 'pdf') {
@@ -214,6 +214,8 @@ class ClientsController extends Controller
             if ($labelPrefix) {
                 $originalName = $labelPrefix . ' - ' . $originalName;
             }
+            $originalName = Str::limit($originalName, 250, '');
+            $mimeType = Str::limit((string) $file->getClientMimeType(), 120, '');
 
             ClientAttachment::query()->create([
                 'related_type' => $relatedType,
@@ -222,7 +224,7 @@ class ClientsController extends Controller
                 'original_name' => $originalName,
                 'stored_name' => $stored,
                 'relative_path' => '/uploads/clientes/' . $relatedType . '/' . $relatedId . '/' . $stored,
-                'mime_type' => $file->getClientMimeType(),
+                'mime_type' => $mimeType ?: null,
                 'file_size' => $file->getSize() ?: 0,
                 'uploaded_by' => AncoraAuth::user($request)?->id,
             ]);
@@ -853,5 +855,214 @@ class ClientsController extends Controller
             $errors[] = 'Informe o número da unidade.';
         }
         return $errors;
+    }
+
+    private function normalizeCsvHeader(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        $value = strtr($value, [
+            'á' => 'a', 'à' => 'a', 'ã' => 'a', 'â' => 'a',
+            'é' => 'e', 'ê' => 'e',
+            'í' => 'i',
+            'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+        ]);
+        $value = preg_replace('/[^a-z0-9]+/', '_', $value);
+        return trim((string) $value, '_');
+    }
+
+    private function csvField(array $row, array $keys): string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $row) && trim((string) $row[$key]) !== '') {
+                return trim((string) $row[$key]);
+            }
+        }
+
+        return '';
+    }
+
+    private function resolveUnitTypeId(?string $unitTypeName): ?int
+    {
+        $unitTypeName = trim((string) $unitTypeName);
+        if ($unitTypeName === '') {
+            return null;
+        }
+
+        $type = ClientType::query()->firstOrCreate(
+            ['scope' => 'unit', 'name' => $unitTypeName],
+            ['is_active' => 1, 'sort_order' => 999]
+        );
+
+        return (int) $type->id;
+    }
+
+    private function resolveBlockId(ClientCondominium $condominium, ?string $blockName): ?int
+    {
+        $blockName = trim((string) $blockName);
+        if ($blockName === '') {
+            return null;
+        }
+
+        $block = ClientBlock::query()->firstOrCreate(
+            ['condominium_id' => $condominium->id, 'name' => $blockName],
+            ['sort_order' => 999]
+        );
+
+        return (int) $block->id;
+    }
+
+    private function syncPartyEntityFromArray(array $data, string $roleTag, int $userId): ?int
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        $document = trim((string) ($data['document'] ?? ''));
+        $phones = collect((array) ($data['phones'] ?? []))->map(fn ($value) => trim((string) $value))->filter()->values()->all();
+        $emails = collect((array) ($data['emails'] ?? []))->map(fn ($value) => trim((string) $value))->filter()->values()->all();
+        $address = (array) ($data['address'] ?? []);
+
+        if ($name === '' && $document === '' && empty($phones) && empty($emails) && collect($address)->filter(fn ($value) => trim((string) $value) !== '')->isEmpty()) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $document);
+        $entityType = strlen($digits) > 11 ? 'pj' : 'pf';
+
+        $payload = [
+            'entity_type' => $entityType,
+            'profile_scope' => 'contato',
+            'role_tag' => $roleTag,
+            'display_name' => $name !== '' ? $name : ucfirst($roleTag),
+            'legal_name' => $entityType === 'pj' ? ($name !== '' ? $name : null) : null,
+            'cpf_cnpj' => $document !== '' ? $document : null,
+            'phones_json' => $this->parseSimpleValues($phones, 'number', 'Telefone'),
+            'emails_json' => $this->parseSimpleValues($emails, 'email', 'E-mail'),
+            'primary_address_json' => $address,
+            'billing_address_json' => $address,
+            'is_active' => true,
+            'updated_by' => $userId ?: null,
+        ];
+
+        $query = ClientEntity::query()->where('profile_scope', 'contato')->where('role_tag', $roleTag);
+        if ($document !== '') {
+            $query->where('cpf_cnpj', $document);
+        } else {
+            $query->where('display_name', $payload['display_name']);
+        }
+
+        $entity = $query->first();
+        if ($entity) {
+            $payload['created_by'] = $entity->created_by;
+            $entity->update($payload);
+            return (int) $entity->id;
+        }
+
+        $payload['created_by'] = $userId ?: null;
+        return (int) ClientEntity::query()->create($payload)->id;
+    }
+
+    public function unidadesImport(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'import_condominium_id' => ['required', 'integer'],
+            'import_file' => ['required', 'file', 'mimes:csv,txt'],
+        ]);
+
+        $condominium = ClientCondominium::query()->findOrFail((int) $request->input('import_condominium_id'));
+        $file = $request->file('import_file');
+        $handle = fopen($file->getRealPath(), 'r');
+
+        if (!$handle) {
+            return back()->with('error', 'Não foi possível abrir a planilha CSV para importação.');
+        }
+
+        try {
+            $header = fgetcsv($handle, 0, ',');
+            if (!$header) {
+                return back()->with('error', 'A planilha CSV está vazia.');
+            }
+
+            $header = array_map(fn ($value) => $this->normalizeCsvHeader((string) $value), $header);
+            $created = 0;
+            $updated = 0;
+            $userId = (int) (AncoraAuth::user($request)?->id ?? 0);
+
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
+                    continue;
+                }
+
+                $data = [];
+                foreach ($header as $index => $column) {
+                    $data[$column] = $row[$index] ?? '';
+                }
+
+                $unitNumber = $this->csvField($data, ['unit_number', 'unidade', 'numero_unidade', 'numero']);
+                if ($unitNumber === '') {
+                    continue;
+                }
+
+                $blockName = $this->csvField($data, ['block', 'bloco', 'torre']);
+                $unitTypeName = $this->csvField($data, ['unit_type', 'tipo_unidade', 'tipo']);
+
+                $ownerId = $this->syncPartyEntityFromArray([
+                    'name' => $this->csvField($data, ['owner_name', 'proprietario_nome', 'proprietario']),
+                    'document' => $this->csvField($data, ['owner_document', 'owner_cpf_cnpj', 'proprietario_documento', 'proprietario_cpf_cnpj']),
+                    'phones' => [$this->csvField($data, ['owner_phone', 'proprietario_telefone'])],
+                    'emails' => [$this->csvField($data, ['owner_email', 'proprietario_email'])],
+                ], 'proprietario', $userId);
+
+                $tenantId = $this->syncPartyEntityFromArray([
+                    'name' => $this->csvField($data, ['tenant_name', 'locatario_nome', 'locatario']),
+                    'document' => $this->csvField($data, ['tenant_document', 'tenant_cpf_cnpj', 'locatario_documento', 'locatario_cpf_cnpj']),
+                    'phones' => [$this->csvField($data, ['tenant_phone', 'locatario_telefone'])],
+                    'emails' => [$this->csvField($data, ['tenant_email', 'locatario_email'])],
+                ], 'locatario', $userId);
+
+                $blockId = $this->resolveBlockId($condominium, $blockName);
+                $unitTypeId = $this->resolveUnitTypeId($unitTypeName);
+
+                $existing = ClientUnit::query()
+                    ->where('condominium_id', $condominium->id)
+                    ->where('unit_number', $unitNumber)
+                    ->where(function ($query) use ($blockId) {
+                        if ($blockId) {
+                            $query->where('block_id', $blockId);
+                        } else {
+                            $query->whereNull('block_id');
+                        }
+                    })
+                    ->first();
+
+                $payload = [
+                    'condominium_id' => $condominium->id,
+                    'block_id' => $blockId,
+                    'unit_type_id' => $unitTypeId,
+                    'unit_number' => $unitNumber,
+                    'owner_entity_id' => $ownerId,
+                    'tenant_entity_id' => $tenantId,
+                    'owner_notes' => null,
+                    'tenant_notes' => null,
+                    'updated_by' => $userId ?: null,
+                ];
+
+                if ($existing) {
+                    $payload['created_by'] = $existing->created_by;
+                    $existing->update($payload);
+                    $updated++;
+                } else {
+                    $payload['created_by'] = $userId ?: null;
+                    ClientUnit::query()->create($payload);
+                    $created++;
+                }
+            }
+
+            return back()->with('success', "Importação concluída. {$created} unidade(s) criada(s) e {$updated} atualizada(s).");
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->with('error', 'Não foi possível concluir a importação em massa agora. Revise o CSV e tente novamente.');
+        } finally {
+            fclose($handle);
+        }
     }
 }

@@ -3,11 +3,12 @@
 @section('content')
 @php
     $firstName = explode(' ', trim($ancoraAuthUser?->name ?? 'Usuário'))[0] ?? 'Usuário';
-    $hour = (int) now()->format('H');
-    $greeting = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
+    $now = now();
+    $time = $now->format('H:i');
+    $greeting = ($time >= '06:00' && $time < '12:00') ? 'Bom dia' : (($time >= '12:00' && $time < '18:00') ? 'Boa tarde' : 'Boa noite');
 @endphp
 
-<x-ancora.section-header title="{{ $greeting }}, {{ $firstName }}" subtitle="Selecione um módulo para continuar trabalhando na nova base Laravel.">
+<x-ancora.section-header title="{{ $greeting }}, {{ $firstName }}" subtitle="Selecione um módulo para continuar trabalhando.">
     <div class="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <p class="text-xs uppercase tracking-[0.2em] text-gray-400">Agora</p>
         <div class="mt-2 text-right">
@@ -30,12 +31,20 @@
             <h3 class="relative mt-6 text-xl font-semibold text-gray-900 dark:text-white">{{ $tile['name'] }}</h3>
             <p class="relative mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ $tile['description'] }}</p>
             <div class="relative mt-6 flex items-center gap-2 text-sm font-medium text-brand-500 dark:text-brand-400">
-                <span>Acessar módulo</span>
+                <span>Acessar</span>
                 <i class="fa-solid fa-arrow-right transition duration-300 group-hover:translate-x-1"></i>
             </div>
         </a>
     @endforeach
 </div>
+
+<div class="fixed bottom-3 right-4 z-40 hidden rounded-full border border-gray-200 bg-white/90 px-3 py-2 text-[11px] font-medium text-gray-600 shadow-theme-xs backdrop-blur xl:inline-flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-300">
+    <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 hover:text-brand-600 dark:hover:text-brand-400">
+        <span>Powered by Serratech</span>
+        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+    </a>
+</div>
+
 @endsection
 
 @push('scripts')

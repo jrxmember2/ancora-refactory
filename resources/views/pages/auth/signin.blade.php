@@ -36,13 +36,13 @@
                     <i class="fa-solid fa-layer-group"></i>
                     Ecossistema Âncora
                 </div>
-                <h2 class="mt-6 text-4xl font-semibold leading-tight">Uma plataforma pensada para organizar propostas, clientes, permissões e crescimento modular com aparência profissional.</h2>
-                <p class="mt-4 text-base text-white/70">Centralize operação, identidade visual, gestão de acesso e relacionamento com clientes em uma base preparada para evoluir com o seu negócio.</p>
-                <div class="mt-8 grid grid-cols-2 gap-4">
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-2xl font-semibold">Branding vivo</div><p class="mt-1 text-sm text-white/70">Identidade visual, favicon e tema alinhados ao seu escritório.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-2xl font-semibold">Clientes e condomínios</div><p class="mt-1 text-sm text-white/70">Cadastros estruturados para síndicos, administradoras, unidades e contatos.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-2xl font-semibold">Propostas premium</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-2xl font-semibold">Escala real</div><p class="mt-1 text-sm text-white/70">Base pronta para novos módulos, integrações e operação em VPS.</p></div>
+                <h2 class="mt-6 text-3xl font-semibold leading-tight">Organize propostas, clientes, permissões e novos módulos em uma operação mais clara e profissional.</h2>
+                <p class="mt-4 text-base text-white/70">Centralize operação, identidade visual e gestão de acesso em uma base pronta para crescer com o seu negócio.</p>
+                <div class="mt-6 grid grid-cols-2 gap-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Branding vivo</div><p class="mt-1 text-sm text-white/70">Tema, logo e favicon alinhados ao seu escritório.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Clientes e condomínios</div><p class="mt-1 text-sm text-white/70">Cadastros estruturados para síndicos, administradoras, unidades e contatos.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Propostas premium</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Escala real</div><p class="mt-1 text-sm text-white/70">Base pronta para novos módulos, integrações e operação em VPS.</p></div>
                 </div>
             </div>
             <button class="absolute right-6 bottom-6 inline-flex size-14 items-center justify-center rounded-full bg-brand-500 text-white shadow-theme-lg hover:bg-brand-600" @click.prevent="$store.theme.toggle()"><i class="fa-solid fa-circle-half-stroke"></i></button>
