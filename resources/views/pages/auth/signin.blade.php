@@ -36,16 +36,22 @@
                     <i class="fa-solid fa-layer-group"></i>
                     Ecossistema Âncora
                 </div>
-                <h2 class="mt-6 text-3xl font-semibold leading-tight">Organize propostas, clientes, permissões e novos módulos em uma operação mais clara e profissional.</h2>
-                <p class="mt-4 text-base text-white/70">Centralize operação, identidade visual e gestão de acesso em uma base pronta para crescer com o seu negócio.</p>
+                <h2 class="mt-6 text-3xl font-semibold leading-tight">Controle clientes, condomínios e propostas com mais organização, clareza e velocidade no dia a dia.</h2>
+                <p class="mt-4 text-base text-white/70">O Âncora foi pensado para concentrar cadastros, operação comercial e gestão de acesso em um ambiente mais profissional e fácil de escalar.</p>
                 <div class="mt-6 grid grid-cols-2 gap-3">
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Branding vivo</div><p class="mt-1 text-sm text-white/70">Tema, logo e favicon alinhados ao seu escritório.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Clientes e condomínios</div><p class="mt-1 text-sm text-white/70">Cadastros estruturados para síndicos, administradoras, unidades e contatos.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Propostas premium</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Escala real</div><p class="mt-1 text-sm text-white/70">Base pronta para novos módulos, integrações e operação em VPS.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Clientes organizados</div><p class="mt-1 text-sm text-white/70">Cadastros estruturados para contatos, condomínios, unidades e responsáveis.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Propostas centralizadas</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium em um só lugar.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Acesso sob controle</div><p class="mt-1 text-sm text-white/70">Perfis, permissões e operação mais segura para a equipe.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Base para crescer</div><p class="mt-1 text-sm text-white/70">Pronto para novos módulos, integrações e evolução contínua.</p></div>
                 </div>
             </div>
-            <button class="absolute right-6 bottom-6 inline-flex size-14 items-center justify-center rounded-full bg-brand-500 text-white shadow-theme-lg hover:bg-brand-600" @click.prevent="$store.theme.toggle()"><i class="fa-solid fa-circle-half-stroke"></i></button>
+            <div class="absolute bottom-4 right-4 z-20 inline-flex items-center gap-3">
+                <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[11px] font-medium text-white/90 backdrop-blur-sm hover:bg-white/15">
+                    <span>Powered by Serratech</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+                <button class="inline-flex size-12 items-center justify-center rounded-full bg-brand-500 text-white shadow-theme-lg hover:bg-brand-600" @click.prevent="$store.theme.toggle()"><i class="fa-solid fa-circle-half-stroke"></i></button>
+            </div>
         </div>
     </div>
 </div>

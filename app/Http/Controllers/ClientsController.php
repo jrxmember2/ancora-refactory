@@ -209,13 +209,15 @@ class ClientsController extends Controller
             }
 
             $stored = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $ext;
-            $file->move($dir, $stored);
             $originalName = $file->getClientOriginalName();
             if ($labelPrefix) {
                 $originalName = $labelPrefix . ' - ' . $originalName;
             }
             $originalName = Str::limit($originalName, 250, '');
             $mimeType = Str::limit((string) $file->getClientMimeType(), 120, '');
+            $fileSize = (int) ($file->getSize() ?: 0);
+
+            $file->move($dir, $stored);
 
             ClientAttachment::query()->create([
                 'related_type' => $relatedType,
@@ -225,7 +227,7 @@ class ClientsController extends Controller
                 'stored_name' => $stored,
                 'relative_path' => '/uploads/clientes/' . $relatedType . '/' . $relatedId . '/' . $stored,
                 'mime_type' => $mimeType ?: null,
-                'file_size' => $file->getSize() ?: 0,
+                'file_size' => $fileSize,
                 'uploaded_by' => AncoraAuth::user($request)?->id,
             ]);
         }
