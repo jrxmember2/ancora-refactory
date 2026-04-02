@@ -2,29 +2,76 @@
 
 @section('content')
 @php
+    $item = $condominio ?? null;
     $address = $item?->address_json ?? [];
     $selectedInactive = old('is_inactive', ($item && !$item->is_active) ? 1 : 0);
+    $blocksText = old('blocks_text', isset($blocksText) ? $blocksText : '');
+    $attachments = $attachments ?? collect();
+    $groupedAttachments = [
+        'convention' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'Convenção condominial -')),
+        'regiment' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'Regimento interno -')),
+        'atas' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'ATA -')),
+        'others' => $attachments->reject(fn ($attachment) => str_starts_with($attachment->original_name, 'Convenção condominial -') || str_starts_with($attachment->original_name, 'Regimento interno -') || str_starts_with($attachment->original_name, 'ATA -')),
+    ];
 @endphp
 
-<x-ancora.section-header :title="$title" subtitle="Cadastro de condomínio com vínculo obrigatório de síndico, blocos/towers, documentos e anexos." />
-@include('pages.clientes.partials.subnav')
+<x-ancora.section-header :title="$mode === 'create' ? 'Novo condomínio' : 'Editar condomínio'" subtitle="Cadastro da área condominial com tipo, endereço, síndico, documentos e anexos." />
 
-<form method="post" action="{{ $mode === 'create' ? route('clientes.condominios.store') : route('clientes.condominios.update', $item) }}" enctype="multipart/form-data" class="space-y-6" x-data="{ inactive: {{ $selectedInactive ? 'true' : 'false' }} }">
+<form method="post" action="{{ $mode === 'create' ? route('clientes.condominios.store') : route('clientes.condominios.update', $item) }}" enctype="multipart/form-data" class="space-y-6" x-data="condominiumForm({ inactive: {{ $selectedInactive ? 'true' : 'false' }} })" x-init="init()">
     @csrf
-    @if($mode === 'edit') @method('PUT') @endif
+    @if($mode === 'edit')
+        @method('PUT')
+    @endif
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold">Dados principais</h3>
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div><label class="mb-1.5 block text-sm font-medium">Nome do condomínio</label><input name="name" value="{{ old('name', $item?->name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required></div>
-                    <div><label class="mb-1.5 block text-sm font-medium">Tipo</label><select name="condominium_type_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"><option value="">Selecione</option>@foreach($condominiumTypes as $type)<option value="{{ $type->id }}" @selected((string)old('condominium_type_id', $item?->condominium_type_id)===(string)$type->id)>{{ $type->name }}</option>@endforeach</select></div>
-                    <div><label class="mb-1.5 block text-sm font-medium">CNPJ</label><input name="cnpj" value="{{ old('cnpj', $item?->cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00.000.000/0000-00"></div>
-                    <div><label class="mb-1.5 block text-sm font-medium">Síndico vinculado</label><select name="syndico_entity_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required><option value="">Selecione</option>@foreach($syndics as $syndic)<option value="{{ $syndic->id }}" @selected((string)old('syndico_entity_id', $item?->syndico_entity_id)===(string)$syndic->id)>{{ $syndic->display_name }}</option>@endforeach</select></div>
-                    <div><label class="mb-1.5 block text-sm font-medium">Administradora</label><select name="administradora_entity_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"><option value="">Selecione</option>@foreach($administradorasList as $admin)<option value="{{ $admin->id }}" @selected((string)old('administradora_entity_id', $item?->administradora_entity_id)===(string)$admin->id)>{{ $admin->display_name }}</option>@endforeach</select></div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="has_blocks" value="1" @checked(old('has_blocks', $item?->has_blocks))> Possui blocos / torres</label>
-                    <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium">Blocos / torres</label><textarea name="blocks_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Um bloco por linha">{{ old('blocks_text', $blocksText) }}</textarea><p class="mt-1 text-xs text-gray-500">Caso o condomínio tenha múltiplos blocos, informe um por linha.</p></div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Nome do condomínio</label>
+                        <input name="name" value="{{ old('name', $item?->name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Tipo</label>
+                        <select name="condominium_type_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                            <option value="">Selecione</option>
+                            @foreach($condominiumTypes as $type)
+                                <option value="{{ $type->id }}" @selected((string) old('condominium_type_id', $item?->condominium_type_id) === (string) $type->id)>{{ $type->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">CNPJ</label>
+                        <input name="cnpj" value="{{ old('cnpj', $item?->cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00.000.000/0000-00" inputmode="numeric" x-ref="cnpj" @input="maskCnpj()">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Síndico vinculado</label>
+                        <select name="syndico_entity_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
+                            <option value="">Selecione</option>
+                            @foreach($syndics as $syndic)
+                                <option value="{{ $syndic->id }}" @selected((string) old('syndico_entity_id', $item?->syndico_entity_id) === (string) $syndic->id)>{{ $syndic->display_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Administradora</label>
+                        <select name="administradora_entity_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                            <option value="">Selecione</option>
+                            @foreach($administradorasList as $admin)
+                                <option value="{{ $admin->id }}" @selected((string) old('administradora_entity_id', $item?->administradora_entity_id) === (string) $admin->id)>{{ $admin->display_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" name="has_blocks" value="1" @checked(old('has_blocks', $item?->has_blocks))>
+                        Possui blocos / torres
+                    </label>
+                    <div class="md:col-span-2">
+                        <label class="mb-1.5 block text-sm font-medium">Blocos / torres</label>
+                        <textarea name="blocks_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Um bloco por linha">{{ $blocksText }}</textarea>
+                        <p class="mt-1 text-xs text-gray-500">Caso o condomínio tenha múltiplos blocos, informe um por linha.</p>
+                    </div>
                 </div>
             </div>
 
@@ -35,31 +82,39 @@
             ])
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Documentos</h3>
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div class="flex items-start justify-between gap-3">
                     <div>
+                        <h3 class="text-base font-semibold">Documentos</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Suba a convenção, o regimento interno e quantas ATAs forem necessárias.</p>
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium">Convenção condominial</label>
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
-                            <input type="file" name="document_convention" class="sr-only">
+                            <input type="file" name="document_convention" class="sr-only" data-file-input>
                         </label>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>{{ $groupedAttachments['convention']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo anexado' }}</div>
                     </div>
-                    <div>
+                    <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium">Regimento interno</label>
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
-                            <input type="file" name="document_regiment" class="sr-only">
+                            <input type="file" name="document_regiment" class="sr-only" data-file-input>
                         </label>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>{{ $groupedAttachments['regiment']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo anexado' }}</div>
                     </div>
-                    <div>
+                    <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium">ATAs</label>
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-files"></i>
                             <span>Selecionar um ou mais arquivos</span>
-                            <input type="file" name="document_atas[]" multiple class="sr-only">
+                            <input type="file" name="document_atas[]" multiple class="sr-only" data-file-input data-multiple>
                         </label>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>{{ $groupedAttachments['atas']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo anexado' }}</div>
                     </div>
                 </div>
             </div>
@@ -77,19 +132,20 @@
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold">Anexos adicionais</h3>
-                <div class="mt-4 space-y-4">
+                <div class="mt-4 space-y-4" data-file-preview>
                     <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                         <i class="fa-solid fa-paperclip"></i>
                         <span>Escolher arquivos para anexar</span>
-                        <input type="file" name="attachments[]" multiple class="sr-only">
+                        <input type="file" name="attachments[]" multiple class="sr-only" data-file-input data-multiple>
                     </label>
+                    <div class="text-xs text-gray-500 dark:text-gray-400" data-file-name>{{ $groupedAttachments['others']->pluck('original_name')->implode(', ') ?: 'Nenhum anexo adicional' }}</div>
                     <div><label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label><select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"><option value="documento">Documento</option><option value="contrato">Contrato</option><option value="outro">Outro</option></select></div>
                 </div>
             </div>
 
             @if($attachments->count())
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                    <h3 class="text-base font-semibold">Documentos e anexos</h3>
+                    <h3 class="text-base font-semibold">Documentos e anexos cadastrados</h3>
                     <div class="mt-4 space-y-3">
                         @foreach($attachments as $attachment)
                             <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
@@ -119,3 +175,34 @@
     </form>
 @endif
 @endsection
+
+@push('scripts')
+<script>
+function condominiumForm(initialState) {
+    return {
+        inactive: !!initialState.inactive,
+        init() { this.maskCnpj(); },
+        maskCnpj() {
+            if (!this.$refs.cnpj) return;
+            let digits = this.$refs.cnpj.value.replace(/\D/g, '').slice(0, 14);
+            digits = digits
+                .replace(/(\d{2})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1/$2')
+                .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+            this.$refs.cnpj.value = digits;
+        },
+    }
+}
+
+document.addEventListener('change', (event) => {
+    if (!event.target.matches('[data-file-input]')) return;
+    const wrapper = event.target.closest('[data-file-preview]');
+    const label = wrapper?.querySelector('[data-file-name]');
+    if (!label) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    label.textContent = files.map((file) => file.name).join(', ');
+});
+</script>
+@endpush

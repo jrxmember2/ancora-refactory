@@ -51,6 +51,7 @@ class AncoraMenu
                 'items' => array_values(array_filter([
                     $has('busca') ? ['label' => 'Busca', 'path' => route('busca'), 'icon' => 'fa-solid fa-magnifying-glass'] : null,
                     $has('config') ? ['label' => 'Configurações', 'path' => route('config.index'), 'icon' => 'fa-solid fa-gear'] : null,
+                    ['label' => 'Versionamento', 'path' => route('changelog.index'), 'icon' => 'fa-solid fa-code-branch'],
                     $has('logs') ? ['label' => 'Logs', 'path' => route('logs.index'), 'icon' => 'fa-solid fa-clock-rotate-left'] : null,
                 ])),
             ],

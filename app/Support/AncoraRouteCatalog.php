@@ -13,6 +13,7 @@ class AncoraRouteCatalog
                     'dashboard.index' => 'Acessar dashboard executivo',
                     'busca.index' => 'Acessar busca global',
                     'logs.index' => 'Acessar logs e auditoria',
+                    'changelog.index' => 'Acessar versionamento e changelog',
                 ],
             ],
             'config' => [

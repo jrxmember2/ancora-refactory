@@ -2,6 +2,7 @@
     $address = $address ?? [];
     $title = $title ?? 'Endereço';
     $showNotes = $showNotes ?? true;
+    $disabledExpression = $disabledExpression ?? null;
     $states = config('brazil.states', []);
     $rawState = old($prefix . '_state', $address['state'] ?? '');
     $selectedState = collect($states)->first(function (array $state) use ($rawState) {
@@ -14,6 +15,8 @@
     });
     $selectedStateSigla = $selectedState['sigla'] ?? (strlen(trim((string) $rawState)) <= 2 ? strtoupper(trim((string) $rawState)) : '');
     $selectedCity = old($prefix . '_city', $address['city'] ?? '');
+    $disabledAttr = $disabledExpression ? " :disabled=\"{$disabledExpression}\"" : '';
+    $disabledClass = $disabledExpression ? " x-bind:class=\"{$disabledExpression} ? 'opacity-60' : ''\"" : '';
 @endphp
 
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"
@@ -29,7 +32,8 @@
         initialNeighborhood: @js(old($prefix . '_neighborhood', $address['neighborhood'] ?? '')),
         initialNotes: @js(old($prefix . '_notes', $address['notes'] ?? '')),
      })"
-     x-init="init()">
+     x-init="init()"
+     {!! $disabledClass !!}>
     <div class="flex items-center justify-between gap-3">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ $title }}</h3>
         <div class="text-xs text-gray-500 dark:text-gray-400">UF e município via IBGE • busca por CEP</div>
@@ -39,8 +43,8 @@
         <div>
             <label class="mb-1.5 block text-sm font-medium">CEP</label>
             <div class="flex gap-2">
-                <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00000-000" inputmode="numeric">
-                <button type="button" @click="fetchCep()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" title="Buscar endereço pelo CEP">
+                <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00000-000" inputmode="numeric" {!! $disabledAttr !!}>
+                <button type="button" @click="fetchCep()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" title="Buscar endereço pelo CEP" {!! $disabledAttr !!}>
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </div>
@@ -48,27 +52,27 @@
 
         <div>
             <label class="mb-1.5 block text-sm font-medium">Rua</label>
-            <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Rua / logradouro">
+            <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Rua / logradouro" {!! $disabledAttr !!}>
         </div>
 
         <div>
             <label class="mb-1.5 block text-sm font-medium">Número</label>
-            <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Número">
+            <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Número" {!! $disabledAttr !!}>
         </div>
 
         <div>
             <label class="mb-1.5 block text-sm font-medium">Complemento</label>
-            <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Complemento">
+            <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Complemento" {!! $disabledAttr !!}>
         </div>
 
         <div>
             <label class="mb-1.5 block text-sm font-medium">Bairro</label>
-            <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Bairro">
+            <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Bairro" {!! $disabledAttr !!}>
         </div>
 
         <div>
             <label class="mb-1.5 block text-sm font-medium">Estado (UF)</label>
-            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" {!! $disabledAttr !!}>
                 <option value="">Selecione</option>
                 <template x-for="uf in states" :key="uf.sigla">
                     <option :value="uf.sigla" x-text="`${uf.nome} (${uf.sigla})`"></option>
@@ -78,7 +82,7 @@
 
         <div class="md:col-span-2">
             <label class="mb-1.5 block text-sm font-medium">Município</label>
-            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!state || loadingCities">
+            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
                 <option value="" x-text="loadingCities ? 'Carregando municípios...' : (state ? 'Selecione o município' : 'Selecione primeiro o estado')"></option>
                 <template x-for="municipio in cities" :key="municipio.nome">
                     <option :value="municipio.nome" x-text="municipio.nome"></option>
@@ -89,7 +93,7 @@
         @if($showNotes)
             <div class="md:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium">Observações</label>
-                <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Ponto de referência, instruções de entrega, etc."></textarea>
+                <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Ponto de referência, instruções de entrega, etc." {!! $disabledAttr !!}></textarea>
             </div>
         @endif
     </div>

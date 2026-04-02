@@ -118,7 +118,9 @@ class ClientsController extends Controller
             'phones_json' => $this->parseLines($request->input('phones_text'), ['label', 'number']),
             'emails_json' => $this->parseLines($request->input('emails_text'), ['label', 'email']),
             'primary_address_json' => $this->addressFromRequest($request, 'primary_address'),
-            'billing_address_json' => $this->addressFromRequest($request, 'billing_address'),
+            'billing_address_json' => $request->boolean('billing_same_as_primary')
+                ? $this->addressFromRequest($request, 'primary_address')
+                : $this->addressFromRequest($request, 'billing_address'),
             'shareholders_json' => $this->parseLines($request->input('shareholders_text'), ['name', 'document', 'role']),
             'notes' => trim((string) $request->input('notes', '')) ?: null,
             'description' => trim((string) $request->input('description', '')) ?: null,

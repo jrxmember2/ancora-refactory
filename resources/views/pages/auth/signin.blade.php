@@ -36,16 +36,16 @@
                     <i class="fa-solid fa-layer-group"></i>
                     Ecossistema Âncora
                 </div>
-                <h2 class="mt-6 text-3xl font-semibold leading-tight">Controle clientes, condomínios e propostas com mais organização, clareza e velocidade no dia a dia.</h2>
-                <p class="mt-4 text-base text-white/70">O Âncora foi pensado para concentrar cadastros, operação comercial e gestão de acesso em um ambiente mais profissional e fácil de escalar.</p>
+                <h2 class="mt-6 text-3xl font-semibold leading-tight">Gestão jurídica e condominial em um único ambiente, com cadastros organizados, propostas profissionais e operação mais fluida no dia a dia.</h2>
+                <p class="mt-4 text-base text-white/70">Organize clientes, condomínios, unidades, documentos e permissões em uma base preparada para apoiar o crescimento do seu escritório.</p>
                 <div class="mt-6 grid grid-cols-2 gap-3">
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Clientes organizados</div><p class="mt-1 text-sm text-white/70">Cadastros estruturados para contatos, condomínios, unidades e responsáveis.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Propostas centralizadas</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium em um só lugar.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Acesso sob controle</div><p class="mt-1 text-sm text-white/70">Perfis, permissões e operação mais segura para a equipe.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Base para crescer</div><p class="mt-1 text-sm text-white/70">Pronto para novos módulos, integrações e evolução contínua.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Cadastros conectados</div><p class="mt-1 text-sm text-white/70">Clientes, síndicos, administradoras, unidades e documentos com estrutura mais clara.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Operação comercial</div><p class="mt-1 text-sm text-white/70">Propostas, histórico, anexos e documentos premium sem retrabalho.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Gestão com segurança</div><p class="mt-1 text-sm text-white/70">Perfis e permissões para manter a equipe produtiva e o acesso controlado.</p></div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Rotina mais profissional</div><p class="mt-1 text-sm text-white/70">Uma experiência pensada para dar mais organização, previsibilidade e valor percebido.</p></div>
                 </div>
             </div>
-            <div class="absolute bottom-4 right-4 z-20 inline-flex items-center gap-3">
+            <div class="absolute bottom-4 left-4 z-20 inline-flex items-center gap-3">
                 <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[11px] font-medium text-white/90 backdrop-blur-sm hover:bg-white/15">
                     <span>Powered by Serratech</span>
                     <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>

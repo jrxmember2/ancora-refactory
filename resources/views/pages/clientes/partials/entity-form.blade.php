@@ -7,12 +7,15 @@
     $billing = $entity?->billing_address_json ?? [];
     $selectedEntityType = old('entity_type', $entity?->entity_type ?? 'pf');
     $selectedInactive = old('is_inactive', ($entity && !$entity->is_active) ? 1 : 0);
+    $addressesMatch = !empty($primary) && $primary === $billing;
+    $selectedSameBilling = old('billing_same_as_primary', $addressesMatch ? 1 : 0);
     $maritalOptions = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Separado(a)', 'Viúvo(a)', 'União estável'];
 @endphp
 
 <div
     class="grid grid-cols-1 gap-6 xl:grid-cols-3"
-    x-data="entityClientForm({ entityType: '{{ $selectedEntityType }}', inactive: {{ $selectedInactive ? 'true' : 'false' }} })"
+    x-data="entityClientForm({ entityType: '{{ $selectedEntityType }}', inactive: {{ $selectedInactive ? 'true' : 'false' }}, sameBilling: {{ $selectedSameBilling ? 'true' : 'false' }} })"
+    x-init="init()"
 >
     <div class="space-y-6 xl:col-span-2">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -20,7 +23,7 @@
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label class="mb-1.5 block text-sm font-medium">Tipo</label>
-                    <select name="entity_type" x-model="entityType" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                    <select name="entity_type" x-model="entityType" @change="maskDocument()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                         <option value="pf">Pessoa física</option>
                         <option value="pj">Pessoa jurídica</option>
                     </select>
@@ -45,7 +48,7 @@
                 </div>
                 <div>
                     <label class="mb-1.5 block text-sm font-medium">CPF / CNPJ</label>
-                    <input name="cpf_cnpj" value="{{ old('cpf_cnpj', $entity?->cpf_cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" x-ref="document" @input="maskDocument()" placeholder="CPF ou CNPJ">
+                    <input name="cpf_cnpj" value="{{ old('cpf_cnpj', $entity?->cpf_cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" x-ref="document" @input="maskDocument()" placeholder="CPF ou CNPJ" inputmode="numeric">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
                     <label class="mb-1.5 block text-sm font-medium">RG / IE</label>
@@ -104,11 +107,19 @@
                 'title' => 'Endereço principal',
             ])
 
-            @include('pages.clientes.partials.address-fields', [
-                'prefix' => 'billing_address',
-                'address' => $billing,
-                'title' => 'Endereço de cobrança',
-            ])
+            <div class="space-y-3">
+                <label class="inline-flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" name="billing_same_as_primary" value="1" x-model="sameBilling">
+                    Endereço principal é o mesmo de cobrança
+                </label>
+
+                @include('pages.clientes.partials.address-fields', [
+                    'prefix' => 'billing_address',
+                    'address' => $billing,
+                    'title' => 'Endereço de cobrança',
+                    'disabledExpression' => 'sameBilling',
+                ])
+            </div>
         </div>
     </div>
 
@@ -125,13 +136,14 @@
                     <label class="mb-1.5 block text-sm font-medium">Fim do contrato</label>
                     <input type="date" name="contract_end_date" value="{{ old('contract_end_date', $entity?->contract_end_date?->format('Y-m-d') ?? $entity?->contract_end_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!inactive">
                 </div>
-                <div>
+                <div data-file-preview>
                     <label class="mb-1.5 block text-sm font-medium">Anexos</label>
                     <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                         <i class="fa-solid fa-paperclip"></i>
                         <span>Escolher arquivos para anexar</span>
-                        <input type="file" name="attachments[]" multiple class="sr-only">
+                        <input type="file" name="attachments[]" multiple class="sr-only" data-file-input data-multiple>
                     </label>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
                 </div>
                 <div>
                     <label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label>
@@ -178,8 +190,10 @@
                 return {
                     entityType: initialState.entityType || 'pf',
                     inactive: !!initialState.inactive,
+                    sameBilling: !!initialState.sameBilling,
                     get isPf() { return this.entityType === 'pf'; },
                     get isPj() { return this.entityType === 'pj'; },
+                    init() { this.maskDocument(); },
                     maskDocument() {
                         if (!this.$refs.document) return;
                         let digits = this.$refs.document.value.replace(/\D/g, '');
@@ -201,6 +215,16 @@
                     },
                 }
             }
+
+            document.addEventListener('change', (event) => {
+                if (!event.target.matches('[data-file-input]')) return;
+                const wrapper = event.target.closest('[data-file-preview]');
+                const label = wrapper?.querySelector('[data-file-name]');
+                if (!label) return;
+                const files = Array.from(event.target.files || []);
+                if (!files.length) return;
+                label.textContent = files.map((file) => file.name).join(', ');
+            });
         </script>
     @endpush
 @endonce
