@@ -28,18 +28,11 @@
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Endereço</h3>
-                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    @foreach(['street'=>'Rua','number'=>'Número','complement'=>'Complemento','neighborhood'=>'Bairro','city'=>'Cidade','state'=>'UF','zip'=>'CEP','notes'=>'Observações'] as $key => $label)
-                        @if($key === 'notes')
-                            <div class="md:col-span-2"><textarea name="address_{{ $key }}" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="{{ $label }}">{{ old('address_'.$key, $address[$key] ?? '') }}</textarea></div>
-                        @else
-                            <div><input name="address_{{ $key }}" value="{{ old('address_'.$key, $address[$key] ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="{{ $label }}"></div>
-                        @endif
-                    @endforeach
-                </div>
-            </div>
+            @include('pages.clientes.partials.address-fields', [
+                'prefix' => 'address',
+                'address' => $address,
+                'title' => 'Endereço',
+            ])
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold">Documentos</h3>

@@ -98,30 +98,17 @@
         </div>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Endereço principal</h3>
-                <div class="mt-4 grid grid-cols-1 gap-3">
-                    @foreach(['street'=>'Rua','number'=>'Número','complement'=>'Complemento','neighborhood'=>'Bairro','city'=>'Cidade','state'=>'UF','zip'=>'CEP','notes'=>'Observações'] as $key => $label)
-                        @if($key === 'notes')
-                            <textarea name="primary_address_{{ $key }}" rows="2" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="{{ $label }}">{{ old('primary_address_'.$key, $primary[$key] ?? '') }}</textarea>
-                        @else
-                            <input name="primary_address_{{ $key }}" value="{{ old('primary_address_'.$key, $primary[$key] ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="{{ $label }}">
-                        @endif
-                    @endforeach
-                </div>
-            </div>
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Endereço de cobrança</h3>
-                <div class="mt-4 grid grid-cols-1 gap-3">
-                    @foreach(['street'=>'Rua','number'=>'Número','complement'=>'Complemento','neighborhood'=>'Bairro','city'=>'Cidade','state'=>'UF','zip'=>'CEP','notes'=>'Observações'] as $key => $label)
-                        @if($key === 'notes')
-                            <textarea name="billing_address_{{ $key }}" rows="2" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="{{ $label }}">{{ old('billing_address_'.$key, $billing[$key] ?? '') }}</textarea>
-                        @else
-                            <input name="billing_address_{{ $key }}" value="{{ old('billing_address_'.$key, $billing[$key] ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="{{ $label }}">
-                        @endif
-                    @endforeach
-                </div>
-            </div>
+            @include('pages.clientes.partials.address-fields', [
+                'prefix' => 'primary_address',
+                'address' => $primary,
+                'title' => 'Endereço principal',
+            ])
+
+            @include('pages.clientes.partials.address-fields', [
+                'prefix' => 'billing_address',
+                'address' => $billing,
+                'title' => 'Endereço de cobrança',
+            ])
         </div>
     </div>
 

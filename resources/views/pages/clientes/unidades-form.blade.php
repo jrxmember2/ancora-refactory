@@ -72,9 +72,14 @@
                             <div class="mb-2 flex gap-2"><input :name="`owner_emails[${index}]`" x-model="ownerEmails[index]" class="h-11 flex-1 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="E-mail"><button type="button" @click="ownerEmails.splice(index,1); if(!ownerEmails.length) ownerEmails.push('')" class="rounded-xl border border-gray-300 px-3 py-2 text-xs">Remover</button></div>
                         </template>
                     </div>
-                    @foreach(['street'=>'Rua','number'=>'Número','complement'=>'Complemento','neighborhood'=>'Bairro','city'=>'Cidade','state'=>'UF','zip'=>'CEP'] as $key => $label)
-                        <div><label class="mb-1.5 block text-sm font-medium">{{ $label }}</label><input name="owner_address_{{ $key }}" value="{{ old('owner_address_'.$key, $ownerAddress[$key] ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
-                    @endforeach
+                    <div class="md:col-span-2">
+                        @include('pages.clientes.partials.address-fields', [
+                            'prefix' => 'owner_address',
+                            'address' => $ownerAddress,
+                            'title' => 'Endereço do proprietário',
+                            'showNotes' => false,
+                        ])
+                    </div>
                 </div>
                 <div class="mt-4"><label class="mb-1.5 block text-sm font-medium">Observações do proprietário</label><textarea name="owner_notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('owner_notes', $item?->owner_notes) }}</textarea></div>
             </div>
@@ -99,9 +104,14 @@
                             <div class="mb-2 flex gap-2"><input :name="`tenant_emails[${index}]`" x-model="tenantEmails[index]" class="h-11 flex-1 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="E-mail"><button type="button" @click="tenantEmails.splice(index,1); if(!tenantEmails.length) tenantEmails.push('')" class="rounded-xl border border-gray-300 px-3 py-2 text-xs">Remover</button></div>
                         </template>
                     </div>
-                    @foreach(['street'=>'Rua','number'=>'Número','complement'=>'Complemento','neighborhood'=>'Bairro','city'=>'Cidade','state'=>'UF','zip'=>'CEP'] as $key => $label)
-                        <div><label class="mb-1.5 block text-sm font-medium">{{ $label }}</label><input name="tenant_address_{{ $key }}" value="{{ old('tenant_address_'.$key, $tenantAddress[$key] ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
-                    @endforeach
+                    <div class="md:col-span-2">
+                        @include('pages.clientes.partials.address-fields', [
+                            'prefix' => 'tenant_address',
+                            'address' => $tenantAddress,
+                            'title' => 'Endereço do locatário',
+                            'showNotes' => false,
+                        ])
+                    </div>
                 </div>
                 <div class="mt-4"><label class="mb-1.5 block text-sm font-medium">Observações do locatário</label><textarea name="tenant_notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('tenant_notes', $item?->tenant_notes) }}</textarea></div>
             </div>

@@ -1,0 +1,192 @@
+@php
+    $address = $address ?? [];
+    $title = $title ?? 'Endereço';
+    $showNotes = $showNotes ?? true;
+    $states = config('brazil.states', []);
+    $rawState = old($prefix . '_state', $address['state'] ?? '');
+    $selectedState = collect($states)->first(function (array $state) use ($rawState) {
+        $normalized = mb_strtolower(trim((string) $rawState));
+        return $normalized !== ''
+            && (
+                mb_strtolower($state['sigla']) === $normalized
+                || mb_strtolower($state['nome']) === $normalized
+            );
+    });
+    $selectedStateSigla = $selectedState['sigla'] ?? (strlen(trim((string) $rawState)) <= 2 ? strtoupper(trim((string) $rawState)) : '');
+    $selectedCity = old($prefix . '_city', $address['city'] ?? '');
+@endphp
+
+<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"
+     x-data="brazilAddressField({
+        prefix: @js($prefix),
+        states: @js($states),
+        selectedState: @js($selectedStateSigla),
+        selectedCity: @js($selectedCity),
+        initialZip: @js(old($prefix . '_zip', $address['zip'] ?? '')),
+        initialStreet: @js(old($prefix . '_street', $address['street'] ?? '')),
+        initialNumber: @js(old($prefix . '_number', $address['number'] ?? '')),
+        initialComplement: @js(old($prefix . '_complement', $address['complement'] ?? '')),
+        initialNeighborhood: @js(old($prefix . '_neighborhood', $address['neighborhood'] ?? '')),
+        initialNotes: @js(old($prefix . '_notes', $address['notes'] ?? '')),
+     })"
+     x-init="init()">
+    <div class="flex items-center justify-between gap-3">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ $title }}</h3>
+        <div class="text-xs text-gray-500 dark:text-gray-400">UF e município via IBGE • busca por CEP</div>
+    </div>
+
+    <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">CEP</label>
+            <div class="flex gap-2">
+                <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00000-000" inputmode="numeric">
+                <button type="button" @click="fetchCep()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" title="Buscar endereço pelo CEP">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">Rua</label>
+            <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Rua / logradouro">
+        </div>
+
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">Número</label>
+            <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Número">
+        </div>
+
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">Complemento</label>
+            <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Complemento">
+        </div>
+
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">Bairro</label>
+            <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Bairro">
+        </div>
+
+        <div>
+            <label class="mb-1.5 block text-sm font-medium">Estado (UF)</label>
+            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <option value="">Selecione</option>
+                <template x-for="uf in states" :key="uf.sigla">
+                    <option :value="uf.sigla" x-text="`${uf.nome} (${uf.sigla})`"></option>
+                </template>
+            </select>
+        </div>
+
+        <div class="md:col-span-2">
+            <label class="mb-1.5 block text-sm font-medium">Município</label>
+            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!state || loadingCities">
+                <option value="" x-text="loadingCities ? 'Carregando municípios...' : (state ? 'Selecione o município' : 'Selecione primeiro o estado')"></option>
+                <template x-for="municipio in cities" :key="municipio.nome">
+                    <option :value="municipio.nome" x-text="municipio.nome"></option>
+                </template>
+            </select>
+        </div>
+
+        @if($showNotes)
+            <div class="md:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium">Observações</label>
+                <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Ponto de referência, instruções de entrega, etc."></textarea>
+            </div>
+        @endif
+    </div>
+
+    <p class="mt-3 text-xs" :class="apiError ? 'text-error-600 dark:text-error-400' : 'text-gray-500 dark:text-gray-400'" x-text="apiError || 'Você pode preencher manualmente ou usar a lupa para buscar pelo CEP.'"></p>
+</div>
+
+@once
+    @push('scripts')
+        <script>
+            function brazilAddressField(options) {
+                return {
+                    prefix: options.prefix,
+                    states: options.states || [],
+                    state: options.selectedState || '',
+                    city: options.selectedCity || '',
+                    cities: options.selectedCity ? [{ nome: options.selectedCity }] : [],
+                    zip: options.initialZip || '',
+                    street: options.initialStreet || '',
+                    number: options.initialNumber || '',
+                    complement: options.initialComplement || '',
+                    neighborhood: options.initialNeighborhood || '',
+                    notes: options.initialNotes || '',
+                    loadingCities: false,
+                    apiError: '',
+                    init() {
+                        this.maskZip();
+                        if (this.state) {
+                            this.loadCities(this.state, true);
+                        }
+                    },
+                    stateIdBySigla(sigla) {
+                        const state = this.states.find((item) => item.sigla === sigla);
+                        return state ? state.id : null;
+                    },
+                    maskZip() {
+                        const digits = String(this.zip || '').replace(/\D/g, '').slice(0, 8);
+                        this.zip = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+                    },
+                    async loadCities(sigla, preserveCity = true) {
+                        this.apiError = '';
+                        this.loadingCities = true;
+                        const stateId = this.stateIdBySigla(sigla);
+
+                        try {
+                            if (!sigla || !stateId) {
+                                this.cities = [];
+                                if (!preserveCity) this.city = '';
+                                return;
+                            }
+
+                            const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios?orderBy=nome`);
+                            if (!response.ok) throw new Error('Não foi possível carregar os municípios agora.');
+                            const data = await response.json();
+                            this.cities = Array.isArray(data) ? data.map((item) => ({ nome: item.nome })) : [];
+
+                            if (this.city && !this.cities.some((item) => item.nome === this.city)) {
+                                if (preserveCity) {
+                                    this.cities.unshift({ nome: this.city });
+                                } else {
+                                    this.city = '';
+                                }
+                            }
+                        } catch (error) {
+                            this.apiError = 'Não foi possível carregar os municípios automaticamente. Você ainda pode revisar os campos manualmente.';
+                        } finally {
+                            this.loadingCities = false;
+                        }
+                    },
+                    async fetchCep() {
+                        const digits = String(this.zip || '').replace(/\D/g, '');
+                        this.apiError = '';
+
+                        if (digits.length !== 8) {
+                            this.apiError = 'Informe um CEP com 8 dígitos para buscar o endereço.';
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+                            if (!response.ok) throw new Error('Não foi possível consultar o CEP agora.');
+                            const data = await response.json();
+                            if (data.erro) throw new Error('CEP não encontrado.');
+
+                            this.zip = data.cep || this.zip;
+                            this.street = data.logradouro || this.street;
+                            this.complement = data.complemento || this.complement;
+                            this.neighborhood = data.bairro || this.neighborhood;
+                            this.state = data.uf || this.state;
+                            await this.loadCities(this.state, false);
+                            this.city = data.localidade || this.city;
+                        } catch (error) {
+                            this.apiError = error.message || 'Não foi possível consultar o CEP agora.';
+                        }
+                    },
+                }
+            }
+        </script>
+    @endpush
+@endonce
