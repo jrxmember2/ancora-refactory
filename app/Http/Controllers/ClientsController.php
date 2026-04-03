@@ -190,6 +190,42 @@ class ClientsController extends Controller
         ]);
     }
 
+    private function normalizeUploadedFiles(mixed $value): array
+    {
+        if ($value instanceof UploadedFile) {
+            return [$value];
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $files = [];
+
+        array_walk_recursive($value, function ($item) use (&$files) {
+            if ($item instanceof UploadedFile) {
+                $files[] = $item;
+            }
+        });
+
+        return $files;
+    }
+
+    private function safeUploadedFileSize(UploadedFile $file): int
+    {
+        $realPath = $file->getRealPath();
+
+        if (is_string($realPath) && $realPath !== '' && is_file($realPath)) {
+            return (int) (@filesize($realPath) ?: 0);
+        }
+
+        try {
+            return (int) ($file->getSize() ?: 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     private function storeAttachmentFiles(string $relatedType, int $relatedId, array $files, string $role, Request $request, ?string $labelPrefix = null): void
     {
         $dir = public_path('uploads/clientes/' . $relatedType . '/' . $relatedId);
@@ -202,7 +238,7 @@ class ClientsController extends Controller
                 continue;
             }
 
-            $ext = strtolower($file->getClientOriginalExtension());
+            $ext = strtolower((string) $file->getClientOriginalExtension());
             if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx'], true)) {
                 continue;
             }
@@ -217,7 +253,7 @@ class ClientsController extends Controller
             }
             $originalName = Str::limit($originalName, 250, '');
             $mimeType = Str::limit((string) $file->getClientMimeType(), 120, '');
-            $fileSize = (int) ($file->getSize() ?: 0);
+            $fileSize = $this->safeUploadedFileSize($file);
 
             $file->move($dir, $stored);
 
@@ -237,28 +273,32 @@ class ClientsController extends Controller
 
     private function uploadAttachments(string $relatedType, int $relatedId, Request $request): void
     {
-        $files = $request->file('attachments');
-        if ($files) {
-            $files = is_array($files) ? $files : [$files];
+        $files = $this->normalizeUploadedFiles($request->file('attachments'));
+
+        if (!empty($files)) {
             $role = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
                 ? $request->input('attachment_role')
                 : 'documento';
+
             $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
         }
     }
 
     private function uploadCondominiumDocuments(int $condominiumId, Request $request): void
     {
-        if ($request->hasFile('document_convention')) {
-            $this->storeAttachmentFiles('condominium', $condominiumId, [$request->file('document_convention')], 'documento', $request, 'Convenção condominial');
+        $conventionFiles = $this->normalizeUploadedFiles($request->file('document_convention'));
+        if (!empty($conventionFiles)) {
+            $this->storeAttachmentFiles('condominium', $condominiumId, $conventionFiles, 'documento', $request, 'Convenção condominial');
         }
-        if ($request->hasFile('document_regiment')) {
-            $this->storeAttachmentFiles('condominium', $condominiumId, [$request->file('document_regiment')], 'documento', $request, 'Regimento interno');
+
+        $regimentFiles = $this->normalizeUploadedFiles($request->file('document_regiment'));
+        if (!empty($regimentFiles)) {
+            $this->storeAttachmentFiles('condominium', $condominiumId, $regimentFiles, 'documento', $request, 'Regimento interno');
         }
-        if ($request->hasFile('document_atas')) {
-            $files = $request->file('document_atas');
-            $files = is_array($files) ? $files : [$files];
-            $this->storeAttachmentFiles('condominium', $condominiumId, $files, 'documento', $request, 'ATA');
+
+        $ataFiles = $this->normalizeUploadedFiles($request->file('document_atas'));
+        if (!empty($ataFiles)) {
+            $this->storeAttachmentFiles('condominium', $condominiumId, $ataFiles, 'documento', $request, 'ATA');
         }
     }
 
