@@ -10,6 +10,8 @@
     $addressesMatch = !empty($primary) && $primary === $billing;
     $selectedSameBilling = old('billing_same_as_primary', $addressesMatch ? 1 : 0);
     $maritalOptions = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Separado(a)', 'Viúvo(a)', 'União estável'];
+    $attachmentRoleLabels = ['documento' => 'Documentos', 'contrato' => 'Contratos', 'outro' => 'Outros'];
+    $groupedAttachments = collect($attachments ?? [])->groupBy(fn ($attachment) => $attachment->file_role ?: 'documento');
 @endphp
 
 <div
@@ -146,21 +148,38 @@
                     <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label>
-                    <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"><option value="documento">Documento</option><option value="contrato">Contrato</option><option value="outro">Outro</option></select>
+                    <label class="mb-1.5 block text-sm font-medium">Categoria do anexo</label>
+                    <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                        <option value="documento" @selected(old('attachment_role', 'documento') === 'documento')>Documentos</option>
+                        <option value="contrato" @selected(old('attachment_role') === 'contrato')>Contratos</option>
+                        <option value="outro" @selected(old('attachment_role') === 'outro')>Outros</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Escolha a categoria antes de anexar para organizar melhor os arquivos do cadastro.</p>
                 </div>
             </div>
         </div>
         @if(isset($attachments) && $attachments->count())
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold">Anexos</h3>
-                <div class="mt-4 space-y-3">
-                    @foreach($attachments as $attachment)
-                        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-                            <div class="text-sm font-medium">{{ $attachment->original_name }}</div>
-                            <div class="mt-2 flex gap-2">
-                                <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs text-white">Baixar</a>
-                                <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">@csrf @method('DELETE')<button class="rounded-lg border border-error-300 px-3 py-2 text-xs text-error-600">Excluir</button></form>
+                <div class="mt-4 space-y-4">
+                    @foreach($groupedAttachments as $role => $roleAttachments)
+                        <div>
+                            <div class="mb-3 inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-600 dark:border-gray-700 dark:text-gray-300">{{ $attachmentRoleLabels[$role] ?? ucfirst($role) }}</div>
+                            <div class="space-y-3">
+                                @foreach($roleAttachments as $attachment)
+                                    <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <div class="text-sm font-medium">{{ $attachment->original_name }}</div>
+                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Categoria: {{ $attachmentRoleLabels[$attachment->file_role] ?? ucfirst($attachment->file_role ?? 'documento') }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 flex gap-2">
+                                            <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs text-white">Baixar</a>
+                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">@csrf @method('DELETE')<button class="rounded-lg border border-error-300 px-3 py-2 text-xs text-error-600">Excluir</button></form>
+                                        </div>
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
                     @endforeach

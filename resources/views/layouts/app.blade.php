@@ -55,7 +55,7 @@
         })();
     </script>
 </head>
-<body x-data="{ loaded: true }" x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280; window.addEventListener('resize', () => { if(window.innerWidth < 1280){ $store.sidebar.setMobileOpen(false); $store.sidebar.isExpanded = false; } else { $store.sidebar.isMobileOpen = false; $store.sidebar.isExpanded = true; } });">
+<body class="{{ request()->routeIs('clientes.*') ? 'clientes-page' : '' }}" x-data="{ loaded: true }" x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280; window.addEventListener('resize', () => { if(window.innerWidth < 1280){ $store.sidebar.setMobileOpen(false); $store.sidebar.isExpanded = false; } else { $store.sidebar.isMobileOpen = false; $store.sidebar.isExpanded = true; } });">
     <x-common.preloader />
     <div class="min-h-screen xl:flex">
         @include('layouts.backdrop')

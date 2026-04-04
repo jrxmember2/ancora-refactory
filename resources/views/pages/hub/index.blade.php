@@ -18,20 +18,6 @@
     </div>
 </x-ancora.section-header>
 
-<div class="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-    <div class="max-w-3xl">
-        <div class="text-xs font-semibold uppercase tracking-[0.25em] text-brand-500">Ecossistema Âncora</div>
-        <h2 class="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">Organize clientes, condomínios, propostas e acessos em uma operação mais clara, profissional e pronta para o dia a dia do seu escritório.</h2>
-        <p class="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">Centralize cadastros, documentos, histórico comercial e permissões em um único ambiente, reduzindo retrabalho e dando mais previsibilidade à gestão.</p>
-    </div>
-
-    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Clientes e condomínios</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Cadastros estruturados para síndicos, administradoras, unidades e documentos.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Propostas premium</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fluxo comercial com histórico, anexos e documento profissional.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Permissões e segurança</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Controle de acesso por módulo e por rota para trabalhar em equipe.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Rotina mais eficiente</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Mais organização, menos retrabalho e melhor visão da operação.</p></div>
-    </div>
-</div>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
     @foreach($tiles as $tile)
@@ -50,12 +36,7 @@
     @endforeach
 </div>
 
-<div class="fixed bottom-4 right-4 z-[99999]">
-    <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-[11px] font-medium text-gray-600 shadow-theme-lg backdrop-blur hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-300 dark:hover:text-brand-400">
-        <span>Powered by Serratech</span>
-        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-    </a>
-</div>
+
 @endsection
 
 @push('scripts')
