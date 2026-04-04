@@ -24,14 +24,14 @@
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais</h3>
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Tipo</label>
+                    <label class="mb-1.5 block text-sm font-medium">Tipo</label>
                     <select name="entity_type" x-model="entityType" @change="maskDocument()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                         <option value="pf">Pessoa física</option>
                         <option value="pj">Pessoa jurídica</option>
                     </select>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Perfil / papel</label>
+                    <label class="mb-1.5 block text-sm font-medium">Perfil / papel</label>
                     <select name="role_tag" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
                         <option value="">Selecione</option>
                         @foreach(($entityRoles ?? collect()) as $role)
@@ -41,27 +41,27 @@
                     <p class="mt-1 text-xs text-gray-500">Cadastre novos perfis/papéis em Configurações de clientes.</p>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Nome principal</label>
+                    <label class="mb-1.5 block text-sm font-medium">Nome principal</label>
                     <input name="display_name" value="{{ old('display_name', $entity?->display_name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
                 </div>
                 <div x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Nome jurídico / razão social</label>
+                    <label class="mb-1.5 block text-sm font-medium">Nome jurídico / razão social</label>
                     <input name="legal_name" value="{{ old('legal_name', $entity?->legal_name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPf">
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">CPF / CNPJ</label>
+                    <label class="mb-1.5 block text-sm font-medium">CPF / CNPJ</label>
                     <input name="cpf_cnpj" value="{{ old('cpf_cnpj', $entity?->cpf_cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" x-ref="document" @input="maskDocument()" placeholder="CPF ou CNPJ" inputmode="numeric">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">RG / IE</label>
+                    <label class="mb-1.5 block text-sm font-medium">RG / IE</label>
                     <input name="rg_ie" value="{{ old('rg_ie', $entity?->rg_ie) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Profissão</label>
+                    <label class="mb-1.5 block text-sm font-medium">Profissão</label>
                     <input name="profession" value="{{ old('profession', $entity?->profession) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Estado civil</label>
+                    <label class="mb-1.5 block text-sm font-medium">Estado civil</label>
                     <select name="marital_status" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                         <option value="">Selecione</option>
                         @foreach($maritalOptions as $status)
@@ -70,11 +70,11 @@
                     </select>
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Data de nascimento</label>
+                    <label class="mb-1.5 block text-sm font-medium">Data de nascimento</label>
                     <input type="date" name="birth_date" value="{{ old('birth_date', $entity?->birth_date?->format('Y-m-d') ?? $entity?->birth_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Representante legal</label>
+                    <label class="mb-1.5 block text-sm font-medium">Representante legal</label>
                     <input name="legal_representative" value="{{ old('legal_representative', $entity?->legal_representative) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPf">
                 </div>
             </div>
@@ -84,21 +84,21 @@
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contatos e observações</h3>
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Telefones</label>
+                    <label class="mb-1.5 block text-sm font-medium">Telefones</label>
                     <textarea name="phones_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Principal|27999999999&#10;Financeiro|2733334444">{{ old('phones_text', $phonesText) }}</textarea>
                     <p class="mt-1 text-xs text-gray-500">Um por linha, no formato rótulo|número.</p>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">E-mails</label>
+                    <label class="mb-1.5 block text-sm font-medium">E-mails</label>
                     <textarea name="emails_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Principal|email@dominio.com">{{ old('emails_text', $emailsText) }}</textarea>
                     <p class="mt-1 text-xs text-gray-500">Um por linha, no formato rótulo|email.</p>
                 </div>
                 <div class="md:col-span-2" x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Sócios / acionistas</label>
+                    <label class="mb-1.5 block text-sm font-medium">Sócios / acionistas</label>
                     <textarea name="shareholders_text" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Nome do sócio|CPF/CNPJ|Função" :disabled="isPf">{{ old('shareholders_text', $shareholdersText) }}</textarea>
                 </div>
-                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Notas</label><textarea name="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('notes', $entity?->notes) }}</textarea></div>
-                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Descrição / observações livres</label><textarea name="description" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('description', $entity?->description) }}</textarea></div>
+                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium">Notas</label><textarea name="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('notes', $entity?->notes) }}</textarea></div>
+                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium">Descrição / observações livres</label><textarea name="description" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('description', $entity?->description) }}</textarea></div>
             </div>
         </div>
 
@@ -129,25 +129,38 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Status</h3>
             <div class="mt-4 space-y-4">
-                <label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-200"><input type="checkbox" name="is_inactive" value="1" x-model="inactive"> Inativo</label>
+                <label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name="is_inactive" value="1" x-model="inactive"> Inativo</label>
                 <div x-bind:class="inactive ? '' : 'opacity-60'">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Motivo da inativação</label>
+                    <label class="mb-1.5 block text-sm font-medium">Motivo da inativação</label>
                     <input name="inactive_reason" value="{{ old('inactive_reason', $entity?->inactive_reason) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!inactive">
                 </div>
                 <div x-bind:class="inactive ? '' : 'opacity-60'">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Fim do contrato</label>
+                    <label class="mb-1.5 block text-sm font-medium">Fim do contrato</label>
                     <input type="date" name="contract_end_date" value="{{ old('contract_end_date', $entity?->contract_end_date?->format('Y-m-d') ?? $entity?->contract_end_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!inactive">
                 </div>
+                <div data-file-preview>
+                    <label class="mb-1.5 block text-sm font-medium">Anexos</label>
+                    <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <span>Escolher arquivos para anexar</span>
+                        <input type="file" name="attachments[]" multiple class="sr-only" data-file-input data-multiple>
+                    </label>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
+                </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Anexos</label>
-                    <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Adicione um ou mais arquivos e escolha a categoria de cada anexo.</p>
-                    @include('pages.clientes.partials.attachment-uploader')
+                    <label class="mb-1.5 block text-sm font-medium">Categoria do anexo</label>
+                    <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                        <option value="documento" @selected(old('attachment_role', 'documento') === 'documento')>Documentos</option>
+                        <option value="contrato" @selected(old('attachment_role') === 'contrato')>Contratos</option>
+                        <option value="outro" @selected(old('attachment_role') === 'outro')>Outros</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Escolha a categoria antes de anexar para organizar melhor os arquivos do cadastro.</p>
                 </div>
             </div>
         </div>
         @if(isset($attachments) && $attachments->count())
-            <div id="anexos" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Anexos</h3>
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                <h3 class="text-base font-semibold">Anexos</h3>
                 <div class="mt-4 space-y-4">
                     @foreach($groupedAttachments as $role => $roleAttachments)
                         <div>
@@ -163,7 +176,7 @@
                                         </div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs text-white">Baixar</a>
-                                            <button type="button" class="js-client-attachment-delete rounded-lg border border-error-300 px-3 py-2 text-xs text-error-600" data-delete-url="{{ route('clientes.attachments.delete', $attachment) }}" data-attachment-name="{{ $attachment->original_name }}">Excluir</button>
+                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">@csrf @method('DELETE')<button class="rounded-lg border border-error-300 px-3 py-2 text-xs text-error-600">Excluir</button></form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -175,7 +188,7 @@
         @endif
         @if(isset($timeline) && $timeline->count())
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Timeline</h3>
+                <h3 class="text-base font-semibold">Timeline</h3>
                 <div class="mt-4 space-y-3">
                     @foreach($timeline as $event)
                         <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
@@ -222,50 +235,14 @@
                 }
             }
 
-            function ancoraAttachmentRepeater(initialRoles = ['documento']) {
-                const roles = Array.isArray(initialRoles) && initialRoles.length ? initialRoles : ['documento'];
-                return {
-                    rows: roles.map((role, index) => ({ id: index + 1, role: role || 'documento', fileName: '' })),
-                    nextId: roles.length + 1,
-                    addRow(role = 'documento') {
-                        this.rows.push({ id: this.nextId++, role, fileName: '' });
-                    },
-                    removeRow(index) {
-                        if (this.rows.length === 1) {
-                            this.rows[0].fileName = '';
-                            return;
-                        }
-                        this.rows.splice(index, 1);
-                    },
-                    updateFile(index, event) {
-                        const files = Array.from(event.target.files || []);
-                        this.rows[index].fileName = files.map((file) => file.name).join(', ');
-                    },
-                }
-            }
-
-            function deleteClientAttachment(button) {
-                const url = button.dataset.deleteUrl;
-                const name = button.dataset.attachmentName || 'este anexo';
-                if (!url || !confirm(`Excluir ${name}?`)) {
-                    return;
-                }
-
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = url;
-                form.innerHTML = `
-                    <input type="hidden" name="_token" value="${document.querySelector("meta[name='csrf-token']")?.content || ''}">
-                    <input type="hidden" name="_method" value="DELETE">
-                `;
-                document.body.appendChild(form);
-                form.submit();
-            }
-
-            document.addEventListener('click', (event) => {
-                const button = event.target.closest('.js-client-attachment-delete');
-                if (!button) return;
-                deleteClientAttachment(button);
+            document.addEventListener('change', (event) => {
+                if (!event.target.matches('[data-file-input]')) return;
+                const wrapper = event.target.closest('[data-file-preview]');
+                const label = wrapper?.querySelector('[data-file-name]');
+                if (!label) return;
+                const files = Array.from(event.target.files || []);
+                if (!files.length) return;
+                label.textContent = files.map((file) => file.name).join(', ');
             });
         </script>
     @endpush

@@ -15,7 +15,7 @@
         @csrf
         <div class="grid grid-cols-1 gap-4 md:grid-cols-[1.2fr,1fr,auto] md:items-end">
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Condomínio da importação</label>
+                <label class="mb-1.5 block text-sm font-medium">Condomínio da importação</label>
                 <select name="import_condominium_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
                     <option value="">Selecione</option>
                     @foreach($condominiumsDropdown ?? [] as $condo)
@@ -24,7 +24,7 @@
                 </select>
             </div>
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Arquivo CSV</label>
+                <label class="mb-1.5 block text-sm font-medium">Arquivo CSV</label>
                 <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-3 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                     <i class="fa-solid fa-file-csv"></i>
                     <span>Escolher CSV</span>
