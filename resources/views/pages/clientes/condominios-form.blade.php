@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $item = $item ?? $condominio ?? null;
+    $item = $condominio ?? null;
     $address = $item?->address_json ?? [];
     $selectedInactive = old('is_inactive', ($item && !$item->is_active) ? 1 : 0);
     $blocksText = old('blocks_text', isset($blocksText) ? $blocksText : '');
