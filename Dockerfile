@@ -21,7 +21,8 @@ RUN npm ci
 COPY resources ./resources
 COPY public ./public
 COPY vite.config.js ./
-RUN npm run build
+RUN npm run build \
+    && node -e "const fs=require('fs'); const path=require('path'); const manifest=JSON.parse(fs.readFileSync('public/build/manifest.json','utf8')); const css=manifest['resources/css/app.css']?.file; const js=manifest['resources/js/app.js']?.file; const jsCss=(manifest['resources/js/app.js']?.css)||[]; if (css) fs.copyFileSync(path.join('public/build', css), 'public/build/assets/ancora-app.css'); if (jsCss[0]) fs.copyFileSync(path.join('public/build', jsCss[0]), 'public/build/assets/ancora-app-extra.css'); if (js) fs.copyFileSync(path.join('public/build', js), 'public/build/assets/ancora-app.js');"
 
 FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
