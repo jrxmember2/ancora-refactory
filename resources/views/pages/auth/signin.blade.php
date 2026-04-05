@@ -10,7 +10,7 @@
                     <img src="{{ $ancoraBrand['logo_dark'] ?? '/imgs/logomarca.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(36, (int) ($ancoraBrand['logo_height_login'] ?? 82)) }}px" />
                 </div>
 
-                <form method="post" action="{{ route('login.store', [], false) }}" class="space-y-5">
+                <form method="post" action="{{ route('login.store') }}" class="space-y-5">
                     @csrf
 
                     <div>

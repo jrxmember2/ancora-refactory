@@ -273,12 +273,27 @@ class ClientsController extends Controller
 
     private function uploadAttachments(string $relatedType, int $relatedId, Request $request): void
     {
-        $files = $this->normalizeUploadedFiles($request->file('attachments'));
+        $legacyFiles = $this->normalizeUploadedFiles($request->file('attachments'));
 
-        if (!empty($files)) {
+        if (!empty($legacyFiles)) {
             $role = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
                 ? $request->input('attachment_role')
                 : 'documento';
+
+            $this->storeAttachmentFiles($relatedType, $relatedId, $legacyFiles, $role, $request);
+        }
+
+        $groupedFiles = $request->allFiles()['attachment_groups'] ?? [];
+        $groupedRoles = (array) $request->input('attachment_groups', []);
+
+        foreach ($groupedFiles as $index => $group) {
+            $files = $this->normalizeUploadedFiles($group['files'] ?? []);
+            if (empty($files)) {
+                continue;
+            }
+
+            $role = $groupedRoles[$index]['role'] ?? 'documento';
+            $role = in_array($role, ['documento', 'contrato', 'outro'], true) ? $role : 'documento';
 
             $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
         }
