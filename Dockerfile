@@ -14,6 +14,15 @@ RUN apt-get update && apt-get install -y \
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
 
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY resources ./resources
+COPY public ./public
+COPY vite.config.js ./
+RUN npm run build
+
 FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
@@ -31,6 +40,7 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
+COPY --from=assets /app/public/build ./public/build
 
 RUN touch .env \
     && mkdir -p \
@@ -42,6 +52,7 @@ RUN touch .env \
         public/uploads \
         public/assets/uploads \
         public/branding \
+        public/build \
     && php artisan package:discover --ansi \
     && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding public/build
 
