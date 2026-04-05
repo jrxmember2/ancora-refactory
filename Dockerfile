@@ -21,7 +21,12 @@ RUN npm ci
 COPY resources ./resources
 COPY public ./public
 COPY vite.config.js ./
-RUN npm run build
+RUN npm run build \
+    && mkdir -p public/build/assets \
+    && css_file=$(find public/build/assets -maxdepth 1 -type f -name '*.css' | head -n 1) \
+    && js_file=$(find public/build/assets -maxdepth 1 -type f -name '*.js' | head -n 1) \
+    && if [ -n "$css_file" ]; then cp "$css_file" public/build/assets/ancora-app.css; fi \
+    && if [ -n "$js_file" ]; then cp "$js_file" public/build/assets/ancora-app.js; fi
 
 FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
