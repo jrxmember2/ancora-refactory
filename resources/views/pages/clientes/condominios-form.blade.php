@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $item = $condominio ?? null;
+    $item = $item ?? $condominio ?? null;
     $address = $item?->address_json ?? [];
     $selectedInactive = old('is_inactive', ($item && !$item->is_active) ? 1 : 0);
     $blocksText = old('blocks_text', isset($blocksText) ? $blocksText : '');
@@ -41,11 +41,11 @@
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Dados principais</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais</h3>
 
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Nome do condomínio</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Nome do condomínio</label>
                         <input
                             name="name"
                             value="{{ old('name', $item?->name) }}"
@@ -55,7 +55,7 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Tipo</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Tipo</label>
                         <select
                             name="condominium_type_id"
                             class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
@@ -73,7 +73,7 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">CNPJ</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">CNPJ</label>
                         <input
                             name="cnpj"
                             value="{{ old('cnpj', $item?->cnpj) }}"
@@ -87,7 +87,7 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Síndico vinculado</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Síndico vinculado</label>
                         <select
                             name="syndico_entity_id"
                             class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
@@ -106,7 +106,7 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium">Administradora</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Administradora</label>
                         <select
                             name="administradora_entity_id"
                             class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
@@ -129,7 +129,7 @@
                     </label>
 
                     <div class="md:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium">Blocos / torres</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Blocos / torres</label>
                         <textarea
                             name="blocks_text"
                             rows="5"
@@ -150,7 +150,7 @@
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h3 class="text-base font-semibold">Documentos</h3>
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Documentos</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Suba a convenção, o regimento interno e quantas ATAs forem necessárias.
                         </p>
@@ -159,7 +159,7 @@
 
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium">Convenção condominial</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Convenção condominial</label>
 
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
@@ -178,11 +178,7 @@
                                         <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
-                                            </form>
+                                            <button type="button" class="js-client-attachment-delete rounded-md border border-error-300 px-2 py-1 text-error-600" data-delete-url="{{ route('clientes.attachments.delete', $attachment) }}" data-attachment-name="{{ $attachment->original_name }}">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -191,7 +187,7 @@
                     </div>
 
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium">Regimento interno</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Regimento interno</label>
 
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
@@ -210,11 +206,7 @@
                                         <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
-                                            </form>
+                                            <button type="button" class="js-client-attachment-delete rounded-md border border-error-300 px-2 py-1 text-error-600" data-delete-url="{{ route('clientes.attachments.delete', $attachment) }}" data-attachment-name="{{ $attachment->original_name }}">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -223,7 +215,7 @@
                     </div>
 
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium">ATAs</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">ATAs</label>
 
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-files"></i>
@@ -242,11 +234,7 @@
                                         <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
-                                            </form>
+                                            <button type="button" class="js-client-attachment-delete rounded-md border border-error-300 px-2 py-1 text-error-600" data-delete-url="{{ route('clientes.attachments.delete', $attachment) }}" data-attachment-name="{{ $attachment->original_name }}">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -259,16 +247,16 @@
 
         <div class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Status</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Status</h3>
 
                 <div class="mt-4 space-y-4">
-                    <label class="flex items-center gap-3 text-sm font-medium">
+                    <label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-200">
                         <input type="checkbox" name="is_inactive" value="1" x-model="inactive">
                         Inativo
                     </label>
 
                     <div x-bind:class="inactive ? '' : 'opacity-60'">
-                        <label class="mb-1.5 block text-sm font-medium">Motivo da inativação</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Motivo da inativação</label>
                         <input
                             name="inactive_reason"
                             value="{{ old('inactive_reason', $item?->inactive_reason) }}"
@@ -278,7 +266,7 @@
                     </div>
 
                     <div x-bind:class="inactive ? '' : 'opacity-60'">
-                        <label class="mb-1.5 block text-sm font-medium">Fim do contrato</label>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Fim do contrato</label>
                         <input
                             type="date"
                             name="contract_end_date"
@@ -291,27 +279,12 @@
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Anexos adicionais</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Anexos adicionais</h3>
 
-                <div class="mt-4 space-y-4" data-file-preview>
-                    <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
-                        <i class="fa-solid fa-paperclip"></i>
-                        <span>Escolher arquivos para anexar</span>
-                        <input type="file" name="attachments[]" multiple class="sr-only" data-file-input data-multiple>
-                    </label>
+                <div id="anexos" class="mt-4 space-y-4">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Adicione um ou mais anexos extras e categorize cada arquivo para manter o cadastro organizado.</p>
 
-                    <div class="text-xs text-gray-500 dark:text-gray-400" data-file-name>
-                        {{ $groupedAttachments['others']->pluck('original_name')->implode(', ') ?: 'Nenhum anexo adicional' }}
-                    </div>
-
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label>
-                        <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
-                            <option value="documento">Documento</option>
-                            <option value="contrato">Contrato</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
+                    @include('pages.clientes.partials.attachment-uploader')
 
                     @if($groupedAttachments['others']->count())
                         <div class="space-y-2">
@@ -320,11 +293,7 @@
                                     <div class="font-medium">{{ $attachment->original_name }}</div>
                                     <div class="mt-2 flex gap-2">
                                         <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                        <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
-                                        </form>
+                                        <button type="button" class="js-client-attachment-delete rounded-md border border-error-300 px-2 py-1 text-error-600" data-delete-url="{{ route('clientes.attachments.delete', $attachment) }}" data-attachment-name="{{ $attachment->original_name }}">Excluir</button>
                                     </div>
                                 </div>
                             @endforeach
@@ -335,7 +304,7 @@
 
             @if($attachments->count())
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                    <h3 class="text-base font-semibold">Resumo de documentos cadastrados</h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Resumo de documentos cadastrados</h3>
                     <div class="mt-3 text-sm text-gray-500 dark:text-gray-400">
                         Total anexado: {{ $attachments->count() }} arquivo(s)
                     </div>
@@ -344,20 +313,22 @@
         </div>
     </div>
 
-    <div class="flex gap-3">
+    <div class="mt-8 flex flex-wrap gap-3" data-client-form-actions>
         <button type="submit" class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">
-            {{ $mode === 'create' ? 'Cadastrar' : 'Salvar alterações' }}
+            Salvar
         </button>
+        @if($mode === 'edit')
+            <button type="submit" form="delete-condominio-form" onclick="return confirm('Excluir este condomínio?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">
+                Excluir
+            </button>
+        @endif
     </div>
 </form>
 
 @if($mode === 'edit')
-    <form method="post" action="{{ route('clientes.condominios.delete', $item) }}" class="mt-3">
+    <form id="delete-condominio-form" method="post" action="{{ route('clientes.condominios.delete', $item) }}" class="hidden">
         @csrf
         @method('DELETE')
-        <button onclick="return confirm('Excluir este condomínio?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">
-            Excluir
-        </button>
     </form>
 @endif
 @endsection
@@ -384,6 +355,52 @@ function condominiumForm(initialState) {
         },
     }
 }
+
+function ancoraAttachmentRepeater(initialRoles = ['documento']) {
+    const roles = Array.isArray(initialRoles) && initialRoles.length ? initialRoles : ['documento'];
+    return {
+        rows: roles.map((role, index) => ({ id: index + 1, role: role || 'documento', fileName: '' })),
+        nextId: roles.length + 1,
+        addRow(role = 'documento') {
+            this.rows.push({ id: this.nextId++, role, fileName: '' });
+        },
+        removeRow(index) {
+            if (this.rows.length === 1) {
+                this.rows[0].fileName = '';
+                return;
+            }
+            this.rows.splice(index, 1);
+        },
+        updateFile(index, event) {
+            const files = Array.from(event.target.files || []);
+            this.rows[index].fileName = files.map((file) => file.name).join(', ');
+        },
+    }
+}
+
+function deleteClientAttachment(button) {
+    const url = button.dataset.deleteUrl;
+    const name = button.dataset.attachmentName || 'este anexo';
+    if (!url || !confirm(`Excluir ${name}?`)) {
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    form.innerHTML = `
+        <input type="hidden" name="_token" value="${document.querySelector('meta[name=\'csrf-token\']')?.content || ''}">
+        <input type="hidden" name="_method" value="DELETE">
+    `;
+    document.body.appendChild(form);
+    form.submit();
+}
+
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('.js-client-attachment-delete');
+    if (!button) return;
+    deleteClientAttachment(button);
+});
 
 document.addEventListener('change', (event) => {
     if (!event.target.matches('[data-file-input]')) return;

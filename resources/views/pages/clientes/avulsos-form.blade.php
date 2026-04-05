@@ -10,16 +10,18 @@
 
     @include('pages.clientes.partials.entity-form', ['roleTag' => $roleTag])
 
-    <div class="flex gap-3">
-        <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">{{ $mode === 'create' ? 'Cadastrar' : 'Salvar alterações' }}</button>
+    <div class="mt-8 flex flex-wrap gap-3" data-client-form-actions>
+        <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">Salvar</button>
+        @if($mode === 'edit')
+            <button type="submit" form="delete-avulso-form" onclick="return confirm('Excluir este cliente avulso?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">Excluir</button>
+        @endif
     </div>
 </form>
 
 @if($mode === 'edit')
-    <form method="post" action="{{ route('clientes.avulsos.delete', $item) }}" class="mt-3">
+    <form id="delete-avulso-form" method="post" action="{{ route('clientes.avulsos.delete', $item) }}" class="hidden">
         @csrf
         @method('DELETE')
-        <button onclick="return confirm('Excluir este cliente avulso?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">Excluir</button>
     </form>
 @endif
 @endsection
