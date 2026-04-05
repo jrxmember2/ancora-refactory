@@ -14,20 +14,6 @@ RUN apt-get update && apt-get install -y \
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
 
-FROM node:22-alpine AS assets
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY resources ./resources
-COPY public ./public
-COPY vite.config.js ./
-RUN npm run build \
-    && mkdir -p public/build/assets \
-    && css_file=$(find public/build/assets -maxdepth 1 -type f -name '*.css' | sort | head -n 1) \
-    && js_file=$(find public/build/assets -maxdepth 1 -type f -name '*.js' | sort | head -n 1) \
-    && if [ -n "$css_file" ]; then cp "$css_file" public/build/assets/ancora-app.css; fi \
-    && if [ -n "$js_file" ]; then cp "$js_file" public/build/assets/ancora-app.js; fi
-
 FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
@@ -45,7 +31,6 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
-COPY --from=assets /app/public/build ./public/build
 
 RUN touch .env \
     && mkdir -p \
@@ -58,7 +43,7 @@ RUN touch .env \
         public/assets/uploads \
         public/branding \
     && php artisan package:discover --ansi \
-    && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding
+    && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding public/build
 
 EXPOSE 80
 CMD ["apache2-foreground"]
