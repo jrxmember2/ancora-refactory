@@ -41,9 +41,6 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
-RUN cp -f public/build/manifest.json public/build/manifest.json >/dev/null 2>&1 || true \
-    && if ls public/build/assets/app-*.css >/dev/null 2>&1; then cat $(ls public/build/assets/app-*.css | sort) > public/build/assets/ancora-app.css; fi \
-    && if ls public/build/assets/app-*.js >/dev/null 2>&1; then cp $(ls public/build/assets/app-*.js | head -n 1) public/build/assets/ancora-app.js; fi
 
 RUN touch .env \
     && mkdir -p \

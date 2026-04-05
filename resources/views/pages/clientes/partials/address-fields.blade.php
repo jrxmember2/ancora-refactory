@@ -41,7 +41,7 @@
 
     <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">CEP</label>
+            <label class="mb-1.5 block text-sm font-medium">CEP</label>
             <div class="flex gap-2">
                 <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00000-000" inputmode="numeric" {!! $disabledAttr !!}>
                 <button type="button" @click="fetchCep()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" title="Buscar endereço pelo CEP" {!! $disabledAttr !!}>
@@ -51,29 +51,28 @@
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Rua</label>
+            <label class="mb-1.5 block text-sm font-medium">Rua</label>
             <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Rua / logradouro" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Número</label>
+            <label class="mb-1.5 block text-sm font-medium">Número</label>
             <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Número" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Complemento</label>
+            <label class="mb-1.5 block text-sm font-medium">Complemento</label>
             <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Complemento" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Bairro</label>
+            <label class="mb-1.5 block text-sm font-medium">Bairro</label>
             <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Bairro" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Estado (UF)</label>
-            <input type="hidden" :name="`${prefix}_state`" :value="state">
-            <select x-ref="stateSelect" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Estado (UF)</label>
+            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" {!! $disabledAttr !!}>
                 <option value="">Selecione</option>
                 <template x-for="uf in states" :key="uf.sigla">
                     <option :value="uf.sigla" x-text="`${uf.nome} (${uf.sigla})`"></option>
@@ -82,9 +81,8 @@
         </div>
 
         <div class="md:col-span-2">
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Município</label>
-            <input type="hidden" :name="`${prefix}_city`" :value="city">
-            <select x-ref="citySelect" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
+            <label class="mb-1.5 block text-sm font-medium">Município</label>
+            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
                 <option value="" x-text="loadingCities ? 'Carregando municípios...' : (state ? 'Selecione o município' : 'Selecione primeiro o estado')"></option>
                 <template x-for="municipio in cities" :key="municipio.nome">
                     <option :value="municipio.nome" x-text="municipio.nome"></option>
@@ -94,7 +92,7 @@
 
         @if($showNotes)
             <div class="md:col-span-2">
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Observações</label>
+                <label class="mb-1.5 block text-sm font-medium">Observações</label>
                 <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Ponto de referência, instruções de entrega, etc." {!! $disabledAttr !!}></textarea>
             </div>
         @endif
@@ -123,20 +121,9 @@
                     apiError: '',
                     init() {
                         this.maskZip();
-                        this.syncSelects();
                         if (this.state) {
                             this.loadCities(this.state, true);
                         }
-                    },
-                    syncSelects() {
-                        this.$nextTick(() => {
-                            if (this.$refs.stateSelect) {
-                                this.$refs.stateSelect.value = this.state || '';
-                            }
-                            if (this.$refs.citySelect) {
-                                this.$refs.citySelect.value = this.city || '';
-                            }
-                        });
                     },
                     stateIdBySigla(sigla) {
                         const state = this.states.find((item) => item.sigla === sigla);
@@ -150,13 +137,11 @@
                         this.apiError = '';
                         this.loadingCities = true;
                         const stateId = this.stateIdBySigla(sigla);
-                        const currentCity = this.city;
 
                         try {
                             if (!sigla || !stateId) {
                                 this.cities = [];
                                 if (!preserveCity) this.city = '';
-                                this.syncSelects();
                                 return;
                             }
 
@@ -165,22 +150,15 @@
                             const data = await response.json();
                             this.cities = Array.isArray(data) ? data.map((item) => ({ nome: item.nome })) : [];
 
-                            if (currentCity && !this.cities.some((item) => item.nome === currentCity)) {
+                            if (this.city && !this.cities.some((item) => item.nome === this.city)) {
                                 if (preserveCity) {
-                                    this.cities.unshift({ nome: currentCity });
+                                    this.cities.unshift({ nome: this.city });
                                 } else {
                                     this.city = '';
                                 }
                             }
-
-                            if (preserveCity && currentCity) {
-                                this.city = currentCity;
-                            }
-
-                            this.syncSelects();
                         } catch (error) {
                             this.apiError = 'Não foi possível carregar os municípios automaticamente. Você ainda pode revisar os campos manualmente.';
-                            this.syncSelects();
                         } finally {
                             this.loadingCities = false;
                         }
@@ -207,7 +185,6 @@
                             this.state = data.uf || this.state;
                             await this.loadCities(this.state, false);
                             this.city = data.localidade || this.city;
-                            this.syncSelects();
                         } catch (error) {
                             this.apiError = error.message || 'Não foi possível consultar o CEP agora.';
                         }

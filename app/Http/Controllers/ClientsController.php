@@ -273,33 +273,12 @@ class ClientsController extends Controller
 
     private function uploadAttachments(string $relatedType, int $relatedId, Request $request): void
     {
-        $legacyFiles = $this->normalizeUploadedFiles($request->file('attachments'));
+        $files = $this->normalizeUploadedFiles($request->file('attachments'));
 
-        if (!empty($legacyFiles)) {
-            $legacyRole = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
+        if (!empty($files)) {
+            $role = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
                 ? $request->input('attachment_role')
                 : 'documento';
-
-            $this->storeAttachmentFiles($relatedType, $relatedId, $legacyFiles, $legacyRole, $request);
-        }
-
-        $entryFiles = $request->file('attachment_files', []);
-        $entryRoles = (array) $request->input('attachment_roles', []);
-
-        if (!is_array($entryFiles)) {
-            $entryFiles = [$entryFiles];
-        }
-
-        foreach ($entryFiles as $index => $entryFile) {
-            $files = $this->normalizeUploadedFiles($entryFile);
-            if (empty($files)) {
-                continue;
-            }
-
-            $role = $entryRoles[$index] ?? 'documento';
-            if (!in_array($role, ['documento', 'contrato', 'outro'], true)) {
-                $role = 'documento';
-            }
 
             $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
         }
@@ -820,42 +799,6 @@ class ClientsController extends Controller
         return back()->with('success', 'Tipo salvo com sucesso.');
     }
 
-    private function attachmentEditRoute(ClientAttachment $attachment): ?string
-    {
-        return match ($attachment->related_type) {
-            'entity' => (function () use ($attachment) {
-                $entity = ClientEntity::query()->find($attachment->related_id);
-                if (!$entity) {
-                    return null;
-                }
-
-                return $entity->profile_scope === 'avulso'
-                    ? route('clientes.avulsos.edit', $entity)
-                    : route('clientes.contatos.edit', $entity);
-            })(),
-            'condominium' => (function () use ($attachment) {
-                $condominium = ClientCondominium::query()->find($attachment->related_id);
-                return $condominium ? route('clientes.condominios.edit', $condominium) : null;
-            })(),
-            'unit' => (function () use ($attachment) {
-                $unit = ClientUnit::query()->find($attachment->related_id);
-                return $unit ? route('clientes.unidades.edit', $unit) : null;
-            })(),
-            default => null,
-        };
-    }
-
-    private function redirectAfterAttachmentAction(ClientAttachment $attachment, string $message): RedirectResponse
-    {
-        $route = $this->attachmentEditRoute($attachment);
-
-        if ($route) {
-            return redirect()->to($route . '#anexos')->with('success', $message);
-        }
-
-        return back()->with('success', $message);
-    }
-
     public function attachmentDownload(ClientAttachment $attachment): BinaryFileResponse
     {
         $path = public_path(ltrim($attachment->relative_path, '/'));
@@ -863,26 +806,14 @@ class ClientsController extends Controller
         return response()->download($path, $attachment->original_name);
     }
 
-    public function attachmentDelete(Request $request, ClientAttachment $attachment): RedirectResponse
+    public function attachmentDelete(ClientAttachment $attachment): RedirectResponse
     {
-        $message = 'Anexo removido com sucesso.';
         $path = public_path(ltrim($attachment->relative_path, '/'));
-
         if (is_file($path)) {
             @unlink($path);
         }
-
-        $attachmentName = $attachment->original_name;
-        $relatedType = $attachment->related_type;
-        $relatedId = (int) $attachment->related_id;
-
         $attachment->delete();
-
-        if ($attachmentName !== '') {
-            $this->recordTimeline($relatedType, $relatedId, 'Anexo removido: ' . $attachmentName, $request);
-        }
-
-        return $this->redirectAfterAttachmentAction($attachment, $message);
+        return back()->with('success', 'Anexo removido com sucesso.');
     }
 
     private function condominioPayload(Request $request): array

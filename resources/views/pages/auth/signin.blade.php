@@ -10,7 +10,7 @@
                     <img src="{{ $ancoraBrand['logo_dark'] ?? '/imgs/logomarca.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(36, (int) ($ancoraBrand['logo_height_login'] ?? 82)) }}px" />
                 </div>
 
-                <form method="post" action="{{ route('login.store') }}" class="space-y-5">
+                <form method="post" action="{{ route('login.store', [], false) }}" class="space-y-5">
                     @csrf
 
                     <div>
@@ -47,9 +47,9 @@
         <div class="relative hidden h-full w-full items-center overflow-hidden lg:grid lg:w-1/2 dark:bg-white/5 bg-brand-950">
             <x-common.common-grid-shape />
             <div class="relative z-10 mx-auto max-w-xl px-10 text-white">
-                <div class="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/80">
-                    <img src="{{ asset('imgs/logoancora-badge.png') }}" alt="Logo Âncora" class="h-5 w-5 object-contain">
-                    <span>Ecossistema Âncora</span>
+                <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/80">
+                    <i class="fa-solid fa-layer-group"></i>
+                    Ecossistema Âncora
                 </div>
                 <h2 class="mt-6 text-3xl font-semibold leading-tight">Gestão jurídica e condominial em um único ambiente, com cadastros organizados, propostas profissionais e rotina mais fluida.</h2>
                 <p class="mt-4 text-base text-white/70">Estruture clientes, condomínios, unidades, documentos e permissões em uma base pensada para apoiar a operação do seu escritório.</p>

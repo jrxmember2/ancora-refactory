@@ -880,26 +880,3 @@ pre[class*='language-'] {
     margin-right: -60px !important;
   }
 }
-
-
-.clientes-page input:not([type='checkbox']):not([type='radio']):not([type='file']),
-.clientes-page select,
-.clientes-page textarea {
-  @apply border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-gray-500;
-}
-
-.clientes-page input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
-.clientes-page select:focus,
-.clientes-page textarea:focus {
-  @apply border-brand-300 outline-none ring-4 ring-brand-500/10;
-}
-
-.clientes-page input:disabled,
-.clientes-page select:disabled,
-.clientes-page textarea:disabled {
-  @apply cursor-not-allowed bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400;
-}
-
-.clientes-page option {
-  @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-white/90;
-}

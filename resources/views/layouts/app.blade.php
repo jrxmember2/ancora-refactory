@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Painel' }} | {{ $ancoraBrand['app_name'] ?? 'Âncora' }}</title>
-    @include('layouts.partials.asset-loader')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="icon" href="{{ $ancoraBrand['favicon'] ?? '/favicon.ico' }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script>
@@ -55,7 +55,7 @@
         })();
     </script>
 </head>
-<body class="{{ request()->routeIs('clientes.*') ? 'clientes-page' : '' }}" x-data="{ loaded: true }" x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280; window.addEventListener('resize', () => { if(window.innerWidth < 1280){ $store.sidebar.setMobileOpen(false); $store.sidebar.isExpanded = false; } else { $store.sidebar.isMobileOpen = false; $store.sidebar.isExpanded = true; } });">
+<body x-data="{ loaded: true }" x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280; window.addEventListener('resize', () => { if(window.innerWidth < 1280){ $store.sidebar.setMobileOpen(false); $store.sidebar.isExpanded = false; } else { $store.sidebar.isMobileOpen = false; $store.sidebar.isExpanded = true; } });">
     <x-common.preloader />
     <div class="min-h-screen xl:flex">
         @include('layouts.backdrop')
