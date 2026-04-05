@@ -273,15 +273,38 @@ class ClientsController extends Controller
 
     private function uploadAttachments(string $relatedType, int $relatedId, Request $request): void
     {
-        $files = $this->normalizeUploadedFiles($request->file('attachments'));
+        $groupInputs = $request->input('attachment_groups', []);
+        $groupFiles = $request->allFiles()['attachment_groups'] ?? [];
+        $hasGroupedUpload = false;
 
-        if (!empty($files)) {
-            $role = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
-                ? $request->input('attachment_role')
-                : 'documento';
+        if (is_array($groupFiles)) {
+            foreach ($groupFiles as $index => $group) {
+                $files = $this->normalizeUploadedFiles($group['files'] ?? []);
+                if (empty($files)) {
+                    continue;
+                }
 
-            $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
+                $roleInput = $groupInputs[$index]['role'] ?? 'documento';
+                $role = in_array($roleInput, ['documento', 'contrato', 'outro'], true) ? $roleInput : 'documento';
+                $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
+                $hasGroupedUpload = true;
+            }
         }
+
+        if ($hasGroupedUpload) {
+            return;
+        }
+
+        $files = $this->normalizeUploadedFiles($request->file('attachments'));
+        if (empty($files)) {
+            return;
+        }
+
+        $role = in_array($request->input('attachment_role', 'documento'), ['documento', 'contrato', 'outro'], true)
+            ? $request->input('attachment_role')
+            : 'documento';
+
+        $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
     }
 
     private function uploadCondominiumDocuments(int $condominiumId, Request $request): void
@@ -808,12 +831,43 @@ class ClientsController extends Controller
 
     public function attachmentDelete(ClientAttachment $attachment): RedirectResponse
     {
+        $redirect = $this->attachmentReturnRedirect($attachment);
         $path = public_path(ltrim($attachment->relative_path, '/'));
         if (is_file($path)) {
             @unlink($path);
         }
         $attachment->delete();
-        return back()->with('success', 'Anexo removido com sucesso.');
+        return $redirect->with('success', 'Anexo removido com sucesso.');
+    }
+
+    private function attachmentReturnRedirect(ClientAttachment $attachment): RedirectResponse
+    {
+        if ($attachment->related_type === 'entity') {
+            $entity = ClientEntity::query()->find($attachment->related_id);
+            if ($entity) {
+                return match ($entity->profile_scope) {
+                    'avulso' => redirect()->route('clientes.avulsos.edit', $entity),
+                    'contato' => redirect()->route('clientes.contatos.edit', $entity),
+                    default => redirect()->back(),
+                };
+            }
+        }
+
+        if ($attachment->related_type === 'condominium') {
+            $condominium = ClientCondominium::query()->find($attachment->related_id);
+            if ($condominium) {
+                return redirect()->route('clientes.condominios.edit', $condominium);
+            }
+        }
+
+        if ($attachment->related_type === 'unit') {
+            $unit = ClientUnit::query()->find($attachment->related_id);
+            if ($unit) {
+                return redirect()->route('clientes.unidades.edit', $unit);
+            }
+        }
+
+        return redirect()->back();
     }
 
     private function condominioPayload(Request $request): array

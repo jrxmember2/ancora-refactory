@@ -22,14 +22,14 @@
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais</h3>
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Tipo</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
                     <select name="entity_type" x-model="entityType" @change="maskDocument()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                         <option value="pf">Pessoa física</option>
                         <option value="pj">Pessoa jurídica</option>
                     </select>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Perfil / papel</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Perfil / papel</label>
                     <select name="role_tag" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
                         <option value="">Selecione</option>
                         @foreach(($entityRoles ?? collect()) as $role)
@@ -39,27 +39,27 @@
                     <p class="mt-1 text-xs text-gray-500">Cadastre novos perfis/papéis em Configurações de clientes.</p>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Nome principal</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome principal</label>
                     <input name="display_name" value="{{ old('display_name', $entity?->display_name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" required>
                 </div>
                 <div x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Nome jurídico / razão social</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome jurídico / razão social</label>
                     <input name="legal_name" value="{{ old('legal_name', $entity?->legal_name) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPf">
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">CPF / CNPJ</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">CPF / CNPJ</label>
                     <input name="cpf_cnpj" value="{{ old('cpf_cnpj', $entity?->cpf_cnpj) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" x-ref="document" @input="maskDocument()" placeholder="CPF ou CNPJ" inputmode="numeric">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">RG / IE</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">RG / IE</label>
                     <input name="rg_ie" value="{{ old('rg_ie', $entity?->rg_ie) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Profissão</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Profissão</label>
                     <input name="profession" value="{{ old('profession', $entity?->profession) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Estado civil</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Estado civil</label>
                     <select name="marital_status" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                         <option value="">Selecione</option>
                         @foreach($maritalOptions as $status)
@@ -68,11 +68,11 @@
                     </select>
                 </div>
                 <div x-bind:class="isPj ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Data de nascimento</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Data de nascimento</label>
                     <input type="date" name="birth_date" value="{{ old('birth_date', $entity?->birth_date?->format('Y-m-d') ?? $entity?->birth_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPj">
                 </div>
                 <div x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Representante legal</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Representante legal</label>
                     <input name="legal_representative" value="{{ old('legal_representative', $entity?->legal_representative) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="isPf">
                 </div>
             </div>
@@ -82,21 +82,21 @@
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contatos e observações</h3>
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Telefones</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefones</label>
                     <textarea name="phones_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Principal|27999999999&#10;Financeiro|2733334444">{{ old('phones_text', $phonesText) }}</textarea>
                     <p class="mt-1 text-xs text-gray-500">Um por linha, no formato rótulo|número.</p>
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">E-mails</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mails</label>
                     <textarea name="emails_text" rows="5" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Principal|email@dominio.com">{{ old('emails_text', $emailsText) }}</textarea>
                     <p class="mt-1 text-xs text-gray-500">Um por linha, no formato rótulo|email.</p>
                 </div>
                 <div class="md:col-span-2" x-bind:class="isPf ? 'opacity-60' : ''">
-                    <label class="mb-1.5 block text-sm font-medium">Sócios / acionistas</label>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Sócios / acionistas</label>
                     <textarea name="shareholders_text" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Nome do sócio|CPF/CNPJ|Função" :disabled="isPf">{{ old('shareholders_text', $shareholdersText) }}</textarea>
                 </div>
-                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium">Notas</label><textarea name="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('notes', $entity?->notes) }}</textarea></div>
-                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium">Descrição / observações livres</label><textarea name="description" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('description', $entity?->description) }}</textarea></div>
+                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Notas</label><textarea name="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('notes', $entity?->notes) }}</textarea></div>
+                <div class="md:col-span-2"><label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição / observações livres</label><textarea name="description" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700">{{ old('description', $entity?->description) }}</textarea></div>
             </div>
         </div>
 
@@ -127,59 +127,72 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Status</h3>
             <div class="mt-4 space-y-4">
-                <label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name="is_inactive" value="1" x-model="inactive"> Inativo</label>
+                <label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_inactive" value="1" x-model="inactive"> Inativo</label>
                 <div x-bind:class="inactive ? '' : 'opacity-60'">
-                    <label class="mb-1.5 block text-sm font-medium">Motivo da inativação</label>
-                    <input name="inactive_reason" value="{{ old('inactive_reason', $entity?->inactive_reason) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!inactive">
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo da inativação</label>
+                    <input name="inactive_reason" value="{{ old('inactive_reason', $entity?->inactive_reason) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100" :disabled="!inactive">
                 </div>
                 <div x-bind:class="inactive ? '' : 'opacity-60'">
-                    <label class="mb-1.5 block text-sm font-medium">Fim do contrato</label>
-                    <input type="date" name="contract_end_date" value="{{ old('contract_end_date', $entity?->contract_end_date?->format('Y-m-d') ?? $entity?->contract_end_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="!inactive">
-                </div>
-                <div data-file-preview>
-                    <label class="mb-1.5 block text-sm font-medium">Anexos</label>
-                    <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
-                        <i class="fa-solid fa-paperclip"></i>
-                        <span>Escolher arquivos para anexar</span>
-                        <input type="file" name="attachments[]" multiple class="sr-only" data-file-input data-multiple>
-                    </label>
-                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fim do contrato</label>
+                    <input type="date" name="contract_end_date" value="{{ old('contract_end_date', $entity?->contract_end_date?->format('Y-m-d') ?? $entity?->contract_end_date) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100" :disabled="!inactive">
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label>
-                    <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"><option value="documento">Documento</option><option value="contrato">Contrato</option><option value="outro">Outro</option></select>
+                    <div class="mb-1.5 flex items-center justify-between gap-3">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Anexos</label>
+                        <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-attachment-add>
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Adicionar</span>
+                        </button>
+                    </div>
+                    <div class="space-y-3" data-attachment-repeater>
+                        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800" data-attachment-group>
+                            <div data-file-preview>
+                                <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <span>Escolher arquivo(s)</span>
+                                    <input type="file" name="attachment_groups[0][files][]" multiple class="sr-only" data-file-input data-multiple>
+                                </label>
+                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
+                            </div>
+                            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr,auto] sm:items-end">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Papel do anexo</label>
+                                    <select name="attachment_groups[0][role]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                        <option value="documento">Documento</option>
+                                        <option value="contrato">Contrato</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="hidden rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-attachment-remove>Remover</button>
+                            </div>
+                        </div>
+                    </div>
+                    <template data-attachment-template>
+                        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800" data-attachment-group>
+                            <div data-file-preview>
+                                <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <span>Escolher arquivo(s)</span>
+                                    <input type="file" name="attachment_groups[__INDEX__][files][]" multiple class="sr-only" data-file-input data-multiple>
+                                </label>
+                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
+                            </div>
+                            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr,auto] sm:items-end">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Papel do anexo</label>
+                                    <select name="attachment_groups[__INDEX__][role]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
+                                        <option value="documento">Documento</option>
+                                        <option value="contrato">Contrato</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-attachment-remove>Remover</button>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
-        @if(isset($attachments) && $attachments->count())
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Anexos</h3>
-                <div class="mt-4 space-y-3">
-                    @foreach($attachments as $attachment)
-                        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-                            <div class="text-sm font-medium">{{ $attachment->original_name }}</div>
-                            <div class="mt-2 flex gap-2">
-                                <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs text-white">Baixar</a>
-                                <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">@csrf @method('DELETE')<button class="rounded-lg border border-error-300 px-3 py-2 text-xs text-error-600">Excluir</button></form>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-        @if(isset($timeline) && $timeline->count())
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold">Timeline</h3>
-                <div class="mt-4 space-y-3">
-                    @foreach($timeline as $event)
-                        <div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-                            <div class="text-sm">{{ $event->note }}</div>
-                            <div class="mt-1 text-xs text-gray-500">{{ optional($event->created_at)->format('d/m/Y H:i') }} · {{ $event->user_email }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
     </div>
 </div>
 
@@ -216,14 +229,55 @@
                 }
             }
 
+            function bindAttachmentRepeater(root) {
+                if (!root || root.dataset.bound === '1') return;
+                root.dataset.bound = '1';
+
+                const container = root.querySelector('[data-attachment-repeater]');
+                const template = root.querySelector('[data-attachment-template]');
+                const addButton = root.querySelector('[data-attachment-add]');
+                if (!container || !template || !addButton) return;
+
+                const updateRemoveButtons = () => {
+                    const groups = container.querySelectorAll('[data-attachment-group]');
+                    groups.forEach((group, index) => {
+                        const remove = group.querySelector('[data-attachment-remove]');
+                        if (!remove) return;
+                        remove.classList.toggle('hidden', index === 0 && groups.length === 1);
+                    });
+                };
+
+                addButton.addEventListener('click', () => {
+                    const index = container.querySelectorAll('[data-attachment-group]').length;
+                    const html = template.innerHTML.replaceAll('__INDEX__', String(index));
+                    container.insertAdjacentHTML('beforeend', html);
+                    updateRemoveButtons();
+                });
+
+                root.addEventListener('click', (event) => {
+                    const removeButton = event.target.closest('[data-attachment-remove]');
+                    if (!removeButton) return;
+                    const group = removeButton.closest('[data-attachment-group]');
+                    if (group) {
+                        group.remove();
+                        updateRemoveButtons();
+                    }
+                });
+
+                updateRemoveButtons();
+            }
+
             document.addEventListener('change', (event) => {
                 if (!event.target.matches('[data-file-input]')) return;
                 const wrapper = event.target.closest('[data-file-preview]');
                 const label = wrapper?.querySelector('[data-file-name]');
                 if (!label) return;
                 const files = Array.from(event.target.files || []);
-                if (!files.length) return;
-                label.textContent = files.map((file) => file.name).join(', ');
+                label.textContent = files.length ? files.map((file) => file.name).join(', ') : 'Nenhum arquivo selecionado';
+            });
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('[data-attachment-add]').forEach((button) => bindAttachmentRepeater(button.closest('.space-y-4') || document));
             });
         </script>
     @endpush

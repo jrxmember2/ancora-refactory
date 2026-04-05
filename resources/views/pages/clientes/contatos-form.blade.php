@@ -11,15 +11,19 @@
     @include('pages.clientes.partials.entity-form', ['roleTag' => $item?->role_tag ?? 'administradora'])
 
     <div class="flex gap-3">
-        <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">{{ $mode === 'create' ? 'Cadastrar' : 'Salvar alterações' }}</button>
+        <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">{{ $mode === 'create' ? 'Cadastrar' : 'Salvar' }}</button>
     </div>
 </form>
 
 @if($mode === 'edit')
-    <form method="post" action="{{ route('clientes.contatos.delete', $item) }}" class="mt-3">
-        @csrf
-        @method('DELETE')
-        <button onclick="return confirm('Excluir este cadastro?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">Excluir</button>
-    </form>
+    <div class="mt-3 flex flex-wrap gap-3">
+        <form method="post" action="{{ route('clientes.contatos.delete', $item) }}">
+            @csrf
+            @method('DELETE')
+            <button onclick="return confirm('Excluir este cadastro?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600 dark:text-error-300">Excluir</button>
+        </form>
+    </div>
+
+    @include('pages.clientes.partials.entity-related-panels')
 @endif
 @endsection
