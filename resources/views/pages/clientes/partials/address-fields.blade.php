@@ -15,12 +15,11 @@
     });
     $selectedStateSigla = $selectedState['sigla'] ?? (strlen(trim((string) $rawState)) <= 2 ? strtoupper(trim((string) $rawState)) : '');
     $selectedCity = old($prefix . '_city', $address['city'] ?? '');
-    $disabledAttr = $disabledExpression ? " :disabled=\"{$disabledExpression}\"" : "";
-    $disabledClass = $disabledExpression ? " x-bind:class=\"{$disabledExpression} ? 'opacity-60' : ''\"" : "";
+    $disabledAttr = $disabledExpression ? " :disabled=\"{$disabledExpression}\"" : '';
+    $disabledClass = $disabledExpression ? " x-bind:class=\"{$disabledExpression} ? 'opacity-60' : ''\"" : '';
 @endphp
 
-<div class="rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-100"
-     data-address-wrapper
+<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"
      x-data="brazilAddressField({
         prefix: @js($prefix),
         states: @js($states),
@@ -42,9 +41,9 @@
 
     <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">CEP</label>
+            <label class="mb-1.5 block text-sm font-medium">CEP</label>
             <div class="flex gap-2">
-                <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="00000-000" inputmode="numeric" {!! $disabledAttr !!}>
+                <input :name="`${prefix}_zip`" x-model="zip" @input="maskZip()" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="00000-000" inputmode="numeric" {!! $disabledAttr !!}>
                 <button type="button" @click="fetchCep()" class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" title="Buscar endereço pelo CEP" {!! $disabledAttr !!}>
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
@@ -52,42 +51,39 @@
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Rua</label>
-            <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="Rua / logradouro" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Rua</label>
+            <input :name="`${prefix}_street`" x-model="street" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Rua / logradouro" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Número</label>
-            <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="Número" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Número</label>
+            <input :name="`${prefix}_number`" x-model="number" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Número" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Complemento</label>
-            <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="Complemento" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Complemento</label>
+            <input :name="`${prefix}_complement`" x-model="complement" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Complemento" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Bairro</label>
-            <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="Bairro" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Bairro</label>
+            <input :name="`${prefix}_neighborhood`" x-model="neighborhood" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Bairro" {!! $disabledAttr !!}>
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Estado (UF)</label>
-            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" {!! $disabledAttr !!}>
+            <label class="mb-1.5 block text-sm font-medium">Estado (UF)</label>
+            <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, true)" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" {!! $disabledAttr !!}>
                 <option value="">Selecione</option>
-                @foreach($states as $uf)
-                    <option value="{{ $uf['sigla'] }}" @selected($selectedStateSigla === $uf['sigla'])>{{ $uf['nome'] }} ({{ $uf['sigla'] }})</option>
-                @endforeach
+                <template x-for="uf in states" :key="uf.sigla">
+                    <option :value="uf.sigla" x-text="`${uf.nome} (${uf.sigla})`"></option>
+                </template>
             </select>
         </div>
 
         <div class="md:col-span-2">
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Município</label>
-            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-gray-900 dark:border-gray-700 dark:text-gray-100" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
+            <label class="mb-1.5 block text-sm font-medium">Município</label>
+            <select :name="`${prefix}_city`" x-model="city" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
                 <option value="" x-text="loadingCities ? 'Carregando municípios...' : (state ? 'Selecione o município' : 'Selecione primeiro o estado')"></option>
-                @if($selectedCity)
-                    <option value="{{ $selectedCity }}" selected>{{ $selectedCity }}</option>
-                @endif
                 <template x-for="municipio in cities" :key="municipio.nome">
                     <option :value="municipio.nome" x-text="municipio.nome"></option>
                 </template>
@@ -96,8 +92,8 @@
 
         @if($showNotes)
             <div class="md:col-span-2">
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">Observações</label>
-                <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 text-gray-900 dark:border-gray-700 dark:text-gray-100" placeholder="Ponto de referência, instruções de entrega, etc." {!! $disabledAttr !!}></textarea>
+                <label class="mb-1.5 block text-sm font-medium">Observações</label>
+                <textarea :name="`${prefix}_notes`" x-model="notes" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700" placeholder="Ponto de referência, instruções de entrega, etc." {!! $disabledAttr !!}></textarea>
             </div>
         @endif
     </div>
@@ -152,14 +148,14 @@
                             const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios?orderBy=nome`);
                             if (!response.ok) throw new Error('Não foi possível carregar os municípios agora.');
                             const data = await response.json();
-                            const incomingCities = Array.isArray(data) ? data.map((item) => ({ nome: item.nome })) : [];
-                            if (this.city && !incomingCities.some((item) => item.nome === this.city) && preserveCity) {
-                                incomingCities.unshift({ nome: this.city });
-                            }
-                            this.cities = incomingCities;
+                            this.cities = Array.isArray(data) ? data.map((item) => ({ nome: item.nome })) : [];
 
-                            if (!preserveCity && this.city && !incomingCities.some((item) => item.nome === this.city)) {
-                                this.city = '';
+                            if (this.city && !this.cities.some((item) => item.nome === this.city)) {
+                                if (preserveCity) {
+                                    this.cities.unshift({ nome: this.city });
+                                } else {
+                                    this.city = '';
+                                }
                             }
                         } catch (error) {
                             this.apiError = 'Não foi possível carregar os municípios automaticamente. Você ainda pode revisar os campos manualmente.';

@@ -1,57 +1,59 @@
 @php
+    $hotFile = public_path('hot');
     $manifestPath = public_path('build/manifest.json');
-    $cssFiles = [];
-    $jsFiles = [];
-
-    if (is_file($manifestPath)) {
-        $manifest = json_decode(file_get_contents($manifestPath), true) ?: [];
-
-        $pushAsset = function (string $path, string $type) use (&$cssFiles, &$jsFiles) {
-            $normalized = '/' . ltrim($path, '/');
-            if ($type === 'css' && !in_array($normalized, $cssFiles, true)) {
-                $cssFiles[] = $normalized;
-            }
-            if ($type === 'js' && !in_array($normalized, $jsFiles, true)) {
-                $jsFiles[] = $normalized;
-            }
-        };
-
-        foreach (['resources/css/app.css', 'resources/js/app.js'] as $entry) {
-            $chunk = $manifest[$entry] ?? null;
-            if (!$chunk) {
-                continue;
-            }
-
-            if ($entry === 'resources/css/app.css') {
-                if (!empty($chunk['file'])) {
-                    $pushAsset('build/' . ltrim($chunk['file'], '/'), 'css');
-                }
-                continue;
-            }
-
-            if (!empty($chunk['file'])) {
-                $pushAsset('build/' . ltrim($chunk['file'], '/'), 'js');
-            }
-
-            foreach (($chunk['css'] ?? []) as $css) {
-                $pushAsset('build/' . ltrim($css, '/'), 'css');
-            }
-        }
-    }
-
-    if (empty($cssFiles) && file_exists(public_path('build/assets/ancora-app.css'))) {
-        $cssFiles[] = '/build/assets/ancora-app.css';
-    }
-
-    if (empty($jsFiles) && file_exists(public_path('build/assets/ancora-app.js'))) {
-        $jsFiles[] = '/build/assets/ancora-app.js';
-    }
+    $stableCss = public_path('build/assets/ancora-app.css');
+    $stableJs = public_path('build/assets/ancora-app.js');
+    $usingHot = file_exists($hotFile) && app()->environment('local');
 @endphp
 
-@foreach($cssFiles as $href)
-    <link rel="stylesheet" href="{{ $href }}?v={{ @filemtime(public_path(ltrim($href, '/'))) ?: time() }}">
-@endforeach
+@if($usingHot)
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+@else
+    @php
+        $manifest = [];
+        if (file_exists($manifestPath)) {
+            $decoded = json_decode(file_get_contents($manifestPath), true);
+            $manifest = is_array($decoded) ? $decoded : [];
+        }
 
-@foreach($jsFiles as $src)
-    <script type="module" src="{{ $src }}?v={{ @filemtime(public_path(ltrim($src, '/'))) ?: time() }}"></script>
-@endforeach
+        $cssEntry = $manifest['resources/css/app.css'] ?? null;
+        $jsEntry = $manifest['resources/js/app.js'] ?? null;
+        $cssFiles = [];
+        $jsFiles = [];
+
+        if (is_array($cssEntry)) {
+            if (!empty($cssEntry['file'])) {
+                $cssFiles[] = asset('build/' . ltrim($cssEntry['file'], '/'));
+            }
+            foreach (($cssEntry['css'] ?? []) as $cssFile) {
+                $cssFiles[] = asset('build/' . ltrim($cssFile, '/'));
+            }
+        }
+
+        if (is_array($jsEntry) && !empty($jsEntry['file'])) {
+            $jsFiles[] = asset('build/' . ltrim($jsEntry['file'], '/'));
+            foreach (($jsEntry['css'] ?? []) as $cssFile) {
+                $cssFiles[] = asset('build/' . ltrim($cssFile, '/'));
+            }
+        }
+
+        $cssFiles = array_values(array_unique(array_filter($cssFiles)));
+        $jsFiles = array_values(array_unique(array_filter($jsFiles)));
+
+        if (empty($cssFiles) && file_exists($stableCss)) {
+            $cssFiles[] = asset('build/assets/ancora-app.css');
+        }
+
+        if (empty($jsFiles) && file_exists($stableJs)) {
+            $jsFiles[] = asset('build/assets/ancora-app.js');
+        }
+    @endphp
+
+    @foreach($cssFiles as $cssFile)
+        <link rel="stylesheet" href="{{ $cssFile }}">
+    @endforeach
+
+    @foreach($jsFiles as $jsFile)
+        <script type="module" src="{{ $jsFile }}"></script>
+    @endforeach
+@endif
