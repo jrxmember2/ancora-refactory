@@ -191,6 +191,25 @@
   body {
     @apply relative font-normal font-outfit z-1 bg-gray-50;
   }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+    opacity: 1;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+  }
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  .dark select option {
+    color: #f3f4f6;
+    background-color: #111827;
+  }
 }
 
 @utility menu-item {

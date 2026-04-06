@@ -72,6 +72,107 @@ class ClientsController extends Controller
         ])->all();
     }
 
+    private function parseRepeaterRows(array $rows, array $fields): array
+    {
+        return collect($rows)
+            ->map(function ($row) use ($fields) {
+                $row = is_array($row) ? $row : [];
+                $normalized = [];
+                foreach ($fields as $field) {
+                    $normalized[$field] = trim((string) ($row[$field] ?? ''));
+                }
+                return $normalized;
+            })
+            ->filter(fn ($row) => collect($row)->filter(fn ($value) => $value !== '')->isNotEmpty())
+            ->values()
+            ->all();
+    }
+
+    private function parsePhoneRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['number']))
+            ->map(fn ($row, $index) => [
+                'label' => 'Telefone ' . ($index + 1),
+                'number' => $row['number'],
+            ])
+            ->all();
+    }
+
+    private function parseEmailRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['email']))
+            ->map(fn ($row, $index) => [
+                'label' => 'E-mail ' . ($index + 1),
+                'email' => $row['email'],
+            ])
+            ->all();
+    }
+
+    private function parseShareholderRows(array $rows): array
+    {
+        return $this->parseRepeaterRows($rows, ['name', 'document', 'role']);
+    }
+
+    private function digitsOnly(?string $value): string
+    {
+        return preg_replace('/\D+/', '', (string) $value) ?? '';
+    }
+
+    private function isValidCpf(string $digits): bool
+    {
+        if (!preg_match('/^\d{11}$/', $digits) || preg_match('/^(\d)\1{10}$/', $digits)) {
+            return false;
+        }
+
+        for ($t = 9; $t < 11; $t++) {
+            $sum = 0;
+            for ($i = 0; $i < $t; $i++) {
+                $sum += (int) $digits[$i] * (($t + 1) - $i);
+            }
+            $digit = ((10 * $sum) % 11) % 10;
+            if ((int) $digits[$t] !== $digit) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isValidCnpj(string $digits): bool
+    {
+        if (!preg_match('/^\d{14}$/', $digits) || preg_match('/^(\d)\1{13}$/', $digits)) {
+            return false;
+        }
+
+        $calculate = static function (string $base, array $weights): int {
+            $sum = 0;
+            foreach ($weights as $index => $weight) {
+                $sum += ((int) $base[$index]) * $weight;
+            }
+            $remainder = $sum % 11;
+            return $remainder < 2 ? 0 : 11 - $remainder;
+        };
+
+        $first = $calculate($digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+        $second = $calculate($digits, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+        return $first === (int) $digits[12] && $second === (int) $digits[13];
+    }
+
+    private function isValidCpfCnpj(?string $document): bool
+    {
+        $digits = $this->digitsOnly($document);
+        if ($digits === '') {
+            return true;
+        }
+
+        return match (strlen($digits)) {
+            11 => $this->isValidCpf($digits),
+            14 => $this->isValidCnpj($digits),
+            default => false,
+        };
+    }
+
     private function addressFromRequest(Request $request, string $prefix): array
     {
         return [
@@ -115,13 +216,13 @@ class ClientsController extends Controller
             'municipal_registration' => trim((string) $request->input('municipal_registration', '')) ?: null,
             'opening_date' => null,
             'legal_representative' => trim((string) $request->input('legal_representative', '')) ?: null,
-            'phones_json' => $this->parseLines($request->input('phones_text'), ['label', 'number']),
-            'emails_json' => $this->parseLines($request->input('emails_text'), ['label', 'email']),
+            'phones_json' => $this->parsePhoneRows((array) $request->input('phones', [])),
+            'emails_json' => $this->parseEmailRows((array) $request->input('emails', [])),
             'primary_address_json' => $this->addressFromRequest($request, 'primary_address'),
             'billing_address_json' => $request->boolean('billing_same_as_primary')
                 ? $this->addressFromRequest($request, 'primary_address')
                 : $this->addressFromRequest($request, 'billing_address'),
-            'shareholders_json' => $this->parseLines($request->input('shareholders_text'), ['name', 'document', 'role']),
+            'shareholders_json' => $this->parseShareholderRows((array) $request->input('shareholders', [])),
             'notes' => trim((string) $request->input('notes', '')) ?: null,
             'description' => trim((string) $request->input('description', '')) ?: null,
             'is_active' => !$isInactive,
@@ -167,6 +268,12 @@ class ClientsController extends Controller
         }
         if (($data['profile_scope'] ?? '') === 'avulso' && empty($data['cpf_cnpj'])) {
             $errors[] = 'Para cliente avulso, informe CPF/CNPJ.';
+        }
+        if (!empty($data['cpf_cnpj']) && !$this->isValidCpfCnpj($data['cpf_cnpj'])) {
+            $errors[] = 'Informe um CPF/CNPJ válido.';
+        }
+        if (collect($data['emails_json'] ?? [])->pluck('email')->filter(fn ($email) => $email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))->isNotEmpty()) {
+            $errors[] = 'Revise os e-mails informados.';
         }
         if (empty($data['is_active']) && empty($data['inactive_reason'])) {
             $errors[] = 'Informe o motivo da inativação.';
@@ -903,6 +1010,12 @@ class ClientsController extends Controller
         }
         if (empty($payload['syndico_entity_id'])) {
             $errors[] = 'Vincule um síndico ao condomínio.';
+        }
+        if (!empty($payload['cnpj'])) {
+            $digits = $this->digitsOnly($payload['cnpj']);
+            if (strlen($digits) !== 14 || !$this->isValidCnpj($digits)) {
+                $errors[] = 'Informe um CNPJ válido para o condomínio.';
+            }
         }
         if (empty($payload['is_active']) && empty($payload['inactive_reason'])) {
             $errors[] = 'Informe o motivo da inativação.';
