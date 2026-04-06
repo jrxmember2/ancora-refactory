@@ -28,10 +28,16 @@ class ProposalController extends Controller
         $this->syncLegacyAdministradorasFromClientEntities();
 
         return [
-            'administradoras' => Administradora::query()->active()->get(),
-            'servicos' => Servico::query()->active()->get(),
-            'formasEnvio' => FormaEnvio::query()->active()->get(),
-            'statusRetorno' => StatusRetorno::query()->active()->get(),
+            'administradoras' => Administradora::query()->active()->orderBy('name')->get(),
+            'servicos' => Servico::query()->active()->orderBy('name')->get(),
+            'formasEnvio' => FormaEnvio::query()->active()->orderBy('name')->get(),
+            'statusRetorno' => StatusRetorno::query()->active()->orderBy('name')->get(),
+            'proposalSeqPreviewByYear' => DB::table('propostas')
+                ->selectRaw('proposal_year, COALESCE(MAX(proposal_seq), 0) + 1 as next_seq')
+                ->groupBy('proposal_year')
+                ->pluck('next_seq', 'proposal_year')
+                ->map(fn ($seq) => (int) $seq)
+                ->all(),
         ];
     }
 
