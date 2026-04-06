@@ -123,6 +123,9 @@
                     loadingCities: false,
                     apiError: '',
                     init() {
+                        this.state = String(this.state || '').trim().toUpperCase();
+                        this.city = String(this.city || this.selectedCity || '').trim();
+                        this.selectedCity = this.city;
                         this.maskZip();
                         if (this.selectedCity && !this.cities.some((item) => item.nome === this.selectedCity)) {
                             this.cities.unshift({ nome: this.selectedCity });
@@ -140,6 +143,7 @@
                         this.zip = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
                     },
                     ensureSelectedCityOption() {
+                        this.city = String(this.city || '').trim();
                         if (this.city && !this.cities.some((item) => item.nome === this.city)) {
                             this.cities.unshift({ nome: this.city });
                         }

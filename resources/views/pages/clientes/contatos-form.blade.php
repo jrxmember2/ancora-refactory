@@ -4,7 +4,7 @@
 <x-ancora.section-header :title="$title" subtitle="Cadastro de síndicos, administradoras, parceiros e fornecedores reutilizáveis." />
 @include('pages.clientes.partials.subnav')
 
-<form id="contato-form" method="post" action="{{ $mode === 'create' ? route('clientes.contatos.store') : route('clientes.contatos.update', $item) }}" enctype="multipart/form-data" class="space-y-6">
+<form id="contato-form" method="post" action="{{ $mode === 'create' ? route('clientes.contatos.store') : route('clientes.contatos.update', $item) }}" enctype="multipart/form-data" class="space-y-6" data-clientes-form>
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 

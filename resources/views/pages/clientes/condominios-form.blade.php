@@ -152,11 +152,7 @@
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
-                                            </form>
+                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -182,11 +178,7 @@
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
-                                            </form>
+                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -212,11 +204,7 @@
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
-                                            </form>
+                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
                                 @endforeach
@@ -279,11 +267,7 @@
                                     <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
                                     <div class="mt-2 flex gap-2">
                                         <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                        <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
-                                        </form>
+                                        <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                     </div>
                                 </div>
                             @endforeach
@@ -303,6 +287,13 @@
         </div>
     </div>
 </form>
+
+@foreach($attachments as $attachment)
+    <form id="attachment-delete-{{ $attachment->id }}" method="post" action="{{ route('clientes.attachments.delete', $attachment) }}" class="hidden">
+        @csrf
+        @method('DELETE')
+    </form>
+@endforeach
 
 <div class="mt-3 flex flex-wrap gap-3">
     <button type="submit" form="condominio-form" class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">

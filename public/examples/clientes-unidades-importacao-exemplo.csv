@@ -1,0 +1,4 @@
+bloco,unit_number,unit_type,owner_name,owner_document,owner_phone,owner_email,tenant_name,tenant_document,tenant_phone,tenant_email
+Torre A,101,Apartamento,João da Silva,123.456.789-09,(27) 99723-2877,joao.silva@email.com,Maria Souza,987.654.321-00,(27) 99888-1122,maria.souza@email.com
+Torre A,102,Apartamento,Empresa Exemplo Ltda,12.345.678/0001-99,(27) 3222-4455,financeiro@empresaexemplo.com,,,,
+Torre B,201,Cobertura,Ana Clara de Oliveira,234.567.890-12,(27) 99999-3344,ana.oliveira@email.com,Carlos Henrique,345.678.901-23,(27) 99777-5566,carlos.henrique@email.com

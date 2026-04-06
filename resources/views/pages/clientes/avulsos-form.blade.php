@@ -4,7 +4,7 @@
 <x-ancora.section-header :title="$title" subtitle="Cadastro de clientes avulsos PF/PJ com anexos e timeline." />
 @include('pages.clientes.partials.subnav')
 
-<form id="avulso-form" method="post" action="{{ $mode === 'create' ? route('clientes.avulsos.store') : route('clientes.avulsos.update', $item) }}" enctype="multipart/form-data" class="space-y-6">
+<form id="avulso-form" method="post" action="{{ $mode === 'create' ? route('clientes.avulsos.store') : route('clientes.avulsos.update', $item) }}" enctype="multipart/form-data" class="space-y-6" data-clientes-form>
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
