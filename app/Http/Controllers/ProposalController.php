@@ -29,7 +29,7 @@ class ProposalController extends Controller
 
         return [
             'administradoras' => Administradora::query()->active()->orderBy('name')->get(),
-            'servicos' => Servico::query()->active()->orderBy('name')->get(),
+            'servicos' => $this->serviceOptions(),
             'formasEnvio' => FormaEnvio::query()->active()->orderBy('name')->get(),
             'statusRetorno' => StatusRetorno::query()->active()->orderBy('name')->get(),
             'proposalSeqPreviewByYear' => DB::table('propostas')
@@ -39,6 +39,14 @@ class ProposalController extends Controller
                 ->map(fn ($seq) => (int) $seq)
                 ->all(),
         ];
+    }
+
+    private function serviceOptions()
+    {
+        return Servico::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
     }
 
     private function syncLegacyAdministradorasFromClientEntities(): void
@@ -125,10 +133,10 @@ class ProposalController extends Controller
             'filters' => $request->all(),
             'totals' => $totals,
             'filterOptions' => [
-                'administradoras' => Administradora::query()->active()->get(),
-                'servicos' => Servico::query()->active()->get(),
-                'formasEnvio' => FormaEnvio::query()->active()->get(),
-                'statusRetorno' => StatusRetorno::query()->active()->get(),
+                'administradoras' => Administradora::query()->active()->orderBy('name')->get(),
+                'servicos' => $this->serviceOptions(),
+                'formasEnvio' => FormaEnvio::query()->active()->orderBy('name')->get(),
+                'statusRetorno' => StatusRetorno::query()->active()->orderBy('name')->get(),
                 'years' => DB::table('propostas')->selectRaw('DISTINCT proposal_year')->orderByDesc('proposal_year')->pluck('proposal_year'),
             ],
         ]);
