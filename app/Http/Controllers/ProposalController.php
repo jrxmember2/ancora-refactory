@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Administradora;
 use App\Models\AuditLog;
+use App\Models\ClientEntity;
 use App\Models\FormaEnvio;
 use App\Models\Proposal;
 use App\Models\ProposalAttachment;
@@ -24,12 +25,45 @@ class ProposalController extends Controller
 {
     private function formDependencies(): array
     {
+        $this->syncLegacyAdministradorasFromClientEntities();
+
         return [
             'administradoras' => Administradora::query()->active()->get(),
             'servicos' => Servico::query()->active()->get(),
             'formasEnvio' => FormaEnvio::query()->active()->get(),
             'statusRetorno' => StatusRetorno::query()->active()->get(),
         ];
+    }
+
+    private function syncLegacyAdministradorasFromClientEntities(): void
+    {
+        ClientEntity::query()
+            ->active()
+            ->where('profile_scope', 'contato')
+            ->get()
+            ->filter(function (ClientEntity $entity) {
+                $role = Str::of((string) $entity->role_tag)->lower()->ascii()->value();
+                return in_array($role, ['administradora', 'sindico'], true);
+            })
+            ->each(function (ClientEntity $entity) {
+                $role = Str::of((string) $entity->role_tag)->lower()->ascii()->value();
+                $type = $role === 'sindico' ? 'sindico' : 'administradora';
+                $phone = collect($entity->phones_json ?? [])->pluck('number')->filter()->first();
+                $email = collect($entity->emails_json ?? [])->pluck('email')->filter()->first();
+
+                Administradora::query()->updateOrCreate(
+                    [
+                        'name' => $entity->display_name,
+                        'type' => $type,
+                    ],
+                    [
+                        'contact_name' => $entity->legal_representative ?: $entity->display_name,
+                        'phone' => $phone,
+                        'email' => $email,
+                        'is_active' => 1,
+                    ]
+                );
+            });
     }
 
     public function dashboard(Request $request): View
