@@ -26,6 +26,7 @@
         prefix: @js($prefix),
         states: @js($states),
         selectedState: @js($selectedStateSigla),
+        rawState: @js($rawState),
         selectedCity: @js($selectedCity),
         initialZip: @js(old($prefix . '_zip', $address['zip'] ?? '')),
         initialStreet: @js(old($prefix . '_street', $address['street'] ?? '')),
@@ -123,19 +124,37 @@
                     loadingCities: false,
                     apiError: '',
                     init() {
-                        this.state = String(this.state || '').trim().toUpperCase();
+                        this.state = this.resolveStateSigla(this.state || options.rawState || '');
                         this.city = String(this.city || this.selectedCity || '').trim();
                         this.selectedCity = this.city;
                         this.maskZip();
-                        if (this.selectedCity && !this.cities.some((item) => item.nome === this.selectedCity)) {
+                        if (this.selectedCity && !this.cities.some((item) => this.normalizeText(item.nome) === this.normalizeText(this.selectedCity))) {
                             this.cities.unshift({ nome: this.selectedCity });
                         }
                         if (this.state) {
                             this.loadCities(this.state, true);
                         }
                     },
+                    normalizeText(value) {
+                        return String(value || '')
+                            .normalize('NFD')
+                            .replace(/[̀-ͯ]/g, '')
+                            .trim()
+                            .toLowerCase();
+                    },
+                    resolveStateSigla(value) {
+                        const normalized = this.normalizeText(value).toUpperCase();
+                        if (!normalized) return '';
+                        const state = this.states.find((item) => {
+                            return this.normalizeText(item.sigla).toUpperCase() === normalized
+                                || this.normalizeText(item.nome).toUpperCase() === normalized;
+                        });
+                        if (state) return state.sigla;
+                        return String(value || '').trim().slice(0, 2).toUpperCase();
+                    },
                     stateIdBySigla(sigla) {
-                        const state = this.states.find((item) => item.sigla === sigla);
+                        const normalizedSigla = this.resolveStateSigla(sigla);
+                        const state = this.states.find((item) => item.sigla === normalizedSigla);
                         return state ? state.id : null;
                     },
                     maskZip() {
@@ -144,14 +163,22 @@
                     },
                     ensureSelectedCityOption() {
                         this.city = String(this.city || '').trim();
-                        if (this.city && !this.cities.some((item) => item.nome === this.city)) {
-                            this.cities.unshift({ nome: this.city });
+                        const normalizedCity = this.normalizeText(this.city);
+                        if (!normalizedCity) {
+                            return;
                         }
+                        const match = this.cities.find((item) => this.normalizeText(item.nome) === normalizedCity);
+                        if (match) {
+                            this.city = match.nome;
+                            return;
+                        }
+                        this.cities.unshift({ nome: this.city });
                     },
                     async loadCities(sigla, preserveCity = true) {
                         this.apiError = '';
                         this.loadingCities = true;
-                        const stateId = this.stateIdBySigla(sigla);
+                        this.state = this.resolveStateSigla(sigla);
+                        const stateId = this.stateIdBySigla(this.state);
 
                         try {
                             if (!sigla || !stateId) {
@@ -198,7 +225,7 @@
                             this.street = data.logradouro || this.street;
                             this.complement = data.complemento || this.complement;
                             this.neighborhood = data.bairro || this.neighborhood;
-                            this.state = data.uf || this.state;
+                            this.state = this.resolveStateSigla(data.uf || this.state);
                             await this.loadCities(this.state, false);
                             this.city = data.localidade || this.city;
                             this.ensureSelectedCityOption();

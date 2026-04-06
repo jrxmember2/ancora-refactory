@@ -85,6 +85,7 @@
                 <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
                     <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
                         <th class="px-6 py-4">Condomínio</th>
+                        <th class="px-6 py-4">Bloco</th>
                         <th class="px-6 py-4">Unidade</th>
                         <th class="px-6 py-4">Proprietário</th>
                         <th class="px-6 py-4">Locatário</th>
@@ -95,6 +96,7 @@
                     @foreach($items as $item)
                         <tr>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->condominium?->name }}</td>
+                            <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->block?->name ?: '—' }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->unit_number }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->owner?->display_name ?: '—' }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->tenant?->display_name ?: '—' }}</td>
