@@ -14,6 +14,7 @@
             );
     });
     $selectedStateSigla = $selectedState['sigla'] ?? (strlen(trim((string) $rawState)) <= 2 ? strtoupper(trim((string) $rawState)) : '');
+    $selectedStateName = $selectedState['nome'] ?? '';
     $selectedCity = old($prefix . '_city', $address['city'] ?? '');
     $disabledAttr = $disabledExpression ? " :disabled=\"{$disabledExpression}\"" : '';
     $disabledClass = $disabledExpression ? " x-bind:class=\"{$disabledExpression} ? 'opacity-60' : ''\"" : '';
@@ -77,6 +78,9 @@
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Estado (UF)</label>
             <select :name="`${prefix}_state`" x-model="state" @change="loadCities(state, false)" class="{{ $fieldClass }}" {!! $disabledAttr !!}>
                 <option value="">Selecione</option>
+                @if($selectedStateSigla)
+                    <option value="{{ $selectedStateSigla }}">{{ $selectedStateName ?: $selectedStateSigla }} ({{ $selectedStateSigla }})</option>
+                @endif
                 <template x-for="uf in states" :key="uf.sigla">
                     <option :value="uf.sigla" x-text="`${uf.nome} (${uf.sigla})`"></option>
                 </template>
@@ -87,6 +91,9 @@
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Município</label>
             <select :name="`${prefix}_city`" x-model="city" class="{{ $fieldClass }}" :disabled="(!state || loadingCities){{ $disabledExpression ? ' || ' . $disabledExpression : '' }}">
                 <option value="" x-text="loadingCities ? 'Carregando municípios...' : (state ? 'Selecione o município' : 'Selecione primeiro o estado')"></option>
+                @if($selectedCity)
+                    <option value="{{ $selectedCity }}">{{ $selectedCity }}</option>
+                @endif
                 <template x-for="municipio in cities" :key="municipio.nome">
                     <option :value="municipio.nome" x-text="municipio.nome"></option>
                 </template>
@@ -131,6 +138,10 @@
                         if (this.selectedCity && !this.cities.some((item) => this.normalizeText(item.nome) === this.normalizeText(this.selectedCity))) {
                             this.cities.unshift({ nome: this.selectedCity });
                         }
+                        this.$nextTick(() => {
+                            this.state = this.resolveStateSigla(this.state || options.rawState || '');
+                            this.city = String(this.city || this.selectedCity || '').trim();
+                        });
                         if (this.state) {
                             this.loadCities(this.state, true);
                         }
@@ -194,6 +205,11 @@
 
                             if (preserveCity) {
                                 this.ensureSelectedCityOption();
+                                const normalizedCity = this.normalizeText(this.city || this.selectedCity || '');
+                                const matchedCity = this.cities.find((item) => this.normalizeText(item.nome) === normalizedCity);
+                                if (matchedCity) {
+                                    this.city = matchedCity.nome;
+                                }
                             } else {
                                 this.city = '';
                             }
