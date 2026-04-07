@@ -19,13 +19,13 @@ $contactsCta = $templateContent['contacts_cta'] ?? [];
 $contactPhone = $branding['company_phone'] ?? '';
 $contactPhoneIcon = !empty($branding['company_phone_is_whatsapp']) ? 'whatsapp' : 'phone';
 $contactSocialEntries = array_values(array_filter([
-    ['label' => 'Instagram', 'value' => trim((string) ($branding['company_social_instagram'] ?? ''))],
-    ['label' => 'LinkedIn', 'value' => trim((string) ($branding['company_social_linkedin'] ?? ''))],
-    ['label' => 'YouTube', 'value' => trim((string) ($branding['company_social_youtube'] ?? ''))],
-    ['label' => 'Facebook', 'value' => trim((string) ($branding['company_social_facebook'] ?? ''))],
-    ['label' => 'Canal do WhatsApp', 'value' => trim((string) ($branding['company_social_whatsapp_channel'] ?? ''))],
-    ['label' => 'TikTok', 'value' => trim((string) ($branding['company_social_tiktok'] ?? ''))],
-    ['label' => 'Linktree', 'value' => trim((string) ($branding['company_social_linktree'] ?? ''))],
+    ['label' => 'Instagram', 'icon' => 'instagram', 'value' => trim((string) ($branding['company_social_instagram'] ?? ''))],
+    ['label' => 'LinkedIn', 'icon' => 'linkedin', 'value' => trim((string) ($branding['company_social_linkedin'] ?? ''))],
+    ['label' => 'YouTube', 'icon' => 'youtube', 'value' => trim((string) ($branding['company_social_youtube'] ?? ''))],
+    ['label' => 'Facebook', 'icon' => 'facebook', 'value' => trim((string) ($branding['company_social_facebook'] ?? ''))],
+    ['label' => 'Canal do WhatsApp', 'icon' => 'whatsapp', 'value' => trim((string) ($branding['company_social_whatsapp_channel'] ?? ''))],
+    ['label' => 'TikTok', 'icon' => 'tiktok', 'value' => trim((string) ($branding['company_social_tiktok'] ?? ''))],
+    ['label' => 'Linktree', 'icon' => 'linktree', 'value' => trim((string) ($branding['company_social_linktree'] ?? ''))],
 ], static fn (array $entry): bool => $entry['value'] !== ''));
 
 $investmentPageLogoUrl = $branding['logo_light'] ?? asset('imgs/logomarca.svg');
@@ -150,6 +150,13 @@ function premium_contact_icon(string $type): string
     $icons = [
         'email' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h14.5A1.75 1.75 0 0 1 21 6.75v10.5A1.75 1.75 0 0 1 19.25 19H4.75A1.75 1.75 0 0 1 3 17.25V6.75Zm1.6.2 7.18 5.52a.4.4 0 0 0 .44 0l7.18-5.52a.35.35 0 0 0-.15-.06H4.75a.35.35 0 0 0-.15.06Zm14.8 1.67-6.27 4.82a1.9 1.9 0 0 1-2.32 0L4.6 8.62v8.63c0 .08.07.15.15.15h14.5c.08 0 .15-.07.15-.15V8.62Z"/></svg>',
         'instagram' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3h9.5A4.25 4.25 0 0 1 21 7.25v9.5A4.25 4.25 0 0 1 16.75 21h-9.5A4.25 4.25 0 0 1 3 16.75v-9.5A4.25 4.25 0 0 1 7.25 3Zm0 1.6A2.65 2.65 0 0 0 4.6 7.25v9.5a2.65 2.65 0 0 0 2.65 2.65h9.5a2.65 2.65 0 0 0 2.65-2.65v-9.5a2.65 2.65 0 0 0-2.65-2.65h-9.5Zm10.15 1.2a1.05 1.05 0 1 1 0 2.1 1.05 1.05 0 0 1 0-2.1ZM12 7.3A4.7 4.7 0 1 1 7.3 12 4.7 4.7 0 0 1 12 7.3Zm0 1.6A3.1 3.1 0 1 0 15.1 12 3.1 3.1 0 0 0 12 8.9Z"/></svg>',
+        'linkedin' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.36 8.2a1.56 1.56 0 1 1 0-3.12 1.56 1.56 0 0 1 0 3.12ZM5.05 9.55h2.63V18H5.05V9.55Zm4.27 0h2.52v1.15h.03c.35-.67 1.21-1.38 2.49-1.38 2.66 0 3.15 1.75 3.15 4.02V18h-2.63v-4.14c0-.99-.02-2.26-1.38-2.26-1.38 0-1.59 1.08-1.59 2.19V18H9.32V9.55Z"/></svg>',
+        'youtube' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.54 7.3a2.6 2.6 0 0 0-1.83-1.84C17.1 5 12 5 12 5s-5.1 0-6.71.46A2.6 2.6 0 0 0 3.46 7.3 27.5 27.5 0 0 0 3 12a27.5 27.5 0 0 0 .46 4.7 2.6 2.6 0 0 0 1.83 1.84C6.9 19 12 19 12 19s5.1 0 6.71-.46a2.6 2.6 0 0 0 1.83-1.84A27.5 27.5 0 0 0 21 12a27.5 27.5 0 0 0-.46-4.7ZM10.4 15.06V8.94L15.6 12l-5.2 3.06Z"/></svg>',
+        'facebook' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.35 20v-6.42h2.15l.32-2.5h-2.47V9.49c0-.72.2-1.22 1.23-1.22H16V6.03c-.23-.03-1.02-.1-1.94-.1-1.92 0-3.24 1.17-3.24 3.32v1.83H8.64v2.5h2.18V20h2.53Z"/></svg>',
+        'tiktok' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.74 3c.24 2.02 1.39 3.46 3.26 3.7v2.27a5.55 5.55 0 0 1-3.16-1.05v5.34c0 2.66-2.03 4.74-4.79 4.74A4.66 4.66 0 0 1 5.3 13.3a4.72 4.72 0 0 1 5.39-4.6v2.36a2.38 2.38 0 0 0-.65-.09 2.3 2.3 0 0 0-2.35 2.33 2.32 2.32 0 0 0 2.43 2.33 2.36 2.36 0 0 0 2.32-2.55V3h2.3Z"/></svg>',
+        'linktree' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.1 3h1.8v4.05l2.86-2.86 1.27 1.27L14.17 8.3h4.05v1.8h-4.05l2.86 2.84-1.27 1.29-2.86-2.86V15.4h-1.8v-4.03l-2.84 2.86-1.29-1.29 2.86-2.84H5.8V8.3h4.05L6.99 5.46l1.29-1.27 2.84 2.86V3Zm.9 14.8a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4Z"/></svg>',
+        'medal' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 2h3.1l1.5 3.08L13.5 2h3.1l-2.1 4.3a6.1 6.1 0 1 1-5 0L7.4 2Zm4.6 6.2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 1.68 1 2.02 2.23.32-1.61 1.57.38 2.22L12 14.95l-1.99 1.06.38-2.22-1.61-1.57 2.23-.32 1-2.02Z"/></svg>',
+        'dot' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>',
         'social' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 6.2a3.2 3.2 0 1 1 5.3 2.43l-5.06 2.95a3.22 3.22 0 0 1 0 .8l5.06 2.95A3.2 3.2 0 1 1 19.73 17l-5.07-2.96a3.2 3.2 0 1 1 0-4.08l5.07-2.96A3.19 3.19 0 0 1 15.2 6.2Zm-8.4 4.2a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm11.6-5.8a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm0 11.6a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z"/></svg>',
         'phone' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 2.9c.32-.08.66-.02.93.16l2.26 1.5c.43.28.62.82.47 1.31l-.68 2.16a1.2 1.2 0 0 0 .28 1.18l4.91 4.91a1.2 1.2 0 0 0 1.18.28l2.16-.68c.49-.15 1.03.04 1.31.47l1.5 2.26c.18.27.24.61.16.93-.34 1.39-1.56 2.39-3 2.39-8.3 0-15.03-6.73-15.03-15.03 0-1.44 1-2.66 2.39-3Zm.4 1.55c-.7.17-1.22.79-1.22 1.56 0 7.41 6.02 13.43 13.43 13.43.77 0 1.39-.52 1.56-1.22l-1.16-1.75-1.66.52a2.8 2.8 0 0 1-2.76-.66L10.3 11.4a2.8 2.8 0 0 1-.66-2.76l.52-1.66-1.75-1.16Z"/></svg>',
         'whatsapp' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2a8.8 8.8 0 0 1 7.62 13.2L21 20.8l-4.52-1.18A8.8 8.8 0 1 1 12 3.2Zm0 1.6a7.2 7.2 0 0 0-6.17 10.92l.24.39-.83 3.01 3.08-.8.38.22A7.2 7.2 0 1 0 12 4.8Zm4.09 9.2c-.22-.11-1.32-.65-1.52-.72-.2-.08-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06a5.9 5.9 0 0 1-1.73-1.06 6.55 6.55 0 0 1-1.2-1.49c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.14-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.69-1.65-.18-.43-.37-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.78.76-.78 1.85 0 1.1.8 2.16.91 2.31.11.15 1.58 2.42 3.84 3.39.54.23.96.37 1.28.47.54.17 1.02.15 1.4.09.43-.06 1.32-.54 1.51-1.06.18-.52.18-.97.13-1.06-.06-.09-.2-.15-.43-.26Z"/></svg>',
@@ -504,11 +511,17 @@ $pageCounter = 1;
                     <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('social'); ?></span>
                     <div>
                         <div class="vb-contact-item__label">Redes sociais</div>
-                        <div class="vb-contact-item__value">
+                        <div class="vb-contact-item__value vb-contact-item__value--compact">
                             <?php if (!empty($contactSocialEntries)): ?>
-                                <?php foreach ($contactSocialEntries as $socialEntry): ?>
-                                    <div><strong><?= htmlspecialchars($socialEntry['label']); ?>:</strong> <?= htmlspecialchars($socialEntry['value']); ?></div>
-                                <?php endforeach; ?>
+                                <div class="vb-contact-social-list">
+                                    <?php foreach ($contactSocialEntries as $socialEntry): ?>
+                                        <div class="vb-contact-social-line">
+                                            <span class="vb-contact-social-line__icon"><?= premium_contact_icon((string) ($socialEntry['icon'] ?? 'social')); ?></span>
+                                            <span class="vb-contact-social-line__label"><?= htmlspecialchars($socialEntry['label']); ?></span>
+                                            <span class="vb-contact-social-line__value"><?= htmlspecialchars($socialEntry['value']); ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             <?php else: ?>
                                 <div>—</div>
                             <?php endif; ?>
@@ -535,13 +548,26 @@ $pageCounter = 1;
 
             <div class="vb-contact-side">
                 <div class="vb-contact-bubble">
-                    <strong><?= htmlspecialchars($contactsCta['title'] ?? 'Vamos juntos transformar o futuro do seu condomínio.'); ?></strong>
-                    <span><?= htmlspecialchars($contactsCta['message'] ?? 'Quando podemos agendar uma conversa?'); ?></span>
+                    <strong>Vamos <span class="vb-contact-bubble__emphasis">juntos</span> transformar o futuro<br>do seu <span class="vb-contact-bubble__emphasis">condomínio?</span></strong>
+                    <span>Quando podemos agendar uma conversa pessoal?</span>
                 </div>
 
                 <div class="vb-contact-social-card">
-                    <div class="vb-contact-social-card__title"><?= htmlspecialchars($branding['company_name']); ?></div>
-                    <p>Especialistas em cobranças, assembleias, regularização documental e estratégia jurídica condominial.</p>
+                    <div class="vb-contact-social-card__title"><?= htmlspecialchars($branding['company_name'] ?: 'Rebeca Medina Soluções Jurídicas'); ?></div>
+                    <ul class="vb-contact-highlight-list">
+                        <li>
+                            <span class="vb-contact-highlight-list__icon vb-contact-highlight-list__icon--medal"><?= premium_contact_icon('medal'); ?></span>
+                            <span>+10 anos de atuação no mercado condominial</span>
+                        </li>
+                        <li>
+                            <span class="vb-contact-highlight-list__icon vb-contact-highlight-list__icon--dot"><?= premium_contact_icon('dot'); ?></span>
+                            <span>Especialistas em Cobranças, Assembleias e Regularização de Documentos.</span>
+                        </li>
+                        <li>
+                            <span class="vb-contact-highlight-list__icon vb-contact-highlight-list__icon--dot"><?= premium_contact_icon('dot'); ?></span>
+                            <span>+ 100 Condomínios atendidos.</span>
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="vb-contact-portrait-wrap">
