@@ -1074,6 +1074,16 @@ body.proposal-print,
     word-break: break-word;
 }
 
+.vb-contact-item__value strong {
+    font-weight: 800;
+    color: #303030;
+}
+
+.vb-contact-item__value--email {
+    font-size: 4.4mm;
+    line-height: 1.28;
+}
+
 .vb-contact-card__logo {
     display: none !important;
 }

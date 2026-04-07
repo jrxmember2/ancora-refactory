@@ -17,10 +17,16 @@ $whoWeAre = $templateContent['who_we_are'] ?? [];
 $services = $templateContent['services'] ?? [];
 $contactsCta = $templateContent['contacts_cta'] ?? [];
 $contactPhone = $branding['company_phone'] ?? '';
-$contactSocialLines = array_values(array_filter([
-    trim((string) ($branding['company_social_primary'] ?? '')),
-    trim((string) ($branding['company_social_secondary'] ?? '')),
-]));
+$contactPhoneIcon = !empty($branding['company_phone_is_whatsapp']) ? 'whatsapp' : 'phone';
+$contactSocialEntries = array_values(array_filter([
+    ['label' => 'Instagram', 'value' => trim((string) ($branding['company_social_instagram'] ?? ''))],
+    ['label' => 'LinkedIn', 'value' => trim((string) ($branding['company_social_linkedin'] ?? ''))],
+    ['label' => 'YouTube', 'value' => trim((string) ($branding['company_social_youtube'] ?? ''))],
+    ['label' => 'Facebook', 'value' => trim((string) ($branding['company_social_facebook'] ?? ''))],
+    ['label' => 'Canal do WhatsApp', 'value' => trim((string) ($branding['company_social_whatsapp_channel'] ?? ''))],
+    ['label' => 'TikTok', 'value' => trim((string) ($branding['company_social_tiktok'] ?? ''))],
+    ['label' => 'Linktree', 'value' => trim((string) ($branding['company_social_linktree'] ?? ''))],
+], static fn (array $entry): bool => $entry['value'] !== ''));
 
 $investmentPageLogoUrl = $branding['logo_light'] ?? asset('imgs/logomarca.svg');
 $whoPageLogoUrl = $branding['logo_dark'] ?? asset('imgs/logomarca.svg');
@@ -144,7 +150,9 @@ function premium_contact_icon(string $type): string
     $icons = [
         'email' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h14.5A1.75 1.75 0 0 1 21 6.75v10.5A1.75 1.75 0 0 1 19.25 19H4.75A1.75 1.75 0 0 1 3 17.25V6.75Zm1.6.2 7.18 5.52a.4.4 0 0 0 .44 0l7.18-5.52a.35.35 0 0 0-.15-.06H4.75a.35.35 0 0 0-.15.06Zm14.8 1.67-6.27 4.82a1.9 1.9 0 0 1-2.32 0L4.6 8.62v8.63c0 .08.07.15.15.15h14.5c.08 0 .15-.07.15-.15V8.62Z"/></svg>',
         'instagram' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3h9.5A4.25 4.25 0 0 1 21 7.25v9.5A4.25 4.25 0 0 1 16.75 21h-9.5A4.25 4.25 0 0 1 3 16.75v-9.5A4.25 4.25 0 0 1 7.25 3Zm0 1.6A2.65 2.65 0 0 0 4.6 7.25v9.5a2.65 2.65 0 0 0 2.65 2.65h9.5a2.65 2.65 0 0 0 2.65-2.65v-9.5a2.65 2.65 0 0 0-2.65-2.65h-9.5Zm10.15 1.2a1.05 1.05 0 1 1 0 2.1 1.05 1.05 0 0 1 0-2.1ZM12 7.3A4.7 4.7 0 1 1 7.3 12 4.7 4.7 0 0 1 12 7.3Zm0 1.6A3.1 3.1 0 1 0 15.1 12 3.1 3.1 0 0 0 12 8.9Z"/></svg>',
+        'social' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 6.2a3.2 3.2 0 1 1 5.3 2.43l-5.06 2.95a3.22 3.22 0 0 1 0 .8l5.06 2.95A3.2 3.2 0 1 1 19.73 17l-5.07-2.96a3.2 3.2 0 1 1 0-4.08l5.07-2.96A3.19 3.19 0 0 1 15.2 6.2Zm-8.4 4.2a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm11.6-5.8a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm0 11.6a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z"/></svg>',
         'phone' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 2.9c.32-.08.66-.02.93.16l2.26 1.5c.43.28.62.82.47 1.31l-.68 2.16a1.2 1.2 0 0 0 .28 1.18l4.91 4.91a1.2 1.2 0 0 0 1.18.28l2.16-.68c.49-.15 1.03.04 1.31.47l1.5 2.26c.18.27.24.61.16.93-.34 1.39-1.56 2.39-3 2.39-8.3 0-15.03-6.73-15.03-15.03 0-1.44 1-2.66 2.39-3Zm.4 1.55c-.7.17-1.22.79-1.22 1.56 0 7.41 6.02 13.43 13.43 13.43.77 0 1.39-.52 1.56-1.22l-1.16-1.75-1.66.52a2.8 2.8 0 0 1-2.76-.66L10.3 11.4a2.8 2.8 0 0 1-.66-2.76l.52-1.66-1.75-1.16Z"/></svg>',
+        'whatsapp' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2a8.8 8.8 0 0 1 7.62 13.2L21 20.8l-4.52-1.18A8.8 8.8 0 1 1 12 3.2Zm0 1.6a7.2 7.2 0 0 0-6.17 10.92l.24.39-.83 3.01 3.08-.8.38.22A7.2 7.2 0 1 0 12 4.8Zm4.09 9.2c-.22-.11-1.32-.65-1.52-.72-.2-.08-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06a5.9 5.9 0 0 1-1.73-1.06 6.55 6.55 0 0 1-1.2-1.49c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.14-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.69-1.65-.18-.43-.37-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.78.76-.78 1.85 0 1.1.8 2.16.91 2.31.11.15 1.58 2.42 3.84 3.39.54.23.96.37 1.28.47.54.17 1.02.15 1.4.09.43-.06 1.32-.54 1.51-1.06.18-.52.18-.97.13-1.06-.06-.09-.2-.15-.43-.26Z"/></svg>',
         'site' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 4h14.5A1.75 1.75 0 0 1 21 5.75v12.5A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25V5.75A1.75 1.75 0 0 1 4.75 4Zm0 1.6a.15.15 0 0 0-.15.15v1.5h14.8v-1.5a.15.15 0 0 0-.15-.15H4.75Zm-.15 3.25v9.4c0 .08.07.15.15.15h14.5c.08 0 .15-.07.15-.15v-9.4H4.6Zm2.3 1.5h4.9v1.4H6.9v-1.4Zm0 2.7h7.7v1.4H6.9v-1.4Z"/></svg>',
     ];
 
@@ -488,18 +496,18 @@ $pageCounter = 1;
                     <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('email'); ?></span>
                     <div>
                         <div class="vb-contact-item__label">Email</div>
-                        <div class="vb-contact-item__value"><?= htmlspecialchars($branding['company_email']); ?></div>
+                        <div class="vb-contact-item__value vb-contact-item__value--email"><?= htmlspecialchars($branding['company_email']); ?></div>
                     </div>
                 </div>
 
                 <div class="vb-contact-item">
-                    <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('instagram'); ?></span>
+                    <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('social'); ?></span>
                     <div>
                         <div class="vb-contact-item__label">Redes sociais</div>
                         <div class="vb-contact-item__value">
-                            <?php if (!empty($contactSocialLines)): ?>
-                                <?php foreach ($contactSocialLines as $socialLine): ?>
-                                    <div><?= htmlspecialchars($socialLine); ?></div>
+                            <?php if (!empty($contactSocialEntries)): ?>
+                                <?php foreach ($contactSocialEntries as $socialEntry): ?>
+                                    <div><strong><?= htmlspecialchars($socialEntry['label']); ?>:</strong> <?= htmlspecialchars($socialEntry['value']); ?></div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <div>—</div>
@@ -509,7 +517,7 @@ $pageCounter = 1;
                 </div>
 
                 <div class="vb-contact-item">
-                    <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('phone'); ?></span>
+                    <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon($contactPhoneIcon); ?></span>
                     <div>
                         <div class="vb-contact-item__label">Telefone</div>
                         <div class="vb-contact-item__value"><?= htmlspecialchars($contactPhone); ?></div>
@@ -532,7 +540,7 @@ $pageCounter = 1;
                 </div>
 
                 <div class="vb-contact-social-card">
-                    <div class="vb-contact-social-card__title"><?= htmlspecialchars(str_replace('@', '', $branding['company_social_primary'] ?: $branding['company_name'])); ?></div>
+                    <div class="vb-contact-social-card__title"><?= htmlspecialchars($branding['company_name']); ?></div>
                     <p>Especialistas em cobranças, assembleias, regularização documental e estratégia jurídica condominial.</p>
                 </div>
 
