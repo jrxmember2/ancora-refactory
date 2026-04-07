@@ -517,8 +517,10 @@ $pageCounter = 1;
                                     <?php foreach ($contactSocialEntries as $socialEntry): ?>
                                         <div class="vb-contact-social-line">
                                             <span class="vb-contact-social-line__icon"><?= premium_contact_icon((string) ($socialEntry['icon'] ?? 'social')); ?></span>
-                                            <span class="vb-contact-social-line__label"><?= htmlspecialchars($socialEntry['label']); ?></span>
-                                            <span class="vb-contact-social-line__value"><?= htmlspecialchars($socialEntry['value']); ?></span>
+                                            <div class="vb-contact-social-line__body">
+                                                <span class="vb-contact-social-line__label"><?= htmlspecialchars($socialEntry['label']); ?></span><br>
+                                                <span class="vb-contact-social-line__value"><?= htmlspecialchars($socialEntry['value']); ?></span>
+                                            </div>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -548,8 +550,8 @@ $pageCounter = 1;
 
             <div class="vb-contact-side">
                 <div class="vb-contact-bubble">
-                    <strong>Vamos <span class="vb-contact-bubble__emphasis">juntos</span> transformar o futuro<br>do seu <span class="vb-contact-bubble__emphasis">condomínio?</span></strong>
-                    <span>Quando podemos agendar uma conversa pessoal?</span>
+                    <strong>Vamos <span class="vb-contact-bubble__emphasis">juntos</span> transformar o futuro do seu <span class="vb-contact-bubble__emphasis">condomínio?</span></strong><br>
+                    <span class="vb-contact-bubble__subline">Quando podemos agendar uma conversa pessoal?</span>
                 </div>
 
                 <div class="vb-contact-social-card">

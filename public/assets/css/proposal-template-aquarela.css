@@ -1195,9 +1195,9 @@ body.proposal-print,
 
 .vb-contact-social-line {
     display: grid;
-    grid-template-columns: 4.2mm auto 1fr;
+    grid-template-columns: 4.2mm 1fr;
     align-items: start;
-    column-gap: 1.6mm;
+    column-gap: 1.8mm;
 }
 
 .vb-contact-social-line__icon {
@@ -1216,6 +1216,11 @@ body.proposal-print,
     display: block;
 }
 
+.vb-contact-social-line__body {
+    display: block;
+    line-height: 1.12;
+}
+
 .vb-contact-social-line__label {
     font-size: 3.4mm;
     font-weight: 800;
@@ -1223,8 +1228,11 @@ body.proposal-print,
 }
 
 .vb-contact-social-line__value {
-    font-size: 3.8mm;
+    display: inline-block;
+    margin-top: 0.6mm;
+    font-size: 3.65mm;
     color: #4f4f4f;
+    line-height: 1.2;
     word-break: break-word;
 }
 
@@ -1232,8 +1240,8 @@ body.proposal-print,
     color: var(--vb-red);
 }
 
-.vb-contact-bubble span {
-    display: block;
+.vb-contact-bubble__subline {
+    display: inline-block;
     margin-top: 3.2mm;
     font-size: 4.15mm;
     line-height: 1.32;
