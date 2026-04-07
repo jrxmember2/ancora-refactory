@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\ClientBlock;
+use App\Models\ClientCondominium;
 use App\Models\ClientUnit;
 use App\Models\CobrancaCase;
 use App\Models\CobrancaCaseAttachment;
@@ -231,8 +233,8 @@ class CobrancaController extends Controller
 
         $role = trim((string) $request->input('file_role', 'documento')) ?: 'documento';
         $dir = public_path('uploads/cobrancas/' . $cobranca->id);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return back()->with('error', 'Não foi possível preparar a pasta de anexos desta OS.');
         }
 
         $uploaded = 0;
@@ -245,16 +247,25 @@ class CobrancaController extends Controller
             if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx'], true)) {
                 continue;
             }
+
+            $originalName = Str::limit((string) $file->getClientOriginalName(), 255, '');
+            $mimeType = Str::limit((string) ($file->getClientMimeType() ?: $file->getMimeType() ?: ''), 120, '');
+            $fileSize = $this->safeUploadedFileSize($file);
             $stored = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $ext;
             $file->move($dir, $stored);
+            $finalPath = $dir . DIRECTORY_SEPARATOR . $stored;
+            if (is_file($finalPath)) {
+                $fileSize = (int) (@filesize($finalPath) ?: $fileSize);
+            }
+
             CobrancaCaseAttachment::query()->create([
                 'cobranca_case_id' => $cobranca->id,
                 'file_role' => Str::limit($role, 40, ''),
-                'original_name' => Str::limit((string) $file->getClientOriginalName(), 255, ''),
+                'original_name' => $originalName,
                 'stored_name' => $stored,
                 'relative_path' => '/uploads/cobrancas/' . $cobranca->id . '/' . $stored,
-                'mime_type' => Str::limit((string) $file->getClientMimeType(), 120, ''),
-                'file_size' => $this->safeUploadedFileSize($file),
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
                 'uploaded_by' => $user?->id,
                 'created_at' => now(),
             ]);
@@ -303,12 +314,12 @@ class CobrancaController extends Controller
             $unit = ClientUnit::query()->with(['condominium', 'block', 'owner', 'tenant'])->find((int) $current->unit_id);
         }
 
-        $debtorRole = trim((string) $request->input('debtor_role', 'owner')) ?: 'owner';
+        $debtorRole = 'owner';
         $manual = [
-            'name' => trim((string) $request->input('manual_debtor_name', '')),
-            'document' => trim((string) $request->input('manual_debtor_document', '')),
-            'email' => trim((string) $request->input('manual_debtor_email', '')),
-            'phone' => trim((string) $request->input('manual_debtor_phone', '')),
+            'name' => '',
+            'document' => '',
+            'email' => '',
+            'phone' => '',
         ];
 
         $debtorSnapshot = $this->resolveDebtorSnapshot($unit, $debtorRole, $manual);
@@ -351,7 +362,7 @@ class CobrancaController extends Controller
             $errors[] = 'Selecione a unidade vinculada à OS.';
         }
         if ($payload['debtor_name_snapshot'] === '') {
-            $errors[] = 'Não foi possível identificar o condômino/devedor. Revise a unidade e o tipo de devedor.';
+            $errors[] = 'A unidade selecionada precisa ter um proprietário vinculado para gerar a OS de cobrança.';
         }
         if (!in_array($payload['charge_type'], array_keys($this->chargeTypeLabels()), true)) {
             $errors[] = 'Selecione um tipo de cobrança válido.';
@@ -496,8 +507,49 @@ class CobrancaController extends Controller
             ->orderBy('unit_number')
             ->get();
 
+        $condominiums = ClientCondominium::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'has_blocks']);
+
+        $blocks = ClientBlock::query()
+            ->orderBy('condominium_id')
+            ->orderBy('name')
+            ->get(['id', 'condominium_id', 'name']);
+
+        $selectorUnits = [];
+        foreach ($units as $unit) {
+            $blockKey = (string) ($unit->block_id ?: 0);
+            $selectorUnits[(string) $unit->condominium_id][$blockKey][] = [
+                'id' => (int) $unit->id,
+                'label' => trim(($unit->block?->name ? $unit->block->name . ' · ' : '') . 'Unidade ' . ($unit->unit_label ?: $unit->unit_number)),
+                'unit_number' => (string) ($unit->unit_label ?: $unit->unit_number),
+                'block_id' => $unit->block_id ? (int) $unit->block_id : null,
+                'owner_name' => (string) ($unit->owner?->display_name ?? ''),
+                'owner_document' => (string) ($unit->owner?->cpf_cnpj ?? ''),
+                'owner_email' => (string) ((collect($unit->owner?->emails_json ?? [])->first()['email'] ?? '')),
+                'owner_phone' => (string) ((collect($unit->owner?->phones_json ?? [])->first()['number'] ?? '')),
+            ];
+        }
+
+        $selectorBlocks = [];
+        foreach ($blocks as $block) {
+            $selectorBlocks[(string) $block->condominium_id][] = [
+                'id' => (int) $block->id,
+                'name' => (string) $block->name,
+            ];
+        }
+
         return [
             'units' => $units,
+            'unitSelectorData' => [
+                'condominiums' => $condominiums->map(fn ($item) => [
+                    'id' => (int) $item->id,
+                    'name' => (string) $item->name,
+                    'has_blocks' => (bool) $item->has_blocks,
+                ])->values()->all(),
+                'blocks' => $selectorBlocks,
+                'units' => $selectorUnits,
+            ],
             'chargeTypeLabels' => $this->chargeTypeLabels(),
             'workflowStageLabels' => $this->workflowStageLabels(),
             'situationLabels' => $this->situationLabels(),
@@ -511,15 +563,14 @@ class CobrancaController extends Controller
     private function formData(?CobrancaCase $case = null): array
     {
         $unit = $case?->relationLoaded('unit') ? $case->unit : ($case?->unit_id ? ClientUnit::query()->with(['owner', 'tenant'])->find($case->unit_id) : null);
-        $manualDebtor = $case && $case->debtor_role === 'manual';
 
         return [
             'unit_id' => old('unit_id', $case?->unit_id),
-            'debtor_role' => old('debtor_role', $case?->debtor_role ?: 'owner'),
-            'manual_debtor_name' => old('manual_debtor_name', $manualDebtor ? $case?->debtor_name_snapshot : ''),
-            'manual_debtor_document' => old('manual_debtor_document', $manualDebtor ? $case?->debtor_document_snapshot : ''),
-            'manual_debtor_email' => old('manual_debtor_email', $manualDebtor ? $case?->debtor_email_snapshot : ''),
-            'manual_debtor_phone' => old('manual_debtor_phone', $manualDebtor ? $case?->debtor_phone_snapshot : ''),
+            'debtor_role' => 'owner',
+            'manual_debtor_name' => '',
+            'manual_debtor_document' => '',
+            'manual_debtor_email' => '',
+            'manual_debtor_phone' => '',
             'charge_type' => old('charge_type', $case?->charge_type ?: 'extrajudicial'),
             'agreement_total' => old('agreement_total', $case?->agreement_total),
             'billing_status' => old('billing_status', $case?->billing_status ?: 'a_faturar'),
@@ -535,6 +586,9 @@ class CobrancaController extends Controller
             'judicial_case_number' => old('judicial_case_number', $case?->judicial_case_number),
             'calc_base_date' => old('calc_base_date', optional($case?->calc_base_date)->format('Y-m-d') ?: now()->format('Y-m-d')),
             'owner_name' => $unit?->owner?->display_name,
+            'owner_document' => $unit?->owner?->cpf_cnpj,
+            'owner_email' => collect($unit?->owner?->emails_json ?? [])->first()['email'] ?? null,
+            'owner_phone' => collect($unit?->owner?->phones_json ?? [])->first()['number'] ?? null,
             'tenant_name' => $unit?->tenant?->display_name,
         ];
     }
@@ -770,11 +824,15 @@ class CobrancaController extends Controller
 
     private function safeUploadedFileSize(UploadedFile $file): int
     {
-        $realPath = $file->getRealPath();
-        if (is_string($realPath) && $realPath !== '' && is_file($realPath)) {
-            return (int) (@filesize($realPath) ?: 0);
+        try {
+            $realPath = $file->getRealPath();
+            if (is_string($realPath) && $realPath !== '' && is_file($realPath)) {
+                return (int) (@filesize($realPath) ?: 0);
+            }
+            return 0;
+        } catch (\Throwable) {
+            return 0;
         }
-        return (int) ($file->getSize() ?: 0);
     }
 
     private function moneyToDb(mixed $value): ?float
