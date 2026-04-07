@@ -16,7 +16,11 @@ $updatedAtBr = $meta['updated_at_br'] ?? date('d/m/Y');
 $whoWeAre = $templateContent['who_we_are'] ?? [];
 $services = $templateContent['services'] ?? [];
 $contactsCta = $templateContent['contacts_cta'] ?? [];
-$contactPhone = $branding['company_phone'] ?? '(27) 99603-4719';
+$contactPhone = $branding['company_phone'] ?? '';
+$contactSocialLines = array_values(array_filter([
+    trim((string) ($branding['company_social_primary'] ?? '')),
+    trim((string) ($branding['company_social_secondary'] ?? '')),
+]));
 
 $investmentPageLogoUrl = $branding['logo_light'] ?? asset('imgs/logomarca.svg');
 $whoPageLogoUrl = $branding['logo_dark'] ?? asset('imgs/logomarca.svg');
@@ -213,8 +217,6 @@ function premium_paginate_scope(array $lines, int $budget, int $minTailWeight = 
 
 $scopeLines = premium_lines((string) ($document['scope_intro'] ?? ''));
 $scopeClosingLines = premium_multiline((string) ($document['closing_message'] ?? ''));
-$investmentIntroLines = premium_multiline((string) ($document['intro_context'] ?? ''));
-
 $preparedInvestmentOptions = premium_prepare_investment_options($options);
 
 $investmentScopedCount = count(array_filter(
@@ -342,16 +344,12 @@ $pageCounter = 1;
     </div>
 <?php endif; ?>
 
-<?php $hasScopePage = !empty($document['intro_context']) || !empty($scopeFirstPageLines) || !empty($scopeClosingLines); ?>
+<?php $hasScopePage = !empty($scopeFirstPageLines) || !empty($scopeClosingLines); ?>
 <?php if ($hasScopePage): ?>
     <div class="proposal-page vb-scope-page">
         <div class="vb-page-line vb-page-line--red"></div>
         <?php premium_render_topbar((string) $branding['company_website'], 'dark'); ?>
         <?php premium_render_page_number($pageCounter++, 'red'); ?>
-
-        <?php if (!empty($document['intro_context'])): ?>
-            <div class="vb-scope-intro"><?= nl2br(htmlspecialchars($document['intro_context'])); ?></div>
-        <?php endif; ?>
 
         <div class="vb-scope-shell">
             <div class="vb-scope-title-column">
@@ -423,14 +421,6 @@ $pageCounter = 1;
         </div>
 
         <div class="vb-page-title vb-page-title--red vb-page-title--sm">Investimento</div>
-
-        <?php if (!empty($investmentIntroLines) && $pageIndex === 0): ?>
-            <div class="vb-investment-note-box vb-investment-note-box--top">
-                <?php foreach ($investmentIntroLines as $line): ?>
-                    <p><?= htmlspecialchars($line); ?></p>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
 
         <div class="vb-investment-grid">
             <?php foreach ($pageOptions as $option): ?>
@@ -505,10 +495,15 @@ $pageCounter = 1;
                 <div class="vb-contact-item">
                     <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('instagram'); ?></span>
                     <div>
-                        <div class="vb-contact-item__label">Mídias Sociais</div>
+                        <div class="vb-contact-item__label">Redes sociais</div>
                         <div class="vb-contact-item__value">
-                            <?= htmlspecialchars($branding['company_social_primary']); ?><br>
-                            <?= htmlspecialchars($branding['company_social_secondary']); ?>
+                            <?php if (!empty($contactSocialLines)): ?>
+                                <?php foreach ($contactSocialLines as $socialLine): ?>
+                                    <div><?= htmlspecialchars($socialLine); ?></div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div>—</div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -537,7 +532,7 @@ $pageCounter = 1;
                 </div>
 
                 <div class="vb-contact-social-card">
-                    <div class="vb-contact-social-card__title"><?= htmlspecialchars(str_replace('@', '', $branding['company_social_primary'])); ?></div>
+                    <div class="vb-contact-social-card__title"><?= htmlspecialchars(str_replace('@', '', $branding['company_social_primary'] ?: $branding['company_name'])); ?></div>
                     <p>Especialistas em cobranças, assembleias, regularização documental e estratégia jurídica condominial.</p>
                 </div>
 

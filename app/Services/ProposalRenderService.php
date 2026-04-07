@@ -47,13 +47,13 @@ class ProposalRenderService
 
         return [
             'branding' => [
-                'company_name' => AncoraSettings::get('app_company', 'Serratech Soluções em TI') ?: 'Serratech Soluções em TI',
+                'company_name' => AncoraSettings::get('app_company', 'Âncora') ?: 'Âncora',
                 'company_address' => AncoraSettings::get('company_address', '') ?: '',
                 'company_phone' => AncoraSettings::get('company_phone', '') ?: '',
                 'company_email' => AncoraSettings::get('company_email', '') ?: '',
-                'company_website' => AncoraSettings::get('company_website', 'www.serratech.tec.br') ?: 'www.serratech.tec.br',
-                'company_social_primary' => AncoraSettings::get('company_social_primary', '@serratech.br') ?: '@serratech.br',
-                'company_social_secondary' => AncoraSettings::get('company_social_secondary', '@serratech.br') ?: '@serratech.br',
+                'company_website' => AncoraSettings::get('company_website', config('app.url')) ?: (config('app.url') ?: ''),
+                'company_social_primary' => AncoraSettings::get('company_social_primary', '') ?: '',
+                'company_social_secondary' => AncoraSettings::get('company_social_secondary', '') ?: '',
                 'logo_light' => self::publicUrl($brandingLogoLight, asset('imgs/logomarca.svg')),
                 'logo_dark' => self::publicUrl($brandingLogoDark, asset('imgs/logomarca.svg')),
                 'premium_logo_variant' => $premiumLogoVariant,

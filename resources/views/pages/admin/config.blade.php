@@ -39,6 +39,18 @@
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
                         <input type="email" name="company_email" value="{{ $branding['company_email'] }}" class="{{ $inputClass }}">
                     </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Site</label>
+                        <input name="company_website" value="{{ $branding['company_website'] }}" class="{{ $inputClass }}" placeholder="https://www.rebecamedina.com.br">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Rede social principal</label>
+                        <input name="company_social_primary" value="{{ $branding['company_social_primary'] }}" class="{{ $inputClass }}" placeholder="@rebecamedina.oficial">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Rede social secundária</label>
+                        <input name="company_social_secondary" value="{{ $branding['company_social_secondary'] }}" class="{{ $inputClass }}" placeholder="LinkedIn, Facebook, WhatsApp...">
+                    </div>
                     <div class="md:col-span-2">
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</label>
                         <input name="company_address" value="{{ $branding['company_address'] }}" class="{{ $inputClass }}">
