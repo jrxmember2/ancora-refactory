@@ -25,8 +25,8 @@
                     @foreach($items as $item)
                         @php($address = $item->primary_address_json ?? [])
                         <tr>
-                            <td class="px-6 py-4"><div class="font-medium text-gray-900 dark:text-white">{{ $item->display_name }}</div><div class="text-xs text-gray-500 dark:text-gray-400">{{ $item->legal_name }}</div></td>
-                            <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ ucfirst($item->role_tag) }}</td>
+                            <td class="px-6 py-4"><div class="font-medium text-gray-900 dark:text-white">{{ $item->display_name }}</div><div class="text-xs text-gray-500">{{ $item->legal_name }}</div></td>
+                            <td class="px-6 py-4">{{ ucfirst($item->role_tag) }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->cpf_cnpj ?: '—' }}</td>
                             <td class="px-6 py-4">
                                 <div class="flex justify-end gap-2">

@@ -213,6 +213,7 @@ function premium_paginate_scope(array $lines, int $budget, int $minTailWeight = 
 
 $scopeLines = premium_lines((string) ($document['scope_intro'] ?? ''));
 $scopeClosingLines = premium_multiline((string) ($document['closing_message'] ?? ''));
+$investmentIntroLines = premium_multiline((string) ($document['intro_context'] ?? ''));
 
 $preparedInvestmentOptions = premium_prepare_investment_options($options);
 
@@ -341,12 +342,16 @@ $pageCounter = 1;
     </div>
 <?php endif; ?>
 
-<?php $hasScopePage = !empty($scopeFirstPageLines) || !empty($scopeClosingLines); ?>
+<?php $hasScopePage = !empty($document['intro_context']) || !empty($scopeFirstPageLines) || !empty($scopeClosingLines); ?>
 <?php if ($hasScopePage): ?>
     <div class="proposal-page vb-scope-page">
         <div class="vb-page-line vb-page-line--red"></div>
         <?php premium_render_topbar((string) $branding['company_website'], 'dark'); ?>
         <?php premium_render_page_number($pageCounter++, 'red'); ?>
+
+        <?php if (!empty($document['intro_context'])): ?>
+            <div class="vb-scope-intro"><?= nl2br(htmlspecialchars($document['intro_context'])); ?></div>
+        <?php endif; ?>
 
         <div class="vb-scope-shell">
             <div class="vb-scope-title-column">

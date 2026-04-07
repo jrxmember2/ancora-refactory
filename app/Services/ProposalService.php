@@ -20,7 +20,7 @@ class ProposalService
             'proposal_total' => self::moneyToDb($request->input('proposal_total')),
             'closed_total' => self::moneyToDb($request->input('closed_total')),
             'requester_name' => trim($request->string('requester_name')->toString()),
-            'requester_phone' => self::normalizePhone($request->string('requester_phone')->toString()),
+            'requester_phone' => trim($request->string('requester_phone')->toString()),
             'contact_email' => trim($request->string('contact_email')->toString()),
             'has_referral' => $request->boolean('has_referral'),
             'referral_name' => $request->boolean('has_referral') ? trim($request->string('referral_name')->toString()) : null,
@@ -41,16 +41,10 @@ class ProposalService
         if ($payload['client_name'] === '') $errors[] = 'Informe o cliente.';
         if ($payload['administradora_id'] <= 0) $errors[] = 'Selecione a administradora.';
         if ($payload['service_id'] <= 0) $errors[] = 'Selecione o serviço.';
-        if ($payload['proposal_total'] === null) $errors[] = 'Informe o valor total da proposta.';
+        if ($payload['proposal_total'] === null) $errors[] = 'Informe o valor da proposta.';
         if ($payload['requester_name'] === '') $errors[] = 'Informe o solicitante.';
-        if ($payload['requester_phone'] === '') $errors[] = 'Informe o telefone de contato.';
         if ($payload['send_method_id'] <= 0) $errors[] = 'Selecione a forma de envio.';
-        if ($payload['response_status_id'] <= 0) $errors[] = 'Selecione o status de retorno.';
-        if ($payload['validity_days'] < 1 || $payload['validity_days'] > 365) $errors[] = 'A validade da proposta deve estar entre 1 e 365 dias.';
-
-        if (!empty($payload['requester_phone']) && !self::isValidPhone($payload['requester_phone'])) {
-            $errors[] = 'Informe um telefone válido com DDD.';
-        }
+        if ($payload['response_status_id'] <= 0) $errors[] = 'Selecione o status.';
 
         if (!empty($payload['contact_email']) && !filter_var($payload['contact_email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Informe um e-mail válido.';
@@ -110,39 +104,6 @@ class ProposalService
             $errors[] = 'Apenas arquivos PDF são permitidos.';
         }
         return $errors;
-    }
-
-
-    public static function normalizePhone(?string $value): string
-    {
-        $digits = preg_replace('/\D+/', '', (string) $value) ?: '';
-        if ($digits === '') {
-            return '';
-        }
-
-        if (strlen($digits) > 11) {
-            $digits = substr($digits, 0, 11);
-        }
-
-        if (strlen($digits) > 10) {
-            return preg_replace('/(\d{2})(\d{5})(\d{0,4})/', '($1) $2-$3', $digits) ?: $digits;
-        }
-
-        if (strlen($digits) > 6) {
-            return preg_replace('/(\d{2})(\d{4})(\d{0,4})/', '($1) $2-$3', $digits) ?: $digits;
-        }
-
-        if (strlen($digits) > 2) {
-            return preg_replace('/(\d{2})(\d{0,5})/', '($1) $2', $digits) ?: $digits;
-        }
-
-        return $digits;
-    }
-
-    public static function isValidPhone(?string $value): bool
-    {
-        $digits = preg_replace('/\D+/', '', (string) $value) ?: '';
-        return in_array(strlen($digits), [10, 11], true);
     }
 
     public static function moneyToDb(mixed $value): ?float

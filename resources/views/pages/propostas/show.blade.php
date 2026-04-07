@@ -4,8 +4,8 @@
 <x-ancora.section-header :title="'Proposta '.$proposal->proposal_code" subtitle="Visualização consolidada da proposta, anexos, histórico e documento premium.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('propostas.edit', $proposal) }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600"><i class="fa-solid fa-pen"></i> Editar</a>
-        <a href="{{ route('propostas.print', $proposal) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"><i class="fa-solid fa-print"></i> Imprimir</a>
-        <a href="{{ route('propostas.document.edit', $proposal) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"><i class="fa-solid fa-file-pdf"></i> Documento premium</a>
+        <a href="{{ route('propostas.print', $proposal) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium dark:border-gray-800"><i class="fa-solid fa-print"></i> Imprimir</a>
+        <a href="{{ route('propostas.document.edit', $proposal) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium dark:border-gray-800"><i class="fa-solid fa-file-pdf"></i> Documento premium</a>
         <form method="post" action="{{ route('propostas.delete', $proposal) }}" onsubmit="return confirm('Deseja excluir esta proposta?');">@csrf<button class="inline-flex items-center gap-2 rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-600 dark:border-error-800 dark:text-error-400"><i class="fa-solid fa-trash"></i> Excluir</button></form>
     </div>
 </x-ancora.section-header>
@@ -65,8 +65,8 @@
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Monte a proposta visual completa, visualize o preview e gere o PDF/print como era na base anterior.</p>
             <div class="mt-4 flex flex-wrap gap-3">
                 <a href="{{ route('propostas.document.edit', $proposal) }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Editar</a>
-                <a href="{{ route('propostas.document.preview', $proposal) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]">Preview</a>
-                <a href="{{ route('propostas.document.pdf', $proposal) }}" target="_blank" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]">PDF / Print</a>
+                <a href="{{ route('propostas.document.preview', $proposal) }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium dark:border-gray-800">Preview</a>
+                <a href="{{ route('propostas.document.pdf', $proposal) }}" target="_blank" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium dark:border-gray-800">PDF / Print</a>
             </div>
         </div>
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">

@@ -33,7 +33,6 @@ class ProposalDocumentController extends Controller
             'template_id' => ['required', 'integer'],
             'document_title' => ['nullable', 'string', 'max:255'],
             'client_display_name' => ['nullable', 'string', 'max:255'],
-            'validity_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
         $userId = AncoraAuth::user($request)?->id ?? 1;
@@ -48,10 +47,10 @@ class ProposalDocumentController extends Controller
             'attention_to' => trim((string) $request->input('attention_to', $proposta->requester_name)) ?: null,
             'attention_role' => trim((string) $request->input('attention_role', '')) ?: null,
             'cover_subtitle' => trim((string) $request->input('cover_subtitle', '')) ?: null,
-            'intro_context' => null,
+            'intro_context' => trim((string) $request->input('intro_context', '')) ?: null,
             'scope_intro' => trim((string) $request->input('scope_intro', '')) ?: null,
             'closing_message' => trim((string) $request->input('closing_message', '')) ?: null,
-            'validity_days' => min(365, max(1, (int) $request->integer('validity_days', 30))),
+            'validity_days' => max(0, (int) $request->integer('validity_days', 30)),
             'show_institutional' => $request->boolean('show_institutional'),
             'show_services' => $request->boolean('show_services'),
             'show_extra_services' => $request->boolean('show_extra_services'),

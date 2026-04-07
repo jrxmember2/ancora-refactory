@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Administradora;
 use App\Models\AuditLog;
-use App\Models\ClientEntity;
 use App\Models\FormaEnvio;
 use App\Models\Proposal;
 use App\Models\ProposalAttachment;
@@ -25,59 +24,12 @@ class ProposalController extends Controller
 {
     private function formDependencies(): array
     {
-        $this->syncLegacyAdministradorasFromClientEntities();
-
         return [
-            'administradoras' => Administradora::query()->active()->orderBy('name')->get(),
-            'servicos' => $this->serviceOptions(),
-            'formasEnvio' => FormaEnvio::query()->active()->orderBy('name')->get(),
-            'statusRetorno' => StatusRetorno::query()->active()->orderBy('name')->get(),
-            'proposalSeqPreviewByYear' => DB::table('propostas')
-                ->selectRaw('proposal_year, COALESCE(MAX(proposal_seq), 0) + 1 as next_seq')
-                ->groupBy('proposal_year')
-                ->pluck('next_seq', 'proposal_year')
-                ->map(fn ($seq) => (int) $seq)
-                ->all(),
+            'administradoras' => Administradora::query()->active()->get(),
+            'servicos' => Servico::query()->active()->get(),
+            'formasEnvio' => FormaEnvio::query()->active()->get(),
+            'statusRetorno' => StatusRetorno::query()->active()->get(),
         ];
-    }
-
-    private function serviceOptions()
-    {
-        return Servico::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-    }
-
-    private function syncLegacyAdministradorasFromClientEntities(): void
-    {
-        ClientEntity::query()
-            ->active()
-            ->where('profile_scope', 'contato')
-            ->get()
-            ->filter(function (ClientEntity $entity) {
-                $role = Str::of((string) $entity->role_tag)->lower()->ascii()->value();
-                return in_array($role, ['administradora', 'sindico'], true);
-            })
-            ->each(function (ClientEntity $entity) {
-                $role = Str::of((string) $entity->role_tag)->lower()->ascii()->value();
-                $type = $role === 'sindico' ? 'sindico' : 'administradora';
-                $phone = collect($entity->phones_json ?? [])->pluck('number')->filter()->first();
-                $email = collect($entity->emails_json ?? [])->pluck('email')->filter()->first();
-
-                Administradora::query()->updateOrCreate(
-                    [
-                        'name' => $entity->display_name,
-                        'type' => $type,
-                    ],
-                    [
-                        'contact_name' => $entity->legal_representative ?: $entity->display_name,
-                        'phone' => $phone,
-                        'email' => $email,
-                        'is_active' => 1,
-                    ]
-                );
-            });
     }
 
     public function dashboard(Request $request): View
@@ -133,10 +85,10 @@ class ProposalController extends Controller
             'filters' => $request->all(),
             'totals' => $totals,
             'filterOptions' => [
-                'administradoras' => Administradora::query()->active()->orderBy('name')->get(),
-                'servicos' => $this->serviceOptions(),
-                'formasEnvio' => FormaEnvio::query()->active()->orderBy('name')->get(),
-                'statusRetorno' => StatusRetorno::query()->active()->orderBy('name')->get(),
+                'administradoras' => Administradora::query()->active()->get(),
+                'servicos' => Servico::query()->active()->get(),
+                'formasEnvio' => FormaEnvio::query()->active()->get(),
+                'statusRetorno' => StatusRetorno::query()->active()->get(),
                 'years' => DB::table('propostas')->selectRaw('DISTINCT proposal_year')->orderByDesc('proposal_year')->pluck('proposal_year'),
             ],
         ]);

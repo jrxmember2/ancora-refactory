@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $item = $item ?? $condominio ?? null;
+    $item = $condominio ?? null;
     $address = $item?->address_json ?? [];
     $selectedInactive = old('is_inactive', ($item && !$item->is_active) ? 1 : 0);
     $blocksText = old('blocks_text', isset($blocksText) ? $blocksText : '');
@@ -18,10 +18,6 @@
             || str_starts_with($attachment->original_name, 'ATA -')
         ),
     ];
-
-    $fieldClass = 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-800 placeholder:text-gray-400 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:placeholder:text-gray-500';
-    $selectClass = 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100';
-    $textareaClass = 'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-800 placeholder:text-gray-400 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:placeholder:text-gray-500';
 @endphp
 
 <x-ancora.section-header
@@ -30,7 +26,6 @@
 />
 
 <form
-    id="condominio-form"
     method="post"
     action="{{ $mode === 'create' ? route('clientes.condominios.store') : route('clientes.condominios.update', $item) }}"
     enctype="multipart/form-data"
@@ -46,20 +41,31 @@
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais</h3>
+                <h3 class="text-base font-semibold">Dados principais</h3>
 
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do condomínio</label>
-                        <input name="name" value="{{ old('name', $item?->name) }}" class="{{ $fieldClass }}" placeholder="Nome do condomínio" required>
+                        <label class="mb-1.5 block text-sm font-medium">Nome do condomínio</label>
+                        <input
+                            name="name"
+                            value="{{ old('name', $item?->name) }}"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                            required
+                        >
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
-                        <select name="condominium_type_id" class="{{ $selectClass }}">
+                        <label class="mb-1.5 block text-sm font-medium">Tipo</label>
+                        <select
+                            name="condominium_type_id"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                        >
                             <option value="">Selecione</option>
                             @foreach($condominiumTypes as $type)
-                                <option value="{{ $type->id }}" @selected((string) old('condominium_type_id', $item?->condominium_type_id) === (string) $type->id)>
+                                <option
+                                    value="{{ $type->id }}"
+                                    @selected((string) old('condominium_type_id', $item?->condominium_type_id) === (string) $type->id)
+                                >
                                     {{ $type->name }}
                                 </option>
                             @endforeach
@@ -67,11 +73,11 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">CNPJ</label>
+                        <label class="mb-1.5 block text-sm font-medium">CNPJ</label>
                         <input
                             name="cnpj"
                             value="{{ old('cnpj', $item?->cnpj) }}"
-                            class="{{ $fieldClass }}"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
                             placeholder="00.000.000/0000-00"
                             inputmode="numeric"
                             maxlength="18"
@@ -81,11 +87,18 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Síndico vinculado</label>
-                        <select name="syndico_entity_id" class="{{ $selectClass }}" required>
+                        <label class="mb-1.5 block text-sm font-medium">Síndico vinculado</label>
+                        <select
+                            name="syndico_entity_id"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                            required
+                        >
                             <option value="">Selecione</option>
                             @foreach($syndics as $syndic)
-                                <option value="{{ $syndic->id }}" @selected((string) old('syndico_entity_id', $item?->syndico_entity_id) === (string) $syndic->id)>
+                                <option
+                                    value="{{ $syndic->id }}"
+                                    @selected((string) old('syndico_entity_id', $item?->syndico_entity_id) === (string) $syndic->id)
+                                >
                                     {{ $syndic->display_name }}
                                 </option>
                             @endforeach
@@ -93,11 +106,17 @@
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Administradora</label>
-                        <select name="administradora_entity_id" class="{{ $selectClass }}">
+                        <label class="mb-1.5 block text-sm font-medium">Administradora</label>
+                        <select
+                            name="administradora_entity_id"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                        >
                             <option value="">Selecione</option>
                             @foreach($administradorasList as $admin)
-                                <option value="{{ $admin->id }}" @selected((string) old('administradora_entity_id', $item?->administradora_entity_id) === (string) $admin->id)>
+                                <option
+                                    value="{{ $admin->id }}"
+                                    @selected((string) old('administradora_entity_id', $item?->administradora_entity_id) === (string) $admin->id)
+                                >
                                     {{ $admin->display_name }}
                                 </option>
                             @endforeach
@@ -110,9 +129,14 @@
                     </label>
 
                     <div class="md:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Blocos / torres</label>
-                        <textarea name="blocks_text" rows="5" class="{{ $textareaClass }}" placeholder="Um bloco por linha">{{ $blocksText }}</textarea>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Caso o condomínio tenha múltiplos blocos, informe um por linha.</p>
+                        <label class="mb-1.5 block text-sm font-medium">Blocos / torres</label>
+                        <textarea
+                            name="blocks_text"
+                            rows="5"
+                            class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700"
+                            placeholder="Um bloco por linha"
+                        >{{ $blocksText }}</textarea>
+                        <p class="mt-1 text-xs text-gray-500">Caso o condomínio tenha múltiplos blocos, informe um por linha.</p>
                     </div>
                 </div>
             </div>
@@ -126,7 +150,7 @@
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Documentos</h3>
+                        <h3 class="text-base font-semibold">Documentos</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Suba a convenção, o regimento interno e quantas ATAs forem necessárias.
                         </p>
@@ -135,12 +159,14 @@
 
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Convenção condominial</label>
+                        <label class="mb-1.5 block text-sm font-medium">Convenção condominial</label>
+
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
                             <input type="file" name="document_convention" class="sr-only" data-file-input>
                         </label>
+
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['convention']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
@@ -149,10 +175,14 @@
                             <div class="mt-3 space-y-2">
                                 @foreach($groupedAttachments['convention'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
-                                        <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
+                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -161,12 +191,14 @@
                     </div>
 
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Regimento interno</label>
+                        <label class="mb-1.5 block text-sm font-medium">Regimento interno</label>
+
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
                             <input type="file" name="document_regiment" class="sr-only" data-file-input>
                         </label>
+
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['regiment']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
@@ -175,10 +207,14 @@
                             <div class="mt-3 space-y-2">
                                 @foreach($groupedAttachments['regiment'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
-                                        <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
+                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -187,12 +223,14 @@
                     </div>
 
                     <div data-file-preview>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">ATAs</label>
+                        <label class="mb-1.5 block text-sm font-medium">ATAs</label>
+
                         <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
-                            <i class="fa-solid fa-file-arrow-up"></i>
+                            <i class="fa-solid fa-files"></i>
                             <span>Selecionar um ou mais arquivos</span>
                             <input type="file" name="document_atas[]" multiple class="sr-only" data-file-input data-multiple>
                         </label>
+
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['atas']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
@@ -201,10 +239,14 @@
                             <div class="mt-3 space-y-2">
                                 @foreach($groupedAttachments['atas'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
-                                        <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="font-medium">{{ $attachment->original_name }}</div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                            <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
+                                            <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -217,39 +259,41 @@
 
         <div class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Status</h3>
+                <h3 class="text-base font-semibold">Status</h3>
 
                 <div class="mt-4 space-y-4">
-                    <label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label class="flex items-center gap-3 text-sm font-medium">
                         <input type="checkbox" name="is_inactive" value="1" x-model="inactive">
                         Inativo
                     </label>
 
                     <div x-bind:class="inactive ? '' : 'opacity-60'">
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo da inativação</label>
-                        <input name="inactive_reason" value="{{ old('inactive_reason', $item?->inactive_reason) }}" class="{{ $fieldClass }}" placeholder="Motivo" :disabled="!inactive">
+                        <label class="mb-1.5 block text-sm font-medium">Motivo da inativação</label>
+                        <input
+                            name="inactive_reason"
+                            value="{{ old('inactive_reason', $item?->inactive_reason) }}"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                            :disabled="!inactive"
+                        >
                     </div>
 
                     <div x-bind:class="inactive ? '' : 'opacity-60'">
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fim do contrato</label>
-                        <input type="date" name="contract_end_date" value="{{ old('contract_end_date', $item?->contract_end_date?->format('Y-m-d') ?? $item?->contract_end_date) }}" class="{{ $fieldClass }}" :disabled="!inactive">
+                        <label class="mb-1.5 block text-sm font-medium">Fim do contrato</label>
+                        <input
+                            type="date"
+                            name="contract_end_date"
+                            value="{{ old('contract_end_date', $item?->contract_end_date?->format('Y-m-d') ?? $item?->contract_end_date) }}"
+                            class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"
+                            :disabled="!inactive"
+                        >
                     </div>
                 </div>
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Anexos adicionais</h3>
+                <h3 class="text-base font-semibold">Anexos adicionais</h3>
 
                 <div class="mt-4 space-y-4" data-file-preview>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Papel dos anexos</label>
-                        <select name="attachment_role" class="{{ $selectClass }}">
-                            <option value="documento">Documento</option>
-                            <option value="contrato">Contrato</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-
                     <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                         <i class="fa-solid fa-paperclip"></i>
                         <span>Escolher arquivos para anexar</span>
@@ -260,14 +304,27 @@
                         {{ $groupedAttachments['others']->pluck('original_name')->implode(', ') ?: 'Nenhum anexo adicional' }}
                     </div>
 
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Papel dos anexos</label>
+                        <select name="attachment_role" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                            <option value="documento">Documento</option>
+                            <option value="contrato">Contrato</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+
                     @if($groupedAttachments['others']->count())
                         <div class="space-y-2">
                             @foreach($groupedAttachments['others'] as $attachment)
                                 <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
-                                    <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                    <div class="font-medium">{{ $attachment->original_name }}</div>
                                     <div class="mt-2 flex gap-2">
                                         <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
-                                        <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
+                                        <form method="post" action="{{ route('clientes.attachments.delete', $attachment) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="rounded-md border border-error-300 px-2 py-1 text-error-600">Excluir</button>
+                                        </form>
                                     </div>
                                 </div>
                             @endforeach
@@ -278,7 +335,7 @@
 
             @if($attachments->count())
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Resumo de documentos cadastrados</h3>
+                    <h3 class="text-base font-semibold">Resumo de documentos cadastrados</h3>
                     <div class="mt-3 text-sm text-gray-500 dark:text-gray-400">
                         Total anexado: {{ $attachments->count() }} arquivo(s)
                     </div>
@@ -286,30 +343,23 @@
             @endif
         </div>
     </div>
+
+    <div class="flex gap-3">
+        <button type="submit" class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">
+            {{ $mode === 'create' ? 'Cadastrar' : 'Salvar alterações' }}
+        </button>
+    </div>
 </form>
 
-@foreach($attachments as $attachment)
-    <form id="attachment-delete-{{ $attachment->id }}" method="post" action="{{ route('clientes.attachments.delete', $attachment) }}" class="hidden">
+@if($mode === 'edit')
+    <form method="post" action="{{ route('clientes.condominios.delete', $item) }}" class="mt-3">
         @csrf
         @method('DELETE')
+        <button onclick="return confirm('Excluir este condomínio?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600">
+            Excluir
+        </button>
     </form>
-@endforeach
-
-<div class="mt-3 flex flex-wrap gap-3">
-    <button type="submit" form="condominio-form" class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">
-        {{ $mode === 'create' ? 'Cadastrar' : 'Salvar alterações' }}
-    </button>
-
-    @if($mode === 'edit')
-        <form method="post" action="{{ route('clientes.condominios.delete', $item) }}">
-            @csrf
-            @method('DELETE')
-            <button onclick="return confirm('Excluir este condomínio?')" class="rounded-xl border border-error-300 px-5 py-3 text-sm font-medium text-error-600 dark:text-error-300">
-                Excluir
-            </button>
-        </form>
-    @endif
-</div>
+@endif
 @endsection
 
 @push('scripts')
@@ -320,32 +370,17 @@ function condominiumForm(initialState) {
         init() {
             this.maskCnpj();
         },
-        onlyDigits(value) {
-            return String(value || '').replace(/\D/g, '');
-        },
-        isValidCnpj(digits) {
-            if (!/^\d{14}$/.test(digits) || /(\d)\1{13}/.test(digits)) return false;
-            const calc = (base, factors) => {
-                const total = factors.reduce((sum, factor, index) => sum + Number(base[index]) * factor, 0);
-                const remainder = total % 11;
-                return remainder < 2 ? 0 : 11 - remainder;
-            };
-            const first = calc(digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-            const second = calc(digits, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-            return first === Number(digits[12]) && second === Number(digits[13]);
-        },
         maskCnpj() {
             if (!this.$refs.cnpj) return;
-            let digits = this.onlyDigits(this.$refs.cnpj.value).slice(0, 14);
+
+            let digits = this.$refs.cnpj.value.replace(/\D/g, '').slice(0, 14);
             digits = digits
                 .replace(/(\d{2})(\d)/, '$1.$2')
                 .replace(/(\d{3})(\d)/, '$1.$2')
                 .replace(/(\d{3})(\d)/, '$1/$2')
                 .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
-            this.$refs.cnpj.value = digits;
 
-            const raw = this.onlyDigits(digits);
-            this.$refs.cnpj.setCustomValidity(raw.length === 14 && !this.isValidCnpj(raw) ? 'Informe um CNPJ válido.' : '');
+            this.$refs.cnpj.value = digits;
         },
     }
 }
@@ -358,7 +393,9 @@ document.addEventListener('change', (event) => {
     if (!label) return;
 
     const files = Array.from(event.target.files || []);
-    label.textContent = files.length ? files.map((file) => file.name).join(', ') : 'Nenhum arquivo selecionado';
+    if (!files.length) return;
+
+    label.textContent = files.map((file) => file.name).join(', ');
 });
 </script>
 @endpush
