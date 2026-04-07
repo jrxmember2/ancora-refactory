@@ -1133,7 +1133,7 @@ body.proposal-print,
 .vb-contact-social-card {
     position: absolute;
     left: 4mm;
-    bottom: 9mm;
+    bottom: 26mm;
     width: 64mm;
     min-height: 40mm;
     background: rgba(255, 255, 255, 0.94);
@@ -1159,8 +1159,8 @@ body.proposal-print,
 
 .vb-contact-portrait-wrap {
     position: absolute;
-    right: 18mm;
-    bottom: 60mm;
+    right: 23mm;
+    bottom: 70mm;
     width: 54mm;
 }
 
