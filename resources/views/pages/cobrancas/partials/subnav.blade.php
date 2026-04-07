@@ -1,0 +1,5 @@
+<div class="mb-6 flex flex-wrap gap-2">
+    <a href="{{ route('cobrancas.dashboard') }}" class="rounded-xl px-4 py-2 text-sm font-medium {{ request()->routeIs('cobrancas.dashboard') ? 'bg-brand-500 text-white' : 'border border-gray-200 text-gray-700 dark:border-gray-800 dark:text-gray-300' }}">Dashboard</a>
+    <a href="{{ route('cobrancas.index') }}" class="rounded-xl px-4 py-2 text-sm font-medium {{ request()->routeIs('cobrancas.index') || request()->routeIs('cobrancas.show') || request()->routeIs('cobrancas.edit') ? 'bg-brand-500 text-white' : 'border border-gray-200 text-gray-700 dark:border-gray-800 dark:text-gray-300' }}">Lista de OS</a>
+    <a href="{{ route('cobrancas.create') }}" class="rounded-xl px-4 py-2 text-sm font-medium {{ request()->routeIs('cobrancas.create') ? 'bg-brand-500 text-white' : 'border border-gray-200 text-gray-700 dark:border-gray-800 dark:text-gray-300' }}">Nova OS</a>
+</div>

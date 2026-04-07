@@ -34,6 +34,7 @@ Depois que o MySQL estiver no ar, importe:
 2. `database/sql/2026_03_module_hub.sql`
 3. `database/sql/2026_03_proposta_premium.sql`
 4. `database/sql/2026_03_desktop_permissions.sql`
+5. `database/sql/2026_04_cobranca_module.sql`
 
 ## 5. Volumes
 
@@ -48,3 +49,14 @@ Crie persistência para:
 
 Acesse `/login` usando um usuário já existente da tabela `users`.
 A autenticação utiliza `password_hash`, preservando o mecanismo do sistema anterior.
+
+
+## Módulo Cobrança
+
+Após importar os arquivos SQL acima, rode também:
+
+```bash
+php artisan migrate --force
+```
+
+Isso garante a criação/sincronização das tabelas e permissões por rota do módulo Cobrança na base Laravel.
