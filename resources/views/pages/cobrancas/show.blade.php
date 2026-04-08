@@ -4,7 +4,6 @@
 <x-ancora.section-header :title="'OS '.$case->os_number" subtitle="Acompanhe o histórico completo da cobrança, GED, quotas, parcelas e payload operacional.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('cobrancas.edit', $case) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Editar</a>
-        <button type="button" disabled aria-disabled="true" title="Em breve será possível gerar o termo automaticamente por aqui." class="rounded-xl border border-brand-200 bg-brand-50/70 px-4 py-3 text-sm font-medium text-brand-400 opacity-70 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-300/70">Gerar termo de acordo</button>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
 </x-ancora.section-header>
