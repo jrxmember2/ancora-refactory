@@ -77,6 +77,24 @@ class AncoraRouteCatalog
                     'clientes.attachments.delete' => 'Excluir anexo cliente',
                 ],
             ],
+
+            'cobrancas' => [
+                'label' => 'Cobrança',
+                'routes' => [
+                    'cobrancas.dashboard' => 'Acessar dashboard de cobrança',
+                    'cobrancas.index' => 'Listar OS de cobrança',
+                    'cobrancas.create' => 'Nova OS de cobrança',
+                    'cobrancas.store' => 'Salvar OS de cobrança',
+                    'cobrancas.show' => 'Visualizar OS de cobrança',
+                    'cobrancas.edit' => 'Editar OS de cobrança',
+                    'cobrancas.update' => 'Atualizar OS de cobrança',
+                    'cobrancas.delete' => 'Excluir OS de cobrança',
+                    'cobrancas.timeline.store' => 'Adicionar andamento na OS de cobrança',
+                    'cobrancas.attachments.upload' => 'Enviar anexo no GED da cobrança',
+                    'cobrancas.attachments.download' => 'Baixar anexo do GED da cobrança',
+                    'cobrancas.attachments.delete' => 'Excluir anexo do GED da cobrança',
+                ],
+            ],
             'propostas' => [
                 'label' => 'Propostas',
                 'routes' => [

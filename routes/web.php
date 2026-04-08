@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ConfigController;
+use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
@@ -80,6 +81,22 @@ Route::middleware('ancora.auth')->group(function () {
     Route::delete('/config/usuarios/{user}', [ConfigController::class, 'deleteUsuario'])->name('config.users.delete')->middleware(['ancora.superadmin', 'ancora.route:config.users.delete']);
 
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index')->middleware('ancora.route:logs.index');
+
+
+    Route::prefix('cobrancas')->group(function () {
+        Route::get('/dashboard', [CobrancaController::class, 'dashboard'])->name('cobrancas.dashboard')->middleware('ancora.route:cobrancas.dashboard');
+        Route::get('/', [CobrancaController::class, 'index'])->name('cobrancas.index')->middleware('ancora.route:cobrancas.index');
+        Route::get('/nova', [CobrancaController::class, 'create'])->name('cobrancas.create')->middleware('ancora.route:cobrancas.create');
+        Route::post('/store', [CobrancaController::class, 'store'])->name('cobrancas.store')->middleware('ancora.route:cobrancas.store');
+        Route::get('/{cobranca}', [CobrancaController::class, 'show'])->name('cobrancas.show')->middleware('ancora.route:cobrancas.show');
+        Route::get('/{cobranca}/editar', [CobrancaController::class, 'edit'])->name('cobrancas.edit')->middleware('ancora.route:cobrancas.edit');
+        Route::put('/{cobranca}', [CobrancaController::class, 'update'])->name('cobrancas.update')->middleware('ancora.route:cobrancas.update');
+        Route::delete('/{cobranca}', [CobrancaController::class, 'destroy'])->name('cobrancas.delete')->middleware('ancora.route:cobrancas.delete');
+        Route::post('/{cobranca}/andamentos', [CobrancaController::class, 'addTimeline'])->name('cobrancas.timeline.store')->middleware('ancora.route:cobrancas.timeline.store');
+        Route::post('/{cobranca}/anexos/upload', [CobrancaController::class, 'uploadAttachment'])->name('cobrancas.attachments.upload')->middleware('ancora.route:cobrancas.attachments.upload');
+        Route::get('/{cobranca}/anexos/{attachment}/download', [CobrancaController::class, 'downloadAttachment'])->name('cobrancas.attachments.download')->middleware('ancora.route:cobrancas.attachments.download');
+        Route::delete('/{cobranca}/anexos/{attachment}', [CobrancaController::class, 'deleteAttachment'])->name('cobrancas.attachments.delete')->middleware('ancora.route:cobrancas.attachments.delete');
+    });
 
     Route::prefix('clientes')->group(function () {
         Route::get('/', [ClientsController::class, 'index'])->name('clientes.index')->middleware('ancora.route:clientes.index');
