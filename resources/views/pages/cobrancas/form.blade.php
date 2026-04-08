@@ -38,11 +38,12 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div id="block-field-wrapper">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bloco / torre</label>
                 <select id="block-select" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-white">
                     <option value="">Selecione</option>
                 </select>
+                <p id="block-field-hint" class="mt-2 text-xs text-gray-500 dark:text-gray-400">Selecione o bloco para liberar as unidades.</p>
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Unidade</label>
@@ -332,6 +333,17 @@
 
     <div class="flex flex-wrap gap-3">
         <button class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
+        @if($case)
+            <button type="button" disabled aria-disabled="true" title="Em breve será possível gerar o termo automaticamente por aqui." class="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/70 px-5 py-3 text-sm font-medium text-brand-400 opacity-70 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-300/70">
+                <i class="fa-solid fa-file-signature"></i>
+                Gerar termo de acordo
+            </button>
+            <form method="post" action="{{ route('cobrancas.delete', $case) }}" onsubmit="return confirm('Excluir esta OS de cobrança?')">
+                @csrf
+                @method('DELETE')
+                <button class="inline-flex items-center gap-2 rounded-xl border border-error-300 bg-white px-5 py-3 text-sm font-medium text-error-600 hover:bg-error-50 dark:border-error-700/60 dark:bg-white/[0.03] dark:text-error-300">Excluir</button>
+            </form>
+        @endif
         <a href="{{ $case ? route('cobrancas.show', $case) : route('cobrancas.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</a>
     </div>
 </form>
@@ -345,6 +357,8 @@
 
     const condominiumSelect = document.getElementById('condominium-select');
     const blockSelect = document.getElementById('block-select');
+    const blockFieldWrapper = document.getElementById('block-field-wrapper');
+    const blockFieldHint = document.getElementById('block-field-hint');
     const unitSelect = document.getElementById('unit-select');
     const unitIdHidden = document.getElementById('unit-id-hidden');
     const unitHint = document.getElementById('unit-hint');
@@ -392,16 +406,37 @@
         select.appendChild(option);
     }
 
+    function getCondominiumBlocks(condominiumId) {
+        return selectorData.blocks?.[String(condominiumId)] || [];
+    }
+
+    function condominiumHasBlocks(condominiumId) {
+        return getCondominiumBlocks(condominiumId).length > 0;
+    }
+
+    function updateBlockFieldState(condominiumId) {
+        const hasBlocks = condominiumHasBlocks(condominiumId);
+        if (blockFieldWrapper) {
+            blockFieldWrapper.classList.toggle('opacity-70', !hasBlocks);
+        }
+        if (blockFieldHint) {
+            blockFieldHint.textContent = hasBlocks
+                ? 'Selecione o bloco para liberar as unidades.'
+                : 'Este condomínio não possui blocos cadastrados. As unidades são liberadas diretamente.';
+        }
+        return hasBlocks;
+    }
+
     function populateBlocks(condominiumId, selectedBlockId = '') {
         resetSelect(blockSelect, 'Selecione');
-        if (!blockSelect) return;
-        const condo = (selectorData.condominiums || []).find((item) => String(item.id) === String(condominiumId));
-        const blocks = selectorData.blocks?.[String(condominiumId)] || [];
-        const hasBlocks = !!condo?.has_blocks;
+        if (!blockSelect) return false;
+        const blocks = getCondominiumBlocks(condominiumId);
+        const hasBlocks = blocks.length > 0;
 
         blockSelect.disabled = !condominiumId || !hasBlocks;
+        updateBlockFieldState(condominiumId);
         if (!hasBlocks) {
-            return;
+            return false;
         }
 
         blocks.forEach((block) => {
@@ -413,22 +448,35 @@
             }
             blockSelect.appendChild(option);
         });
+
+        return true;
     }
 
     function populateUnits(condominiumId, blockId = '', selectedUnitId = '') {
-        resetSelect(unitSelect, 'Selecione');
         if (!unitSelect) return;
-        unitSelect.disabled = !condominiumId;
+        const hasBlocks = condominiumHasBlocks(condominiumId);
+        resetSelect(unitSelect, hasBlocks && !blockId ? 'Selecione o bloco primeiro' : 'Selecione');
 
-        const condoUnits = selectorData.units?.[String(condominiumId)] || {};
-        const keys = Object.keys(condoUnits);
-        const requestedKey = blockId ? String(blockId) : '0';
-        let units = condoUnits[requestedKey] || [];
-
-        if (!blockId && !units.length && keys.length === 1) {
-            units = condoUnits[keys[0]] || [];
+        if (!condominiumId) {
+            unitSelect.disabled = true;
+            return;
         }
 
+        const condoUnits = selectorData.units?.[String(condominiumId)] || {};
+        let units = [];
+
+        if (hasBlocks) {
+            if (!blockId) {
+                unitSelect.disabled = true;
+                return;
+            }
+            units = condoUnits[String(blockId)] || [];
+        } else {
+            unitSelect.disabled = false;
+            units = Object.values(condoUnits).flat();
+        }
+
+        unitSelect.disabled = false;
         units.forEach((unit) => {
             const option = document.createElement('option');
             option.value = String(unit.id);
@@ -486,9 +534,8 @@
 
     function handleCondominiumChange(selectedBlockId = '', selectedUnitId = '') {
         const condominiumId = condominiumSelect?.value || '';
-        populateBlocks(condominiumId, selectedBlockId);
-        const condo = (selectorData.condominiums || []).find((item) => String(item.id) === String(condominiumId));
-        const effectiveBlockId = condo?.has_blocks ? (selectedBlockId || blockSelect?.value || '') : '';
+        const hasBlocks = populateBlocks(condominiumId, selectedBlockId);
+        const effectiveBlockId = hasBlocks ? (selectedBlockId || blockSelect?.value || '') : '';
         populateUnits(condominiumId, effectiveBlockId, selectedUnitId);
         syncOwnerSummary();
     }
