@@ -72,7 +72,6 @@ Por isso, a rota mais segura é manter **MySQL** nesta fase e importar o SQL leg
   - `database/sql/2026_03_module_hub.sql`
   - `database/sql/2026_03_proposta_premium.sql`
   - `database/sql/2026_03_desktop_permissions.sql`
-  - `database/sql/2026_04_cobranca_module.sql`
 
 ## EasyPanel
 
@@ -111,14 +110,3 @@ Persistir pelo menos:
 
 Este pacote foi preparado estruturalmente, mas o build não foi executado neste ambiente porque aqui não havia Composer disponível.
 No deploy da VPS/EasyPanel, o `Dockerfile` resolve isso instalando Composer dependencies e assets do Vite.
-
-
-## Módulo Cobrança
-
-Após importar os arquivos SQL acima, rode também:
-
-```bash
-php artisan migrate --force
-```
-
-Isso garante a criação/sincronização das tabelas e permissões por rota do módulo Cobrança na base Laravel.

@@ -44,15 +44,6 @@ class AncoraMenu
                             ['label' => 'Unidades', 'path' => route('clientes.unidades')],
                         ],
                     ] : null,
-                    $has('cobrancas') ? [
-                        'label' => 'Cobrança',
-                        'icon' => 'fa-solid fa-money-bill-wave',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('cobrancas.dashboard')],
-                            ['label' => 'Lista de OS', 'path' => route('cobrancas.index')],
-                            ['label' => 'Nova OS', 'path' => route('cobrancas.create')],
-                        ],
-                    ] : null,
                 ])),
             ],
             [
@@ -87,7 +78,6 @@ class AncoraMenu
                 'config' => 'Branding, usuários, módulos e cadastros auxiliares.',
                 'logs' => 'Rastreabilidade e auditoria do sistema.',
                 'clientes' => 'Cadastro central de clientes avulsos e área condominial.',
-                'cobrancas' => 'OS de cobrança, quotas, andamentos, GED e trilha para judicialização.',
             ];
 
             return [
@@ -101,7 +91,6 @@ class AncoraMenu
                     'config' => route('config.index'),
                     'logs' => route('logs.index'),
                     'clientes' => route('clientes.index'),
-                    'cobrancas' => route('cobrancas.dashboard'),
                     default => '#',
                 },
                 'description' => $descriptions[$module->slug] ?? 'Módulo em evolução no novo core Laravel.',
@@ -109,7 +98,6 @@ class AncoraMenu
                 'accent' => match ($module->slug) {
                     'propostas' => 'brand',
                     'clientes' => 'success',
-                    'cobrancas' => 'warning',
                     'config' => 'warning',
                     'logs' => 'gray',
                     default => 'blue',

@@ -33,49 +33,11 @@
                     </div>
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
-                        <div class="space-y-2">
-                            <input name="company_phone" value="{{ $branding['company_phone'] }}" class="{{ $inputClass }}" data-phone-mask placeholder="(27) 99999-9999">
-                            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                <input type="checkbox" name="company_phone_is_whatsapp" value="1" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20 dark:border-gray-700" @checked($branding['company_phone_is_whatsapp'])>
-                                <span>Usar ícone de WhatsApp no documento premium</span>
-                            </label>
-                        </div>
+                        <input name="company_phone" value="{{ $branding['company_phone'] }}" class="{{ $inputClass }}" data-phone-mask placeholder="(27) 99999-9999">
                     </div>
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
                         <input type="email" name="company_email" value="{{ $branding['company_email'] }}" class="{{ $inputClass }}">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Site</label>
-                        <input name="company_website" value="{{ $branding['company_website'] }}" class="{{ $inputClass }}" placeholder="https://www.rebecamedina.com.br">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Instagram</label>
-                        <input name="company_social_instagram" value="{{ $branding['company_social_instagram'] }}" class="{{ $inputClass }}" placeholder="@rebecamedina.oficial">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">LinkedIn</label>
-                        <input name="company_social_linkedin" value="{{ $branding['company_social_linkedin'] }}" class="{{ $inputClass }}" placeholder="linkedin.com/in/...">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">YouTube</label>
-                        <input name="company_social_youtube" value="{{ $branding['company_social_youtube'] }}" class="{{ $inputClass }}" placeholder="youtube.com/@...">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Facebook</label>
-                        <input name="company_social_facebook" value="{{ $branding['company_social_facebook'] }}" class="{{ $inputClass }}" placeholder="facebook.com/...">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Canal do WhatsApp</label>
-                        <input name="company_social_whatsapp_channel" value="{{ $branding['company_social_whatsapp_channel'] }}" class="{{ $inputClass }}" placeholder="whatsapp.com/channel/...">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">TikTok</label>
-                        <input name="company_social_tiktok" value="{{ $branding['company_social_tiktok'] }}" class="{{ $inputClass }}" placeholder="tiktok.com/@...">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Linktree</label>
-                        <input name="company_social_linktree" value="{{ $branding['company_social_linktree'] }}" class="{{ $inputClass }}" placeholder="linktr.ee/...">
                     </div>
                     <div class="md:col-span-2">
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</label>

@@ -1027,10 +1027,10 @@ body.proposal-print,
 
 .vb-contact-item {
     display: grid;
-    grid-template-columns: 10.8mm 1fr;
-    column-gap: 3.2mm;
+    grid-template-columns: 12mm 1fr;
+    column-gap: 4mm;
     align-items: start;
-    margin-bottom: 8.2mm;
+    margin-bottom: 12mm;
 }
 
 .vb-contact-item--last {
@@ -1041,47 +1041,37 @@ body.proposal-print,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 10.8mm;
-    height: 10.8mm;
+    width: 12mm;
+    height: 12mm;
     border-radius: 50%;
-    border: 0.55mm solid var(--vb-red);
+    border: 0.6mm solid var(--vb-red);
     color: var(--vb-red);
     background: #fff;
     flex-shrink: 0;
 }
 
 .vb-contact-item__icon--svg svg {
-    width: 5.5mm;
-    height: 5.5mm;
+    width: 6.2mm;
+    height: 6.2mm;
     fill: currentColor;
     display: block;
 }
 
 .vb-contact-item__label {
-    margin-bottom: 1.4mm;
+    margin-bottom: 1.5mm;
     color: var(--vb-red);
-    font-size: 5.2mm;
-    line-height: 1.02;
+    font-size: 7mm;
+    line-height: 1;
     font-weight: 900;
     font-style: italic;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
 }
 
 .vb-contact-item__value {
     color: #464646;
-    font-size: 4.3mm;
-    line-height: 1.38;
+    font-size: 5.2mm;
+    line-height: 1.42;
     word-break: break-word;
-}
-
-.vb-contact-item__value strong {
-    font-weight: 800;
-    color: #303030;
-}
-
-.vb-contact-item__value--email {
-    font-size: 4.1mm;
-    line-height: 1.24;
 }
 
 .vb-contact-card__logo {
@@ -1104,8 +1094,8 @@ body.proposal-print,
     color: #4a4a4a;
     border-radius: 10mm;
     padding: 8mm 8mm 9mm;
-    font-size: 5.7mm;
-    line-height: 1.08;
+    font-size: 6.7mm;
+    line-height: 1.05;
     box-shadow: var(--vb-shadow-soft);
 }
 
@@ -1133,20 +1123,20 @@ body.proposal-print,
 .vb-contact-social-card {
     position: absolute;
     left: 4mm;
-    bottom: 26mm;
-    width: 64mm;
-    min-height: 40mm;
+    bottom: 10mm;
+    width: 60mm;
+    min-height: 28mm;
     background: rgba(255, 255, 255, 0.94);
-    border-radius: 4mm;
-    padding: 4.3mm 5mm 4.6mm;
+    border-radius: 0;
+    padding: 4mm 5mm;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
 }
 
 .vb-contact-social-card__title {
-    margin-bottom: 2.4mm;
+    margin-bottom: 2mm;
     color: #161616;
-    font-size: 3.9mm;
-    line-height: 1.18;
+    font-size: 3.6mm;
+    line-height: 1.2;
     font-weight: 900;
 }
 
@@ -1159,8 +1149,8 @@ body.proposal-print,
 
 .vb-contact-portrait-wrap {
     position: absolute;
-    right: 23mm;
-    bottom: 70mm;
+    right: 20mm;
+    bottom: 36.5mm;
     width: 54mm;
 }
 
@@ -1181,113 +1171,6 @@ body.proposal-print,
     height: auto;
     z-index: 2;
     filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.22));
-}
-
-.vb-contact-item__value--compact {
-    font-size: 4.1mm;
-}
-
-.vb-contact-social-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.65mm;
-}
-
-.vb-contact-social-line {
-    display: grid;
-    grid-template-columns: 4.2mm 1fr;
-    align-items: start;
-    column-gap: 1.8mm;
-}
-
-.vb-contact-social-line__icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 4mm;
-    height: 4mm;
-    color: var(--vb-red);
-}
-
-.vb-contact-social-line__icon svg {
-    width: 100%;
-    height: 100%;
-    fill: currentColor;
-    display: block;
-}
-
-.vb-contact-social-line__body {
-    display: block;
-    line-height: 1.12;
-}
-
-.vb-contact-social-line__label {
-    font-size: 3.4mm;
-    font-weight: 800;
-    color: #2e2e2e;
-}
-
-.vb-contact-social-line__value {
-    display: inline-block;
-    margin-top: 0.6mm;
-    font-size: 3.65mm;
-    color: #4f4f4f;
-    line-height: 1.2;
-    word-break: break-word;
-}
-
-.vb-contact-bubble__emphasis {
-    color: var(--vb-red);
-}
-
-.vb-contact-bubble__subline {
-    display: inline-block;
-    margin-top: 3.2mm;
-    font-size: 4.15mm;
-    line-height: 1.32;
-}
-
-.vb-contact-highlight-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 2.2mm;
-}
-
-.vb-contact-highlight-list li {
-    display: grid;
-    grid-template-columns: 4.4mm 1fr;
-    column-gap: 1.8mm;
-    align-items: start;
-    color: #464646;
-    font-size: 2.95mm;
-    line-height: 1.35;
-}
-
-.vb-contact-highlight-list__icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 4mm;
-    height: 4mm;
-    margin-top: 0.15mm;
-}
-
-.vb-contact-highlight-list__icon svg {
-    width: 100%;
-    height: 100%;
-    fill: currentColor;
-    display: block;
-}
-
-.vb-contact-highlight-list__icon--medal {
-    color: var(--vb-red);
-}
-
-.vb-contact-highlight-list__icon--dot {
-    color: #f05c9b;
 }
 
 @page {

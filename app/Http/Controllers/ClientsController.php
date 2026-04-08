@@ -62,7 +62,15 @@ class ClientsController extends Controller
     private function parseSimpleValues(array $values, string $fieldKey, string $labelPrefix): array
     {
         $values = collect($values)
-            ->map(fn ($value) => trim((string) $value))
+            ->map(function ($value) use ($fieldKey) {
+                $value = match ($fieldKey) {
+                    'email' => $this->normalizeEmail($value),
+                    'number' => $this->normalizePhone($value),
+                    default => $this->normalizeWhitespace($value),
+                };
+
+                return $value;
+            })
             ->filter()
             ->values();
 
@@ -72,18 +80,256 @@ class ClientsController extends Controller
         ])->all();
     }
 
-    private function addressFromRequest(Request $request, string $prefix): array
+    private function parseRepeaterRows(array $rows, array $fields): array
+    {
+        return collect($rows)
+            ->map(function ($row) use ($fields) {
+                $row = is_array($row) ? $row : [];
+                $normalized = [];
+                foreach ($fields as $field) {
+                    $normalized[$field] = trim((string) ($row[$field] ?? ''));
+                }
+                return $normalized;
+            })
+            ->filter(fn ($row) => collect($row)->filter(fn ($value) => $value !== '')->isNotEmpty())
+            ->values()
+            ->all();
+    }
+
+    private function parsePhoneRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['number']))
+            ->map(fn ($row, $index) => [
+                'label' => 'Telefone ' . ($index + 1),
+                'number' => $this->normalizePhone($row['number']),
+            ])
+            ->filter(fn ($row) => $row['number'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function parseEmailRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['email']))
+            ->map(fn ($row, $index) => [
+                'label' => 'E-mail ' . ($index + 1),
+                'email' => $this->normalizeEmail($row['email']),
+            ])
+            ->filter(fn ($row) => $row['email'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function parseShareholderRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['name', 'document', 'role']))
+            ->map(fn ($row) => [
+                'name' => $this->normalizeTitleCase($row['name']),
+                'document' => $this->formatCpfCnpj($row['document']),
+                'role' => $this->normalizeTitleCase($row['role']),
+            ])
+            ->filter(fn ($row) => collect($row)->filter(fn ($value) => $value !== '')->isNotEmpty())
+            ->values()
+            ->all();
+    }
+
+    private function digitsOnly(?string $value): string
+    {
+        return preg_replace('/\D+/', '', (string) $value) ?? '';
+    }
+
+    private function normalizeWhitespace(?string $value): string
+    {
+        return preg_replace('/\s+/u', ' ', trim((string) $value)) ?? '';
+    }
+
+    private function normalizeLower(?string $value): string
+    {
+        return mb_strtolower($this->normalizeWhitespace($value), 'UTF-8');
+    }
+
+    private function normalizeUpper(?string $value): string
+    {
+        return mb_strtoupper($this->normalizeWhitespace($value), 'UTF-8');
+    }
+
+    private function normalizeTitleCase(?string $value): string
+    {
+        $value = $this->normalizeWhitespace($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $minorWords = ['da', 'das', 'de', 'do', 'dos', 'e'];
+        $chunks = preg_split('/(\s+)/u', mb_strtolower($value, 'UTF-8'), -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        $result = '';
+        $isFirstWord = true;
+
+        foreach ($chunks as $chunk) {
+            if (preg_match('/^\s+$/u', $chunk)) {
+                $result .= $chunk;
+                continue;
+            }
+
+            $parts = preg_split('/([\-\/])/u', $chunk, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$chunk];
+            $rebuilt = '';
+
+            foreach ($parts as $part) {
+                if ($part === '-' || $part === '/') {
+                    $rebuilt .= $part;
+                    continue;
+                }
+
+                if ($part === '') {
+                    continue;
+                }
+
+                if (!$isFirstWord && in_array($part, $minorWords, true)) {
+                    $rebuilt .= $part;
+                } elseif (preg_match('/^[ivxlcdm]+$/u', $part)) {
+                    $rebuilt .= mb_strtoupper($part, 'UTF-8');
+                } else {
+                    $rebuilt .= mb_convert_case($part, MB_CASE_TITLE, 'UTF-8');
+                }
+            }
+
+            $result .= $rebuilt;
+            $isFirstWord = false;
+        }
+
+        return $result;
+    }
+
+    private function formatCpfCnpj(?string $value): string
+    {
+        $digits = $this->digitsOnly($value);
+
+        if (strlen($digits) === 11) {
+            return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $digits) ?? $digits;
+        }
+
+        if (strlen($digits) === 14) {
+            return preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $digits) ?? $digits;
+        }
+
+        return $this->normalizeUpper($value);
+    }
+
+    private function formatZip(?string $value): string
+    {
+        $digits = $this->digitsOnly($value);
+        if (strlen($digits) !== 8) {
+            return $this->normalizeWhitespace($value);
+        }
+
+        return preg_replace('/(\d{5})(\d{3})/', '$1-$2', $digits) ?? $digits;
+    }
+
+    private function normalizePhone(?string $value): string
+    {
+        $digits = $this->digitsOnly($value);
+
+        if (strlen($digits) >= 12 && str_starts_with($digits, '55')) {
+            $digits = substr($digits, 2);
+        }
+
+        if (strlen($digits) === 11) {
+            return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $digits) ?? $digits;
+        }
+
+        if (strlen($digits) === 10) {
+            return preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $digits) ?? $digits;
+        }
+
+        return $this->normalizeWhitespace($value);
+    }
+
+    private function normalizeEmail(?string $value): string
+    {
+        return $this->normalizeLower($value);
+    }
+
+    private function normalizeAddress(array $address): array
     {
         return [
-            'street' => trim((string) $request->input($prefix . '_street', '')),
-            'number' => trim((string) $request->input($prefix . '_number', '')),
-            'complement' => trim((string) $request->input($prefix . '_complement', '')),
-            'neighborhood' => trim((string) $request->input($prefix . '_neighborhood', '')),
-            'city' => trim((string) $request->input($prefix . '_city', '')),
-            'state' => trim((string) $request->input($prefix . '_state', '')),
-            'zip' => trim((string) $request->input($prefix . '_zip', '')),
-            'notes' => trim((string) $request->input($prefix . '_notes', '')),
+            'street' => $this->normalizeTitleCase($address['street'] ?? ''),
+            'number' => $this->normalizeWhitespace($address['number'] ?? ''),
+            'complement' => $this->normalizeTitleCase($address['complement'] ?? ''),
+            'neighborhood' => $this->normalizeTitleCase($address['neighborhood'] ?? ''),
+            'city' => $this->normalizeTitleCase($address['city'] ?? ''),
+            'state' => $this->normalizeUpper($address['state'] ?? ''),
+            'zip' => $this->formatZip($address['zip'] ?? ''),
+            'notes' => $this->normalizeWhitespace($address['notes'] ?? ''),
         ];
+    }
+
+    private function isValidCpf(string $digits): bool
+    {
+        if (!preg_match('/^\d{11}$/', $digits) || preg_match('/^(\d)\1{10}$/', $digits)) {
+            return false;
+        }
+
+        for ($t = 9; $t < 11; $t++) {
+            $sum = 0;
+            for ($i = 0; $i < $t; $i++) {
+                $sum += (int) $digits[$i] * (($t + 1) - $i);
+            }
+            $digit = ((10 * $sum) % 11) % 10;
+            if ((int) $digits[$t] !== $digit) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isValidCnpj(string $digits): bool
+    {
+        if (!preg_match('/^\d{14}$/', $digits) || preg_match('/^(\d)\1{13}$/', $digits)) {
+            return false;
+        }
+
+        $calculate = static function (string $base, array $weights): int {
+            $sum = 0;
+            foreach ($weights as $index => $weight) {
+                $sum += ((int) $base[$index]) * $weight;
+            }
+            $remainder = $sum % 11;
+            return $remainder < 2 ? 0 : 11 - $remainder;
+        };
+
+        $first = $calculate($digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+        $second = $calculate($digits, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+        return $first === (int) $digits[12] && $second === (int) $digits[13];
+    }
+
+    private function isValidCpfCnpj(?string $document): bool
+    {
+        $digits = $this->digitsOnly($document);
+        if ($digits === '') {
+            return true;
+        }
+
+        return match (strlen($digits)) {
+            11 => $this->isValidCpf($digits),
+            14 => $this->isValidCnpj($digits),
+            default => false,
+        };
+    }
+
+    private function addressFromRequest(Request $request, string $prefix): array
+    {
+        return $this->normalizeAddress([
+            'street' => $request->input($prefix . '_street', ''),
+            'number' => $request->input($prefix . '_number', ''),
+            'complement' => $request->input($prefix . '_complement', ''),
+            'neighborhood' => $request->input($prefix . '_neighborhood', ''),
+            'city' => $request->input($prefix . '_city', ''),
+            'state' => $request->input($prefix . '_state', ''),
+            'zip' => $request->input($prefix . '_zip', ''),
+            'notes' => $request->input($prefix . '_notes', ''),
+        ]);
     }
 
     private function entityPayloadFromRequest(Request $request, string $scope, string $defaultRole = 'outro'): array
@@ -94,39 +340,39 @@ class ClientsController extends Controller
         $payload = [
             'entity_type' => $entityType,
             'profile_scope' => $scope,
-            'role_tag' => trim((string) $request->input('role_tag', $defaultRole)) ?: $defaultRole,
-            'display_name' => trim((string) $request->input('display_name', '')),
-            'legal_name' => trim((string) $request->input('legal_name', '')) ?: null,
-            'cpf_cnpj' => trim((string) $request->input('cpf_cnpj', '')) ?: null,
-            'rg_ie' => trim((string) $request->input('rg_ie', '')) ?: null,
-            'gender' => trim((string) $request->input('gender', '')) ?: null,
-            'nationality' => trim((string) $request->input('nationality', '')) ?: null,
-            'birth_date' => trim((string) $request->input('birth_date', '')) ?: null,
-            'profession' => trim((string) $request->input('profession', '')) ?: null,
-            'marital_status' => trim((string) $request->input('marital_status', '')) ?: null,
-            'pis' => trim((string) $request->input('pis', '')) ?: null,
-            'spouse_name' => trim((string) $request->input('spouse_name', '')) ?: null,
-            'father_name' => trim((string) $request->input('father_name', '')) ?: null,
-            'mother_name' => trim((string) $request->input('mother_name', '')) ?: null,
-            'children_info' => trim((string) $request->input('children_info', '')) ?: null,
-            'ctps' => trim((string) $request->input('ctps', '')) ?: null,
-            'cnae' => trim((string) $request->input('cnae', '')) ?: null,
-            'state_registration' => trim((string) $request->input('state_registration', '')) ?: null,
-            'municipal_registration' => trim((string) $request->input('municipal_registration', '')) ?: null,
+            'role_tag' => $this->normalizeWhitespace($request->input('role_tag', $defaultRole)) ?: $defaultRole,
+            'display_name' => $this->normalizeTitleCase($request->input('display_name', '')),
+            'legal_name' => ($value = $this->normalizeTitleCase($request->input('legal_name', ''))) !== '' ? $value : null,
+            'cpf_cnpj' => ($value = $this->formatCpfCnpj($request->input('cpf_cnpj', ''))) !== '' ? $value : null,
+            'rg_ie' => ($value = $this->normalizeUpper($request->input('rg_ie', ''))) !== '' ? $value : null,
+            'gender' => ($value = $this->normalizeTitleCase($request->input('gender', ''))) !== '' ? $value : null,
+            'nationality' => ($value = $this->normalizeTitleCase($request->input('nationality', ''))) !== '' ? $value : null,
+            'birth_date' => ($value = $this->normalizeWhitespace($request->input('birth_date', ''))) !== '' ? $value : null,
+            'profession' => ($value = $this->normalizeTitleCase($request->input('profession', ''))) !== '' ? $value : null,
+            'marital_status' => ($value = $this->normalizeTitleCase($request->input('marital_status', ''))) !== '' ? $value : null,
+            'pis' => ($value = $this->normalizeUpper($request->input('pis', ''))) !== '' ? $value : null,
+            'spouse_name' => ($value = $this->normalizeTitleCase($request->input('spouse_name', ''))) !== '' ? $value : null,
+            'father_name' => ($value = $this->normalizeTitleCase($request->input('father_name', ''))) !== '' ? $value : null,
+            'mother_name' => ($value = $this->normalizeTitleCase($request->input('mother_name', ''))) !== '' ? $value : null,
+            'children_info' => ($value = $this->normalizeWhitespace($request->input('children_info', ''))) !== '' ? $value : null,
+            'ctps' => ($value = $this->normalizeUpper($request->input('ctps', ''))) !== '' ? $value : null,
+            'cnae' => ($value = $this->normalizeUpper($request->input('cnae', ''))) !== '' ? $value : null,
+            'state_registration' => ($value = $this->normalizeUpper($request->input('state_registration', ''))) !== '' ? $value : null,
+            'municipal_registration' => ($value = $this->normalizeUpper($request->input('municipal_registration', ''))) !== '' ? $value : null,
             'opening_date' => null,
-            'legal_representative' => trim((string) $request->input('legal_representative', '')) ?: null,
-            'phones_json' => $this->parseLines($request->input('phones_text'), ['label', 'number']),
-            'emails_json' => $this->parseLines($request->input('emails_text'), ['label', 'email']),
+            'legal_representative' => ($value = $this->normalizeTitleCase($request->input('legal_representative', ''))) !== '' ? $value : null,
+            'phones_json' => $this->parsePhoneRows((array) $request->input('phones', [])),
+            'emails_json' => $this->parseEmailRows((array) $request->input('emails', [])),
             'primary_address_json' => $this->addressFromRequest($request, 'primary_address'),
             'billing_address_json' => $request->boolean('billing_same_as_primary')
                 ? $this->addressFromRequest($request, 'primary_address')
                 : $this->addressFromRequest($request, 'billing_address'),
-            'shareholders_json' => $this->parseLines($request->input('shareholders_text'), ['name', 'document', 'role']),
-            'notes' => trim((string) $request->input('notes', '')) ?: null,
-            'description' => trim((string) $request->input('description', '')) ?: null,
+            'shareholders_json' => $this->parseShareholderRows((array) $request->input('shareholders', [])),
+            'notes' => ($value = $this->normalizeWhitespace($request->input('notes', ''))) !== '' ? $value : null,
+            'description' => ($value = $this->normalizeWhitespace($request->input('description', ''))) !== '' ? $value : null,
             'is_active' => !$isInactive,
-            'inactive_reason' => $isInactive ? (trim((string) $request->input('inactive_reason', '')) ?: null) : null,
-            'contract_end_date' => $isInactive ? (trim((string) $request->input('contract_end_date', '')) ?: null) : null,
+            'inactive_reason' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('inactive_reason', ''))) !== '' ? $value : null) : null,
+            'contract_end_date' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('contract_end_date', ''))) !== '' ? $value : null) : null,
             'created_by' => AncoraAuth::user($request)?->id,
             'updated_by' => AncoraAuth::user($request)?->id,
         ];
@@ -167,6 +413,12 @@ class ClientsController extends Controller
         }
         if (($data['profile_scope'] ?? '') === 'avulso' && empty($data['cpf_cnpj'])) {
             $errors[] = 'Para cliente avulso, informe CPF/CNPJ.';
+        }
+        if (!empty($data['cpf_cnpj']) && !$this->isValidCpfCnpj($data['cpf_cnpj'])) {
+            $errors[] = 'Informe um CPF/CNPJ válido.';
+        }
+        if (collect($data['emails_json'] ?? [])->pluck('email')->filter(fn ($email) => $email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))->isNotEmpty()) {
+            $errors[] = 'Revise os e-mails informados.';
         }
         if (empty($data['is_active']) && empty($data['inactive_reason'])) {
             $errors[] = 'Informe o motivo da inativação.';
@@ -325,10 +577,29 @@ class ClientsController extends Controller
         }
     }
 
+    private function validatePartyRequest(Request $request, string $prefix, string $label): array
+    {
+        $errors = [];
+        $document = $this->formatCpfCnpj($request->input($prefix . '_cpf_cnpj', ''));
+        $emails = collect((array) $request->input($prefix . '_emails', []))
+            ->map(fn ($value) => $this->normalizeEmail($value))
+            ->filter();
+
+        if ($document !== '' && !$this->isValidCpfCnpj($document)) {
+            $errors[] = 'Informe um CPF/CNPJ válido para ' . $label . '.';
+        }
+
+        if ($emails->filter(fn ($email) => !filter_var($email, FILTER_VALIDATE_EMAIL))->isNotEmpty()) {
+            $errors[] = 'Revise os e-mails informados em ' . $label . '.';
+        }
+
+        return $errors;
+    }
+
     private function syncPartyEntityFromRequest(Request $request, string $prefix, string $roleTag, ?int $existingId = null): ?int
     {
-        $name = trim((string) $request->input($prefix . '_name', ''));
-        $document = trim((string) $request->input($prefix . '_cpf_cnpj', ''));
+        $name = $this->normalizeTitleCase($request->input($prefix . '_name', ''));
+        $document = $this->formatCpfCnpj($request->input($prefix . '_cpf_cnpj', ''));
         $phones = $this->parseSimpleValues((array) $request->input($prefix . '_phones', []), 'number', 'Telefone');
         $emails = $this->parseSimpleValues((array) $request->input($prefix . '_emails', []), 'email', 'E-mail');
         $address = $this->addressFromRequest($request, $prefix . '_address');
@@ -346,7 +617,7 @@ class ClientsController extends Controller
             'entity_type' => $entityType,
             'profile_scope' => 'contato',
             'role_tag' => $roleTag,
-            'display_name' => $name !== '' ? $name : ($existingId ? ClientEntity::query()->find($existingId)?->display_name : $roleTag),
+            'display_name' => $name !== '' ? $name : ($existingId ? ClientEntity::query()->find($existingId)?->display_name : $this->normalizeTitleCase($roleTag)),
             'legal_name' => $entityType === 'pj' ? ($name !== '' ? $name : null) : null,
             'cpf_cnpj' => $document !== '' ? $document : null,
             'phones_json' => $phones,
@@ -736,16 +1007,27 @@ class ClientsController extends Controller
 
     public function unidadeStore(Request $request): RedirectResponse
     {
-        $ownerId = $this->syncPartyEntityFromRequest($request, 'owner', 'proprietario');
-        $tenantId = $this->syncPartyEntityFromRequest($request, 'tenant', 'locatario');
-        $payload = $this->unitPayload($request, $ownerId, $tenantId);
-        $errors = $this->validateUnit($payload);
+        $errors = array_merge(
+            $this->validatePartyRequest($request, 'owner', 'o proprietário'),
+            $this->validatePartyRequest($request, 'tenant', 'o locatário')
+        );
+
+        $payload = $this->unitPayload($request, null, null);
+        $errors = array_merge($errors, $this->validateUnit($payload));
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
 
         try {
-            $unit = ClientUnit::query()->create($payload);
+            $unit = DB::transaction(function () use ($request, $payload) {
+                $ownerId = $this->syncPartyEntityFromRequest($request, 'owner', 'proprietario');
+                $tenantId = $this->syncPartyEntityFromRequest($request, 'tenant', 'locatario');
+                $payload['owner_entity_id'] = $ownerId;
+                $payload['tenant_entity_id'] = $tenantId;
+
+                return ClientUnit::query()->create($payload);
+            });
+
             $this->uploadAttachments('unit', (int) $unit->id, $request);
             $this->recordTimeline('unit', (int) $unit->id, 'Unidade cadastrada.', $request);
 
@@ -769,17 +1051,28 @@ class ClientsController extends Controller
 
     public function unidadeUpdate(Request $request, ClientUnit $unidade): RedirectResponse
     {
-        $ownerId = $this->syncPartyEntityFromRequest($request, 'owner', 'proprietario', $unidade->owner_entity_id);
-        $tenantId = $this->syncPartyEntityFromRequest($request, 'tenant', 'locatario', $unidade->tenant_entity_id);
-        $payload = $this->unitPayload($request, $ownerId, $tenantId);
+        $errors = array_merge(
+            $this->validatePartyRequest($request, 'owner', 'o proprietário'),
+            $this->validatePartyRequest($request, 'tenant', 'o locatário')
+        );
+
+        $payload = $this->unitPayload($request, $unidade->owner_entity_id, $unidade->tenant_entity_id);
         $payload['created_by'] = $unidade->created_by;
-        $errors = $this->validateUnit($payload);
+        $errors = array_merge($errors, $this->validateUnit($payload));
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
 
         try {
-            $unidade->update($payload);
+            DB::transaction(function () use ($request, $unidade, $payload) {
+                $ownerId = $this->syncPartyEntityFromRequest($request, 'owner', 'proprietario', $unidade->owner_entity_id);
+                $tenantId = $this->syncPartyEntityFromRequest($request, 'tenant', 'locatario', $unidade->tenant_entity_id);
+                $payload['owner_entity_id'] = $ownerId;
+                $payload['tenant_entity_id'] = $tenantId;
+
+                $unidade->update($payload);
+            });
+
             $this->uploadAttachments('unit', (int) $unidade->id, $request);
             $this->recordTimeline('unit', (int) $unidade->id, 'Unidade atualizada.', $request);
 
@@ -875,21 +1168,21 @@ class ClientsController extends Controller
         $isInactive = $request->boolean('is_inactive');
 
         return [
-            'name' => trim((string) $request->input('name', '')),
+            'name' => $this->normalizeTitleCase($request->input('name', '')),
             'condominium_type_id' => $request->integer('condominium_type_id') ?: null,
             'has_blocks' => $request->boolean('has_blocks'),
-            'cnpj' => trim((string) $request->input('cnpj', '')) ?: null,
-            'cnae' => trim((string) $request->input('cnae', '')) ?: null,
-            'state_registration' => trim((string) $request->input('state_registration', '')) ?: null,
-            'municipal_registration' => trim((string) $request->input('municipal_registration', '')) ?: null,
+            'cnpj' => ($value = $this->formatCpfCnpj($request->input('cnpj', ''))) !== '' ? $value : null,
+            'cnae' => ($value = $this->normalizeUpper($request->input('cnae', ''))) !== '' ? $value : null,
+            'state_registration' => ($value = $this->normalizeUpper($request->input('state_registration', ''))) !== '' ? $value : null,
+            'municipal_registration' => ($value = $this->normalizeUpper($request->input('municipal_registration', ''))) !== '' ? $value : null,
             'address_json' => $this->addressFromRequest($request, 'address'),
             'syndico_entity_id' => $request->integer('syndico_entity_id') ?: null,
             'administradora_entity_id' => $request->integer('administradora_entity_id') ?: null,
-            'bank_details' => trim((string) $request->input('bank_details', '')) ?: null,
-            'characteristics' => trim((string) $request->input('characteristics', '')) ?: null,
+            'bank_details' => ($value = $this->normalizeWhitespace($request->input('bank_details', ''))) !== '' ? $value : null,
+            'characteristics' => ($value = $this->normalizeWhitespace($request->input('characteristics', ''))) !== '' ? $value : null,
             'is_active' => !$isInactive,
-            'inactive_reason' => $isInactive ? (trim((string) $request->input('inactive_reason', '')) ?: null) : null,
-            'contract_end_date' => $isInactive ? (trim((string) $request->input('contract_end_date', '')) ?: null) : null,
+            'inactive_reason' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('inactive_reason', ''))) !== '' ? $value : null) : null,
+            'contract_end_date' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('contract_end_date', ''))) !== '' ? $value : null) : null,
             'created_by' => AncoraAuth::user($request)?->id,
             'updated_by' => AncoraAuth::user($request)?->id,
         ];
@@ -903,6 +1196,12 @@ class ClientsController extends Controller
         }
         if (empty($payload['syndico_entity_id'])) {
             $errors[] = 'Vincule um síndico ao condomínio.';
+        }
+        if (!empty($payload['cnpj'])) {
+            $digits = $this->digitsOnly($payload['cnpj']);
+            if (strlen($digits) !== 14 || !$this->isValidCnpj($digits)) {
+                $errors[] = 'Informe um CNPJ válido para o condomínio.';
+            }
         }
         if (empty($payload['is_active']) && empty($payload['inactive_reason'])) {
             $errors[] = 'Informe o motivo da inativação.';
@@ -933,11 +1232,11 @@ class ClientsController extends Controller
             'condominium_id' => $request->integer('condominium_id') ?: null,
             'block_id' => $request->integer('block_id') ?: null,
             'unit_type_id' => $request->integer('unit_type_id') ?: null,
-            'unit_number' => trim((string) $request->input('unit_number', '')),
+            'unit_number' => $this->normalizeUpper($request->input('unit_number', '')),
             'owner_entity_id' => $ownerId,
             'tenant_entity_id' => $tenantId,
-            'owner_notes' => trim((string) $request->input('owner_notes', '')) ?: null,
-            'tenant_notes' => trim((string) $request->input('tenant_notes', '')) ?: null,
+            'owner_notes' => ($value = $this->normalizeWhitespace($request->input('owner_notes', ''))) !== '' ? $value : null,
+            'tenant_notes' => ($value = $this->normalizeWhitespace($request->input('tenant_notes', ''))) !== '' ? $value : null,
             'created_by' => AncoraAuth::user($request)?->id,
             'updated_by' => AncoraAuth::user($request)?->id,
         ];
@@ -1013,11 +1312,11 @@ class ClientsController extends Controller
 
     private function syncPartyEntityFromArray(array $data, string $roleTag, int $userId): ?int
     {
-        $name = trim((string) ($data['name'] ?? ''));
-        $document = trim((string) ($data['document'] ?? ''));
-        $phones = collect((array) ($data['phones'] ?? []))->map(fn ($value) => trim((string) $value))->filter()->values()->all();
-        $emails = collect((array) ($data['emails'] ?? []))->map(fn ($value) => trim((string) $value))->filter()->values()->all();
-        $address = (array) ($data['address'] ?? []);
+        $name = $this->normalizeTitleCase((string) ($data['name'] ?? ''));
+        $document = $this->formatCpfCnpj((string) ($data['document'] ?? ''));
+        $phones = collect((array) ($data['phones'] ?? []))->map(fn ($value) => $this->normalizePhone($value))->filter()->values()->all();
+        $emails = collect((array) ($data['emails'] ?? []))->map(fn ($value) => $this->normalizeEmail($value))->filter()->values()->all();
+        $address = $this->normalizeAddress((array) ($data['address'] ?? []));
 
         if ($name === '' && $document === '' && empty($phones) && empty($emails) && collect($address)->filter(fn ($value) => trim((string) $value) !== '')->isEmpty()) {
             return null;
@@ -1030,7 +1329,7 @@ class ClientsController extends Controller
             'entity_type' => $entityType,
             'profile_scope' => 'contato',
             'role_tag' => $roleTag,
-            'display_name' => $name !== '' ? $name : ucfirst($roleTag),
+            'display_name' => $name !== '' ? $name : $this->normalizeTitleCase($roleTag),
             'legal_name' => $entityType === 'pj' ? ($name !== '' ? $name : null) : null,
             'cpf_cnpj' => $document !== '' ? $document : null,
             'phones_json' => $this->parseSimpleValues($phones, 'number', 'Telefone'),
@@ -1075,17 +1374,26 @@ class ClientsController extends Controller
         }
 
         try {
-            $header = fgetcsv($handle, 0, ',');
+            $firstLine = fgets($handle);
+            if ($firstLine === false) {
+                return back()->with('error', 'A planilha CSV está vazia.');
+            }
+
+            $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+            rewind($handle);
+
+            $header = fgetcsv($handle, 0, $delimiter);
             if (!$header) {
                 return back()->with('error', 'A planilha CSV está vazia.');
             }
 
+            $header[0] = preg_replace('/^ï»¿/', '', (string) ($header[0] ?? '')) ?? (string) ($header[0] ?? '');
             $header = array_map(fn ($value) => $this->normalizeCsvHeader((string) $value), $header);
             $created = 0;
             $updated = 0;
             $userId = (int) (AncoraAuth::user($request)?->id ?? 0);
 
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
                 if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
                     continue;
                 }
@@ -1136,7 +1444,7 @@ class ClientsController extends Controller
                     'condominium_id' => $condominium->id,
                     'block_id' => $blockId,
                     'unit_type_id' => $unitTypeId,
-                    'unit_number' => $unitNumber,
+                    'unit_number' => $this->normalizeUpper($unitNumber),
                     'owner_entity_id' => $ownerId,
                     'tenant_entity_id' => $tenantId,
                     'owner_notes' => null,

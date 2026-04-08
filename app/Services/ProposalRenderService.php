@@ -47,19 +47,13 @@ class ProposalRenderService
 
         return [
             'branding' => [
-                'company_name' => AncoraSettings::get('app_company', 'Âncora') ?: 'Âncora',
+                'company_name' => AncoraSettings::get('app_company', 'Serratech Soluções em TI') ?: 'Serratech Soluções em TI',
                 'company_address' => AncoraSettings::get('company_address', '') ?: '',
                 'company_phone' => AncoraSettings::get('company_phone', '') ?: '',
-                'company_phone_is_whatsapp' => AncoraSettings::get('company_phone_is_whatsapp', '0') === '1',
                 'company_email' => AncoraSettings::get('company_email', '') ?: '',
-                'company_website' => AncoraSettings::get('company_website', config('app.url')) ?: (config('app.url') ?: ''),
-                'company_social_instagram' => AncoraSettings::get('company_social_instagram', '') ?: '',
-                'company_social_linkedin' => AncoraSettings::get('company_social_linkedin', '') ?: '',
-                'company_social_youtube' => AncoraSettings::get('company_social_youtube', '') ?: '',
-                'company_social_facebook' => AncoraSettings::get('company_social_facebook', '') ?: '',
-                'company_social_whatsapp_channel' => AncoraSettings::get('company_social_whatsapp_channel', '') ?: '',
-                'company_social_tiktok' => AncoraSettings::get('company_social_tiktok', '') ?: '',
-                'company_social_linktree' => AncoraSettings::get('company_social_linktree', '') ?: '',
+                'company_website' => AncoraSettings::get('company_website', 'www.serratech.tec.br') ?: 'www.serratech.tec.br',
+                'company_social_primary' => AncoraSettings::get('company_social_primary', '@serratech.br') ?: '@serratech.br',
+                'company_social_secondary' => AncoraSettings::get('company_social_secondary', '@serratech.br') ?: '@serratech.br',
                 'logo_light' => self::publicUrl($brandingLogoLight, asset('imgs/logomarca.svg')),
                 'logo_dark' => self::publicUrl($brandingLogoDark, asset('imgs/logomarca.svg')),
                 'premium_logo_variant' => $premiumLogoVariant,
