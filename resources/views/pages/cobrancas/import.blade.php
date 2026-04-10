@@ -5,6 +5,8 @@
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('cobrancas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Lista de OS</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Nova OS</a>
+        <a href="{{ route('cobrancas.import.template') }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Baixar modelo</a>
+        <a href="{{ route('cobrancas.import.example') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Baixar exemplo</a>
     </div>
 </x-ancora.section-header>
 @include('pages.cobrancas.partials.subnav')
@@ -28,6 +30,8 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Analisar planilha</button>
+                    <a href="{{ route('cobrancas.import.template') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Baixar modelo</a>
+                    <a href="{{ route('cobrancas.import.example') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Baixar exemplo</a>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Bloco vazio, 0 ou - será tratado como sem bloco.</span>
                 </div>
             </form>

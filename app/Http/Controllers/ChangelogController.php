@@ -9,22 +9,22 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v11',
-            'date' => '09/04/2026',
-            'label' => 'v11 • 09/04/2026',
+            'version' => 'v12',
+            'date' => '10/04/2026',
+            'label' => 'v12 • 10/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Cobrança refinada, contatos automáticos e versionamento visível',
+                'title' => 'Importação de inadimplência por planilha no módulo Cobrança',
                 'items' => [
-                    'Nova OS de cobrança com títulos mais claros em todos os campos do formulário.',
-                    'Seleção em cascata de condomínio, bloco e unidade, respeitando condomínios sem bloco.',
-                    'Contatos do proprietário reaproveitados automaticamente na notificação da OS.',
-                    'Campos monetários e referências de quotas refinados para a operação de cobrança.',
-                    'Versão atual exibida de forma discreta e vertical no rodapé esquerdo do menu lateral.',
+                    'Novo submódulo para importar inadimplência por .xls e .xlsx dentro de Cobrança.',
+                    'Prévia do lote com conferência de unidade, pendências, duplicidades e linhas prontas.',
+                    'Criação automática de OS apta para notificar quando não houver cobrança aberta.',
+                    'Complemento automático de OS existente com andamento gerado pelo sistema.',
+                    'Botões para baixar planilha modelo e exemplo preenchido diretamente na tela de importação.',
                 ],
             ],
             [

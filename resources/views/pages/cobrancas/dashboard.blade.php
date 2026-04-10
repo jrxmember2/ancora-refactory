@@ -11,6 +11,7 @@
             </select>
             <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Aplicar</button>
         </form>
+        <a href="{{ route('cobrancas.import.index') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.03]">Importar inadimplência</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl border border-brand-300 px-4 py-3 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">Nova OS</a>
     </div>
 </x-ancora.section-header>
