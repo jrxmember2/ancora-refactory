@@ -88,6 +88,10 @@ Route::middleware('ancora.auth')->group(function () {
         Route::get('/', [CobrancaController::class, 'index'])->name('cobrancas.index')->middleware('ancora.route:cobrancas.index');
         Route::get('/nova', [CobrancaController::class, 'create'])->name('cobrancas.create')->middleware('ancora.route:cobrancas.create');
         Route::post('/store', [CobrancaController::class, 'store'])->name('cobrancas.store')->middleware('ancora.route:cobrancas.store');
+        Route::get('/importacao', [CobrancaController::class, 'importIndex'])->name('cobrancas.import.index')->middleware('ancora.route:cobrancas.import.index');
+        Route::post('/importacao/preview', [CobrancaController::class, 'importPreview'])->name('cobrancas.import.preview')->middleware('ancora.route:cobrancas.import.preview');
+        Route::get('/importacao/{batch}', [CobrancaController::class, 'importShow'])->name('cobrancas.import.show')->middleware('ancora.route:cobrancas.import.show');
+        Route::post('/importacao/{batch}/processar', [CobrancaController::class, 'importProcess'])->name('cobrancas.import.process')->middleware('ancora.route:cobrancas.import.process');
         Route::get('/{cobranca}', [CobrancaController::class, 'show'])->name('cobrancas.show')->middleware('ancora.route:cobrancas.show');
         Route::get('/{cobranca}/editar', [CobrancaController::class, 'edit'])->name('cobrancas.edit')->middleware('ancora.route:cobrancas.edit');
         Route::put('/{cobranca}', [CobrancaController::class, 'update'])->name('cobrancas.update')->middleware('ancora.route:cobrancas.update');

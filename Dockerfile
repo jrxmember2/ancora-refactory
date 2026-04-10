@@ -27,8 +27,9 @@ FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev \
+    git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip \
     && docker-php-ext-install pdo pdo_mysql intl zip \
+    && pip3 install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 

@@ -48,3 +48,17 @@ Crie persistência para:
 
 Acesse `/login` usando um usuário já existente da tabela `users`.
 A autenticação utiliza `password_hash`, preservando o mecanismo do sistema anterior.
+
+## Ajuste do módulo Cobrança — importação de inadimplência
+
+Depois de atualizar os arquivos, execute apenas as migrations novas deste pacote:
+
+```bash
+php artisan migrate --path=database/migrations/2026_04_10_000200_create_cobranca_import_tables.php --force
+php artisan migrate --path=database/migrations/2026_04_10_000210_seed_cobranca_import_permissions.php --force
+php artisan optimize:clear
+```
+
+Se você preferir aplicar via SQL, importe também:
+
+- `database/sql/2026_04_cobranca_importacao.sql`

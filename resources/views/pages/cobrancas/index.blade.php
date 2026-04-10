@@ -4,6 +4,7 @@
 <x-ancora.section-header title="Cobranças" subtitle="Lista de OS com filtros por condomínio, etapa, situação e faturamento.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('cobrancas.dashboard') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Dashboard</a>
+        <a href="{{ route('cobrancas.import.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Importar inadimplência</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
 </x-ancora.section-header>

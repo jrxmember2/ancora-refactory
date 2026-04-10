@@ -12,13 +12,17 @@ use App\Models\CobrancaCaseContact;
 use App\Models\CobrancaCaseInstallment;
 use App\Models\CobrancaCaseQuota;
 use App\Models\CobrancaCaseTimeline;
+use App\Models\CobrancaImportBatch;
+use App\Models\CobrancaImportRow;
 use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\Process\Process;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CobrancaController extends Controller
@@ -93,6 +97,241 @@ class CobrancaController extends Controller
             'filters' => $request->all(),
             'filterOptions' => $this->filterOptions(),
         ]);
+    }
+
+
+    public function importIndex(): View
+    {
+        return view('pages.cobrancas.import', [
+            'title' => 'Importação de inadimplência',
+            'batch' => null,
+            'rows' => null,
+            'recentBatches' => CobrancaImportBatch::query()->latest('id')->limit(8)->get(),
+        ]);
+    }
+
+    public function importPreview(Request $request): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $file = $request->file('spreadsheet');
+        if (!$file instanceof UploadedFile || !$file->isValid()) {
+            return back()->with('error', 'Selecione uma planilha .xls ou .xlsx para importar.');
+        }
+
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        if (!in_array($extension, ['xls', 'xlsx'], true)) {
+            return back()->with('error', 'Formato inválido. Use apenas .xls ou .xlsx.');
+        }
+
+        $dir = storage_path('app/cobrancas-imports');
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return back()->with('error', 'Não foi possível preparar a pasta de importações.');
+        }
+
+        $storedName = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $extension;
+        $file->move($dir, $storedName);
+        $fullPath = $dir . DIRECTORY_SEPARATOR . $storedName;
+
+        try {
+            $parsed = $this->parseImportSpreadsheet($fullPath);
+            $mappedRows = $this->mapSpreadsheetRowsToImport($parsed['headers'] ?? [], $parsed['rows'] ?? []);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Não foi possível analisar a planilha: ' . $e->getMessage());
+        }
+
+        if ($mappedRows === []) {
+            return back()->with('error', 'A planilha não contém linhas válidas para importar.');
+        }
+
+        $batch = DB::transaction(function () use ($user, $file, $storedName, $parsed, $mappedRows) {
+            /** @var CobrancaImportBatch $batch */
+            $batch = CobrancaImportBatch::query()->create([
+                'original_name' => Str::limit((string) $file->getClientOriginalName(), 255, ''),
+                'stored_name' => $storedName,
+                'sheet_name' => Str::limit((string) ($parsed['sheet_name'] ?? 'Planilha 1'), 180, ''),
+                'file_extension' => strtolower((string) $file->getClientOriginalExtension()),
+                'status' => 'parsed',
+                'uploaded_by' => $user->id,
+            ]);
+
+            foreach ($mappedRows as $row) {
+                CobrancaImportRow::query()->create([
+                    'batch_id' => $batch->id,
+                    'row_number' => $row['row_number'],
+                    'raw_payload_json' => $row['raw_payload_json'],
+                    'condominium_input' => $row['condominium_input'],
+                    'block_input' => $row['block_input'],
+                    'unit_input' => $row['unit_input'],
+                    'reference_input' => $row['reference_input'],
+                    'due_date_input' => $row['due_date_input'],
+                    'amount_value' => $row['amount_value'],
+                    'status' => 'ready',
+                ]);
+            }
+
+            return $batch;
+        });
+
+        $this->classifyImportBatch($batch);
+        $this->logAction($request, 'preview_cobranca_import', $batch->id, 'Prévia de importação de inadimplência - ' . $batch->original_name);
+
+        return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Planilha analisada. Revise o lote antes de processar.');
+    }
+
+    public function importShow(CobrancaImportBatch $batch): View
+    {
+        $batch->load('user');
+        $rows = $batch->rows()->with(['unit.condominium', 'unit.block', 'cobrancaCase'])->orderBy('row_number')->paginate(120);
+
+        return view('pages.cobrancas.import', [
+            'title' => 'Importação de inadimplência',
+            'batch' => $batch,
+            'rows' => $rows,
+            'recentBatches' => CobrancaImportBatch::query()->where('id', '<>', $batch->id)->latest('id')->limit(8)->get(),
+        ]);
+    }
+
+    public function importProcess(Request $request, CobrancaImportBatch $batch): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        if ($batch->status === 'processed') {
+            return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Este lote já foi processado anteriormente.');
+        }
+
+        $batch->load(['rows', 'rows.unit.owner']);
+
+        $openCaseCache = [];
+        $createdCases = 0;
+        $updatedCases = 0;
+        $createdQuotas = 0;
+        $duplicateRows = 0;
+        $errorRows = 0;
+
+        foreach ($batch->rows as $row) {
+            if ($row->status === 'pending') {
+                continue;
+            }
+
+            if (!$row->matched_unit_id || !$row->unit || !$row->unit->owner) {
+                $row->update([
+                    'status' => 'pending',
+                    'message' => 'A linha não possui unidade/proprietário válido para gerar a OS.',
+                ]);
+                continue;
+            }
+
+            $reference = $this->normalizeReferenceLabel((string) $row->reference_input);
+            $dueDate = $this->normalizeImportDate((string) $row->due_date_input);
+            $amount = $row->amount_value !== null ? (float) $row->amount_value : null;
+
+            if ($reference === '' || $dueDate === null || $amount === null) {
+                $row->update([
+                    'status' => 'pending',
+                    'message' => 'Referência, vencimento e valor são obrigatórios para processar a linha.',
+                ]);
+                continue;
+            }
+
+            $duplicateCase = $this->findActiveCaseWithQuota((int) $row->matched_unit_id, $reference, $dueDate);
+            if ($duplicateCase) {
+                $row->update([
+                    'matched_case_id' => $duplicateCase->id,
+                    'status' => 'duplicate',
+                    'message' => 'Duplicidade detectada. A quota já existe na OS ' . $duplicateCase->os_number . '.',
+                    'processed_at' => now(),
+                ]);
+                $duplicateRows++;
+                continue;
+            }
+
+            $case = $openCaseCache[$row->matched_unit_id] ?? null;
+            if (!$case) {
+                $case = $this->findOpenCaseForUnit((int) $row->matched_unit_id);
+                if ($case) {
+                    $openCaseCache[$row->matched_unit_id] = $case;
+                }
+            }
+
+            try {
+                $wasNewCase = false;
+                if (!$case) {
+                    $case = DB::transaction(function () use ($row, $batch, $request, $user) {
+                        return $this->createCaseFromImportRow($row, $batch, $request, $user->id);
+                    });
+                    $openCaseCache[$row->matched_unit_id] = $case->fresh();
+                    $wasNewCase = true;
+                    $createdCases++;
+                }
+
+                DB::transaction(function () use ($row, $case, $reference, $dueDate, $amount, $request, $wasNewCase) {
+                    CobrancaCaseQuota::query()->create([
+                        'cobranca_case_id' => $case->id,
+                        'reference_label' => $reference,
+                        'due_date' => $dueDate,
+                        'original_amount' => $amount,
+                        'updated_amount' => $amount,
+                        'status' => 'taxa_mes',
+                        'notes' => 'Importado automaticamente do lote #' . $row->batch_id . ' (linha ' . $row->row_number . ').',
+                        'created_at' => now(),
+                    ]);
+
+                    $description = $wasNewCase
+                        ? 'Referência ' . $reference . ' importada automaticamente via planilha de inadimplência.'
+                        : 'Adicionada referência ' . $reference . ' automaticamente via planilha de inadimplência.';
+
+                    $this->recordTimeline($case, 'import', $description, $request, now());
+
+                    $row->update([
+                        'matched_case_id' => $case->id,
+                        'status' => $wasNewCase ? 'created_case' : 'updated_case',
+                        'message' => $wasNewCase
+                            ? 'OS ' . $case->os_number . ' criada automaticamente e quota adicionada.'
+                            : 'Quota adicionada na OS existente ' . $case->os_number . '.',
+                        'processed_at' => now(),
+                    ]);
+                });
+
+                if (!$wasNewCase) {
+                    $updatedCases++;
+                }
+                $createdQuotas++;
+            } catch (\Throwable $e) {
+                $row->update([
+                    'status' => 'error',
+                    'message' => 'Falha ao processar a linha: ' . Str::limit($e->getMessage(), 180, '...'),
+                    'processed_at' => now(),
+                ]);
+                $errorRows++;
+            }
+        }
+
+        $readyRows = (int) $batch->rows()->where('status', 'ready')->count();
+        $pendingRows = (int) $batch->rows()->where('status', 'pending')->count();
+        $batch->update([
+            'status' => 'processed',
+            'created_cases' => $createdCases,
+            'updated_cases' => $updatedCases,
+            'created_quotas' => $createdQuotas,
+            'duplicate_rows' => $duplicateRows,
+            'ready_rows' => $readyRows,
+            'pending_rows' => $pendingRows,
+            'processed_at' => now(),
+            'summary_json' => array_merge($batch->summary_json ?? [], [
+                'processed_created_cases' => $createdCases,
+                'processed_updated_cases' => $updatedCases,
+                'processed_created_quotas' => $createdQuotas,
+                'processed_duplicate_rows' => $duplicateRows,
+                'processed_error_rows' => $errorRows,
+            ]),
+        ]);
+
+        $this->logAction($request, 'process_cobranca_import', $batch->id, 'Lote de inadimplência processado - ' . $batch->original_name);
+
+        return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Lote processado. OS criadas: ' . $createdCases . ' · OS atualizadas: ' . $updatedCases . ' · quotas adicionadas: ' . $createdQuotas . '.');
     }
 
     public function create(): View
@@ -758,6 +997,365 @@ class CobrancaController extends Controller
     }
 
 
+    private function parseImportSpreadsheet(string $fullPath): array
+    {
+        $script = base_path('scripts/parse_cobranca_import.py');
+        if (!is_file($script)) {
+            throw new \RuntimeException('Script de leitura de planilha não encontrado.');
+        }
+
+        $process = new Process(['python3', $script, $fullPath], timeout: 120);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException(trim($process->getErrorOutput() ?: $process->getOutput()) ?: 'Falha desconhecida ao ler a planilha.');
+        }
+
+        $payload = json_decode($process->getOutput(), true);
+        if (!is_array($payload) || !empty($payload['error'])) {
+            throw new \RuntimeException((string) ($payload['error'] ?? 'A planilha retornou um formato inesperado.'));
+        }
+
+        return $payload;
+    }
+
+    private function mapSpreadsheetRowsToImport(array $headers, array $rows): array
+    {
+        $map = [];
+        foreach ($headers as $index => $header) {
+            $key = $this->normalizeLookupValue((string) $header, false);
+            if ($key === '') {
+                continue;
+            }
+            $map[$index] = match ($key) {
+                'condominio', 'nomecondominio' => 'condominium',
+                'bloco', 'torre' => 'block',
+                'unidade', 'unid' => 'unit',
+                'referencia', 'competencia', 'mesref', 'mes', 'mês', 'mêsref' => 'reference',
+                'vencimento', 'datavencimento' => 'due_date',
+                'valor', 'total', 'valoratualizado', 'valororiginal' => 'amount',
+                default => null,
+            };
+        }
+
+        if (!in_array('condominium', $map, true) || !in_array('unit', $map, true) || !in_array('reference', $map, true) || !in_array('due_date', $map, true) || !in_array('amount', $map, true)) {
+            throw new \RuntimeException('Cabeçalhos obrigatórios não encontrados. Use: Condomínio, Bloco (opcional), Unidade, Referência, Vencimento e Valor.');
+        }
+
+        $result = [];
+        foreach ($rows as $rowIndex => $row) {
+            $entry = [
+                'row_number' => $rowIndex + 2,
+                'raw_payload_json' => array_combine(array_map(fn ($item) => (string) $item, $headers), array_pad($row, count($headers), '')) ?: [],
+                'condominium_input' => '',
+                'block_input' => '',
+                'unit_input' => '',
+                'reference_input' => '',
+                'due_date_input' => '',
+                'amount_value' => null,
+            ];
+
+            foreach ($map as $index => $field) {
+                if (!$field) {
+                    continue;
+                }
+                $value = trim((string) ($row[$index] ?? ''));
+                if ($field === 'amount') {
+                    $entry['amount_value'] = $this->moneyToDb($value);
+                } else {
+                    $entry[$field . '_input'] = $value;
+                }
+            }
+
+            if (
+                $entry['condominium_input'] === '' &&
+                $entry['unit_input'] === '' &&
+                $entry['reference_input'] === '' &&
+                $entry['due_date_input'] === '' &&
+                $entry['amount_value'] === null
+            ) {
+                continue;
+            }
+
+            $result[] = $entry;
+        }
+
+        return $result;
+    }
+
+    private function classifyImportBatch(CobrancaImportBatch $batch): void
+    {
+        $batch->loadMissing('rows');
+
+        $condominiums = ClientCondominium::query()->get(['id', 'name', 'has_blocks']);
+        $blocks = ClientBlock::query()->get(['id', 'condominium_id', 'name']);
+        $units = ClientUnit::query()->with(['condominium', 'block'])->get(['id', 'condominium_id', 'block_id', 'unit_number']);
+
+        $condoLookup = [];
+        foreach ($condominiums as $condo) {
+            $condoLookup[$this->normalizeLookupValue((string) $condo->name)][] = $condo;
+        }
+
+        $blockLookup = [];
+        foreach ($blocks as $block) {
+            $blockLookup[(int) $block->condominium_id][$this->normalizeLookupValue((string) $block->name)][] = $block;
+        }
+
+        $unitLookup = [];
+        $unitLookupWithoutBlock = [];
+        foreach ($units as $unit) {
+            $condoId = (int) $unit->condominium_id;
+            $blockKey = $unit->block_id ? $this->normalizeLookupValue((string) optional($unit->block)->name) : '';
+            $unitKey = $this->normalizeLookupValue((string) $unit->unit_number);
+            $unitLookup[$condoId][$blockKey][$unitKey][] = $unit;
+            $unitLookupWithoutBlock[$condoId][$unitKey][] = $unit;
+        }
+
+        $summary = [
+            'total_rows' => 0,
+            'ready_rows' => 0,
+            'pending_rows' => 0,
+        ];
+
+        foreach ($batch->rows as $row) {
+            $summary['total_rows']++;
+            $condoName = $this->normalizeLookupValue((string) $row->condominium_input);
+            $blockName = $this->normalizeBlockInput((string) $row->block_input);
+            $unitName = $this->normalizeLookupValue((string) $row->unit_input);
+            $reference = $this->normalizeReferenceLabel((string) $row->reference_input);
+            $dueDate = $this->normalizeImportDate((string) $row->due_date_input);
+            $amount = $row->amount_value !== null ? (float) $row->amount_value : null;
+
+            $message = null;
+            $status = 'ready';
+            $matchedUnit = null;
+
+            $condoCandidates = $condoLookup[$condoName] ?? [];
+            if ($condoName === '' || $condoCandidates === []) {
+                $status = 'pending';
+                $message = 'Condomínio não encontrado na base de clientes.';
+            } elseif ($unitName === '') {
+                $status = 'pending';
+                $message = 'Unidade não informada.';
+            } else {
+                $condo = $condoCandidates[0];
+                $condoId = (int) $condo->id;
+                if ($condo->has_blocks) {
+                    if ($blockName === '') {
+                        $candidates = $unitLookupWithoutBlock[$condoId][$unitName] ?? [];
+                        if (count($candidates) === 1) {
+                            $matchedUnit = $candidates[0];
+                        } elseif (count($candidates) > 1) {
+                            $status = 'pending';
+                            $message = 'Condomínio possui blocos. Informe o bloco para identificar a unidade.';
+                        } else {
+                            $status = 'pending';
+                            $message = 'Unidade não encontrada para este condomínio.';
+                        }
+                    } else {
+                        $blockCandidates = $blockLookup[$condoId][$blockName] ?? [];
+                        if ($blockCandidates === []) {
+                            $status = 'pending';
+                            $message = 'Bloco não encontrado no condomínio informado.';
+                        } else {
+                            $matchedUnits = $unitLookup[$condoId][$blockName][$unitName] ?? [];
+                            if (count($matchedUnits) === 1) {
+                                $matchedUnit = $matchedUnits[0];
+                            } elseif (count($matchedUnits) > 1) {
+                                $status = 'pending';
+                                $message = 'Mais de uma unidade encontrada com os mesmos dados.';
+                            } else {
+                                $status = 'pending';
+                                $message = 'Unidade não encontrada para o bloco informado.';
+                            }
+                        }
+                    }
+                } else {
+                    $matchedUnits = $unitLookupWithoutBlock[$condoId][$unitName] ?? [];
+                    if (count($matchedUnits) === 1) {
+                        $matchedUnit = $matchedUnits[0];
+                    } elseif (count($matchedUnits) > 1) {
+                        $status = 'pending';
+                        $message = 'Mais de uma unidade encontrada com os mesmos dados.';
+                    } else {
+                        $status = 'pending';
+                        $message = 'Unidade não encontrada para este condomínio.';
+                    }
+                }
+            }
+
+            if ($status === 'ready' && $reference === '') {
+                $status = 'pending';
+                $message = 'Referência inválida. Use mm/aaaa.';
+            }
+            if ($status === 'ready' && $dueDate === null) {
+                $status = 'pending';
+                $message = 'Vencimento inválido. Use dd/mm/aaaa.';
+            }
+            if ($status === 'ready' && $amount === null) {
+                $status = 'pending';
+                $message = 'Valor inválido.';
+            }
+            if ($status === 'ready' && !$matchedUnit?->owner_entity_id) {
+                $status = 'pending';
+                $message = 'A unidade não possui proprietário vinculado no cadastro.';
+            }
+
+            $row->update([
+                'matched_unit_id' => $matchedUnit?->id,
+                'status' => $status,
+                'message' => $message ?: 'Linha pronta para processamento.',
+            ]);
+
+            if ($status === 'ready') {
+                $summary['ready_rows']++;
+            } else {
+                $summary['pending_rows']++;
+            }
+        }
+
+        $batch->update([
+            'total_rows' => $summary['total_rows'],
+            'ready_rows' => $summary['ready_rows'],
+            'pending_rows' => $summary['pending_rows'],
+            'summary_json' => $summary,
+        ]);
+    }
+
+    private function normalizeLookupValue(string $value, bool $emptyNumericZero = true): string
+    {
+        $value = trim(mb_strtoupper($value, 'UTF-8'));
+        $value = strtr($value, [
+            'Á' => 'A', 'À' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A',
+            'É' => 'E', 'È' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+            'Í' => 'I', 'Ì' => 'I', 'Î' => 'I', 'Ï' => 'I',
+            'Ó' => 'O', 'Ò' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O',
+            'Ú' => 'U', 'Ù' => 'U', 'Û' => 'U', 'Ü' => 'U',
+            'Ç' => 'C',
+        ]);
+        $value = preg_replace('/[^A-Z0-9]+/u', '', $value) ?: '';
+        if ($emptyNumericZero && in_array($value, ['', '0', '-'], true)) {
+            return '';
+        }
+        return $value;
+    }
+
+    private function normalizeBlockInput(string $value): string
+    {
+        $normalized = $this->normalizeLookupValue($value);
+        if (in_array($normalized, ['', '0', 'SEM', 'SEMBLOCO', 'NAO', 'NAOBLOCO'], true)) {
+            return '';
+        }
+        return $normalized;
+    }
+
+    private function normalizeImportDate(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'd.m.Y', 'm/d/Y'] as $format) {
+            $dt = \DateTime::createFromFormat($format, $value);
+            if ($dt && $dt->format($format) === $value) {
+                return $dt->format('Y-m-d');
+            }
+        }
+
+        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{2})$/', $value, $m)) {
+            return '20' . $m[3] . '-' . $m[2] . '-' . $m[1];
+        }
+
+        return null;
+    }
+
+    private function findOpenCaseForUnit(int $unitId): ?CobrancaCase
+    {
+        return CobrancaCase::query()
+            ->where('unit_id', $unitId)
+            ->whereNotIn('situation', ['cancelado', 'pago_encerrado'])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function findActiveCaseWithQuota(int $unitId, string $reference, string $dueDate): ?CobrancaCase
+    {
+        return CobrancaCase::query()
+            ->where('unit_id', $unitId)
+            ->whereNotIn('situation', ['cancelado', 'pago_encerrado'])
+            ->whereHas('quotas', function ($query) use ($reference, $dueDate) {
+                $query->where('reference_label', $reference)
+                    ->whereDate('due_date', $dueDate);
+            })
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function createCaseFromImportRow(CobrancaImportRow $row, CobrancaImportBatch $batch, Request $request, int $userId): CobrancaCase
+    {
+        $row->loadMissing('unit.owner');
+        $unit = $row->unit;
+        abort_unless($unit && $unit->owner, 422);
+
+        $chargeDate = $this->normalizeImportDate((string) $row->due_date_input) ?: now()->toDateString();
+        $year = (int) date('Y', strtotime($chargeDate));
+        $seq = (int) CobrancaCase::query()->where('charge_year', $year)->max('charge_seq') + 1;
+
+        /** @var CobrancaCase $case */
+        $case = CobrancaCase::query()->create([
+            'charge_year' => $year,
+            'charge_seq' => $seq,
+            'os_number' => sprintf('COB-%d-%05d', $year, $seq),
+            'condominium_id' => $unit->condominium_id,
+            'block_id' => $unit->block_id,
+            'unit_id' => $unit->id,
+            'debtor_entity_id' => $unit->owner_entity_id,
+            'debtor_role' => 'owner',
+            'debtor_name_snapshot' => (string) $unit->owner->display_name,
+            'debtor_document_snapshot' => $unit->owner->cpf_cnpj,
+            'debtor_email_snapshot' => collect($unit->owner->emails_json ?? [])->first()['email'] ?? null,
+            'debtor_phone_snapshot' => collect($unit->owner->phones_json ?? [])->first()['number'] ?? null,
+            'charge_type' => 'extrajudicial',
+            'billing_status' => 'a_faturar',
+            'situation' => 'processo_aberto',
+            'workflow_stage' => 'apto_notificar',
+            'calc_base_date' => $chargeDate,
+            'notes' => 'OS criada automaticamente via importação do lote #' . $batch->id . ' (' . $batch->original_name . ').',
+            'created_by' => $userId,
+            'updated_by' => $userId,
+            'last_progress_at' => now(),
+        ]);
+
+        foreach (collect($unit->owner->emails_json ?? [])->pluck('email')->filter()->values() as $index => $email) {
+            CobrancaCaseContact::query()->create([
+                'cobranca_case_id' => $case->id,
+                'contact_type' => 'email',
+                'label' => $index === 0 ? 'Principal' : 'E-mail ' . ($index + 1),
+                'value' => Str::limit((string) $email, 190, ''),
+                'is_primary' => $index === 0,
+                'is_whatsapp' => false,
+                'created_at' => now(),
+            ]);
+        }
+        foreach (collect($unit->owner->phones_json ?? [])->pluck('number')->filter()->values() as $index => $phone) {
+            CobrancaCaseContact::query()->create([
+                'cobranca_case_id' => $case->id,
+                'contact_type' => 'phone',
+                'label' => $index === 0 ? 'Principal' : 'Telefone ' . ($index + 1),
+                'value' => Str::limit((string) $phone, 40, ''),
+                'is_primary' => $index === 0,
+                'is_whatsapp' => true,
+                'created_at' => now(),
+            ]);
+        }
+
+        $this->recordTimeline($case, 'import_create', 'OS criada automaticamente via importação da planilha de inadimplência.', $request, now());
+
+        return $case;
+    }
+
+
     private function invalidNotificationEmails(Request $request): array
     {
         return collect((array) $request->input('emails', []))
@@ -770,12 +1368,28 @@ class CobrancaController extends Controller
 
     private function normalizeReferenceLabel(string $value): string
     {
-        $digits = preg_replace('/\D+/', '', $value) ?: '';
-        if (strlen($digits) >= 6) {
-            return substr($digits, 0, 2) . '/' . substr($digits, 2, 4);
+        $value = trim($value);
+        if ($value === '') {
+            return '';
         }
 
-        return trim($value);
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
+            return $m[2] . '/' . $m[1];
+        }
+        if (preg_match('/^(\d{1,2})\/(\d{4})$/', $value, $m)) {
+            return str_pad($m[1], 2, '0', STR_PAD_LEFT) . '/' . $m[2];
+        }
+
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        if (strlen($digits) === 6) {
+            $first = substr($digits, 0, 2);
+            if ((int) $first >= 1 && (int) $first <= 12) {
+                return $first . '/' . substr($digits, 2, 4);
+            }
+            return substr($digits, 4, 2) . '/' . substr($digits, 0, 4);
+        }
+
+        return $value;
     }
 
     private function normalizeQuotaKind(?string $value): string
