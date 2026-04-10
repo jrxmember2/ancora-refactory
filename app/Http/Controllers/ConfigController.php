@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Administradora;
 use App\Models\AppSetting;
 use App\Models\FormaEnvio;
 use App\Models\RoutePermission;
@@ -27,11 +26,18 @@ class ConfigController extends Controller
     public function index(): View
     {
         $this->ensureRoutePermissionsSynced();
+        $routeCatalog = AncoraRouteCatalog::groups();
+        $catalogRouteNames = array_keys(AncoraRouteCatalog::flat());
         $logoLightPath = AppSetting::getValue('branding_logo_light_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $logoDarkPath = AppSetting::getValue('branding_logo_dark_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $faviconPath = AppSetting::getValue('branding_favicon_path', '/favicon.svg') ?: '/favicon.svg';
         $premiumLogoVariant = AppSetting::getValue('branding_premium_logo_variant', 'light') === 'dark' ? 'dark' : 'light';
-        $routePermissions = RoutePermission::query()->orderBy('group_key')->orderBy('label')->get()->groupBy('group_key');
+        $routePermissions = RoutePermission::query()
+            ->whereIn('route_name', $catalogRouteNames)
+            ->orderBy('group_key')
+            ->orderBy('label')
+            ->get()
+            ->groupBy('group_key');
         $users = User::query()->with(['modules', 'routePermissions'])->orderByDesc('is_protected')->orderBy('name')->get();
         $accessProfiles = $this->accessProfiles();
 
@@ -47,7 +53,7 @@ class ConfigController extends Controller
             'users' => $users,
             'modules' => SystemModule::query()->orderBy('sort_order')->orderBy('name')->get(),
             'routePermissionGroups' => $routePermissions,
-            'routeCatalog' => AncoraRouteCatalog::groups(),
+            'routeCatalog' => $routeCatalog,
             'accessProfiles' => $accessProfiles,
             'branding' => [
                 'company_name' => AppSetting::getValue('app_company', 'Serratech Soluções em TI') ?: '',

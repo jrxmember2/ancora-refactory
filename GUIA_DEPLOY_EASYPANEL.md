@@ -30,10 +30,23 @@ Configure:
 
 Depois que o MySQL estiver no ar, importe:
 
-1. `database/sql/ancora_mysql_full.sql`
+1. `database/sql/ancora_mysql_full_corrigido.sql`
 2. `database/sql/2026_03_module_hub.sql`
 3. `database/sql/2026_03_proposta_premium.sql`
 4. `database/sql/2026_03_desktop_permissions.sql`
+5. `database/sql/2026_04_route_permissions.sql`
+6. `database/sql/2026_04_cobranca_module.sql`
+7. `database/sql/2026_04_cobranca_importacao.sql`
+
+Se a importação de Cobranças for aplicada por migrations em vez de SQL, rode:
+
+```bash
+php artisan migrate --path=database/migrations/2026_04_01_000010_create_route_permissions_tables.php --force
+php artisan migrate --path=database/migrations/2026_04_07_000100_create_cobranca_tables.php --force
+php artisan migrate --path=database/migrations/2026_04_10_000200_create_cobranca_import_tables.php --force
+php artisan migrate --path=database/migrations/2026_04_10_000210_seed_cobranca_import_permissions.php --force
+php artisan optimize:clear
+```
 
 ## 5. Volumes
 
@@ -52,12 +65,4 @@ A autenticação utiliza `password_hash`, preservando o mecanismo do sistema ant
 
 ## Importação de inadimplência
 
-Após publicar esta versão, rode também:
-
-```bash
-php artisan migrate --path=database/migrations/2026_04_10_000200_create_cobranca_import_tables.php --force
-php artisan migrate --path=database/migrations/2026_04_10_000210_seed_cobranca_import_permissions.php --force
-php artisan optimize:clear
-```
-
-Como o Dockerfile foi ajustado para leitura de planilhas, faça um novo build da imagem no EasyPanel antes de subir o container.
+Como o Dockerfile foi ajustado para leitura de planilhas, faça um novo build da imagem no EasyPanel antes de subir o container. O container instala `python3`, `openpyxl` e `xlrd`; isso é necessário para processar arquivos `.xls`. Arquivos `.xlsx` também têm leitura nativa em PHP via `ZipArchive`.

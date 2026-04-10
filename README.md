@@ -22,24 +22,30 @@ Base de reescrita big bang do Âncora usando:
   - cadastro
   - edição
   - visualização
-  - histórico básico
-  - logs básicos
+  - anexos PDF
+  - histórico
+  - documento premium em HTML/print
 - módulo Clientes com:
   - visão geral
-  - listagens de avulsos, contatos, condomínios e unidades
+  - CRUD de avulsos, contatos, condomínios e unidades
+  - anexos, timeline e importação CSV de unidades
+- módulo Cobranças com:
+  - dashboard
+  - CRUD de OS
+  - cotas, parcelas, GED e timeline
+  - importação XLS/XLSX de inadimplência
 - busca global inicial
 - configuração inicial de branding/módulos/usuários
+- permissões por rota
 - logs e auditoria
 - Dockerfile para EasyPanel
 - SQL base legado copiado para `database/sql`
 
 ## O que ainda depende do próximo corte
 
-- upload/download de anexos de propostas
-- documento premium/PDF
-- CRUD completo de configurações
-- CRUD completo do módulo Clientes
-- políticas finas de permissão por rota
+- dashboard executivo consolidado
+- geração real de PDF binário para o documento premium
+- revisão fina dos perfis de acesso por operação
 - filas, scheduler e automações
 
 ## Estrutura importante
@@ -49,7 +55,7 @@ Base de reescrita big bang do Âncora usando:
 - `app/Services` → regras de propostas e dashboard
 - `app/Support` → auth, settings e menu
 - `resources/views` → telas Blade adaptadas ao TailAdmin
-- `database/sql/ancora_mysql_full.sql` → base SQL atual para importar no MySQL
+- `database/sql/ancora_mysql_full_corrigido.sql` → base SQL atual para importar no MySQL
 
 ## Subida local
 
@@ -62,16 +68,22 @@ npm run build
 php artisan serve
 ```
 
+> Observação: este projeto usa o schema legado do Âncora. Para uma base funcional, prefira importar o SQL completo no MySQL antes de acessar o sistema.
+
 ## Banco de dados
 
 Esta reescrita foi preparada para **não perder o mecanismo** do sistema atual.
 Por isso, a rota mais segura é manter **MySQL** nesta fase e importar o SQL legado:
 
-- `database/sql/ancora_mysql_full.sql`
-- depois aplicar, se necessário:
-  - `database/sql/2026_03_module_hub.sql`
-  - `database/sql/2026_03_proposta_premium.sql`
-  - `database/sql/2026_03_desktop_permissions.sql`
+1. `database/sql/ancora_mysql_full_corrigido.sql`
+2. `database/sql/2026_03_module_hub.sql`
+3. `database/sql/2026_03_proposta_premium.sql`
+4. `database/sql/2026_03_desktop_permissions.sql`
+5. `database/sql/2026_04_route_permissions.sql`
+6. `database/sql/2026_04_cobranca_module.sql`
+7. `database/sql/2026_04_cobranca_importacao.sql`
+
+Se preferir usar migrations para os incrementos mais novos, importe o SQL completo e rode apenas as migrations específicas de permissões, Cobranças e importação. Não rode migrations sem entender o estado do banco, porque a base nasceu de um dump legado.
 
 ## EasyPanel
 
