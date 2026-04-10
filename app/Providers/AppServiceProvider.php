@@ -28,17 +28,30 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('*', function ($view) {
             $request = request();
-            $user = $request ? AncoraAuth::user($request) : null;
-            $brand = AncoraSettings::brand();
+            $user = null;
+            $brand = [
+                'app_name' => config('app.name', 'Ancora'),
+                'company_name' => config('app.name', 'Ancora'),
+                'favicon' => '/favicon.ico',
+            ];
+            $menuGroups = [];
             $version = config('ancora_version.current', [
                 'version' => 'v11',
                 'date' => '09/04/2026',
                 'label' => 'v11 • 09/04/2026',
             ]);
 
+            try {
+                $user = $request ? AncoraAuth::user($request) : null;
+                $brand = AncoraSettings::brand();
+                $menuGroups = AncoraMenu::sidebar($user);
+            } catch (\Throwable) {
+                // Error pages can be rendered before session or database services are available.
+            }
+
             $view->with('ancoraBrand', $brand)
                 ->with('ancoraAuthUser', $user)
-                ->with('ancoraMenuGroups', AncoraMenu::sidebar($user))
+                ->with('ancoraMenuGroups', $menuGroups)
                 ->with('ancoraVersion', $version);
         });
     }

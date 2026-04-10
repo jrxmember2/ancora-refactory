@@ -9,6 +9,10 @@ class AncoraAuth
 {
     public static function user(Request $request): ?User
     {
+        if (!self::hasSessionStore($request)) {
+            return null;
+        }
+
         $auth = $request->session()->get('auth_user');
         if (!$auth || empty($auth['id'])) {
             return null;
@@ -19,6 +23,10 @@ class AncoraAuth
 
     public static function hasModule(Request $request, string $slug): bool
     {
+        if (!self::hasSessionStore($request)) {
+            return false;
+        }
+
         $auth = $request->session()->get('auth_user');
         if (!$auth) {
             return false;
@@ -43,8 +51,15 @@ class AncoraAuth
             'route_permissions' => $user->accessibleRouteNames(),
         ];
 
-        $request->session()->put('auth_user', $payload);
+        if (self::hasSessionStore($request)) {
+            $request->session()->put('auth_user', $payload);
+        }
 
         return $payload;
+    }
+
+    private static function hasSessionStore(Request $request): bool
+    {
+        return method_exists($request, 'hasSession') && $request->hasSession();
     }
 }
