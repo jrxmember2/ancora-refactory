@@ -27,11 +27,14 @@ FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip \
+    git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv \
     && docker-php-ext-install pdo pdo_mysql intl zip \
-    && pip3 install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 \
+    && python3 -m venv /opt/pyenv \
+    && /opt/pyenv/bin/pip install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/opt/pyenv/bin:${PATH}"
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
