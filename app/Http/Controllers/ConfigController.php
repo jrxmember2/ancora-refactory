@@ -16,9 +16,11 @@ use App\Support\AncoraSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Exception;
 
 class ConfigController extends Controller
 {
@@ -166,6 +168,39 @@ class ConfigController extends Controller
         return back()->with('success', 'SMTP atualizado com sucesso.');
     }
 
+    public function testSmtp(Request $request)
+    {
+        $validated = $request->validate([
+            'smtp_host' => ['required', 'string', 'max:190'],
+            'smtp_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'smtp_username' => ['nullable', 'string', 'max:190'],
+            'smtp_password' => ['nullable', 'string', 'max:190'],
+            'smtp_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
+            'smtp_from_address' => ['required', 'email', 'max:190'],
+            'smtp_from_name' => ['nullable', 'string', 'max:190'],
+        ]);
+
+        try {
+            $mailer = app()->makeWith('mailer', ['name' => 'test_smtp']);
+            $transport = \Symfony\Component\Mailer\Transport::fromDsn(
+                ($validated['smtp_encryption'] === 'ssl' ? 'smtps' : 'smtp') . "://" .
+                rawurlencode((string)$validated['smtp_username']) . ":" . rawurlencode((string)$validated['smtp_password']) . "@" .
+                $validated['smtp_host'] . ":" . $validated['smtp_port']
+            );
+            $mailer->setSymfonyTransport($transport);
+
+            $mailer->raw('Teste de configuração SMTP do sistema Âncora concluído com sucesso.', function ($message) use ($validated, $request) {
+                $message->from($validated['smtp_from_address'], $validated['smtp_from_name'] ?? 'Âncora');
+                $message->to($request->user()->email);
+                $message->subject('Teste de Conexão SMTP');
+            });
+
+            return response()->json(['success' => true, 'message' => 'E-mail de teste enviado com sucesso para ' . $request->user()->email]);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Falha na conexão: ' . $e->getMessage()], 422);
+        }
+    }
+
     public function saveAccessProfiles(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -199,76 +234,70 @@ class ConfigController extends Controller
         return back()->with('success', 'Perfil de acesso excluído.');
     }
 
-    public function storeAdministradora(Request $request): RedirectResponse
+    private function catalogResponse(Request $request, string $message)
     {
-        Administradora::query()->create($this->administradoraPayload($request, null));
-        return back()->with('success', 'Administradora cadastrada.');
+        if ($request->ajax() || $request->wantsJson()) {
+            return view('pages.admin.partials.config-catalog', [
+                'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
+                'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
+                'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
+            ]);
+        }
+        return back()->with('success', $message);
     }
 
-    public function updateAdministradora(Request $request, Administradora $administradora): RedirectResponse
-    {
-        $administradora->update($this->administradoraPayload($request, $administradora));
-        return back()->with('success', 'Administradora atualizada.');
-    }
-
-    public function deleteAdministradora(Administradora $administradora): RedirectResponse
-    {
-        $administradora->delete();
-        return back()->with('success', 'Administradora excluída.');
-    }
-
-    public function storeServico(Request $request): RedirectResponse
+    public function storeServico(Request $request)
     {
         Servico::query()->create($this->servicoPayload($request));
-        return back()->with('success', 'Serviço cadastrado.');
+        return $this->catalogResponse($request, 'Serviço cadastrado.');
     }
 
-    public function updateServico(Request $request, Servico $servico): RedirectResponse
+    public function updateServico(Request $request, Servico $servico)
     {
         $servico->update($this->servicoPayload($request));
-        return back()->with('success', 'Serviço atualizado.');
+        return $this->catalogResponse($request, 'Serviço atualizado.');
     }
 
-    public function deleteServico(Servico $servico): RedirectResponse
+    public function deleteServico(Request $request, Servico $servico)
     {
         $servico->delete();
-        return back()->with('success', 'Serviço excluído.');
+        return $this->catalogResponse($request, 'Serviço excluído.');
     }
 
-    public function storeStatus(Request $request): RedirectResponse
+    public function storeStatus(Request $request)
     {
         StatusRetorno::query()->create($this->statusPayload($request));
-        return back()->with('success', 'Status cadastrado.');
+        return $this->catalogResponse($request, 'Status cadastrado.');
     }
 
-    public function updateStatus(Request $request, StatusRetorno $status): RedirectResponse
+    public function updateStatus(Request $request, StatusRetorno $status)
     {
         $status->update($this->statusPayload($request));
-        return back()->with('success', 'Status atualizado.');
+        return $this->catalogResponse($request, 'Status atualizado.');
     }
 
-    public function deleteStatus(StatusRetorno $status): RedirectResponse
+    public function deleteStatus(Request $request, StatusRetorno $status)
     {
         $status->delete();
-        return back()->with('success', 'Status excluído.');
+        return $this->catalogResponse($request, 'Status excluído.');
     }
 
-    public function storeFormaEnvio(Request $request): RedirectResponse
+    public function storeFormaEnvio(Request $request)
     {
         FormaEnvio::query()->create($this->formaPayload($request));
-        return back()->with('success', 'Forma de envio cadastrada.');
+        return $this->catalogResponse($request, 'Forma de envio cadastrada.');
     }
 
-    public function updateFormaEnvio(Request $request, FormaEnvio $forma): RedirectResponse
+    public function updateFormaEnvio(Request $request, FormaEnvio $forma)
     {
         $forma->update($this->formaPayload($request));
-        return back()->with('success', 'Forma de envio atualizada.');
+        return $this->catalogResponse($request, 'Forma de envio atualizada.');
     }
 
-    public function deleteFormaEnvio(FormaEnvio $forma): RedirectResponse
+    public function deleteFormaEnvio(Request $request, FormaEnvio $forma)
     {
         $forma->delete();
-        return back()->with('success', 'Forma de envio excluída.');
+        return $this->catalogResponse($request, 'Forma de envio excluída.');
     }
 
     public function storeUsuario(Request $request): RedirectResponse
@@ -452,22 +481,6 @@ class ConfigController extends Controller
         }
 
         return asset(ltrim($fallback, '/'));
-    }
-
-    private function administradoraPayload(Request $request, ?Administradora $current): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:150', Rule::unique('administradoras', 'name')->ignore($current?->id)->where(fn ($q) => $q->where('type', $request->input('type', 'administradora')))],
-            'type' => ['required', Rule::in(['administradora', 'sindico'])],
-            'contact_name' => ['nullable', 'string', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:190'],
-            'is_active' => ['nullable'],
-            'sort_order' => ['nullable', 'integer'],
-        ]) + [
-            'is_active' => $request->boolean('is_active'),
-            'sort_order' => (int) $request->integer('sort_order'),
-        ];
     }
 
     private function servicoPayload(Request $request): array

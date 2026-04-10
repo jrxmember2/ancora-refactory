@@ -62,11 +62,10 @@ Route::middleware('ancora.auth')->group(function () {
     Route::post('/config/favicon/save', [ConfigController::class, 'saveFavicon'])->name('config.favicon.save')->middleware(['ancora.superadmin', 'ancora.route:config.favicon.save']);
     Route::post('/config/modules/save', [ConfigController::class, 'saveModules'])->name('config.modules.save')->middleware(['ancora.superadmin', 'ancora.route:config.modules.save']);
     Route::post('/config/smtp/save', [ConfigController::class, 'saveSmtp'])->name('config.smtp.save')->middleware(['ancora.superadmin', 'ancora.route:config.smtp.save']);
+    Route::post('/config/smtp/test', [ConfigController::class, 'testSmtp'])->name('config.smtp.test')->middleware(['ancora.superadmin']);
     Route::post('/config/access-profiles/save', [ConfigController::class, 'saveAccessProfiles'])->name('config.access-profiles.save')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.save']);
     Route::delete('/config/access-profiles/{slug}', [ConfigController::class, 'deleteAccessProfile'])->name('config.access-profiles.delete')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.delete']);
-    Route::post('/config/administradoras/store', [ConfigController::class, 'storeAdministradora'])->name('config.administradoras.store')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.store']);
-    Route::put('/config/administradoras/{administradora}', [ConfigController::class, 'updateAdministradora'])->name('config.administradoras.update')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.update']);
-    Route::delete('/config/administradoras/{administradora}', [ConfigController::class, 'deleteAdministradora'])->name('config.administradoras.delete')->middleware(['ancora.superadmin', 'ancora.route:config.administradoras.delete']);
+
     Route::post('/config/servicos/store', [ConfigController::class, 'storeServico'])->name('config.servicos.store')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.store']);
     Route::put('/config/servicos/{servico}', [ConfigController::class, 'updateServico'])->name('config.servicos.update')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.update']);
     Route::delete('/config/servicos/{servico}', [ConfigController::class, 'deleteServico'])->name('config.servicos.delete')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.delete']);
