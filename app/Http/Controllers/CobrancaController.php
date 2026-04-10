@@ -1006,6 +1006,12 @@ class CobrancaController extends Controller
 
     private function parseImportSpreadsheet(string $fullPath): array
     {
+        $extension = strtolower((string) pathinfo($fullPath, PATHINFO_EXTENSION));
+
+        if ($extension === 'xlsx') {
+            return $this->parseImportXlsxNative($fullPath);
+        }
+
         $script = base_path('scripts/parse_cobranca_import.py');
         if (!is_file($script)) {
             throw new \RuntimeException('Script de leitura de planilha não encontrado.');
@@ -1026,6 +1032,247 @@ class CobrancaController extends Controller
         return $payload;
     }
 
+    private function parseImportXlsxNative(string $fullPath): array
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            throw new \RuntimeException('A extensão ZIP do PHP não está disponível para ler arquivos .xlsx.');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($fullPath) !== true) {
+            throw new \RuntimeException('Não foi possível abrir o arquivo .xlsx enviado.');
+        }
+
+        try {
+            $sharedStrings = $this->readXlsxSharedStrings($zip);
+            $sheets = $this->readXlsxSheets($zip, $sharedStrings);
+        } finally {
+            $zip->close();
+        }
+
+        if ($sheets === []) {
+            throw new \RuntimeException('A planilha não contém abas legíveis.');
+        }
+
+        $selected = $this->selectImportSheet($sheets);
+        if (!$selected) {
+            throw new \RuntimeException('A planilha não contém abas legíveis.');
+        }
+
+        $rows = $selected['rows'];
+        $headerIndex = (int) $selected['header_index'];
+        $headers = $selected['headers'];
+        $score = (int) $selected['score'];
+
+        if ($score < 4) {
+            throw new \RuntimeException('Cabeçalhos obrigatórios não encontrados. Use: Condomínio, Bloco (opcional), Unidade, Referência, Vencimento e Valor.');
+        }
+
+        return [
+            'sheet_name' => $selected['sheet_name'],
+            'header_row_index' => $headerIndex + 1,
+            'headers' => $headers,
+            'rows' => array_slice($rows, $headerIndex + 1),
+        ];
+    }
+
+    private function readXlsxSharedStrings(\ZipArchive $zip): array
+    {
+        $xml = $zip->getFromName('xl/sharedStrings.xml');
+        if ($xml === false || trim($xml) === '') {
+            return [];
+        }
+
+        $root = @simplexml_load_string($xml);
+        if (!$root) {
+            return [];
+        }
+
+        $root->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $result = [];
+        foreach ($root->xpath('//x:si') ?: [] as $item) {
+            $parts = [];
+            foreach ($item->xpath('.//x:t') ?: [] as $textNode) {
+                $parts[] = (string) $textNode;
+            }
+            $result[] = implode('', $parts);
+        }
+
+        return $result;
+    }
+
+    private function readXlsxSheets(\ZipArchive $zip, array $sharedStrings): array
+    {
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        $relsXml = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if ($workbookXml === false || $relsXml === false) {
+            return [];
+        }
+
+        $workbook = @simplexml_load_string($workbookXml);
+        $rels = @simplexml_load_string($relsXml);
+        if (!$workbook || !$rels) {
+            return [];
+        }
+
+        $workbook->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $workbook->registerXPathNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+        $rels->registerXPathNamespace('r', 'http://schemas.openxmlformats.org/package/2006/relationships');
+
+        $relationshipMap = [];
+        foreach ($rels->xpath('//r:Relationship') ?: [] as $relationship) {
+            $relationshipMap[(string) $relationship['Id']] = 'xl/' . ltrim((string) $relationship['Target'], '/');
+        }
+
+        $sheets = [];
+        foreach ($workbook->xpath('//x:sheets/x:sheet') ?: [] as $sheet) {
+            $sheetName = (string) $sheet['name'];
+            $relationshipId = (string) $sheet->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'];
+            $target = $relationshipMap[$relationshipId] ?? null;
+            if (!$target) {
+                continue;
+            }
+            $xml = $zip->getFromName($target);
+            if ($xml === false) {
+                continue;
+            }
+            $rows = $this->readXlsxSheetRows($xml, $sharedStrings);
+            $sheets[] = ['sheet_name' => $sheetName, 'rows' => $rows];
+        }
+
+        return $sheets;
+    }
+
+    private function readXlsxSheetRows(string $xml, array $sharedStrings): array
+    {
+        $sheet = @simplexml_load_string($xml);
+        if (!$sheet) {
+            return [];
+        }
+
+        $sheet->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $rows = [];
+
+        foreach ($sheet->xpath('//x:sheetData/x:row') ?: [] as $rowNode) {
+            $current = [];
+            foreach ($rowNode->xpath('./x:c') ?: [] as $cell) {
+                $reference = (string) $cell['r'];
+                $columnIndex = $this->xlsxColumnToIndex(preg_replace('/\d+/', '', $reference));
+                $value = $this->xlsxCellValue($cell, $sharedStrings);
+                $current[$columnIndex] = $value;
+            }
+
+            if ($current === []) {
+                $rows[] = [];
+                continue;
+            }
+
+            ksort($current);
+            $maxIndex = max(array_keys($current));
+            $normalized = [];
+            for ($index = 0; $index <= $maxIndex; $index++) {
+                $normalized[] = $current[$index] ?? '';
+            }
+            $rows[] = $normalized;
+        }
+
+        return $rows;
+    }
+
+    private function xlsxCellValue(\SimpleXMLElement $cell, array $sharedStrings): string
+    {
+        $type = (string) ($cell['t'] ?? '');
+        if ($type === 'inlineStr') {
+            $parts = [];
+            foreach ($cell->xpath('./x:is//x:t') ?: [] as $textNode) {
+                $parts[] = (string) $textNode;
+            }
+            return trim(implode('', $parts));
+        }
+
+        $rawValue = (string) ($cell->v ?? '');
+        if ($type === 's') {
+            $sharedIndex = (int) $rawValue;
+            return (string) ($sharedStrings[$sharedIndex] ?? '');
+        }
+
+        return trim($rawValue);
+    }
+
+    private function xlsxColumnToIndex(string $column): int
+    {
+        $column = strtoupper(trim($column));
+        $index = 0;
+        foreach (str_split($column) as $char) {
+            $index = ($index * 26) + (ord($char) - 64);
+        }
+        return max(0, $index - 1);
+    }
+
+    private function selectImportSheet(array $sheets): ?array
+    {
+        $best = null;
+        $bestScore = -1;
+
+        foreach ($sheets as $sheet) {
+            [$headerIndex, $headerRow, $score] = $this->detectSpreadsheetHeaderRow($sheet['rows'] ?? []);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = [
+                    'sheet_name' => (string) ($sheet['sheet_name'] ?? 'Planilha 1'),
+                    'rows' => $sheet['rows'] ?? [],
+                    'header_index' => $headerIndex,
+                    'headers' => $headerRow,
+                    'score' => $score,
+                ];
+            }
+        }
+
+        return $best;
+    }
+
+    private function detectSpreadsheetHeaderRow(array $rows): array
+    {
+        $bestIndex = 0;
+        $bestRow = $rows[0] ?? [];
+        $bestScore = -1;
+
+        foreach (array_slice($rows, 0, 20, true) as $index => $row) {
+            $score = $this->scoreSpreadsheetHeaderRow((array) $row);
+            if ($score > $bestScore) {
+                $bestIndex = (int) $index;
+                $bestRow = (array) $row;
+                $bestScore = $score;
+            }
+            if ($score >= 5) {
+                return [$bestIndex, $bestRow, $bestScore];
+            }
+        }
+
+        return [$bestIndex, $bestRow, $bestScore];
+    }
+
+    private function scoreSpreadsheetHeaderRow(array $row): int
+    {
+        $found = [];
+        foreach ($row as $cell) {
+            $key = $this->normalizeLookupValue((string) $cell, false);
+            $group = match ($key) {
+                'CONDOMINIO', 'NOMECONDOMINIO' => 'condominium',
+                'BLOCO', 'TORRE' => 'block',
+                'UNIDADE', 'UNID' => 'unit',
+                'REFERENCIA', 'COMPETENCIA', 'MESREF', 'MES' => 'reference',
+                'VENCIMENTO', 'DATAVENCIMENTO' => 'due_date',
+                'VALOR', 'TOTAL', 'VALORATUALIZADO', 'VALORORIGINAL' => 'amount',
+                default => null,
+            };
+            if ($group) {
+                $found[$group] = true;
+            }
+        }
+        return count($found);
+    }
+
     private function mapSpreadsheetRowsToImport(array $headers, array $rows): array
     {
         $map = [];
@@ -1035,12 +1282,12 @@ class CobrancaController extends Controller
                 continue;
             }
             $map[$index] = match ($key) {
-                'condominio', 'nomecondominio' => 'condominium',
-                'bloco', 'torre' => 'block',
-                'unidade', 'unid' => 'unit',
-                'referencia', 'competencia', 'mesref', 'mes', 'mês', 'mêsref' => 'reference',
-                'vencimento', 'datavencimento' => 'due_date',
-                'valor', 'total', 'valoratualizado', 'valororiginal' => 'amount',
+                'CONDOMINIO', 'NOMECONDOMINIO' => 'condominium',
+                'BLOCO', 'TORRE' => 'block',
+                'UNIDADE', 'UNID' => 'unit',
+                'REFERENCIA', 'COMPETENCIA', 'MESREF', 'MES' => 'reference',
+                'VENCIMENTO', 'DATAVENCIMENTO' => 'due_date',
+                'VALOR', 'TOTAL', 'VALORATUALIZADO', 'VALORORIGINAL' => 'amount',
                 default => null,
             };
         }
