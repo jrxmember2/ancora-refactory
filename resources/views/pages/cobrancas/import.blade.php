@@ -6,7 +6,6 @@
         <a href="{{ route('cobrancas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Lista de OS</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Nova OS</a>
         <a href="{{ route('cobrancas.import.template') }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Baixar modelo</a>
-        <a href="{{ route('cobrancas.import.example') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Baixar exemplo</a>
     </div>
 </x-ancora.section-header>
 @include('pages.cobrancas.partials.subnav')
@@ -31,7 +30,6 @@
                 <div class="flex flex-wrap items-center gap-3">
                     <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Analisar planilha</button>
                     <a href="{{ route('cobrancas.import.template') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Baixar modelo</a>
-                    <a href="{{ route('cobrancas.import.example') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Baixar exemplo</a>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Bloco vazio, 0 ou - será tratado como sem bloco.</span>
                 </div>
             </form>
@@ -128,6 +126,7 @@
     <div class="space-y-6">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Regras do importador</h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">O botão "Baixar modelo" já entrega uma planilha preenchida como exemplo, pronta para servir de base à importação.</p>
             <ul class="mt-4 space-y-3 text-sm text-gray-600 dark:text-gray-300">
                 <li>• Se não existir OS aberta para a unidade, o sistema cria automaticamente uma nova OS em <strong class="text-gray-900 dark:text-white">apto para notificar</strong>.</li>
                 <li>• Se já existir OS aberta, a nova referência é adicionada na OS existente.</li>

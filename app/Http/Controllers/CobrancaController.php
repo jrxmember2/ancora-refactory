@@ -112,16 +112,9 @@ class CobrancaController extends Controller
 
     public function downloadImportTemplate(): BinaryFileResponse
     {
-        $path = storage_path('app/templates/cobrancas/modelo_importacao_inadimplencia.xlsx');
+        $path = resource_path('templates/cobrancas/modelo_importacao_inadimplencia.xlsx');
         abort_unless(is_file($path), 404);
         return response()->download($path, 'modelo_importacao_inadimplencia.xlsx');
-    }
-
-    public function downloadImportExample(): BinaryFileResponse
-    {
-        $path = storage_path('app/templates/cobrancas/exemplo_importacao_inadimplencia.xlsx');
-        abort_unless(is_file($path), 404);
-        return response()->download($path, 'exemplo_importacao_inadimplencia.xlsx');
     }
 
     public function importPreview(Request $request): RedirectResponse
