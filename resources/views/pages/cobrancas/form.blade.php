@@ -115,8 +115,8 @@
                 <div class="space-y-3" data-repeater-container="emails">
                     @foreach($formRepeater['emails'] as $index => $row)
                         <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_120px]" data-repeater-row>
-                            <input type="text" name="emails[{{ $index }}][label]" value="{{ $row['label'] ?? '' }}" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <input type="email" name="emails[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="email@dominio.com" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            <input type="text" name="emails[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            <input type="email" name="emails[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="email@dominio.com" autocomplete="off" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                             <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
                         </div>
                     @endforeach
@@ -124,7 +124,7 @@
                 <template data-repeater-template="emails">
                     <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_120px]" data-repeater-row>
                         <input type="text" name="emails[__INDEX__][label]" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="email" name="emails[__INDEX__][value]" placeholder="email@dominio.com" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <input type="email" name="emails[__INDEX__][value]" placeholder="email@dominio.com" autocomplete="off" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                         <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
                     </div>
                 </template>
@@ -138,8 +138,8 @@
                 <div class="space-y-3" data-repeater-container="phones">
                     @foreach($formRepeater['phones'] as $index => $row)
                         <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_180px_120px]" data-repeater-row>
-                            <input type="text" name="phones[{{ $index }}][label]" value="{{ $row['label'] ?? '' }}" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <input type="text" name="phones[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            <input type="text" name="phones[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            <input type="text" data-phone name="phones[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                             <label class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
                                 <input type="checkbox" name="phones[{{ $index }}][is_whatsapp]" value="1" @checked(!empty($row['is_whatsapp']))>
                                 WhatsApp
@@ -151,7 +151,7 @@
                 <template data-repeater-template="phones">
                     <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_180px_120px]" data-repeater-row>
                         <input type="text" name="phones[__INDEX__][label]" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="text" name="phones[__INDEX__][value]" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <input type="text" data-phone name="phones[__INDEX__][value]" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                         <label class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
                             <input type="checkbox" name="phones[__INDEX__][is_whatsapp]" value="1" checked>
                             WhatsApp
@@ -218,10 +218,16 @@
             @foreach($formRepeater['quotas'] as $index => $row)
                 <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                        <input type="text" name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="Competência / referência" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <input type="text" data-reference-period name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="mm/aaaa" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                         <input type="date" name="quotas[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="text" data-money name="quotas[{{ $index }}][original_amount]" value="{{ $row['original_amount'] ?? '' }}" placeholder="Valor original" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="text" data-money name="quotas[{{ $index }}][updated_amount]" value="{{ $row['updated_amount'] ?? '' }}" placeholder="Valor atualizado" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="quotas[{{ $index }}][original_amount]" value="{{ $row['original_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="quotas[{{ $index }}][updated_amount]" value="{{ $row['updated_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
                         <select name="quotas[{{ $index }}][status]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
@@ -238,10 +244,16 @@
         <template data-repeater-template="quotas">
             <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                 <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                    <input type="text" name="quotas[__INDEX__][reference_label]" placeholder="Competência / referência" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <input type="text" data-reference-period name="quotas[__INDEX__][reference_label]" placeholder="mm/aaaa" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                     <input type="date" name="quotas[__INDEX__][due_date]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <input type="text" data-money name="quotas[__INDEX__][original_amount]" placeholder="Valor original" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <input type="text" data-money name="quotas[__INDEX__][updated_amount]" placeholder="Valor atualizado" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                        <input type="text" data-money name="quotas[__INDEX__][original_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                        <input type="text" data-money name="quotas[__INDEX__][updated_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
                     <select name="quotas[__INDEX__][status]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
@@ -277,7 +289,10 @@
                         <input type="date" name="installments[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                        <input type="text" data-money name="installments[{{ $index }}][amount]" value="{{ $row['amount'] ?? '' }}" placeholder="Valor" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="installments[{{ $index }}][amount]" value="{{ $row['amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
                         <select name="installments[{{ $index }}][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                             @foreach($installmentStatusLabels as $key => $label)
                                 <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
@@ -300,7 +315,10 @@
                     <input type="date" name="installments[__INDEX__][due_date]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                    <input type="text" data-money name="installments[__INDEX__][amount]" placeholder="Valor" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                        <input type="text" data-money name="installments[__INDEX__][amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
                     <select name="installments[__INDEX__][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                         @foreach($installmentStatusLabels as $key => $label)
                             <option value="{{ $key }}">{{ $label }}</option>
@@ -356,6 +374,7 @@
 (function () {
     const selectorData = @json($unitSelectorData ?? ['condominiums' => [], 'blocks' => [], 'units' => []]);
     const initialUnitId = String(document.getElementById('unit-id-hidden')?.value || '');
+    const isCreateMode = {{ $case ? 'false' : 'true' }};
 
     const condominiumSelect = document.getElementById('condominium-select');
     const blockSelect = document.getElementById('block-select');
@@ -391,6 +410,70 @@
             formatMoneyInput(input);
             input.addEventListener('input', () => formatMoneyInput(input));
             input.addEventListener('blur', () => formatMoneyInput(input));
+        });
+    }
+
+    function onlyDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
+
+    function formatPhoneValue(value) {
+        let digits = onlyDigits(value);
+        if (digits.length >= 12 && digits.startsWith('55')) {
+            digits = digits.slice(2);
+        }
+        digits = digits.slice(0, 11);
+        if (digits.length <= 2) return digits ? `(${digits}` : '';
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    }
+
+    function bindPhoneMask(scope = document) {
+        scope.querySelectorAll('[data-phone]').forEach((input) => {
+            if (input.dataset.phoneBound === '1') return;
+            input.dataset.phoneBound = '1';
+            input.value = formatPhoneValue(input.value);
+            input.addEventListener('input', () => {
+                input.value = formatPhoneValue(input.value);
+            });
+            input.addEventListener('blur', () => {
+                input.value = formatPhoneValue(input.value);
+            });
+        });
+    }
+
+    function formatReferencePeriodValue(value) {
+        const digits = onlyDigits(value).slice(0, 6);
+        if (digits.length <= 2) return digits;
+        return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+
+    function bindReferencePeriodMask(scope = document) {
+        scope.querySelectorAll('[data-reference-period]').forEach((input) => {
+            if (input.dataset.referenceBound === '1') return;
+            input.dataset.referenceBound = '1';
+            input.value = formatReferencePeriodValue(input.value);
+            input.addEventListener('input', () => {
+                input.value = formatReferencePeriodValue(input.value);
+            });
+            input.addEventListener('blur', () => {
+                input.value = formatReferencePeriodValue(input.value);
+            });
+        });
+    }
+
+    function normalizeEmailValue(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function bindEmailNormalization(scope = document) {
+        scope.querySelectorAll('input[type="email"]').forEach((input) => {
+            if (input.dataset.emailBound === '1') return;
+            input.dataset.emailBound = '1';
+            input.addEventListener('blur', () => {
+                input.value = normalizeEmailValue(input.value);
+            });
         });
     }
 
@@ -488,6 +571,8 @@
             option.dataset.ownerDocument = unit.owner_document || '';
             option.dataset.ownerEmail = unit.owner_email || '';
             option.dataset.ownerPhone = unit.owner_phone || '';
+            option.dataset.ownerEmails = JSON.stringify(unit.owner_emails || []);
+            option.dataset.ownerPhones = JSON.stringify(unit.owner_phones || []);
             option.dataset.unitNumber = unit.unit_number || '';
             option.dataset.blockId = unit.block_id || '';
             if (String(selectedUnitId) === String(unit.id)) {
@@ -495,6 +580,65 @@
             }
             unitSelect.appendChild(option);
         });
+    }
+
+
+    function parseDatasetArray(value) {
+        try {
+            const parsed = JSON.parse(value || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function rebuildRepeater(scope, rows) {
+        const container = document.querySelector(`[data-repeater-container="${scope}"]`);
+        const template = document.querySelector(`[data-repeater-template="${scope}"]`);
+        if (!container || !template) return;
+
+        const safeRows = rows.length ? rows : (scope === 'phones'
+            ? [{ label: 'Principal', value: '', is_whatsapp: true }]
+            : [{ label: 'Principal', value: '' }]);
+
+        container.innerHTML = '';
+        safeRows.forEach((row, index) => {
+            const html = template.innerHTML.replaceAll('__INDEX__', index);
+            container.insertAdjacentHTML('beforeend', html);
+            const inserted = container.lastElementChild;
+            if (!inserted) return;
+            const labelInput = inserted.querySelector('input[name$="[label]"]');
+            const valueInput = inserted.querySelector('input[name$="[value]"]');
+            const whatsappInput = inserted.querySelector('input[type="checkbox"]');
+            if (labelInput) {
+                labelInput.value = row.label || (index === 0 ? 'Principal' : '');
+                labelInput.placeholder = index === 0 ? 'Principal' : 'Rótulo';
+            }
+            if (valueInput) valueInput.value = row.value || '';
+            if (whatsappInput) whatsappInput.checked = !!row.is_whatsapp;
+        });
+
+        bindRemoveButtons(scope);
+        bindMoneyMask(container);
+        bindPhoneMask(container);
+        bindReferencePeriodMask(container);
+        bindEmailNormalization(container);
+    }
+
+    function seedNotificationContactsFromSelectedUnit() {
+        if (!isCreateMode) return;
+        const option = unitSelect?.options?.[unitSelect.selectedIndex];
+        if (!option || !option.value) return;
+
+        const ownerEmails = parseDatasetArray(option.dataset.ownerEmails)
+            .map((value, index) => ({ label: index === 0 ? 'Principal' : '', value: normalizeEmailValue(value) }))
+            .filter((row) => row.value !== '');
+        const ownerPhones = parseDatasetArray(option.dataset.ownerPhones)
+            .map((value, index) => ({ label: index === 0 ? 'Principal' : '', value: formatPhoneValue(value), is_whatsapp: true }))
+            .filter((row) => row.value !== '');
+
+        rebuildRepeater('emails', ownerEmails);
+        rebuildRepeater('phones', ownerPhones);
     }
 
     function syncOwnerSummary() {
@@ -565,6 +709,9 @@
             container.insertAdjacentHTML('beforeend', html);
             bindRemoveButtons(scope);
             bindMoneyMask(container);
+            bindPhoneMask(container);
+            bindReferencePeriodMask(container);
+            bindEmailNormalization(container);
         });
 
         bindRemoveButtons(scope);
@@ -575,7 +722,10 @@
         populateUnits(condominiumSelect?.value || '', blockSelect?.value || '', '');
         syncOwnerSummary();
     });
-    unitSelect?.addEventListener('change', syncOwnerSummary);
+    unitSelect?.addEventListener('change', () => {
+        syncOwnerSummary();
+        seedNotificationContactsFromSelectedUnit();
+    });
     chargeType?.addEventListener('change', updateChargeType);
 
     const selected = findUnitSelectionById(initialUnitId);
@@ -596,7 +746,13 @@
     initRepeater('quotas');
     initRepeater('installments');
     bindMoneyMask(document);
+    bindPhoneMask(document);
+    bindReferencePeriodMask(document);
+    bindEmailNormalization(document);
     syncOwnerSummary();
+    if (isCreateMode && initialUnitId) {
+        seedNotificationContactsFromSelectedUnit();
+    }
 })();
 </script>
 @endpush

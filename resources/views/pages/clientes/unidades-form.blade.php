@@ -57,7 +57,7 @@
                         <select name="block_id" x-model="blockId" class="{{ $selectClass }}" :disabled="!condominiumId || blocks.length === 0">
                             <option value="">Selecione</option>
                             <template x-for="block in blocks" :key="block.id">
-                                <option :value="block.id" x-text="block.name"></option>
+                                <option :value="block.id" :selected="String(block.id) === String(blockId)" x-text="block.name"></option>
                             </template>
                         </select>
                     </div>
@@ -274,7 +274,15 @@
             tenantPhones: initialState.tenantPhones?.length ? initialState.tenantPhones : [''],
             tenantEmails: initialState.tenantEmails?.length ? initialState.tenantEmails : [''],
             init() {
+                this.condominiumId = String(this.condominiumId || '');
+                this.blockId = String(this.blockId || '');
                 this.syncBlock();
+                this.$nextTick(() => {
+                    const blockSelect = this.$root.querySelector('select[name="block_id"]');
+                    if (blockSelect && this.blockId) {
+                        blockSelect.value = String(this.blockId);
+                    }
+                });
                 this.ownerPhones = this.ownerPhones.map((value) => this.maskPhoneValue(value || ''));
                 this.tenantPhones = this.tenantPhones.map((value) => this.maskPhoneValue(value || ''));
                 this.ownerEmails = this.ownerEmails.map((value) => this.normalizeEmailValue(value || ''));

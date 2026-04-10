@@ -388,6 +388,9 @@ class CobrancaController extends Controller
         if ($payload['entry_amount'] !== null && $payload['entry_due_date'] === null) {
             $errors[] = 'Informe o vencimento da entrada.';
         }
+        if ($invalidEmails = $this->invalidNotificationEmails($request)) {
+            $errors[] = 'Revise os e-mails de notificação. Informe apenas endereços válidos.';
+        }
 
         return [$payload, $errors, ['debtor_summary' => $debtorSnapshot['summary']], $repeaters];
     }
@@ -528,6 +531,8 @@ class CobrancaController extends Controller
                 'owner_document' => (string) ($unit->owner?->cpf_cnpj ?? ''),
                 'owner_email' => (string) ((collect($unit->owner?->emails_json ?? [])->first()['email'] ?? '')),
                 'owner_phone' => (string) ((collect($unit->owner?->phones_json ?? [])->first()['number'] ?? '')),
+                'owner_emails' => collect($unit->owner?->emails_json ?? [])->pluck('email')->filter()->values()->all(),
+                'owner_phones' => collect($unit->owner?->phones_json ?? [])->pluck('number')->filter()->values()->all(),
             ];
         }
 
@@ -602,9 +607,9 @@ class CobrancaController extends Controller
 
         if (is_array($emails) || is_array($phones) || is_array($quotas) || is_array($installments)) {
             return [
-                'emails' => $this->normalizeRows($emails, [['label' => '', 'value' => '']]),
-                'phones' => $this->normalizeRows($phones, [['label' => '', 'value' => '', 'is_whatsapp' => 1]]),
-                'quotas' => $this->normalizeRows($quotas, [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'aberta', 'notes' => '']]),
+                'emails' => $this->normalizeRows($emails, [['label' => 'Principal', 'value' => '']]),
+                'phones' => $this->normalizeRows($phones, [['label' => 'Principal', 'value' => '', 'is_whatsapp' => 1]]),
+                'quotas' => $this->normalizeRows($quotas, [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'taxa_mes', 'notes' => '']]),
                 'installments' => $this->normalizeRows($installments, [['label' => '', 'installment_type' => 'parcela', 'installment_number' => '', 'due_date' => '', 'amount' => '', 'status' => 'pendente']]),
             ];
         }
@@ -613,20 +618,20 @@ class CobrancaController extends Controller
             'emails' => $case->contacts->where('contact_type', 'email')->map(fn ($item) => [
                 'label' => $item->label,
                 'value' => $item->value,
-            ])->values()->all() ?: [['label' => '', 'value' => '']],
+            ])->values()->all() ?: [['label' => 'Principal', 'value' => '']],
             'phones' => $case->contacts->where('contact_type', 'phone')->map(fn ($item) => [
                 'label' => $item->label,
                 'value' => $item->value,
                 'is_whatsapp' => $item->is_whatsapp ? 1 : 0,
-            ])->values()->all() ?: [['label' => '', 'value' => '', 'is_whatsapp' => 1]],
+            ])->values()->all() ?: [['label' => 'Principal', 'value' => '', 'is_whatsapp' => 1]],
             'quotas' => $case->quotas->map(fn ($item) => [
                 'reference_label' => $item->reference_label,
                 'due_date' => optional($item->due_date)->format('Y-m-d'),
                 'original_amount' => $item->original_amount,
                 'updated_amount' => $item->updated_amount,
-                'status' => $item->status,
+                'status' => $this->normalizeQuotaKind($item->status),
                 'notes' => $item->notes,
-            ])->values()->all() ?: [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'aberta', 'notes' => '']],
+            ])->values()->all() ?: [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'taxa_mes', 'notes' => '']],
             'installments' => $case->installments->map(fn ($item) => [
                 'label' => $item->label,
                 'installment_type' => $item->installment_type,
@@ -641,9 +646,9 @@ class CobrancaController extends Controller
     private function defaultRepeaterData(): array
     {
         return [
-            'emails' => $this->normalizeRows(old('emails'), [['label' => '', 'value' => '']]),
-            'phones' => $this->normalizeRows(old('phones'), [['label' => '', 'value' => '', 'is_whatsapp' => 1]]),
-            'quotas' => $this->normalizeRows(old('quotas'), [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'aberta', 'notes' => '']]),
+            'emails' => $this->normalizeRows(old('emails'), [['label' => 'Principal', 'value' => '']]),
+            'phones' => $this->normalizeRows(old('phones'), [['label' => 'Principal', 'value' => '', 'is_whatsapp' => 1]]),
+            'quotas' => $this->normalizeRows(old('quotas'), [['reference_label' => '', 'due_date' => '', 'original_amount' => '', 'updated_amount' => '', 'status' => 'taxa_mes', 'notes' => '']]),
             'installments' => $this->normalizeRows(old('installments'), [['label' => '', 'installment_type' => 'parcela', 'installment_number' => '', 'due_date' => '', 'amount' => '', 'status' => 'pendente']]),
         ];
     }
@@ -670,13 +675,13 @@ class CobrancaController extends Controller
     private function emailRowsFromRequest(Request $request): array
     {
         return collect((array) $request->input('emails', []))
-            ->map(function ($row) {
-                $value = trim((string) ($row['value'] ?? ''));
+            ->map(function ($row, $index) {
+                $value = strtolower(trim((string) ($row['value'] ?? '')));
                 if ($value === '') {
                     return null;
                 }
                 return [
-                    'label' => trim((string) ($row['label'] ?? '')),
+                    'label' => trim((string) ($row['label'] ?? '')) ?: ($index === 0 ? 'Principal' : ''),
                     'value' => Str::limit($value, 190, ''),
                 ];
             })
@@ -688,13 +693,13 @@ class CobrancaController extends Controller
     private function phoneRowsFromRequest(Request $request): array
     {
         return collect((array) $request->input('phones', []))
-            ->map(function ($row) {
+            ->map(function ($row, $index) {
                 $value = trim((string) ($row['value'] ?? ''));
                 if ($value === '') {
                     return null;
                 }
                 return [
-                    'label' => trim((string) ($row['label'] ?? '')),
+                    'label' => trim((string) ($row['label'] ?? '')) ?: ($index === 0 ? 'Principal' : ''),
                     'value' => Str::limit($value, 40, ''),
                     'is_whatsapp' => !empty($row['is_whatsapp']),
                 ];
@@ -711,15 +716,16 @@ class CobrancaController extends Controller
                 $dueDate = trim((string) ($row['due_date'] ?? ''));
                 $original = $this->moneyToDb($row['original_amount'] ?? null);
                 $updated = $this->moneyToDb($row['updated_amount'] ?? null);
-                if ($dueDate === '' && $original === null && $updated === null && trim((string) ($row['reference_label'] ?? '')) === '') {
+                $reference = $this->normalizeReferenceLabel((string) ($row['reference_label'] ?? ''));
+                if ($dueDate === '' && $original === null && $updated === null && $reference === '') {
                     return null;
                 }
                 return [
-                    'reference_label' => Str::limit(trim((string) ($row['reference_label'] ?? '')), 100, ''),
+                    'reference_label' => Str::limit($reference, 100, ''),
                     'due_date' => $dueDate ?: now()->toDateString(),
                     'original_amount' => $original ?? 0,
                     'updated_amount' => $updated,
-                    'status' => trim((string) ($row['status'] ?? 'aberta')) ?: 'aberta',
+                    'status' => $this->normalizeQuotaKind((string) ($row['status'] ?? 'taxa_mes')),
                     'notes' => Str::limit(trim((string) ($row['notes'] ?? '')), 190, ''),
                 ];
             })
@@ -749,6 +755,36 @@ class CobrancaController extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+
+    private function invalidNotificationEmails(Request $request): array
+    {
+        return collect((array) $request->input('emails', []))
+            ->pluck('value')
+            ->map(fn ($value) => strtolower(trim((string) $value)))
+            ->filter(fn ($value) => $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+    }
+
+    private function normalizeReferenceLabel(string $value): string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        if (strlen($digits) >= 6) {
+            return substr($digits, 0, 2) . '/' . substr($digits, 2, 4);
+        }
+
+        return trim($value);
+    }
+
+    private function normalizeQuotaKind(?string $value): string
+    {
+        return match ((string) $value) {
+            'taxa_extra' => 'taxa_extra',
+            'parcela_acordo' => 'parcela_acordo',
+            default => 'taxa_mes',
+        };
     }
 
     private function filterOptions(): array
@@ -929,10 +965,9 @@ class CobrancaController extends Controller
     private function quotaStatusLabels(): array
     {
         return [
-            'aberta' => 'Em aberto',
-            'negociada' => 'Negociada',
-            'paga' => 'Paga',
-            'ajuizada' => 'Ajuizada',
+            'taxa_mes' => 'Taxa do mês',
+            'taxa_extra' => 'Taxa extra',
+            'parcela_acordo' => 'Parcela de acordo',
         ];
     }
 
