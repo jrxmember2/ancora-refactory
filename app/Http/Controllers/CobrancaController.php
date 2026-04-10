@@ -1121,7 +1121,16 @@ class CobrancaController extends Controller
 
         $relationshipMap = [];
         foreach ($rels->xpath('//r:Relationship') ?: [] as $relationship) {
-            $relationshipMap[(string) $relationship['Id']] = 'xl/' . ltrim((string) $relationship['Target'], '/');
+            $target = str_replace('\\', '/', (string) $relationship['Target']);
+            if ($target !== '' && !str_starts_with($target, 'xl/')) {
+                $target = ltrim($target, '/');
+                if (!str_starts_with($target, 'xl/')) {
+                    $target = 'xl/' . $target;
+                }
+            } else {
+                $target = ltrim($target, '/');
+            }
+            $relationshipMap[(string) $relationship['Id']] = $target;
         }
 
         $sheets = [];
