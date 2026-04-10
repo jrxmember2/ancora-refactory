@@ -191,11 +191,11 @@ class ConfigController extends Controller
 
             $mailer->raw('Teste de configuração SMTP do sistema Âncora concluído com sucesso.', function ($message) use ($validated, $request) {
                 $message->from($validated['smtp_from_address'], $validated['smtp_from_name'] ?? 'Âncora');
-                $message->to($request->user()->email);
+                $message->to(AncoraAuth::user($request)->email);
                 $message->subject('Teste de Conexão SMTP');
             });
 
-            return response()->json(['success' => true, 'message' => 'E-mail de teste enviado com sucesso para ' . $request->user()->email]);
+            return response()->json(['success' => true, 'message' => 'E-mail de teste enviado com sucesso para ' . AncoraAuth::user($request)->email]);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => 'Falha na conexão: ' . $e->getMessage()], 422);
         }
