@@ -8,7 +8,25 @@ class ChangelogController extends Controller
 {
     public function index(): View
     {
+        $currentVersion = config('ancora_version.current', [
+            'version' => 'v11',
+            'date' => '09/04/2026',
+            'label' => 'v11 • 09/04/2026',
+        ]);
+
         $releases = [
+            [
+                'version' => $currentVersion['version'],
+                'date' => $currentVersion['date'],
+                'title' => 'Cobrança refinada, contatos automáticos e versionamento visível',
+                'items' => [
+                    'Nova OS de cobrança com títulos mais claros em todos os campos do formulário.',
+                    'Seleção em cascata de condomínio, bloco e unidade, respeitando condomínios sem bloco.',
+                    'Contatos do proprietário reaproveitados automaticamente na notificação da OS.',
+                    'Campos monetários e referências de quotas refinados para a operação de cobrança.',
+                    'Versão atual exibida de forma discreta e vertical no rodapé esquerdo do menu lateral.',
+                ],
+            ],
             [
                 'version' => 'v10',
                 'date' => '02/04/2026',

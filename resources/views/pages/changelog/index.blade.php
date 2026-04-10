@@ -11,10 +11,13 @@
             <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
                 <div class="text-xs uppercase tracking-[0.16em] text-gray-500">Base atual</div>
                 <div class="mt-1 font-semibold text-gray-900 dark:text-white">Laravel + TailAdmin</div>
+                @if(!empty($ancoraVersion['label']))
+                    <div class="mt-2 text-xs font-medium tracking-[0.14em] text-brand-500">{{ $ancoraVersion['label'] }}</div>
+                @endif
             </div>
             <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
                 <div class="text-xs uppercase tracking-[0.16em] text-gray-500">Escopo</div>
-                <div class="mt-1 font-semibold text-gray-900 dark:text-white">Hub, Clientes, Propostas, Config, Logs</div>
+                <div class="mt-1 font-semibold text-gray-900 dark:text-white">Hub, Clientes, Cobrança, Propostas, Config, Logs</div>
             </div>
         </div>
     </div>

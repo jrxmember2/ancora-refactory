@@ -115,17 +115,35 @@
                 <div class="space-y-3" data-repeater-container="emails">
                     @foreach($formRepeater['emails'] as $index => $row)
                         <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_120px]" data-repeater-row>
-                            <input type="text" name="emails[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <input type="email" name="emails[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="email@dominio.com" autocomplete="off" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                            <div>
+                                <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Rótulo</label>
+                                <input type="text" name="emails[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">E-mail</label>
+                                <input type="email" name="emails[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="email@dominio.com" autocomplete="off" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
+                            <div class="flex flex-col justify-end">
+                                <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                                <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                            </div>
                         </div>
                     @endforeach
                 </div>
                 <template data-repeater-template="emails">
                     <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_120px]" data-repeater-row>
-                        <input type="text" name="emails[__INDEX__][label]" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="email" name="emails[__INDEX__][value]" placeholder="email@dominio.com" autocomplete="off" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Rótulo</label>
+                            <input type="text" name="emails[__INDEX__][label]" placeholder="Rótulo" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">E-mail</label>
+                            <input type="email" name="emails[__INDEX__][value]" placeholder="email@dominio.com" autocomplete="off" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -138,25 +156,49 @@
                 <div class="space-y-3" data-repeater-container="phones">
                     @foreach($formRepeater['phones'] as $index => $row)
                         <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_180px_120px]" data-repeater-row>
-                            <input type="text" name="phones[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <input type="text" data-phone name="phones[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <label class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
-                                <input type="checkbox" name="phones[{{ $index }}][is_whatsapp]" value="1" @checked(!empty($row['is_whatsapp']))>
-                                WhatsApp
-                            </label>
-                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                            <div>
+                                <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Rótulo</label>
+                                <input type="text" name="phones[{{ $index }}][label]" value="{{ $row['label'] ?? ($index === 0 ? 'Principal' : '') }}" placeholder="{{ $index === 0 ? 'Principal' : 'Rótulo' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Telefone</label>
+                                <input type="text" data-phone name="phones[{{ $index }}][value]" value="{{ $row['value'] ?? '' }}" placeholder="(27) 99999-9999" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Canal</label>
+                                <label class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                                    <input type="checkbox" name="phones[{{ $index }}][is_whatsapp]" value="1" @checked(!empty($row['is_whatsapp']))>
+                                    WhatsApp
+                                </label>
+                            </div>
+                            <div class="flex flex-col justify-end">
+                                <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                                <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                            </div>
                         </div>
                     @endforeach
                 </div>
                 <template data-repeater-template="phones">
                     <div class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 lg:grid-cols-[180px_minmax(0,1fr)_180px_120px]" data-repeater-row>
-                        <input type="text" name="phones[__INDEX__][label]" placeholder="Rótulo" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="text" data-phone name="phones[__INDEX__][value]" placeholder="(27) 99999-9999" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <label class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
-                            <input type="checkbox" name="phones[__INDEX__][is_whatsapp]" value="1" checked>
-                            WhatsApp
-                        </label>
-                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Rótulo</label>
+                            <input type="text" name="phones[__INDEX__][label]" placeholder="Rótulo" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Telefone</label>
+                            <input type="text" data-phone name="phones[__INDEX__][value]" placeholder="(27) 99999-9999" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Canal</label>
+                            <label class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                                <input type="checkbox" name="phones[__INDEX__][is_whatsapp]" value="1" checked>
+                                WhatsApp
+                            </label>
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -218,25 +260,46 @@
             @foreach($formRepeater['quotas'] as $index => $row)
                 <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                        <input type="text" data-reference-period name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="mm/aaaa" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="date" name="quotas[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                            <input type="text" data-money name="quotas[{{ $index }}][original_amount]" value="{{ $row['original_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Competência / referência</label>
+                            <input type="text" data-reference-period name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="mm/aaaa" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                         </div>
-                        <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                            <input type="text" data-money name="quotas[{{ $index }}][updated_amount]" value="{{ $row['updated_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
+                            <input type="date" name="quotas[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor original</label>
+                            <div class="relative">
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                                <input type="text" data-money name="quotas[{{ $index }}][original_amount]" value="{{ $row['original_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor atualizado</label>
+                            <div class="relative">
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                                <input type="text" data-money name="quotas[{{ $index }}][updated_amount]" value="{{ $row['updated_amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
                         </div>
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                        <select name="quotas[{{ $index }}][status]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            @foreach($quotaStatusLabels as $key => $label)
-                                <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <input type="text" name="quotas[{{ $index }}][notes]" value="{{ $row['notes'] ?? '' }}" placeholder="Observação opcional da quota" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo da quota</label>
+                            <select name="quotas[{{ $index }}][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                                @foreach($quotaStatusLabels as $key => $label)
+                                    <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Observação</label>
+                            <input type="text" name="quotas[{{ $index }}][notes]" value="{{ $row['notes'] ?? '' }}" placeholder="Observação opcional da quota" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        </div>
                     </div>
                 </div>
             @endforeach
@@ -244,25 +307,46 @@
         <template data-repeater-template="quotas">
             <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                 <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                    <input type="text" data-reference-period name="quotas[__INDEX__][reference_label]" placeholder="mm/aaaa" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <input type="date" name="quotas[__INDEX__][due_date]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                        <input type="text" data-money name="quotas[__INDEX__][original_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Competência / referência</label>
+                        <input type="text" data-reference-period name="quotas[__INDEX__][reference_label]" placeholder="mm/aaaa" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                     </div>
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                        <input type="text" data-money name="quotas[__INDEX__][updated_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
+                        <input type="date" name="quotas[__INDEX__][due_date]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor original</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="quotas[__INDEX__][original_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor atualizado</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="quotas[__INDEX__][updated_amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
                     </div>
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                    <select name="quotas[__INDEX__][status]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        @foreach($quotaStatusLabels as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    <input type="text" name="quotas[__INDEX__][notes]" placeholder="Observação opcional da quota" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo da quota</label>
+                        <select name="quotas[__INDEX__][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            @foreach($quotaStatusLabels as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Observação</label>
+                        <input type="text" name="quotas[__INDEX__][notes]" placeholder="Observação opcional da quota" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
+                    <div class="flex flex-col justify-end">
+                        <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                    </div>
                 </div>
             </div>
         </template>
@@ -280,25 +364,46 @@
             @foreach($formRepeater['installments'] as $index => $row)
                 <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-5">
-                        <input type="text" name="installments[{{ $index }}][label]" value="{{ $row['label'] ?? '' }}" placeholder="Descrição da parcela" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white xl:col-span-2">
-                        <select name="installments[{{ $index }}][installment_type]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            <option value="parcela" @selected(($row['installment_type'] ?? '') === 'parcela')>Parcela</option>
-                            <option value="entrada" @selected(($row['installment_type'] ?? '') === 'entrada')>Entrada</option>
-                        </select>
-                        <input type="number" min="1" name="installments[{{ $index }}][installment_number]" value="{{ $row['installment_number'] ?? '' }}" placeholder="#" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <input type="date" name="installments[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div class="xl:col-span-2">
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Descrição da parcela</label>
+                            <input type="text" name="installments[{{ $index }}][label]" value="{{ $row['label'] ?? '' }}" placeholder="Descrição da parcela" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo</label>
+                            <select name="installments[{{ $index }}][installment_type]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                                <option value="parcela" @selected(($row['installment_type'] ?? '') === 'parcela')>Parcela</option>
+                                <option value="entrada" @selected(($row['installment_type'] ?? '') === 'entrada')>Entrada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Número</label>
+                            <input type="number" min="1" name="installments[{{ $index }}][installment_number]" value="{{ $row['installment_number'] ?? '' }}" placeholder="#" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
+                            <input type="date" name="installments[{{ $index }}][due_date]" value="{{ $row['due_date'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                        <div class="relative">
-                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                            <input type="text" data-money name="installments[{{ $index }}][amount]" value="{{ $row['amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor</label>
+                            <div class="relative">
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                                <input type="text" data-money name="installments[{{ $index }}][amount]" value="{{ $row['amount'] ?? '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            </div>
                         </div>
-                        <select name="installments[{{ $index }}][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                            @foreach($installmentStatusLabels as $key => $label)
-                                <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        <div>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</label>
+                            <select name="installments[{{ $index }}][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                                @foreach($installmentStatusLabels as $key => $label)
+                                    <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                            <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                        </div>
                     </div>
                 </div>
             @endforeach
@@ -306,25 +411,46 @@
         <template data-repeater-template="installments">
             <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800" data-repeater-row>
                 <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-5">
-                    <input type="text" name="installments[__INDEX__][label]" placeholder="Descrição da parcela" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white xl:col-span-2">
-                    <select name="installments[__INDEX__][installment_type]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        <option value="parcela">Parcela</option>
-                        <option value="entrada">Entrada</option>
-                    </select>
-                    <input type="number" min="1" name="installments[__INDEX__][installment_number]" placeholder="#" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <input type="date" name="installments[__INDEX__][due_date]" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div class="xl:col-span-2">
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Descrição da parcela</label>
+                        <input type="text" name="installments[__INDEX__][label]" placeholder="Descrição da parcela" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo</label>
+                        <select name="installments[__INDEX__][installment_type]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            <option value="parcela">Parcela</option>
+                            <option value="entrada">Entrada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Número</label>
+                        <input type="number" min="1" name="installments[__INDEX__][installment_number]" placeholder="#" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
+                        <input type="date" name="installments[__INDEX__][due_date]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    </div>
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
-                        <input type="text" data-money name="installments[__INDEX__][amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Valor</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-gray-500 dark:text-gray-400">R$</span>
+                            <input type="text" data-money name="installments[__INDEX__][amount]" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent pl-11 pr-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        </div>
                     </div>
-                    <select name="installments[__INDEX__][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                        @foreach($installmentStatusLabels as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                    <div>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</label>
+                        <select name="installments[__INDEX__][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                            @foreach($installmentStatusLabels as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex flex-col justify-end">
+                        <span class="mb-2 block text-xs font-medium uppercase tracking-wide text-transparent select-none">Ação</span>
+                        <button type="button" class="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-repeater-remove>Remover</button>
+                    </div>
                 </div>
             </div>
         </template>

@@ -30,10 +30,16 @@ class AppServiceProvider extends ServiceProvider
             $request = request();
             $user = $request ? AncoraAuth::user($request) : null;
             $brand = AncoraSettings::brand();
+            $version = config('ancora_version.current', [
+                'version' => 'v11',
+                'date' => '09/04/2026',
+                'label' => 'v11 • 09/04/2026',
+            ]);
 
             $view->with('ancoraBrand', $brand)
                 ->with('ancoraAuthUser', $user)
-                ->with('ancoraMenuGroups', AncoraMenu::sidebar($user));
+                ->with('ancoraMenuGroups', AncoraMenu::sidebar($user))
+                ->with('ancoraVersion', $version);
         });
     }
 }
