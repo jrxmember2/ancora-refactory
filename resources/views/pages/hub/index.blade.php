@@ -50,12 +50,6 @@
     @endforeach
 </div>
 
-<div class="fixed bottom-4 right-4 z-[99999]">
-    <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-[11px] font-medium text-gray-600 shadow-theme-lg backdrop-blur hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-300 dark:hover:text-brand-400">
-        <span>Powered by Serratech</span>
-        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-    </a>
-</div>
 @endsection
 
 @push('scripts')

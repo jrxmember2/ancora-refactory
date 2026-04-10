@@ -74,9 +74,4 @@
             </div>
         </div>
     </div>
-
-    <div class="pointer-events-none absolute bottom-3 left-1.5 z-10 flex items-end">
-        <span class="select-none text-[9px] font-medium uppercase tracking-[0.18em] text-gray-300 [writing-mode:vertical-rl] rotate-180 dark:text-gray-600">{{ $ancoraVersion['label'] ?? 'v11 • 09/04/2026' }}</span>
-    </div>
-
 </aside>

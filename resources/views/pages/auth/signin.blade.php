@@ -37,10 +37,13 @@
             </div>
 
             <div class="absolute bottom-4 left-4 z-20">
-                <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-[11px] font-medium text-gray-700 shadow-theme-xs backdrop-blur hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-300 dark:hover:text-brand-400">
-                    <span>Powered by Serratech</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                </a>
+                <div class="flex flex-col items-start gap-1">
+                    <a href="https://www.serratech.tec.br" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-[11px] font-medium text-gray-700 shadow-theme-xs backdrop-blur hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-300 dark:hover:text-brand-400">
+                        <span>Powered by Serratech</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                    </a>
+                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v11 • 09/04/2026' }}</div>
+                </div>
             </div>
         </div>
 
