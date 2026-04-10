@@ -1091,6 +1091,7 @@ class CobrancaController extends Controller
         $root->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
         $result = [];
         foreach ($root->xpath('//x:si') ?: [] as $item) {
+            $this->registerSpreadsheetXmlNamespaces($item);
             $parts = [];
             foreach ($item->xpath('.//x:t') ?: [] as $textNode) {
                 $parts[] = (string) $textNode;
@@ -1163,8 +1164,10 @@ class CobrancaController extends Controller
         $rows = [];
 
         foreach ($sheet->xpath('//x:sheetData/x:row') ?: [] as $rowNode) {
+            $this->registerSpreadsheetXmlNamespaces($rowNode);
             $current = [];
             foreach ($rowNode->xpath('./x:c') ?: [] as $cell) {
+                $this->registerSpreadsheetXmlNamespaces($cell);
                 $reference = (string) $cell['r'];
                 $columnIndex = $this->xlsxColumnToIndex(preg_replace('/\d+/', '', $reference));
                 $value = $this->xlsxCellValue($cell, $sharedStrings);
@@ -1190,6 +1193,8 @@ class CobrancaController extends Controller
 
     private function xlsxCellValue(\SimpleXMLElement $cell, array $sharedStrings): string
     {
+        $this->registerSpreadsheetXmlNamespaces($cell);
+
         $type = (string) ($cell['t'] ?? '');
         if ($type === 'inlineStr') {
             $parts = [];
@@ -1206,6 +1211,13 @@ class CobrancaController extends Controller
         }
 
         return trim($rawValue);
+    }
+
+    private function registerSpreadsheetXmlNamespaces(\SimpleXMLElement $node): void
+    {
+        $node->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $node->registerXPathNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+        $node->registerXPathNamespace('p', 'http://schemas.openxmlformats.org/package/2006/relationships');
     }
 
     private function xlsxColumnToIndex(string $column): int
