@@ -36,17 +36,25 @@
         </div>
 
         @if($batch)
+            @php
+                $emptyProcessedBatch = $emptyProcessedBatch ?? (
+                    $batch->status === 'processed'
+                    && ((int) $batch->created_cases + (int) $batch->updated_cases + (int) $batch->created_quotas + (int) $batch->duplicate_rows) === 0
+                );
+            @endphp
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Lote #{{ $batch->id }} · {{ $batch->original_name }}</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Aba: {{ $batch->sheet_name ?: 'Planilha 1' }} · Status: {{ $batch->status === 'processed' ? 'Processado' : 'Aguardando processamento' }}</p>
                     </div>
-                    @if($batch->status !== 'processed')
+                    @if(($batch->status !== 'processed' && (int) $batch->ready_rows > 0) || $emptyProcessedBatch)
                         <form method="post" action="{{ route('cobrancas.import.process', $batch) }}">
                             @csrf
-                            <button class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white">Processar lote</button>
+                            <button class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white">{{ $emptyProcessedBatch ? 'Reprocessar lote' : 'Processar lote' }}</button>
                         </form>
+                    @elseif($batch->status !== 'processed')
+                        <div class="rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm font-medium text-warning-700 dark:border-warning-900/40 dark:bg-warning-500/10 dark:text-warning-300">Sem linhas prontas para processar</div>
                     @else
                         <div class="rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 dark:border-success-900/40 dark:bg-success-500/10 dark:text-success-300">Lote processado em {{ optional($batch->processed_at)->format('d/m/Y H:i') }}</div>
                     @endif
@@ -60,6 +68,20 @@
                     <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">OS criadas</div><div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ $batch->created_cases }}</div></div>
                     <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">OS atualizadas</div><div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ $batch->updated_cases }}</div></div>
                 </div>
+
+                @if($emptyProcessedBatch)
+                    <div class="mt-5 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-sm text-warning-800 dark:border-warning-900/40 dark:bg-warning-500/10 dark:text-warning-200">
+                        Este lote foi marcado como processado sem gerar alterações. Você pode reprocessá-lo; o sistema vai reanalisar as linhas antes de criar ou atualizar OS.
+                    </div>
+                @elseif($batch->status !== 'processed' && (int) $batch->ready_rows === 0 && (int) $batch->pending_rows > 0)
+                    <div class="mt-5 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-sm text-warning-800 dark:border-warning-900/40 dark:bg-warning-500/10 dark:text-warning-200">
+                        Nenhuma linha foi considerada pronta. Confira a coluna <strong>Detalhe</strong>; normalmente isso acontece por condomínio, bloco, unidade, vencimento ou proprietário não encontrado no cadastro.
+                    </div>
+                @elseif($batch->status !== 'processed' && (int) $batch->pending_rows > 0)
+                    <div class="mt-5 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-sm text-warning-800 dark:border-warning-900/40 dark:bg-warning-500/10 dark:text-warning-200">
+                        O lote tem linhas pendentes que serão ignoradas no processamento. Revise a coluna <strong>Detalhe</strong> antes de seguir.
+                    </div>
+                @endif
             </div>
 
             <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -100,8 +122,17 @@
                                                 'error' => 'bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-300',
                                                 default => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200',
                                             };
+                                            $statusLabel = match($row->status) {
+                                                'ready' => 'pronta',
+                                                'pending' => 'pendente',
+                                                'duplicate' => 'duplicidade',
+                                                'created_case' => 'OS criada',
+                                                'updated_case' => 'OS atualizada',
+                                                'error' => 'erro',
+                                                default => str_replace('_', ' ', $row->status),
+                                            };
                                         @endphp
-                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $badge }}">{{ str_replace('_', ' ', $row->status) }}</span>
+                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $badge }}">{{ $statusLabel }}</span>
                                     </td>
                                     <td class="px-4 py-4 align-top text-sm text-gray-700 dark:text-gray-200">
                                         <div>{{ $row->message ?: '—' }}</div>

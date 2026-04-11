@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v12',
-            'date' => '10/04/2026',
-            'label' => 'v12 • 10/04/2026',
+            'version' => 'v1.0',
+            'date' => '11/04/2026',
+            'label' => 'v1.0 • 11/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Estabilização pré-deploy e versionamento v1.x',
+                'items' => [
+                    'Versionamento reajustado para a série v1.x com casas decimais.',
+                    'Importação de inadimplência aceita datas seriais do Excel e exibe datas normalizadas na prévia.',
+                    'Lotes sem linhas prontas não são mais marcados como processados em silêncio.',
+                    'Reprocessamento seguro para lotes antigos que foram processados sem criar OS, atualizar OS ou gerar duplicidade.',
+                    'Correções de estabilidade em sessão, formulários administrativos e feedback de importação antes do deploy.',
+                ],
+            ],
+            [
+                'version' => 'v0.10',
+                'date' => '10/04/2026',
                 'title' => 'Importação de inadimplência por planilha no módulo Cobrança',
                 'items' => [
                     'Novo submódulo para importar inadimplência por .xls e .xlsx dentro de Cobrança.',
@@ -28,7 +40,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v10',
+                'version' => 'v0.9',
                 'date' => '02/04/2026',
                 'title' => 'Endereços vinculados, changelog e refinamentos de UX',
                 'items' => [
@@ -40,7 +52,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v9',
+                'version' => 'v0.8',
                 'date' => '02/04/2026',
                 'title' => 'Correções de documentos de condomínio e ajustes de apresentação',
                 'items' => [
@@ -50,7 +62,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v8',
+                'version' => 'v0.7',
                 'date' => '02/04/2026',
                 'title' => 'Clientes com ações rápidas e importação de unidades',
                 'items' => [
@@ -61,7 +73,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v7',
+                'version' => 'v0.6',
                 'date' => '02/04/2026',
                 'title' => 'Clientes e condomínios fortalecidos',
                 'items' => [
@@ -71,7 +83,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v6',
+                'version' => 'v0.5',
                 'date' => '02/04/2026',
                 'title' => 'Endereços nacionais com CEP, UF e município',
                 'items' => [
@@ -81,7 +93,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v5',
+                'version' => 'v0.4',
                 'date' => '02/04/2026',
                 'title' => 'Clientes com regras PF/PJ e anexos mais claros',
                 'items' => [
@@ -92,7 +104,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v4',
+                'version' => 'v0.3',
                 'date' => '02/04/2026',
                 'title' => 'Configurações, branding e autenticação refinados',
                 'items' => [
@@ -102,7 +114,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v3',
+                'version' => 'v0.2',
                 'date' => '01/04/2026',
                 'title' => 'Configurações administrativas mais robustas',
                 'items' => [
@@ -112,7 +124,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v2',
+                'version' => 'v0.1',
                 'date' => '01/04/2026',
                 'title' => 'Base Laravel/TailAdmin integrada ao Âncora',
                 'items' => [
@@ -122,7 +134,7 @@ class ChangelogController extends Controller
                 ],
             ],
             [
-                'version' => 'v1',
+                'version' => 'v0.0',
                 'date' => '01/04/2026',
                 'title' => 'Reescrita Big Bang da nova base',
                 'items' => [

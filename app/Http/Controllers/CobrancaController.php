@@ -143,7 +143,11 @@ class CobrancaController extends Controller
 
         try {
             $parsed = $this->parseImportSpreadsheet($fullPath);
-            $mappedRows = $this->mapSpreadsheetRowsToImport($parsed['headers'] ?? [], $parsed['rows'] ?? []);
+            $mappedRows = $this->mapSpreadsheetRowsToImport(
+                $parsed['headers'] ?? [],
+                $parsed['rows'] ?? [],
+                (int) ($parsed['header_row_index'] ?? 1)
+            );
         } catch (\Throwable $e) {
             return back()->with('error', 'Não foi possível analisar a planilha: ' . $e->getMessage());
         }
@@ -182,7 +186,14 @@ class CobrancaController extends Controller
         });
 
         $this->classifyImportBatch($batch);
+        $batch->refresh();
         $this->logAction($request, 'preview_cobranca_import', $batch->id, 'Prévia de importação de inadimplência - ' . $batch->original_name);
+
+        if ((int) $batch->ready_rows === 0) {
+            return redirect()
+                ->route('cobrancas.import.show', $batch)
+                ->with('error', 'Planilha analisada, mas nenhuma linha ficou pronta para processar. Confira a coluna Detalhe.');
+        }
 
         return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Planilha analisada. Revise o lote antes de processar.');
     }
@@ -191,12 +202,16 @@ class CobrancaController extends Controller
     {
         $batch->load('user');
         $rows = $batch->rows()->with(['unit.condominium', 'unit.block', 'cobrancaCase'])->orderBy('row_number')->paginate(120);
+        $emptyProcessedBatch = $batch->status === 'processed'
+            && ((int) $batch->created_cases + (int) $batch->updated_cases + (int) $batch->created_quotas + (int) $batch->duplicate_rows) === 0
+            && !$batch->rows()->whereIn('status', ['created_case', 'updated_case', 'duplicate'])->exists();
 
         return view('pages.cobrancas.import', [
             'title' => 'Importação de inadimplência',
             'batch' => $batch,
             'rows' => $rows,
             'recentBatches' => CobrancaImportBatch::query()->where('id', '<>', $batch->id)->latest('id')->limit(8)->get(),
+            'emptyProcessedBatch' => $emptyProcessedBatch,
         ]);
     }
 
@@ -206,7 +221,34 @@ class CobrancaController extends Controller
         abort_unless($user, 401);
 
         if ($batch->status === 'processed') {
-            return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Este lote já foi processado anteriormente.');
+            $hasProcessedCounters = ((int) $batch->created_cases + (int) $batch->updated_cases + (int) $batch->created_quotas + (int) $batch->duplicate_rows) > 0;
+            $hasProcessedRows = $batch->rows()
+                ->whereIn('status', ['created_case', 'updated_case', 'duplicate'])
+                ->exists();
+
+            if (!$hasProcessedCounters && !$hasProcessedRows) {
+                $batch->update([
+                    'status' => 'parsed',
+                    'processed_at' => null,
+                    'summary_json' => array_merge($batch->summary_json ?? [], [
+                        'reopened_empty_processed_batch_at' => now()->toDateTimeString(),
+                    ]),
+                ]);
+            } else {
+                return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Este lote já foi processado anteriormente.');
+            }
+        }
+
+        $this->classifyImportBatch($batch);
+        $batch->refresh();
+
+        $readyRowsBeforeProcessing = (int) $batch->rows()->where('status', 'ready')->count();
+        if ($readyRowsBeforeProcessing === 0) {
+            $pendingRows = (int) $batch->rows()->where('status', 'pending')->count();
+
+            return redirect()
+                ->route('cobrancas.import.show', $batch)
+                ->with('error', 'Nenhuma linha pronta para processar. O lote ficou com ' . $pendingRows . ' pendência(s); confira a coluna Detalhe e envie a planilha corrigida.');
         }
 
         $batch->load(['rows', 'rows.unit.owner']);
@@ -219,7 +261,7 @@ class CobrancaController extends Controller
         $errorRows = 0;
 
         foreach ($batch->rows as $row) {
-            if ($row->status === 'pending') {
+            if ($row->status !== 'ready') {
                 continue;
             }
 
@@ -235,10 +277,10 @@ class CobrancaController extends Controller
             $dueDate = $this->normalizeImportDate((string) $row->due_date_input);
             $amount = $row->amount_value !== null ? (float) $row->amount_value : null;
 
-            if ($reference === '' || $dueDate === null || $amount === null) {
+            if (!$this->isValidReferenceLabel($reference) || $dueDate === null || $amount === null) {
                 $row->update([
                     'status' => 'pending',
-                    'message' => 'Referência, vencimento e valor são obrigatórios para processar a linha.',
+                    'message' => 'Referência, vencimento e valor precisam estar válidos para processar a linha.',
                 ]);
                 continue;
             }
@@ -333,12 +375,24 @@ class CobrancaController extends Controller
                 'processed_created_quotas' => $createdQuotas,
                 'processed_duplicate_rows' => $duplicateRows,
                 'processed_error_rows' => $errorRows,
+                'processed_pending_rows' => $pendingRows,
             ]),
         ]);
 
         $this->logAction($request, 'process_cobranca_import', $batch->id, 'Lote de inadimplência processado - ' . $batch->original_name);
 
-        return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Lote processado. OS criadas: ' . $createdCases . ' · OS atualizadas: ' . $updatedCases . ' · quotas adicionadas: ' . $createdQuotas . '.');
+        $message = 'Lote processado. OS criadas: ' . $createdCases . ' · OS atualizadas: ' . $updatedCases . ' · quotas adicionadas: ' . $createdQuotas;
+        if ($pendingRows > 0) {
+            $message .= ' · pendentes: ' . $pendingRows;
+        }
+        if ($duplicateRows > 0) {
+            $message .= ' · duplicidades: ' . $duplicateRows;
+        }
+        if ($errorRows > 0) {
+            $message .= ' · erros: ' . $errorRows;
+        }
+
+        return redirect()->route('cobrancas.import.show', $batch)->with('success', $message . '.');
     }
 
     public function create(): View
@@ -1294,7 +1348,7 @@ class CobrancaController extends Controller
         return count($found);
     }
 
-    private function mapSpreadsheetRowsToImport(array $headers, array $rows): array
+    private function mapSpreadsheetRowsToImport(array $headers, array $rows, int $headerRowIndex = 1): array
     {
         $map = [];
         foreach ($headers as $index => $header) {
@@ -1319,9 +1373,10 @@ class CobrancaController extends Controller
 
         $result = [];
         foreach ($rows as $rowIndex => $row) {
+            $payloadValues = array_slice(array_pad($row, count($headers), ''), 0, count($headers));
             $entry = [
-                'row_number' => $rowIndex + 2,
-                'raw_payload_json' => array_combine(array_map(fn ($item) => (string) $item, $headers), array_pad($row, count($headers), '')) ?: [],
+                'row_number' => $headerRowIndex + $rowIndex + 1,
+                'raw_payload_json' => array_combine(array_map(fn ($item) => (string) $item, $headers), $payloadValues) ?: [],
                 'condominium_input' => '',
                 'block_input' => '',
                 'unit_input' => '',
@@ -1337,6 +1392,10 @@ class CobrancaController extends Controller
                 $value = trim((string) ($row[$index] ?? ''));
                 if ($field === 'amount') {
                     $entry['amount_value'] = $this->moneyToDb($value);
+                } elseif ($field === 'due_date') {
+                    $entry['due_date_input'] = $this->formatImportDateInput($value);
+                } elseif ($field === 'reference') {
+                    $entry['reference_input'] = $this->formatImportReferenceInput($value);
                 } else {
                     $entry[$field . '_input'] = $value;
                 }
@@ -1364,7 +1423,7 @@ class CobrancaController extends Controller
 
         $condominiums = ClientCondominium::query()->get(['id', 'name', 'has_blocks']);
         $blocks = ClientBlock::query()->get(['id', 'condominium_id', 'name']);
-        $units = ClientUnit::query()->with(['condominium', 'block'])->get(['id', 'condominium_id', 'block_id', 'unit_number']);
+        $units = ClientUnit::query()->with(['condominium', 'block'])->get(['id', 'condominium_id', 'block_id', 'unit_number', 'owner_entity_id']);
 
         $condoLookup = [];
         foreach ($condominiums as $condo) {
@@ -1397,8 +1456,10 @@ class CobrancaController extends Controller
             $condoName = $this->normalizeLookupValue((string) $row->condominium_input);
             $blockName = $this->normalizeBlockInput((string) $row->block_input);
             $unitName = $this->normalizeLookupValue((string) $row->unit_input);
-            $reference = $this->normalizeReferenceLabel((string) $row->reference_input);
-            $dueDate = $this->normalizeImportDate((string) $row->due_date_input);
+            $referenceInput = $this->formatImportReferenceInput((string) $row->reference_input);
+            $dueDateInput = $this->formatImportDateInput((string) $row->due_date_input);
+            $reference = $this->normalizeReferenceLabel($referenceInput);
+            $dueDate = $this->normalizeImportDate($dueDateInput);
             $amount = $row->amount_value !== null ? (float) $row->amount_value : null;
 
             $message = null;
@@ -1459,7 +1520,7 @@ class CobrancaController extends Controller
                 }
             }
 
-            if ($status === 'ready' && $reference === '') {
+            if ($status === 'ready' && !$this->isValidReferenceLabel($reference)) {
                 $status = 'pending';
                 $message = 'Referência inválida. Use mm/aaaa.';
             }
@@ -1478,6 +1539,8 @@ class CobrancaController extends Controller
 
             $row->update([
                 'matched_unit_id' => $matchedUnit?->id,
+                'reference_input' => $referenceInput,
+                'due_date_input' => $dueDateInput,
                 'status' => $status,
                 'message' => $message ?: 'Linha pronta para processamento.',
             ]);
@@ -1531,6 +1594,11 @@ class CobrancaController extends Controller
             return null;
         }
 
+        $serialDate = $this->excelSerialDateToIso($value);
+        if ($serialDate !== null) {
+            return $serialDate;
+        }
+
         foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'd.m.Y', 'm/d/Y'] as $format) {
             $dt = \DateTime::createFromFormat($format, $value);
             if ($dt && $dt->format($format) === $value) {
@@ -1543,6 +1611,38 @@ class CobrancaController extends Controller
         }
 
         return null;
+    }
+
+    private function formatImportDateInput(string $value): string
+    {
+        $value = trim($value);
+        $normalized = $this->normalizeImportDate($value);
+        if ($normalized === null) {
+            return $value;
+        }
+
+        return (new \DateTimeImmutable($normalized))->format('d/m/Y');
+    }
+
+    private function excelSerialDateToIso(string $value): ?string
+    {
+        $value = str_replace(',', '.', trim($value));
+        if (!preg_match('/^\d{2,6}(?:\.\d+)?$/', $value)) {
+            return null;
+        }
+
+        $serial = (float) $value;
+        if ($serial < 25569 || $serial > 60000) {
+            return null;
+        }
+
+        try {
+            return (new \DateTimeImmutable('1899-12-30'))
+                ->modify('+' . (int) floor($serial) . ' days')
+                ->format('Y-m-d');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function findOpenCaseForUnit(int $unitId): ?CobrancaCase
@@ -1648,6 +1748,11 @@ class CobrancaController extends Controller
             return '';
         }
 
+        $serialDate = $this->excelSerialDateToIso($value);
+        if ($serialDate !== null) {
+            return (new \DateTimeImmutable($serialDate))->format('m/Y');
+        }
+
         if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
             return $m[2] . '/' . $m[1];
         }
@@ -1665,6 +1770,19 @@ class CobrancaController extends Controller
         }
 
         return $value;
+    }
+
+    private function isValidReferenceLabel(string $value): bool
+    {
+        return (bool) preg_match('/^(0[1-9]|1[0-2])\/\d{4}$/', $value);
+    }
+
+    private function formatImportReferenceInput(string $value): string
+    {
+        $value = trim($value);
+        $normalized = $this->normalizeReferenceLabel($value);
+
+        return $normalized !== '' ? $normalized : $value;
     }
 
     private function normalizeQuotaKind(?string $value): string
