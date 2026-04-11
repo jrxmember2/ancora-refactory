@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.0',
+            'version' => 'v1.1',
             'date' => '11/04/2026',
-            'label' => 'v1.0 • 11/04/2026',
+            'label' => 'v1.1 • 11/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Termo de acordo automático nas OS de cobrança',
+                'items' => [
+                    'Geração automática de termo de confissão de dívida a partir dos dados da OS.',
+                    'Modelos distintos para unidade não ajuizada e unidade ajuizada com número de processo.',
+                    'Tela de revisão e customização integral do texto antes da emissão.',
+                    'Página A4 de PDF/print para salvar o termo final pelo navegador.',
+                    'Nova tabela de termos vinculada à OS e permissões específicas de acesso.',
+                ],
+            ],
+            [
+                'version' => 'v1.0',
+                'date' => '11/04/2026',
                 'title' => 'Estabilização pré-deploy e versionamento v1.x',
                 'items' => [
                     'Versionamento reajustado para a série v1.x com casas decimais.',

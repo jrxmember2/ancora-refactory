@@ -478,10 +478,10 @@
     <div class="flex flex-wrap gap-3">
         <button class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
         @if($case)
-            <button type="button" disabled aria-disabled="true" title="Em breve será possível gerar o termo automaticamente por aqui." class="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/70 px-5 py-3 text-sm font-medium text-brand-400 opacity-70 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-300/70">
+            <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-brand-50 px-5 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
                 <i class="fa-solid fa-file-signature"></i>
                 Gerar termo de acordo
-            </button>
+            </a>
             <button type="submit" form="delete-cobranca-form" onclick="return confirm('Excluir esta OS de cobrança?')" class="inline-flex items-center gap-2 rounded-xl border border-error-300 bg-white px-5 py-3 text-sm font-medium text-error-600 hover:bg-error-50 dark:border-error-700/60 dark:bg-white/[0.03] dark:text-error-300">Excluir</button>
         @endif
         <a href="{{ $case ? route('cobrancas.show', $case) : route('cobrancas.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</a>

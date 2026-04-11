@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CobrancaCase extends Model
 {
@@ -36,6 +37,7 @@ class CobrancaCase extends Model
     public function installments(): HasMany { return $this->hasMany(CobrancaCaseInstallment::class, 'cobranca_case_id')->orderBy('due_date'); }
     public function timeline(): HasMany { return $this->hasMany(CobrancaCaseTimeline::class, 'cobranca_case_id')->orderByDesc('created_at'); }
     public function attachments(): HasMany { return $this->hasMany(CobrancaCaseAttachment::class, 'cobranca_case_id')->orderByDesc('created_at'); }
+    public function agreementTerm(): HasOne { return $this->hasOne(CobrancaAgreementTerm::class, 'cobranca_case_id'); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
 }

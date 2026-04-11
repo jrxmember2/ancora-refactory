@@ -37,6 +37,7 @@ Depois que o MySQL estiver no ar, importe:
 5. `database/sql/2026_04_route_permissions.sql`
 6. `database/sql/2026_04_cobranca_module.sql`
 7. `database/sql/2026_04_cobranca_importacao.sql`
+8. `database/sql/2026_04_cobranca_termos_acordo.sql`
 
 Se a importação de Cobranças for aplicada por migrations em vez de SQL, rode:
 
@@ -45,6 +46,7 @@ php artisan migrate --path=database/migrations/2026_04_01_000010_create_route_pe
 php artisan migrate --path=database/migrations/2026_04_07_000100_create_cobranca_tables.php --force
 php artisan migrate --path=database/migrations/2026_04_10_000200_create_cobranca_import_tables.php --force
 php artisan migrate --path=database/migrations/2026_04_10_000210_seed_cobranca_import_permissions.php --force
+php artisan migrate --path=database/migrations/2026_04_11_000300_create_cobranca_agreement_terms_table.php --force
 php artisan optimize:clear
 ```
 

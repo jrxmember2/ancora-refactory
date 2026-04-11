@@ -34,6 +34,7 @@ Base de reescrita big bang do Âncora usando:
   - CRUD de OS
   - cotas, parcelas, GED e timeline
   - importação XLS/XLSX de inadimplência
+  - geração/customização de termo de acordo com PDF/print
 - busca global inicial
 - configuração inicial de branding/módulos/usuários
 - permissões por rota
@@ -82,6 +83,7 @@ Por isso, a rota mais segura é manter **MySQL** nesta fase e importar o SQL leg
 5. `database/sql/2026_04_route_permissions.sql`
 6. `database/sql/2026_04_cobranca_module.sql`
 7. `database/sql/2026_04_cobranca_importacao.sql`
+8. `database/sql/2026_04_cobranca_termos_acordo.sql`
 
 Se preferir usar migrations para os incrementos mais novos, importe o SQL completo e rode apenas as migrations específicas de permissões, Cobranças e importação. Não rode migrations sem entender o estado do banco, porque a base nasceu de um dump legado.
 

@@ -12,8 +12,10 @@ use App\Models\CobrancaCaseContact;
 use App\Models\CobrancaCaseInstallment;
 use App\Models\CobrancaCaseQuota;
 use App\Models\CobrancaCaseTimeline;
+use App\Models\CobrancaAgreementTerm;
 use App\Models\CobrancaImportBatch;
 use App\Models\CobrancaImportRow;
+use App\Services\CobrancaAgreementTermService;
 use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -455,6 +457,106 @@ class CobrancaController extends Controller
             'situationLabels' => $this->situationLabels(),
             'billingLabels' => $this->billingStatusLabels(),
             'entryStatusLabels' => $this->entryStatusLabels(),
+        ]);
+    }
+
+    public function agreementEdit(CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
+    {
+        $cobranca->load([
+            'condominium.syndic',
+            'block',
+            'unit.owner',
+            'debtor',
+            'contacts',
+            'quotas',
+            'installments',
+            'agreementTerm',
+        ]);
+
+        $draft = $termService->build($cobranca);
+        $term = $cobranca->agreementTerm;
+        if ($term && $term->template_type !== $draft['template_type']) {
+            $draft['warnings'][] = 'O tipo da OS mudou depois do último termo salvo. Recarregue o rascunho automático antes de emitir, se quiser atualizar as cláusulas.';
+        }
+
+        return view('pages.cobrancas.agreement.edit', [
+            'title' => 'Termo de acordo - OS ' . $cobranca->os_number,
+            'case' => $cobranca,
+            'term' => $term,
+            'draft' => $draft,
+            'formData' => [
+                'title' => old('title', $term?->title ?: $draft['title']),
+                'body_text' => old('body_text', $term?->body_text ?: $draft['body_text']),
+            ],
+        ]);
+    }
+
+    public function agreementSave(Request $request, CobrancaCase $cobranca, CobrancaAgreementTermService $termService): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $title = trim((string) $request->input('title', 'Termo de Confissão de Dívida e Acordo Extrajudicial'));
+        $bodyText = trim((string) $request->input('body_text', ''));
+        if ($bodyText === '') {
+            return back()->withInput()->with('error', 'O texto do termo não pode ficar vazio.');
+        }
+
+        $cobranca->load([
+            'condominium.syndic',
+            'block',
+            'unit.owner',
+            'debtor',
+            'contacts',
+            'quotas',
+            'installments',
+        ]);
+        $draft = $termService->build($cobranca);
+
+        $term = CobrancaAgreementTerm::query()->firstOrNew(['cobranca_case_id' => $cobranca->id]);
+        if (!$term->exists) {
+            $term->generated_by = $user->id;
+        }
+        $term->fill([
+            'template_type' => $draft['template_type'],
+            'title' => Str::limit($title !== '' ? $title : $draft['title'], 255, ''),
+            'body_text' => $bodyText,
+            'payload_json' => $draft['payload'],
+            'updated_by' => $user->id,
+        ]);
+        $term->save();
+
+        $this->recordTimeline($cobranca, 'termo', 'Termo de acordo gerado/customizado para conferência e PDF.', $request, now());
+        $this->logAction($request, 'save_cobranca_agreement_term', $cobranca->id, 'Termo de acordo salvo - ' . $cobranca->os_number);
+
+        return redirect()->route('cobrancas.agreement.edit', $cobranca)->with('success', 'Termo de acordo salvo. Agora você pode gerar o PDF/print.');
+    }
+
+    public function agreementPrint(Request $request, CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
+    {
+        $cobranca->load([
+            'condominium.syndic',
+            'block',
+            'unit.owner',
+            'debtor',
+            'contacts',
+            'quotas',
+            'installments',
+            'agreementTerm',
+        ]);
+
+        $draft = $termService->build($cobranca);
+        $term = $cobranca->agreementTerm;
+        if ($term) {
+            $term->update(['printed_at' => now()]);
+        }
+        $this->logAction($request, 'print_cobranca_agreement_term', $cobranca->id, 'PDF/print do termo de acordo - ' . $cobranca->os_number);
+
+        return view('pages.cobrancas.agreement.print', [
+            'case' => $cobranca,
+            'title' => $term?->title ?: $draft['title'],
+            'bodyText' => $term?->body_text ?: $draft['body_text'],
+            'templateType' => $term?->template_type ?: $draft['template_type'],
         ]);
     }
 
