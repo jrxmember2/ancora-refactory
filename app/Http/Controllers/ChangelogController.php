@@ -9,22 +9,32 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.3',
+            'version' => 'v1.4',
             'date' => '12/04/2026',
-            'label' => 'v1.3 • 12/04/2026',
+            'label' => 'v1.4 • 12/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'PDF compatível com EasyPanel',
+                'items' => [
+                    'Correção do build Docker no Debian Trixie, removendo a dependência do pacote obsoleto wkhtmltopdf.',
+                    'Geração de PDF real do termo de acordo migrada para Chromium headless no container.',
+                    'Fallback mantido para wkhtmltopdf quando o binário existir em algum ambiente legado.',
+                ],
+            ],
+            [
+                'version' => 'v1.3',
+                'date' => '12/04/2026',
                 'title' => 'PDF e layout jurídico do termo de acordo',
                 'items' => [
                     'Termo de acordo com logomarca do branding claro no cabeçalho e contatos no rodapé.',
                     'Separadores do cabeçalho e rodapé na cor institucional #941415.',
                     'Assinaturas reorganizadas em duas colunas para credor/devedor e testemunhas.',
                     'Comarca e local da assinatura calculados pela cidade/UF do condomínio.',
-                    'Geração de PDF real via wkhtmltopdf quando o container é reconstruído com o binário disponível.',
+                    'Geração de PDF real pelo container, com contingência para HTML quando nenhum motor PDF estiver disponível.',
                     'Salvar OS volta a aceitar rascunho de pagamento; a trava de plano fechado passa a ocorrer ao gerar o termo.',
                 ],
             ],

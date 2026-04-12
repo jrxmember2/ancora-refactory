@@ -600,13 +600,10 @@ class CobrancaController extends Controller
 
     private function agreementPdfResponse(array $viewData): ?BinaryFileResponse
     {
-        try {
-            $versionCheck = new Process(['wkhtmltopdf', '--version'], timeout: 15);
-            $versionCheck->run();
-            if (!$versionCheck->isSuccessful()) {
-                return null;
-            }
+        $htmlPath = null;
+        $pdfPath = null;
 
+        try {
             $dir = storage_path('app/generated/cobranca-agreements');
             File::ensureDirectoryExists($dir);
 
@@ -621,8 +618,86 @@ class CobrancaController extends Controller
                 'pdfMode' => true,
             ]))->render());
 
+            $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
+                || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath);
+
+            File::delete($htmlPath);
+
+            if (!$generated || !is_file($pdfPath)) {
+                File::delete($pdfPath);
+                return null;
+            }
+
+            return response()
+                ->file($pdfPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $case->os_number . '-termo-acordo.pdf"',
+                ])
+                ->deleteFileAfterSend(true);
+        } catch (\Throwable) {
+            if ($htmlPath) {
+                File::delete($htmlPath);
+            }
+            if ($pdfPath) {
+                File::delete($pdfPath);
+            }
+
+            return null;
+        }
+    }
+
+    private function renderPdfWithChromium(string $htmlPath, string $pdfPath): bool
+    {
+        $binary = $this->availableExecutable([
+            'chromium',
+            'chromium-browser',
+            'google-chrome',
+            'google-chrome-stable',
+        ]);
+        if (!$binary) {
+            return false;
+        }
+
+        $profileDir = dirname($pdfPath) . DIRECTORY_SEPARATOR . pathinfo($pdfPath, PATHINFO_FILENAME) . '-chrome-profile';
+        File::ensureDirectoryExists($profileDir);
+
+        try {
             $process = new Process([
-                'wkhtmltopdf',
+                $binary,
+                '--headless',
+                '--no-sandbox',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--disable-extensions',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--allow-file-access-from-files',
+                '--no-pdf-header-footer',
+                '--print-to-pdf-no-header',
+                '--user-data-dir=' . $profileDir,
+                '--print-to-pdf=' . $pdfPath,
+                'file://' . str_replace('\\', '/', $htmlPath),
+            ], timeout: 120);
+            $process->run();
+
+            return $process->isSuccessful() && is_file($pdfPath);
+        } catch (\Throwable) {
+            return false;
+        } finally {
+            File::deleteDirectory($profileDir);
+        }
+    }
+
+    private function renderPdfWithWkhtmltopdf(string $htmlPath, string $pdfPath): bool
+    {
+        $binary = $this->availableExecutable(['wkhtmltopdf']);
+        if (!$binary) {
+            return false;
+        }
+
+        try {
+            $process = new Process([
+                $binary,
                 '--enable-local-file-access',
                 '--encoding',
                 'UTF-8',
@@ -640,22 +715,28 @@ class CobrancaController extends Controller
                 $pdfPath,
             ], timeout: 120);
             $process->run();
-            File::delete($htmlPath);
 
-            if (!$process->isSuccessful() || !is_file($pdfPath)) {
-                File::delete($pdfPath);
-                return null;
-            }
-
-            return response()
-                ->file($pdfPath, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'inline; filename="' . $case->os_number . '-termo-acordo.pdf"',
-                ])
-                ->deleteFileAfterSend(true);
+            return $process->isSuccessful() && is_file($pdfPath);
         } catch (\Throwable) {
-            return null;
+            return false;
         }
+    }
+
+    private function availableExecutable(array $candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            try {
+                $process = new Process([$candidate, '--version'], timeout: 15);
+                $process->run();
+                if ($process->isSuccessful()) {
+                    return $candidate;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return null;
     }
 
     private function agreementTermStorageReady(): bool

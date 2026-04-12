@@ -95,6 +95,8 @@ Se preferir usar migrations para os incrementos mais novos, importe o SQL comple
 
 Use o `Dockerfile` da raiz.
 
+O `Dockerfile` instala Chromium headless para emissão dos PDFs do termo de acordo no container.
+
 Variáveis mínimas:
 
 ```env

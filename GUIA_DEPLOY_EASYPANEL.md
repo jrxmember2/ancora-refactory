@@ -52,6 +52,8 @@ php artisan optimize:clear
 
 > O termo de acordo depende da tabela `cobranca_agreement_terms`. Se o código for publicado antes desta migration/SQL, o sistema exibe o rascunho e o PDF, mas bloqueia o salvamento de customizações até o banco ser atualizado.
 
+> A emissão do PDF do termo usa Chromium headless instalado pelo `Dockerfile`.
+
 ## 5. Volumes
 
 Crie persistência para:
