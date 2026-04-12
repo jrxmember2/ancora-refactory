@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.4',
+            'version' => 'v1.5',
             'date' => '12/04/2026',
-            'label' => 'v1.4 • 12/04/2026',
+            'label' => 'v1.5 • 12/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Correção do salvamento da OS',
+                'items' => [
+                    'Modal de divisão automática movido para fora do formulário principal da OS, removendo formulário aninhado inválido.',
+                    'Botão Salvar alterações passa a apontar explicitamente para o formulário da OS.',
+                ],
+            ],
+            [
+                'version' => 'v1.4',
+                'date' => '12/04/2026',
                 'title' => 'PDF compatível com EasyPanel',
                 'items' => [
                     'Correção do build Docker no Debian Trixie, removendo a dependência do pacote obsoleto wkhtmltopdf.',

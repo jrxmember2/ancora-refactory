@@ -467,30 +467,6 @@
         </template>
     </div>
 
-    <dialog id="auto-split-modal" class="fixed inset-0 m-auto w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
-        <form id="auto-split-form" method="dialog">
-            <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Divisão automática</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informe o total de parcelas incluindo a entrada. O sistema divide o valor do acordo e joga eventual diferença de centavos na última parcela.</p>
-            </div>
-            <div class="space-y-4 px-6 py-5">
-                <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade total, incluindo entrada</label>
-                    <input type="number" id="auto-split-count" min="2" step="1" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Ex.: 4">
-                </div>
-                <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vencimento inicial</label>
-                    <input type="date" id="auto-split-start-date" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A entrada usa esta data; as demais parcelas vencem mensalmente a partir dela.</p>
-                </div>
-            </div>
-            <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
-                <button type="button" id="auto-split-cancel" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
-                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600">Preencher parcelas</button>
-            </div>
-        </form>
-    </dialog>
-
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Faturamento</h3>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Deixado ao final do formulário para fechar a OS somente quando o processo operacional estiver concluído.</p>
@@ -511,7 +487,7 @@
     </div>
 
     <div class="flex flex-wrap gap-3">
-        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
+        <button type="submit" form="cobranca-form" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
         @if($case)
             @if($agreementPaymentError ?? null)
                 <span title="{{ $agreementPaymentError }}" class="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">
@@ -535,6 +511,30 @@
         @method('DELETE')
     </form>
 @endif
+
+<dialog id="auto-split-modal" class="fixed inset-0 m-auto w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <form id="auto-split-form" method="dialog">
+        <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Divisão automática</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informe o total de parcelas incluindo a entrada. O sistema divide o valor do acordo e joga eventual diferença de centavos na última parcela.</p>
+        </div>
+        <div class="space-y-4 px-6 py-5">
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade total, incluindo entrada</label>
+                <input type="number" id="auto-split-count" min="2" step="1" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Ex.: 4">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vencimento inicial</label>
+                <input type="date" id="auto-split-start-date" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A entrada usa esta data; as demais parcelas vencem mensalmente a partir dela.</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+            <button type="button" id="auto-split-cancel" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
+            <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600">Preencher parcelas</button>
+        </div>
+    </form>
+</dialog>
 @endsection
 
 @push('scripts')
