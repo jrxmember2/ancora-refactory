@@ -9,15 +9,28 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.2',
+            'version' => 'v1.3',
             'date' => '12/04/2026',
-            'label' => 'v1.2 • 12/04/2026',
+            'label' => 'v1.3 • 12/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'PDF e layout jurídico do termo de acordo',
+                'items' => [
+                    'Termo de acordo com logomarca do branding claro no cabeçalho e contatos no rodapé.',
+                    'Separadores do cabeçalho e rodapé na cor institucional #941415.',
+                    'Assinaturas reorganizadas em duas colunas para credor/devedor e testemunhas.',
+                    'Comarca e local da assinatura calculados pela cidade/UF do condomínio.',
+                    'Geração de PDF real via wkhtmltopdf quando o container é reconstruído com o binário disponível.',
+                    'Salvar OS volta a aceitar rascunho de pagamento; a trava de plano fechado passa a ocorrer ao gerar o termo.',
+                ],
+            ],
+            [
+                'version' => 'v1.2',
+                'date' => '12/04/2026',
                 'title' => 'Automação e validação do plano de pagamento',
                 'items' => [
                     'Botão de divisão automática para gerar entrada e parcelas mensais a partir do valor total do acordo.',

@@ -458,10 +458,11 @@ class CobrancaController extends Controller
             'situationLabels' => $this->situationLabels(),
             'billingLabels' => $this->billingStatusLabels(),
             'entryStatusLabels' => $this->entryStatusLabels(),
+            'agreementPaymentError' => $this->agreementPaymentPlanError($cobranca),
         ]);
     }
 
-    public function agreementEdit(CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
+    public function agreementEdit(CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View|RedirectResponse
     {
         $termStorageReady = $this->agreementTermStorageReady();
         $relations = [
@@ -478,10 +479,14 @@ class CobrancaController extends Controller
         }
         $cobranca->load($relations);
 
+        if ($paymentError = $this->agreementPaymentPlanError($cobranca)) {
+            return redirect()->route('cobrancas.show', $cobranca)->with('error', $paymentError);
+        }
+
         $draft = $termService->build($cobranca);
         $term = $termStorageReady ? $cobranca->agreementTerm : null;
         if (!$termStorageReady) {
-            $draft['warnings'][] = 'A tabela de termos ainda não existe no banco. Rode a migration/SQL incremental para salvar customizações; enquanto isso, o PDF/print usa o rascunho automático.';
+            $draft['warnings'][] = 'A tabela de termos ainda não existe no banco. Rode a migration/SQL incremental para salvar customizações; enquanto isso, o PDF usa o rascunho automático.';
         }
         if ($term && $term->template_type !== $draft['template_type']) {
             $draft['warnings'][] = 'O tipo da OS mudou depois do último termo salvo. Recarregue o rascunho automático antes de emitir, se quiser atualizar as cláusulas.';
@@ -524,6 +529,9 @@ class CobrancaController extends Controller
             'quotas',
             'installments',
         ]);
+        if ($paymentError = $this->agreementPaymentPlanError($cobranca)) {
+            return redirect()->route('cobrancas.show', $cobranca)->with('error', $paymentError);
+        }
         $draft = $termService->build($cobranca);
 
         $term = CobrancaAgreementTerm::query()->firstOrNew(['cobranca_case_id' => $cobranca->id]);
@@ -542,10 +550,10 @@ class CobrancaController extends Controller
         $this->recordTimeline($cobranca, 'termo', 'Termo de acordo gerado/customizado para conferência e PDF.', $request, now());
         $this->logAction($request, 'save_cobranca_agreement_term', $cobranca->id, 'Termo de acordo salvo - ' . $cobranca->os_number);
 
-        return redirect()->route('cobrancas.agreement.edit', $cobranca)->with('success', 'Termo de acordo salvo. Agora você pode gerar o PDF/print.');
+        return redirect()->route('cobrancas.agreement.edit', $cobranca)->with('success', 'Termo de acordo salvo. Agora você pode gerar o PDF.');
     }
 
-    public function agreementPrint(Request $request, CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
+    public function agreementPrint(Request $request, CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View|BinaryFileResponse
     {
         $termStorageReady = $this->agreementTermStorageReady();
         $relations = [
@@ -562,19 +570,92 @@ class CobrancaController extends Controller
         }
         $cobranca->load($relations);
 
+        if ($paymentError = $this->agreementPaymentPlanError($cobranca)) {
+            abort(422, $paymentError);
+        }
+
         $draft = $termService->build($cobranca);
         $term = $termStorageReady ? $cobranca->agreementTerm : null;
         if ($term) {
             $term->update(['printed_at' => now()]);
         }
-        $this->logAction($request, 'print_cobranca_agreement_term', $cobranca->id, 'PDF/print do termo de acordo - ' . $cobranca->os_number);
+        $this->logAction($request, 'print_cobranca_agreement_term', $cobranca->id, 'PDF do termo de acordo - ' . $cobranca->os_number);
 
-        return view('pages.cobrancas.agreement.print', [
+        $viewData = [
             'case' => $cobranca,
             'title' => $term?->title ?: $draft['title'],
             'bodyText' => $term?->body_text ?: $draft['body_text'],
             'templateType' => $term?->template_type ?: $draft['template_type'],
-        ]);
+            'payload' => $term?->payload_json ?: $draft['payload'],
+            'autoPrint' => true,
+            'pdfMode' => false,
+        ];
+
+        if ($pdfResponse = $this->agreementPdfResponse($viewData)) {
+            return $pdfResponse;
+        }
+
+        return view('pages.cobrancas.agreement.document', $viewData);
+    }
+
+    private function agreementPdfResponse(array $viewData): ?BinaryFileResponse
+    {
+        try {
+            $versionCheck = new Process(['wkhtmltopdf', '--version'], timeout: 15);
+            $versionCheck->run();
+            if (!$versionCheck->isSuccessful()) {
+                return null;
+            }
+
+            $dir = storage_path('app/generated/cobranca-agreements');
+            File::ensureDirectoryExists($dir);
+
+            /** @var CobrancaCase $case */
+            $case = $viewData['case'];
+            $baseName = Str::slug($case->os_number ?: 'termo-acordo') . '-' . now()->format('YmdHis') . '-' . Str::random(6);
+            $htmlPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.html';
+            $pdfPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
+
+            File::put($htmlPath, view('pages.cobrancas.agreement.document', array_merge($viewData, [
+                'autoPrint' => false,
+                'pdfMode' => true,
+            ]))->render());
+
+            $process = new Process([
+                'wkhtmltopdf',
+                '--enable-local-file-access',
+                '--encoding',
+                'UTF-8',
+                '--page-size',
+                'A4',
+                '--margin-top',
+                '0',
+                '--margin-right',
+                '0',
+                '--margin-bottom',
+                '0',
+                '--margin-left',
+                '0',
+                $htmlPath,
+                $pdfPath,
+            ], timeout: 120);
+            $process->run();
+            File::delete($htmlPath);
+
+            if (!$process->isSuccessful() || !is_file($pdfPath)) {
+                File::delete($pdfPath);
+                return null;
+            }
+
+            return response()
+                ->file($pdfPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $case->os_number . '-termo-acordo.pdf"',
+                ])
+                ->deleteFileAfterSend(true);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function agreementTermStorageReady(): bool
@@ -584,6 +665,59 @@ class CobrancaController extends Controller
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private function agreementPaymentPlanError(CobrancaCase $case): ?string
+    {
+        $agreementTotal = $this->moneyToCents($case->agreement_total ?? 0);
+        if ($agreementTotal <= 0) {
+            return 'Informe o valor total do acordo antes de gerar o termo.';
+        }
+
+        $covered = 0;
+        $validPayments = 0;
+
+        if ($this->moneyToCents($case->entry_amount ?? 0) > 0) {
+            if (!$case->entry_due_date) {
+                return 'Informe o vencimento da entrada antes de gerar o termo.';
+            }
+            $covered += $this->moneyToCents($case->entry_amount);
+            $validPayments++;
+        }
+
+        foreach ($case->installments as $index => $installment) {
+            $amount = $this->moneyToCents($installment->amount ?? 0);
+            $hasDueDate = !empty($installment->due_date);
+            $label = $installment->label ?: 'parcela ' . ($index + 1);
+
+            if ($amount <= 0 && !$hasDueDate) {
+                continue;
+            }
+            if ($amount > 0 && !$hasDueDate) {
+                return 'Informe o vencimento da ' . $label . ' antes de gerar o termo.';
+            }
+            if ($hasDueDate && $amount <= 0) {
+                return 'Informe o valor da ' . $label . ' antes de gerar o termo.';
+            }
+
+            $covered += $amount;
+            $validPayments++;
+        }
+
+        if ($validPayments === 0) {
+            return 'Cadastre ao menos uma data de vencimento e um valor de pagamento antes de gerar o termo.';
+        }
+
+        $difference = $agreementTotal - $covered;
+        if ($difference === 0) {
+            return null;
+        }
+
+        if ($difference > 0) {
+            return 'O plano de pagamento está incompleto. Faltam ' . $this->centsToMoney($difference) . ' para fechar o valor total do acordo antes de gerar o termo.';
+        }
+
+        return 'O plano de pagamento excede o valor do acordo em ' . $this->centsToMoney(abs($difference)) . '. Ajuste antes de gerar o termo.';
     }
 
     public function edit(CobrancaCase $cobranca): View
@@ -597,6 +731,7 @@ class CobrancaController extends Controller
             'submitLabel' => 'Salvar alterações',
             'formData' => $this->formData($cobranca),
             'formRepeater' => $this->repeaterDataFromCase($cobranca),
+            'agreementPaymentError' => $this->agreementPaymentPlanError($cobranca),
         ], $this->formDependencies()));
     }
 
@@ -813,20 +948,14 @@ class CobrancaController extends Controller
         if ($repeaters['quotas'] === []) {
             $errors[] = 'Cadastre ao menos uma quota em aberto.';
         }
-        if ($payload['entry_amount'] !== null && $payload['entry_due_date'] === null) {
-            $errors[] = 'Informe o vencimento da entrada.';
-        }
         foreach ($repeaters['installments'] as $index => $installment) {
             $label = $installment['label'] ?: 'parcela ' . ($index + 1);
             if ((float) $installment['amount'] > 0 && empty($installment['due_date'])) {
-                $errors[] = 'Informe o vencimento da ' . $label . '.';
+                $errors[] = 'Informe o vencimento da ' . $label . ' antes de salvar.';
             }
             if (!empty($installment['due_date']) && (float) $installment['amount'] <= 0) {
-                $errors[] = 'Informe o valor da ' . $label . '.';
+                $errors[] = 'Informe o valor da ' . $label . ' antes de salvar.';
             }
-        }
-        if ($paymentError = $this->agreementPaymentTotalError($payload, $repeaters['installments'])) {
-            $errors[] = $paymentError;
         }
         if ($invalidEmails = $this->invalidNotificationEmails($request)) {
             $errors[] = 'Revise os e-mails de notificação. Informe apenas endereços válidos.';
@@ -1180,7 +1309,7 @@ class CobrancaController extends Controller
             ->map(function ($row) {
                 $dueDate = trim((string) ($row['due_date'] ?? ''));
                 $amount = $this->moneyToDb($row['amount'] ?? null);
-                if ($dueDate === '' && ($amount === null || (float) $amount <= 0) && trim((string) ($row['label'] ?? '')) === '') {
+                if ($dueDate === '' && ($amount === null || (float) $amount <= 0)) {
                     return null;
                 }
                 return [
@@ -1196,31 +1325,6 @@ class CobrancaController extends Controller
             ->values()
             ->all();
     }
-
-    private function agreementPaymentTotalError(array $payload, array $installments): ?string
-    {
-        $agreementTotal = $this->moneyToCents($payload['agreement_total'] ?? 0);
-        if ($agreementTotal <= 0) {
-            return null;
-        }
-
-        $covered = $this->moneyToCents($payload['entry_amount'] ?? 0);
-        foreach ($installments as $installment) {
-            $covered += $this->moneyToCents($installment['amount'] ?? 0);
-        }
-
-        $difference = $agreementTotal - $covered;
-        if ($difference === 0) {
-            return null;
-        }
-
-        if ($difference > 0) {
-            return 'O plano de pagamento está incompleto. Faltam ' . $this->centsToMoney($difference) . ' em parcelas para fechar o valor total do acordo.';
-        }
-
-        return 'O plano de pagamento excede o valor do acordo em ' . $this->centsToMoney(abs($difference)) . '.';
-    }
-
 
     private function parseImportSpreadsheet(string $fullPath): array
     {

@@ -4,7 +4,11 @@
 <x-ancora.section-header :title="'OS '.$case->os_number" subtitle="Acompanhe o histórico completo da cobrança, GED, quotas, parcelas e payload operacional.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('cobrancas.edit', $case) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Editar</a>
-        <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar termo de acordo</a>
+        @if($agreementPaymentError ?? null)
+            <span title="{{ $agreementPaymentError }}" class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Gerar termo de acordo</span>
+        @else
+            <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar termo de acordo</a>
+        @endif
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
 </x-ancora.section-header>

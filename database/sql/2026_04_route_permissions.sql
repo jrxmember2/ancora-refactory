@@ -86,7 +86,7 @@ INSERT INTO `route_permissions` (`group_key`, `route_name`, `label`, `created_at
 ('cobrancas', 'cobrancas.import.process', 'Processar lote de inadimplência', NOW()),
 ('cobrancas', 'cobrancas.agreement.edit', 'Editar termo de acordo da OS', NOW()),
 ('cobrancas', 'cobrancas.agreement.save', 'Salvar customização do termo de acordo', NOW()),
-('cobrancas', 'cobrancas.agreement.pdf', 'PDF/print termo de acordo', NOW()),
+('cobrancas', 'cobrancas.agreement.pdf', 'Gerar PDF do termo de acordo', NOW()),
 ('cobrancas', 'cobrancas.show', 'Visualizar OS de cobrança', NOW()),
 ('cobrancas', 'cobrancas.edit', 'Editar OS de cobrança', NOW()),
 ('cobrancas', 'cobrancas.update', 'Atualizar OS de cobrança', NOW()),

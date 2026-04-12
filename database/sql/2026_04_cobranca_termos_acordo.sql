@@ -31,5 +31,5 @@ SELECT 'cobrancas', 'cobrancas.agreement.save', 'Salvar customização do termo 
 WHERE NOT EXISTS (SELECT 1 FROM `route_permissions` WHERE `route_name` = 'cobrancas.agreement.save');
 
 INSERT INTO `route_permissions` (`group_key`, `route_name`, `label`, `created_at`)
-SELECT 'cobrancas', 'cobrancas.agreement.pdf', 'PDF/print termo de acordo', NOW()
+SELECT 'cobrancas', 'cobrancas.agreement.pdf', 'Gerar PDF do termo de acordo', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `route_permissions` WHERE `route_name` = 'cobrancas.agreement.pdf');

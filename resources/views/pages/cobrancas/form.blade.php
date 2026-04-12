@@ -511,12 +511,19 @@
     </div>
 
     <div class="flex flex-wrap gap-3">
-        <button class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
+        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">{{ $submitLabel }}</button>
         @if($case)
-            <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-brand-50 px-5 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
-                <i class="fa-solid fa-file-signature"></i>
-                Gerar termo de acordo
-            </a>
+            @if($agreementPaymentError ?? null)
+                <span title="{{ $agreementPaymentError }}" class="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">
+                    <i class="fa-solid fa-file-signature"></i>
+                    Gerar termo de acordo
+                </span>
+            @else
+                <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-brand-50 px-5 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
+                    <i class="fa-solid fa-file-signature"></i>
+                    Gerar termo de acordo
+                </a>
+            @endif
             <button type="submit" form="delete-cobranca-form" onclick="return confirm('Excluir esta OS de cobrança?')" class="inline-flex items-center gap-2 rounded-xl border border-error-300 bg-white px-5 py-3 text-sm font-medium text-error-600 hover:bg-error-50 dark:border-error-700/60 dark:bg-white/[0.03] dark:text-error-300">Excluir</button>
         @endif
         <a href="{{ $case ? route('cobrancas.show', $case) : route('cobrancas.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</a>
@@ -1079,38 +1086,6 @@
         }]);
     }
 
-    function paymentSubmitError() {
-        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
-        if (moneyCentsFromInput(entryAmountInput) > 0 && !entryDueDateInput?.value) {
-            return 'Informe o vencimento da entrada.';
-        }
-
-        const rows = installmentRows();
-        for (const row of rows) {
-            const amount = moneyCentsFromInput(row.querySelector('input[name$="[amount]"]'));
-            const dueDate = row.querySelector('input[name$="[due_date]"]')?.value || '';
-            const label = row.querySelector('input[name$="[label]"]')?.value || 'parcela';
-            if (amount > 0 && !dueDate) {
-                return `Informe o vencimento da ${label}.`;
-            }
-            if (dueDate && amount <= 0) {
-                return `Informe o valor da ${label}.`;
-            }
-        }
-
-        if (agreementTotal > 0) {
-            const difference = paymentPlanDifferenceCents();
-            if (difference > 0) {
-                return `O plano de pagamento está incompleto. Ainda faltam ${formatCentsLabel(difference)} em parcelas.`;
-            }
-            if (difference < 0) {
-                return `O plano de pagamento excede o valor do acordo em ${formatCentsLabel(difference)}.`;
-            }
-        }
-
-        return '';
-    }
-
     function bindRemoveButtons(scope) {
         document.querySelectorAll(`[data-repeater-container="${scope}"] [data-repeater-remove]`).forEach((button) => {
             button.onclick = () => {
@@ -1172,13 +1147,6 @@
             updatePaymentBalance();
         }
     });
-    form?.addEventListener('submit', (event) => {
-        const error = paymentSubmitError();
-        if (!error) return;
-        event.preventDefault();
-        alert(error);
-    });
-
     const selected = findUnitSelectionById(initialUnitId);
     if (selected && condominiumSelect) {
         condominiumSelect.value = selected.condominiumId;

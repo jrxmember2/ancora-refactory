@@ -71,6 +71,7 @@ class CobrancaAgreementTermService
         $phone = $this->primaryContact($case, 'phone');
         $entry = $this->entryData($case);
         $installments = $this->agreementInstallments($case, $entry);
+        $condominiumCityState = $this->cityState($case->condominium?->address_json ?? []);
 
         return [
             'template_type' => $templateType,
@@ -90,7 +91,8 @@ class CobrancaAgreementTermService
             'has_entry' => $entry !== null,
             'judicial_case_number' => $case->judicial_case_number,
             'signature_date' => $this->longDate(now()),
-            'signature_city' => 'Vitória/ES',
+            'signature_city' => $condominiumCityState ?: 'Vitória/ES',
+            'forum_city' => $condominiumCityState ?: 'Vitória/ES',
             'creditor_signature' => mb_strtoupper((string) ($case->condominium?->name ?: 'CONDOMÍNIO CREDOR'), 'UTF-8'),
             'debtor_signature' => mb_strtoupper((string) ($case->debtor_name_snapshot ?: ($case->debtor?->display_name ?: 'DEVEDOR')), 'UTF-8'),
             'law_office' => self::LAW_OFFICE,
@@ -126,7 +128,7 @@ class CobrancaAgreementTermService
         }
 
         $paragraphs = array_merge($paragraphs, [
-            $foroClause . ': Para dirimir quaisquer controvérsias oriundas do presente TERMO DE CONFISSÃO DE DÍVIDAS, as partes elegem o foro da comarca de Vitória/ES, com renúncia expressa de qualquer outro, por mais privilegiado que seja, com amparo nos arts. 78 do Código Civil e art. 63 do Código de Processo Civil.',
+            $foroClause . ': Para dirimir quaisquer controvérsias oriundas do presente TERMO DE CONFISSÃO DE DÍVIDAS, as partes elegem o foro da comarca de ' . $payload['forum_city'] . ', com renúncia expressa de qualquer outro, por mais privilegiado que seja, com amparo nos arts. 78 do Código Civil e art. 63 do Código de Processo Civil.',
             'Assim, por estarem justos CREDOR e ' . $debtor . ', firmam de forma irrevogável e irretratável o presente instrumento, em duas vias de igual teor, na presença de 02 (duas) testemunhas que a tudo presenciaram, para que produza e surta os seus efeitos legais e jurídicos devidos.',
             $payload['signature_city'] . ', ' . $payload['signature_date'] . '.',
             "________________________________________\n" . $payload['creditor_signature'] . "\np.p/ Rebeca de Paula - OAB/ES 25.057\nCREDOR",
@@ -188,7 +190,7 @@ class CobrancaAgreementTermService
 
         $document = $syndic->cpf_cnpj ? ', inscrito(a) no CPF/CNPJ sob o nº ' . $syndic->cpf_cnpj : '';
 
-        return ', neste ato representado por seu/sua síndico(a), ' . $syndic->display_name . $document;
+        return ', neste ato representado por seu/sua síndico(a), ' . mb_strtoupper((string) $syndic->display_name, 'UTF-8') . $document;
     }
 
     private function debtorText(CobrancaCase $case, ?string $email, ?string $phone): string
@@ -376,6 +378,14 @@ class CobrancaAgreementTermService
             collect([$address['city'] ?? null, $address['state'] ?? null])->filter()->implode('/'),
             ($address['zip'] ?? null) ? 'CEP: ' . $address['zip'] : null,
         ])->filter(fn ($item) => trim((string) $item) !== '')->implode(', ');
+    }
+
+    private function cityState(array $address): string
+    {
+        $city = trim((string) ($address['city'] ?? ''));
+        $state = mb_strtoupper(trim((string) ($address['state'] ?? '')), 'UTF-8');
+
+        return collect([$city, $state])->filter()->implode('/');
     }
 
     private function referenceLong(string $label): string

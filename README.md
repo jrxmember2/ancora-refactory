@@ -34,7 +34,7 @@ Base de reescrita big bang do Âncora usando:
   - CRUD de OS
   - cotas, parcelas, GED e timeline
   - importação XLS/XLSX de inadimplência
-  - geração/customização de termo de acordo com PDF/print
+  - geração/customização de termo de acordo com PDF
 - busca global inicial
 - configuração inicial de branding/módulos/usuários
 - permissões por rota

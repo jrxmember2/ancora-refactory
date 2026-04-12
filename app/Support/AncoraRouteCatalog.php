@@ -88,7 +88,7 @@ class AncoraRouteCatalog
                     'cobrancas.import.process' => 'Processar lote de inadimplência',
                     'cobrancas.agreement.edit' => 'Editar termo de acordo da OS',
                     'cobrancas.agreement.save' => 'Salvar customização do termo de acordo',
-                    'cobrancas.agreement.pdf' => 'PDF/print termo de acordo',
+                    'cobrancas.agreement.pdf' => 'Gerar PDF do termo de acordo',
                     'cobrancas.show' => 'Visualizar OS de cobrança',
                     'cobrancas.edit' => 'Editar OS de cobrança',
                     'cobrancas.update' => 'Atualizar OS de cobrança',
