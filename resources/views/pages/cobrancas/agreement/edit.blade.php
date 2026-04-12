@@ -12,6 +12,12 @@
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
     <form method="post" action="{{ route('cobrancas.agreement.save', $case) }}" class="space-y-6">
         @csrf
+        @if(!($termStorageReady ?? true))
+            <div class="rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800 dark:border-warning-900/40 dark:bg-warning-500/10 dark:text-warning-200">
+                A tabela de termos ainda não foi criada no banco. Você pode abrir o PDF/print do rascunho automático, mas para salvar customizações é necessário rodar a migration ou aplicar o SQL incremental.
+            </div>
+        @endif
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-2">
@@ -33,7 +39,7 @@
             </div>
 
             <div class="mt-5 flex flex-wrap gap-3">
-                <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600">Salvar customização</button>
+                <button @disabled(!($termStorageReady ?? true)) class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">Salvar customização</button>
                 <button type="button" id="reload-agreement-draft" class="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Recarregar rascunho automático</button>
                 <a href="{{ route('cobrancas.agreement.pdf', $case) }}" target="_blank" class="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Abrir PDF / Print</a>
             </div>

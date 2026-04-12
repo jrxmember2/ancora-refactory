@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\Process\Process;
@@ -462,7 +463,8 @@ class CobrancaController extends Controller
 
     public function agreementEdit(CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
     {
-        $cobranca->load([
+        $termStorageReady = $this->agreementTermStorageReady();
+        $relations = [
             'condominium.syndic',
             'block',
             'unit.owner',
@@ -470,11 +472,17 @@ class CobrancaController extends Controller
             'contacts',
             'quotas',
             'installments',
-            'agreementTerm',
-        ]);
+        ];
+        if ($termStorageReady) {
+            $relations[] = 'agreementTerm';
+        }
+        $cobranca->load($relations);
 
         $draft = $termService->build($cobranca);
-        $term = $cobranca->agreementTerm;
+        $term = $termStorageReady ? $cobranca->agreementTerm : null;
+        if (!$termStorageReady) {
+            $draft['warnings'][] = 'A tabela de termos ainda não existe no banco. Rode a migration/SQL incremental para salvar customizações; enquanto isso, o PDF/print usa o rascunho automático.';
+        }
         if ($term && $term->template_type !== $draft['template_type']) {
             $draft['warnings'][] = 'O tipo da OS mudou depois do último termo salvo. Recarregue o rascunho automático antes de emitir, se quiser atualizar as cláusulas.';
         }
@@ -483,6 +491,7 @@ class CobrancaController extends Controller
             'title' => 'Termo de acordo - OS ' . $cobranca->os_number,
             'case' => $cobranca,
             'term' => $term,
+            'termStorageReady' => $termStorageReady,
             'draft' => $draft,
             'formData' => [
                 'title' => old('title', $term?->title ?: $draft['title']),
@@ -495,6 +504,10 @@ class CobrancaController extends Controller
     {
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
+
+        if (!$this->agreementTermStorageReady()) {
+            return back()->withInput()->with('error', 'A tabela de termos de acordo ainda não existe no banco. Rode a migration 2026_04_11_000300 ou aplique o SQL database/sql/2026_04_cobranca_termos_acordo.sql antes de salvar customizações.');
+        }
 
         $title = trim((string) $request->input('title', 'Termo de Confissão de Dívida e Acordo Extrajudicial'));
         $bodyText = trim((string) $request->input('body_text', ''));
@@ -534,7 +547,8 @@ class CobrancaController extends Controller
 
     public function agreementPrint(Request $request, CobrancaCase $cobranca, CobrancaAgreementTermService $termService): View
     {
-        $cobranca->load([
+        $termStorageReady = $this->agreementTermStorageReady();
+        $relations = [
             'condominium.syndic',
             'block',
             'unit.owner',
@@ -542,11 +556,14 @@ class CobrancaController extends Controller
             'contacts',
             'quotas',
             'installments',
-            'agreementTerm',
-        ]);
+        ];
+        if ($termStorageReady) {
+            $relations[] = 'agreementTerm';
+        }
+        $cobranca->load($relations);
 
         $draft = $termService->build($cobranca);
-        $term = $cobranca->agreementTerm;
+        $term = $termStorageReady ? $cobranca->agreementTerm : null;
         if ($term) {
             $term->update(['printed_at' => now()]);
         }
@@ -558,6 +575,15 @@ class CobrancaController extends Controller
             'bodyText' => $term?->body_text ?: $draft['body_text'],
             'templateType' => $term?->template_type ?: $draft['template_type'],
         ]);
+    }
+
+    private function agreementTermStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('cobranca_agreement_terms');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function edit(CobrancaCase $cobranca): View
@@ -789,6 +815,18 @@ class CobrancaController extends Controller
         }
         if ($payload['entry_amount'] !== null && $payload['entry_due_date'] === null) {
             $errors[] = 'Informe o vencimento da entrada.';
+        }
+        foreach ($repeaters['installments'] as $index => $installment) {
+            $label = $installment['label'] ?: 'parcela ' . ($index + 1);
+            if ((float) $installment['amount'] > 0 && empty($installment['due_date'])) {
+                $errors[] = 'Informe o vencimento da ' . $label . '.';
+            }
+            if (!empty($installment['due_date']) && (float) $installment['amount'] <= 0) {
+                $errors[] = 'Informe o valor da ' . $label . '.';
+            }
+        }
+        if ($paymentError = $this->agreementPaymentTotalError($payload, $repeaters['installments'])) {
+            $errors[] = $paymentError;
         }
         if ($invalidEmails = $this->invalidNotificationEmails($request)) {
             $errors[] = 'Revise os e-mails de notificação. Informe apenas endereços válidos.';
@@ -1142,14 +1180,14 @@ class CobrancaController extends Controller
             ->map(function ($row) {
                 $dueDate = trim((string) ($row['due_date'] ?? ''));
                 $amount = $this->moneyToDb($row['amount'] ?? null);
-                if ($dueDate === '' && $amount === null && trim((string) ($row['label'] ?? '')) === '') {
+                if ($dueDate === '' && ($amount === null || (float) $amount <= 0) && trim((string) ($row['label'] ?? '')) === '') {
                     return null;
                 }
                 return [
                     'label' => Str::limit(trim((string) ($row['label'] ?? '')), 100, ''),
                     'installment_type' => trim((string) ($row['installment_type'] ?? 'parcela')) ?: 'parcela',
                     'installment_number' => (int) ($row['installment_number'] ?? 0),
-                    'due_date' => $dueDate ?: now()->toDateString(),
+                    'due_date' => $dueDate ?: null,
                     'amount' => $amount ?? 0,
                     'status' => trim((string) ($row['status'] ?? 'pendente')) ?: 'pendente',
                 ];
@@ -1157,6 +1195,30 @@ class CobrancaController extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function agreementPaymentTotalError(array $payload, array $installments): ?string
+    {
+        $agreementTotal = $this->moneyToCents($payload['agreement_total'] ?? 0);
+        if ($agreementTotal <= 0) {
+            return null;
+        }
+
+        $covered = $this->moneyToCents($payload['entry_amount'] ?? 0);
+        foreach ($installments as $installment) {
+            $covered += $this->moneyToCents($installment['amount'] ?? 0);
+        }
+
+        $difference = $agreementTotal - $covered;
+        if ($difference === 0) {
+            return null;
+        }
+
+        if ($difference > 0) {
+            return 'O plano de pagamento está incompleto. Faltam ' . $this->centsToMoney($difference) . ' em parcelas para fechar o valor total do acordo.';
+        }
+
+        return 'O plano de pagamento excede o valor do acordo em ' . $this->centsToMoney(abs($difference)) . '.';
     }
 
 
@@ -1994,6 +2056,16 @@ class CobrancaController extends Controller
         }
         $raw = str_replace(',', '.', $raw);
         return is_numeric($raw) ? round((float) $raw, 2) : null;
+    }
+
+    private function moneyToCents(mixed $value): int
+    {
+        return (int) round(((float) ($value ?? 0)) * 100);
+    }
+
+    private function centsToMoney(int $cents): string
+    {
+        return 'R$ ' . number_format($cents / 100, 2, ',', '.');
     }
 
     private function logAction(Request $request, string $action, int $entityId, string $details): void

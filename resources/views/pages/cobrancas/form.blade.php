@@ -353,12 +353,23 @@
     </div>
 
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <div class="mb-3 flex items-center justify-between gap-3">
+        <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Parcelas / vencimentos</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Linhas mais largas para descrição, valor e vencimento.</p>
             </div>
-            <button type="button" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-repeater-add="installments"><i class="fa-solid fa-plus"></i></button>
+            <div class="flex flex-col gap-2 lg:items-end">
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" id="installments-auto-split" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">Divisão automática</button>
+                    <button type="button" id="installments-single" class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.04]">Parcela única</button>
+                    <button type="button" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-repeater-add="installments"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="installments-balance-card" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/30 dark:text-gray-200">
+                    <span class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Valor restante</span>
+                    <strong id="installments-balance" class="ml-2 text-gray-900 dark:text-white">R$ 0,00</strong>
+                    <span id="installments-balance-hint" class="ml-2 text-xs text-gray-500 dark:text-gray-400">Plano fechado.</span>
+                </div>
+            </div>
         </div>
         <div class="space-y-3" data-repeater-container="installments">
             @foreach($formRepeater['installments'] as $index => $row)
@@ -456,6 +467,30 @@
         </template>
     </div>
 
+    <dialog id="auto-split-modal" class="fixed inset-0 m-auto w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+        <form id="auto-split-form" method="dialog">
+            <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Divisão automática</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informe o total de parcelas incluindo a entrada. O sistema divide o valor do acordo e joga eventual diferença de centavos na última parcela.</p>
+            </div>
+            <div class="space-y-4 px-6 py-5">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade total, incluindo entrada</label>
+                    <input type="number" id="auto-split-count" min="2" step="1" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Ex.: 4">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vencimento inicial</label>
+                    <input type="date" id="auto-split-start-date" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A entrada usa esta data; as demais parcelas vencem mensalmente a partir dela.</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+                <button type="button" id="auto-split-cancel" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
+                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600">Preencher parcelas</button>
+            </div>
+        </form>
+    </dialog>
+
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Faturamento</h3>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Deixado ao final do formulário para fechar a OS somente quando o processo operacional estiver concluído.</p>
@@ -513,6 +548,20 @@
     const ownerContactSummary = document.getElementById('owner-contact-summary');
     const chargeType = document.getElementById('charge-type');
     const judicialField = document.getElementById('judicial-case-field');
+    const form = document.getElementById('cobranca-form');
+    const agreementTotalInput = form?.querySelector('[name="agreement_total"]');
+    const entryDueDateInput = form?.querySelector('[name="entry_due_date"]');
+    const entryAmountInput = form?.querySelector('[name="entry_amount"]');
+    const entryStatusInput = form?.querySelector('[name="entry_status"]');
+    const installmentsBalance = document.getElementById('installments-balance');
+    const installmentsBalanceHint = document.getElementById('installments-balance-hint');
+    const autoSplitButton = document.getElementById('installments-auto-split');
+    const singleInstallmentButton = document.getElementById('installments-single');
+    const autoSplitModal = document.getElementById('auto-split-modal');
+    const autoSplitForm = document.getElementById('auto-split-form');
+    const autoSplitCount = document.getElementById('auto-split-count');
+    const autoSplitStartDate = document.getElementById('auto-split-start-date');
+    const autoSplitCancel = document.getElementById('auto-split-cancel');
 
     function moneyDigits(value) {
         return String(value || '').replace(/\D+/g, '');
@@ -529,13 +578,81 @@
         input.value = amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function moneyCentsFromValue(value) {
+        const digits = moneyDigits(value);
+        return digits ? Number(digits) : 0;
+    }
+
+    function moneyCentsFromInput(input) {
+        return moneyCentsFromValue(input?.value || '');
+    }
+
+    function formatCentsValue(cents) {
+        return (Math.max(0, cents) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatCentsLabel(cents) {
+        return `R$ ${formatCentsValue(Math.abs(cents))}`;
+    }
+
+    function installmentRows() {
+        return Array.from(document.querySelectorAll('[data-repeater-container="installments"] [data-repeater-row]'));
+    }
+
+    function installmentsTotalCents() {
+        return installmentRows().reduce((total, row) => {
+            return total + moneyCentsFromInput(row.querySelector('input[name$="[amount]"]'));
+        }, 0);
+    }
+
+    function paymentPlanDifferenceCents() {
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        const covered = moneyCentsFromInput(entryAmountInput) + installmentsTotalCents();
+        return agreementTotal - covered;
+    }
+
+    function updatePaymentBalance() {
+        if (!installmentsBalance || !installmentsBalanceHint) return;
+
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        const difference = paymentPlanDifferenceCents();
+        installmentsBalance.textContent = formatCentsLabel(difference);
+
+        if (agreementTotal <= 0) {
+            installmentsBalanceHint.textContent = 'Informe o valor do acordo.';
+            installmentsBalanceHint.className = 'ml-2 text-xs text-gray-500 dark:text-gray-400';
+            return;
+        }
+
+        if (difference === 0) {
+            installmentsBalanceHint.textContent = 'Plano fechado.';
+            installmentsBalanceHint.className = 'ml-2 text-xs text-success-600 dark:text-success-400';
+            return;
+        }
+
+        if (difference > 0) {
+            installmentsBalanceHint.textContent = 'Faltam parcelas.';
+            installmentsBalanceHint.className = 'ml-2 text-xs text-warning-700 dark:text-warning-300';
+            return;
+        }
+
+        installmentsBalanceHint.textContent = 'Valor excedente.';
+        installmentsBalanceHint.className = 'ml-2 text-xs text-error-600 dark:text-error-400';
+    }
+
     function bindMoneyMask(scope = document) {
         scope.querySelectorAll('[data-money]').forEach((input) => {
             if (input.dataset.moneyBound === '1') return;
             input.dataset.moneyBound = '1';
             formatMoneyInput(input);
-            input.addEventListener('input', () => formatMoneyInput(input));
-            input.addEventListener('blur', () => formatMoneyInput(input));
+            input.addEventListener('input', () => {
+                formatMoneyInput(input);
+                updatePaymentBalance();
+            });
+            input.addEventListener('blur', () => {
+                formatMoneyInput(input);
+                updatePaymentBalance();
+            });
         });
     }
 
@@ -813,12 +930,197 @@
         syncOwnerSummary();
     }
 
+    function reindexRepeater(scope) {
+        document.querySelectorAll(`[data-repeater-container="${scope}"] [data-repeater-row]`).forEach((row, index) => {
+            row.querySelectorAll('[name]').forEach((field) => {
+                field.name = field.name.replace(new RegExp(`${scope}\\[\\d+\\]`), `${scope}[${index}]`);
+            });
+        });
+    }
+
+    function setInstallmentRowValues(rowElement, row) {
+        rowElement.querySelector('input[name$="[label]"]').value = row.label || '';
+        rowElement.querySelector('select[name$="[installment_type]"]').value = row.installment_type || 'parcela';
+        rowElement.querySelector('input[name$="[installment_number]"]').value = row.installment_number || '';
+        rowElement.querySelector('input[name$="[due_date]"]').value = row.due_date || '';
+        rowElement.querySelector('input[name$="[amount]"]').value = row.amount_cents !== undefined ? formatCentsValue(row.amount_cents) : (row.amount || '');
+        rowElement.querySelector('select[name$="[status]"]').value = row.status || 'pendente';
+    }
+
+    function rebuildInstallmentRows(rows) {
+        const container = document.querySelector('[data-repeater-container="installments"]');
+        const template = document.querySelector('[data-repeater-template="installments"]');
+        if (!container || !template) return;
+
+        container.innerHTML = '';
+        (rows.length ? rows : [{ label: '', installment_type: 'parcela', installment_number: '', due_date: '', amount_cents: 0, status: 'pendente' }]).forEach((row, index) => {
+            const html = template.innerHTML.replaceAll('__INDEX__', index);
+            container.insertAdjacentHTML('beforeend', html);
+            const inserted = container.lastElementChild;
+            if (inserted) {
+                setInstallmentRowValues(inserted, row);
+            }
+        });
+
+        bindRemoveButtons('installments');
+        bindMoneyMask(container);
+        updatePaymentBalance();
+    }
+
+    function dateInputValue(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function todayInputValue() {
+        return dateInputValue(new Date());
+    }
+
+    function addMonthsToInputDate(value, offset) {
+        const parts = String(value || '').split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) {
+            return '';
+        }
+
+        const [year, month, day] = parts;
+        const target = new Date(year, month - 1 + offset, 1);
+        const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+        target.setDate(Math.min(day, lastDay));
+        return dateInputValue(target);
+    }
+
+    function openAutoSplitModal() {
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        if (agreementTotal <= 0) {
+            alert('Informe o valor do acordo antes de usar a divisão automática.');
+            agreementTotalInput?.focus();
+            return;
+        }
+
+        const filledInstallments = installmentRows().filter((row) => {
+            return moneyCentsFromInput(row.querySelector('input[name$="[amount]"]')) > 0;
+        }).length;
+        const suggestedCount = Math.max(2, filledInstallments + (moneyCentsFromInput(entryAmountInput) > 0 ? 1 : 0));
+        if (autoSplitCount) autoSplitCount.value = suggestedCount;
+        if (autoSplitStartDate) autoSplitStartDate.value = entryDueDateInput?.value || todayInputValue();
+        autoSplitModal?.showModal();
+    }
+
+    function applyAutoSplit() {
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        const count = Math.max(0, parseInt(autoSplitCount?.value || '0', 10));
+        const startDate = autoSplitStartDate?.value || '';
+
+        if (agreementTotal <= 0) {
+            alert('Informe o valor do acordo antes de dividir.');
+            return;
+        }
+        if (count < 2) {
+            alert('Informe pelo menos 2 parcelas, contando a entrada.');
+            autoSplitCount?.focus();
+            return;
+        }
+        if (!startDate) {
+            alert('Informe o vencimento inicial.');
+            autoSplitStartDate?.focus();
+            return;
+        }
+
+        const base = Math.floor(agreementTotal / count);
+        if (base <= 0) {
+            alert('A quantidade de parcelas é maior que o valor disponível em centavos.');
+            return;
+        }
+
+        const amounts = Array(count).fill(base);
+        amounts[count - 1] += agreementTotal - (base * count);
+
+        if (entryAmountInput) entryAmountInput.value = formatCentsValue(amounts[0]);
+        if (entryDueDateInput) entryDueDateInput.value = startDate;
+
+        const installmentRowsPayload = [];
+        const installmentCount = count - 1;
+        for (let index = 1; index < count; index++) {
+            installmentRowsPayload.push({
+                label: `Parcela ${index}/${installmentCount}`,
+                installment_type: 'parcela',
+                installment_number: index,
+                due_date: addMonthsToInputDate(startDate, index),
+                amount_cents: amounts[index],
+                status: 'pendente',
+            });
+        }
+
+        rebuildInstallmentRows(installmentRowsPayload);
+        autoSplitModal?.close();
+    }
+
+    function applySingleInstallment() {
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        if (agreementTotal <= 0) {
+            alert('Informe o valor do acordo antes de criar a parcela única.');
+            agreementTotalInput?.focus();
+            return;
+        }
+
+        if (entryAmountInput) entryAmountInput.value = '';
+        if (entryDueDateInput) entryDueDateInput.value = '';
+        if (entryStatusInput) entryStatusInput.value = '';
+
+        rebuildInstallmentRows([{
+            label: 'PARCELA ÚNICA',
+            installment_type: 'parcela',
+            installment_number: 1,
+            due_date: '',
+            amount_cents: agreementTotal,
+            status: 'pendente',
+        }]);
+    }
+
+    function paymentSubmitError() {
+        const agreementTotal = moneyCentsFromInput(agreementTotalInput);
+        if (moneyCentsFromInput(entryAmountInput) > 0 && !entryDueDateInput?.value) {
+            return 'Informe o vencimento da entrada.';
+        }
+
+        const rows = installmentRows();
+        for (const row of rows) {
+            const amount = moneyCentsFromInput(row.querySelector('input[name$="[amount]"]'));
+            const dueDate = row.querySelector('input[name$="[due_date]"]')?.value || '';
+            const label = row.querySelector('input[name$="[label]"]')?.value || 'parcela';
+            if (amount > 0 && !dueDate) {
+                return `Informe o vencimento da ${label}.`;
+            }
+            if (dueDate && amount <= 0) {
+                return `Informe o valor da ${label}.`;
+            }
+        }
+
+        if (agreementTotal > 0) {
+            const difference = paymentPlanDifferenceCents();
+            if (difference > 0) {
+                return `O plano de pagamento está incompleto. Ainda faltam ${formatCentsLabel(difference)} em parcelas.`;
+            }
+            if (difference < 0) {
+                return `O plano de pagamento excede o valor do acordo em ${formatCentsLabel(difference)}.`;
+            }
+        }
+
+        return '';
+    }
+
     function bindRemoveButtons(scope) {
         document.querySelectorAll(`[data-repeater-container="${scope}"] [data-repeater-remove]`).forEach((button) => {
             button.onclick = () => {
                 const rows = document.querySelectorAll(`[data-repeater-container="${scope}"] [data-repeater-row]`);
                 if (rows.length <= 1) return;
                 button.closest('[data-repeater-row]')?.remove();
+                reindexRepeater(scope);
+                if (scope === 'installments') {
+                    updatePaymentBalance();
+                }
             };
         });
     }
@@ -830,6 +1132,7 @@
         if (!container || !template || !addButton) return;
 
         addButton.addEventListener('click', () => {
+            reindexRepeater(scope);
             const index = container.querySelectorAll('[data-repeater-row]').length;
             const html = template.innerHTML.replaceAll('__INDEX__', index);
             container.insertAdjacentHTML('beforeend', html);
@@ -838,8 +1141,12 @@
             bindPhoneMask(container);
             bindReferencePeriodMask(container);
             bindEmailNormalization(container);
+            if (scope === 'installments') {
+                updatePaymentBalance();
+            }
         });
 
+        reindexRepeater(scope);
         bindRemoveButtons(scope);
     }
 
@@ -853,6 +1160,24 @@
         seedNotificationContactsFromSelectedUnit();
     });
     chargeType?.addEventListener('change', updateChargeType);
+    autoSplitButton?.addEventListener('click', openAutoSplitModal);
+    autoSplitCancel?.addEventListener('click', () => autoSplitModal?.close());
+    autoSplitForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        applyAutoSplit();
+    });
+    singleInstallmentButton?.addEventListener('click', applySingleInstallment);
+    form?.addEventListener('change', (event) => {
+        if (event.target?.matches?.('[name="entry_due_date"], [data-repeater-container="installments"] input, [data-repeater-container="installments"] select')) {
+            updatePaymentBalance();
+        }
+    });
+    form?.addEventListener('submit', (event) => {
+        const error = paymentSubmitError();
+        if (!error) return;
+        event.preventDefault();
+        alert(error);
+    });
 
     const selected = findUnitSelectionById(initialUnitId);
     if (selected && condominiumSelect) {
@@ -875,6 +1200,7 @@
     bindPhoneMask(document);
     bindReferencePeriodMask(document);
     bindEmailNormalization(document);
+    updatePaymentBalance();
     syncOwnerSummary();
     if (isCreateMode && initialUnitId) {
         seedNotificationContactsFromSelectedUnit();

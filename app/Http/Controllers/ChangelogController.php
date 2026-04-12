@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.1',
-            'date' => '11/04/2026',
-            'label' => 'v1.1 • 11/04/2026',
+            'version' => 'v1.2',
+            'date' => '12/04/2026',
+            'label' => 'v1.2 • 12/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Automação e validação do plano de pagamento',
+                'items' => [
+                    'Botão de divisão automática para gerar entrada e parcelas mensais a partir do valor total do acordo.',
+                    'Botão de parcela única preenchendo descrição, número e valor total do acordo.',
+                    'Indicador dinâmico de valor restante em Parcelas / vencimentos.',
+                    'Bloqueio de salvamento quando entrada e parcelas não fecham exatamente o valor do acordo.',
+                    'Geração de termo blindada contra banco sem a tabela de termos aplicada, evitando erro 500 antes da migration.',
+                ],
+            ],
+            [
+                'version' => 'v1.1',
+                'date' => '11/04/2026',
                 'title' => 'Termo de acordo automático nas OS de cobrança',
                 'items' => [
                     'Geração automática de termo de confissão de dívida a partir dos dados da OS.',

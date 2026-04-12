@@ -50,6 +50,8 @@ php artisan migrate --path=database/migrations/2026_04_11_000300_create_cobranca
 php artisan optimize:clear
 ```
 
+> O termo de acordo depende da tabela `cobranca_agreement_terms`. Se o código for publicado antes desta migration/SQL, o sistema exibe o rascunho e o PDF/print, mas bloqueia o salvamento de customizações até o banco ser atualizado.
+
 ## 5. Volumes
 
 Crie persistência para:

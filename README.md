@@ -87,6 +87,8 @@ Por isso, a rota mais segura é manter **MySQL** nesta fase e importar o SQL leg
 
 Se preferir usar migrations para os incrementos mais novos, importe o SQL completo e rode apenas as migrations específicas de permissões, Cobranças e importação. Não rode migrations sem entender o estado do banco, porque a base nasceu de um dump legado.
 
+> Para salvar customizações do termo de acordo nas OS de cobrança, a tabela `cobranca_agreement_terms` precisa existir. Ela é criada pelo SQL `2026_04_cobranca_termos_acordo.sql` ou pela migration `2026_04_11_000300_create_cobranca_agreement_terms_table.php`.
+
 ## EasyPanel
 
 ### Serviço app

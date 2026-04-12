@@ -70,7 +70,7 @@ class CobrancaAgreementTermService
         $email = $this->primaryContact($case, 'email');
         $phone = $this->primaryContact($case, 'phone');
         $entry = $this->entryData($case);
-        $installments = $this->agreementInstallments($case, $entry['source_id'] ?? null);
+        $installments = $this->agreementInstallments($case, $entry);
 
         return [
             'template_type' => $templateType,
@@ -304,10 +304,12 @@ class CobrancaAgreementTermService
         ];
     }
 
-    private function agreementInstallments(CobrancaCase $case, ?int $entrySourceId): Collection
+    private function agreementInstallments(CobrancaCase $case, ?array $entry): Collection
     {
+        $entrySourceId = $entry['source_id'] ?? null;
+
         return $case->installments
-            ->filter(fn ($item) => $item->id !== $entrySourceId && $item->installment_type !== 'entrada')
+            ->filter(fn ($item) => $entrySourceId === null || $item->id !== $entrySourceId)
             ->sortBy('due_date')
             ->values();
     }
