@@ -57,6 +57,15 @@
     $witnesses = $payload['witnesses'] ?? [];
     $signatureCity = $payload['signature_city'] ?? 'Vitória/ES';
     $signatureDate = $payload['signature_date'] ?? now()->translatedFormat('j \d\e F \d\e Y');
+    $ownerDocument = $ownerDocument ?? null;
+    $ownerDocumentType = $ownerDocument['type'] ?? null;
+    $ownerDocumentSrc = '';
+    if ($ownerDocumentType === 'image') {
+        $ownerDocumentSrc = $pdfMode
+            ? 'file:///' . ltrim(str_replace('\\', '/', (string) ($ownerDocument['absolute_path'] ?? '')), '/')
+            : (string) ($ownerDocument['relative_path'] ?? '');
+    }
+    $showOwnerDocumentPage = $ownerDocument && ($ownerDocumentType === 'image' || !$pdfMode);
 @endphp
 
 <!doctype html>
@@ -216,6 +225,59 @@
             vertical-align: bottom;
         }
 
+        .owner-document-page {
+            break-before: page;
+            page-break-before: always;
+            min-height: var(--printable-height);
+            padding: 0;
+        }
+
+        .owner-document-frame {
+            display: table;
+            width: 100%;
+            min-height: var(--printable-height);
+            height: var(--printable-height);
+            table-layout: fixed;
+        }
+
+        .owner-document-content {
+            display: table-cell;
+            width: 100%;
+            height: var(--printable-height);
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .owner-document-title {
+            margin: 0 0 8mm;
+            border-bottom: 2.5px solid #941415;
+            padding-bottom: 4mm;
+            color: #111827;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .owner-document-image {
+            display: block;
+            max-width: 100%;
+            max-height: 222mm;
+            margin: 0 auto;
+            object-fit: contain;
+        }
+
+        .owner-document-notice {
+            border: 1.5px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 12mm;
+            color: #475569;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            line-height: 1.55;
+        }
+
         @media print {
             body {
                 background: #fff;
@@ -232,6 +294,13 @@
             .sheet-table {
                 height: var(--printable-height);
                 min-height: var(--printable-height);
+            }
+
+            .owner-document-page,
+            .owner-document-frame,
+            .owner-document-content {
+                min-height: var(--printable-height);
+                height: var(--printable-height);
             }
         }
     </style>
@@ -289,6 +358,28 @@
                 </footer>
             </div>
         </div>
+
+        @if($showOwnerDocumentPage)
+            <section class="owner-document-page">
+                <div class="owner-document-frame">
+                    <div class="owner-document-content">
+                        <h2 class="owner-document-title">Documento do proprietário</h2>
+
+                        @if($ownerDocumentType === 'image')
+                            <img src="{{ $ownerDocumentSrc }}" alt="{{ $ownerDocument['original_name'] ?? 'Documento do proprietário' }}" class="owner-document-image">
+                        @else
+                            <div class="owner-document-notice">
+                                <strong>{{ $ownerDocument['original_name'] ?? 'Documento do proprietário' }}</strong><br>
+                                Este documento em PDF é anexado como página final quando o sistema gera o arquivo do termo.
+                                @if(!empty($ownerDocument['relative_path']))
+                                    <br><br><a href="{{ $ownerDocument['relative_path'] }}" target="_blank" rel="noopener noreferrer">Abrir documento original</a>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </section>
+        @endif
     </main>
 </body>
 </html>

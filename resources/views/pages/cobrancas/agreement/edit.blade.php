@@ -65,6 +65,16 @@
                     <div class="mt-1 font-medium text-gray-900 dark:text-white">{{ $draft['payload']['agreement_amount_money'] }}</div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $draft['payload']['quota_period'] }}</div>
                 </div>
+                <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                    <div class="text-xs uppercase tracking-[0.16em] text-gray-500">Documento do proprietário</div>
+                    @if($ownerDocument)
+                        <div class="mt-1 font-medium text-gray-900 dark:text-white">{{ $ownerDocument->original_name }}</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Será anexado ao final do PDF do termo.</div>
+                    @else
+                        <div class="mt-1 font-medium text-warning-700 dark:text-warning-300">Nenhum documento encontrado</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Cadastre um anexo do tipo Documento na unidade ou no proprietário vinculado.</div>
+                    @endif
+                </div>
                 @if($draft['template_type'] === 'judicial')
                     <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
                         <div class="text-xs uppercase tracking-[0.16em] text-gray-500">Processo</div>

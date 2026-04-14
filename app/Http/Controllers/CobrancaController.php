@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\ClientBlock;
+use App\Models\ClientAttachment;
 use App\Models\ClientCondominium;
 use App\Models\ClientUnit;
 use App\Models\CobrancaCase;
@@ -491,6 +492,7 @@ class CobrancaController extends Controller
         if ($term && $term->template_type !== $draft['template_type']) {
             $draft['warnings'][] = 'O tipo da OS mudou depois do último termo salvo. Recarregue o rascunho automático antes de emitir, se quiser atualizar as cláusulas.';
         }
+        $ownerDocument = $this->ownerDocumentAttachment($cobranca);
 
         return view('pages.cobrancas.agreement.edit', [
             'title' => 'Termo de acordo - OS ' . $cobranca->os_number,
@@ -498,6 +500,7 @@ class CobrancaController extends Controller
             'term' => $term,
             'termStorageReady' => $termStorageReady,
             'draft' => $draft,
+            'ownerDocument' => $ownerDocument,
             'formData' => [
                 'title' => old('title', $term?->title ?: $draft['title']),
                 'body_text' => old('body_text', $term?->body_text ?: $draft['body_text']),
@@ -576,6 +579,7 @@ class CobrancaController extends Controller
 
         $draft = $termService->build($cobranca);
         $term = $termStorageReady ? $cobranca->agreementTerm : null;
+        $ownerDocument = $this->ownerDocumentAttachment($cobranca);
         if ($term) {
             $term->update(['printed_at' => now()]);
         }
@@ -587,6 +591,7 @@ class CobrancaController extends Controller
             'bodyText' => $term?->body_text ?: $draft['body_text'],
             'templateType' => $term?->template_type ?: $draft['template_type'],
             'payload' => $term?->payload_json ?: $draft['payload'],
+            'ownerDocument' => $ownerDocument ? $this->ownerDocumentViewData($ownerDocument) : null,
             'autoPrint' => true,
             'pdfMode' => false,
         ];
@@ -626,6 +631,15 @@ class CobrancaController extends Controller
             if (!$generated || !is_file($pdfPath)) {
                 File::delete($pdfPath);
                 return null;
+            }
+
+            $ownerDocument = $viewData['ownerDocument'] ?? null;
+            if (($ownerDocument['type'] ?? null) === 'pdf' && !empty($ownerDocument['absolute_path'])) {
+                $mergedPath = $dir . DIRECTORY_SEPARATOR . $baseName . '-com-documento.pdf';
+                if ($this->appendPdfAttachment($pdfPath, (string) $ownerDocument['absolute_path'], $mergedPath)) {
+                    File::delete($pdfPath);
+                    $pdfPath = $mergedPath;
+                }
             }
 
             return response()
@@ -722,6 +736,28 @@ class CobrancaController extends Controller
         }
     }
 
+    private function appendPdfAttachment(string $termPdfPath, string $attachmentPdfPath, string $mergedPath): bool
+    {
+        if (!is_file($termPdfPath) || !is_file($attachmentPdfPath)) {
+            return false;
+        }
+
+        $binary = $this->availableExecutable(['pdfunite']);
+        if (!$binary) {
+            return false;
+        }
+
+        try {
+            $process = new Process([$binary, $termPdfPath, $attachmentPdfPath, $mergedPath], timeout: 120);
+            $process->run();
+
+            return $process->isSuccessful() && is_file($mergedPath);
+        } catch (\Throwable) {
+            File::delete($mergedPath);
+            return false;
+        }
+    }
+
     private function availableExecutable(array $candidates): ?string
     {
         foreach ($candidates as $candidate) {
@@ -732,11 +768,101 @@ class CobrancaController extends Controller
                     return $candidate;
                 }
             } catch (\Throwable) {
+                // Some utilities do not expose --version consistently; fall back to PATH lookup below.
+            }
+
+            try {
+                $process = new Process(['sh', '-lc', 'command -v ' . escapeshellarg($candidate)], timeout: 15);
+                $process->run();
+                if ($process->isSuccessful()) {
+                    return $candidate;
+                }
+            } catch (\Throwable) {
                 continue;
             }
         }
 
         return null;
+    }
+
+    private function ownerDocumentAttachment(CobrancaCase $case): ?ClientAttachment
+    {
+        $case->loadMissing('unit.owner');
+
+        if ($case->unit_id) {
+            $attachment = $this->latestAppendableClientDocument('unit', (int) $case->unit_id);
+            if ($attachment) {
+                return $attachment;
+            }
+        }
+
+        $ownerId = $case->unit?->owner_entity_id ?: $case->debtor_entity_id;
+        if ($ownerId) {
+            return $this->latestAppendableClientDocument('entity', (int) $ownerId);
+        }
+
+        return null;
+    }
+
+    private function latestAppendableClientDocument(string $relatedType, int $relatedId): ?ClientAttachment
+    {
+        return ClientAttachment::query()
+            ->where('related_type', $relatedType)
+            ->where('related_id', $relatedId)
+            ->where('file_role', 'documento')
+            ->latest('id')
+            ->get()
+            ->first(fn (ClientAttachment $attachment) => $this->isAppendableOwnerDocument($attachment));
+    }
+
+    private function isAppendableOwnerDocument(ClientAttachment $attachment): bool
+    {
+        $path = $this->clientAttachmentAbsolutePath($attachment);
+        if (!$path || !is_file($path)) {
+            return false;
+        }
+
+        return in_array($this->clientAttachmentKind($attachment), ['pdf', 'image'], true);
+    }
+
+    private function ownerDocumentViewData(ClientAttachment $attachment): array
+    {
+        $absolutePath = $this->clientAttachmentAbsolutePath($attachment);
+        $relativePath = '/' . ltrim((string) $attachment->relative_path, '/');
+
+        return [
+            'type' => $this->clientAttachmentKind($attachment),
+            'title' => 'Documento do proprietário',
+            'original_name' => (string) $attachment->original_name,
+            'relative_path' => $relativePath,
+            'absolute_path' => $absolutePath,
+        ];
+    }
+
+    private function clientAttachmentAbsolutePath(ClientAttachment $attachment): ?string
+    {
+        $relativePath = trim((string) $attachment->relative_path);
+        if ($relativePath === '') {
+            return null;
+        }
+
+        return public_path(ltrim($relativePath, '/'));
+    }
+
+    private function clientAttachmentKind(ClientAttachment $attachment): string
+    {
+        $extension = strtolower((string) pathinfo((string) ($attachment->stored_name ?: $attachment->relative_path ?: $attachment->original_name), PATHINFO_EXTENSION));
+        $mimeType = strtolower((string) $attachment->mime_type);
+
+        if ($extension === 'pdf' || str_contains($mimeType, 'pdf')) {
+            return 'pdf';
+        }
+
+        if (in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true) || str_starts_with($mimeType, 'image/')) {
+            return 'image';
+        }
+
+        return 'unsupported';
     }
 
     private function agreementTermStorageReady(): bool

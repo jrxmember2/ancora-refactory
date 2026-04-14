@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.9',
+            'version' => 'v1.10',
             'date' => '14/04/2026',
-            'label' => 'v1.9 • 14/04/2026',
+            'label' => 'v1.10 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Documento do proprietário no termo',
+                'items' => [
+                    'Geração do termo passa a buscar o documento cadastrado na unidade e, como fallback, no proprietário vinculado.',
+                    'Documento em imagem é renderizado como última página do termo.',
+                    'Documento em PDF é anexado ao final do termo por mesclagem com pdfunite no container.',
+                    'Tela de revisão do termo informa qual documento será anexado ou avisa quando nenhum documento foi encontrado.',
+                ],
+            ],
+            [
+                'version' => 'v1.9',
+                'date' => '14/04/2026',
                 'title' => 'Composer fixado em PHP 8.3 no build',
                 'items' => [
                     'Stage vendor do Dockerfile passa a executar o Composer dentro de PHP 8.3, igual ao runtime.',
