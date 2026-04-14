@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.7',
+            'version' => 'v1.8',
             'date' => '14/04/2026',
-            'label' => 'v1.7 • 14/04/2026',
+            'label' => 'v1.8 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix do build Docker',
+                'items' => [
+                    'Etapa de dependências PHP simplificada para usar a imagem composer:2 diretamente.',
+                    'Dependência da imagem php:8.3-cli removida do Dockerfile para reduzir falhas de metadata no Docker Hub durante o deploy.',
+                ],
+            ],
+            [
+                'version' => 'v1.7',
+                'date' => '14/04/2026',
                 'title' => 'Hub mais direto e legível',
                 'items' => [
                     'Bloco institucional Ecossistema Âncora removido da tela principal do hub.',
