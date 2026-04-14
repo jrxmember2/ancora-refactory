@@ -1,7 +1,17 @@
 # syntax=docker/dockerfile:1.7
 
-FROM composer:2 AS vendor
+FROM composer:2 AS composer
+
+FROM php:8.3-apache AS vendor
 WORKDIR /app
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git unzip zip libzip-dev libicu-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install intl zip \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts

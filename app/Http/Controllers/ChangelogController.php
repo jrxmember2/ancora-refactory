@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.8',
+            'version' => 'v1.9',
             'date' => '14/04/2026',
-            'label' => 'v1.8 • 14/04/2026',
+            'label' => 'v1.9 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Composer fixado em PHP 8.3 no build',
+                'items' => [
+                    'Stage vendor do Dockerfile passa a executar o Composer dentro de PHP 8.3, igual ao runtime.',
+                    'Imagem composer:2 fica apenas como fonte do binário Composer, evitando conflito com PHP 8.5 no composer.lock.',
+                ],
+            ],
+            [
+                'version' => 'v1.8',
+                'date' => '14/04/2026',
                 'title' => 'Hotfix do build Docker',
                 'items' => [
                     'Etapa de dependências PHP simplificada para usar a imagem composer:2 diretamente.',
