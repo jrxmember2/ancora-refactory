@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.10',
+            'version' => 'v1.11',
             'date' => '14/04/2026',
-            'label' => 'v1.10 • 14/04/2026',
+            'label' => 'v1.11 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Uploads maiores em condomínios',
+                'items' => [
+                    'Limites PHP do container ajustados para 64 MB por arquivo e 72 MB por envio.',
+                    'Validação de anexos de clientes alinhada para aceitar documentos de até 20 MB por arquivo.',
+                    'Tela de cadastro de condomínio passa a informar o limite recomendado para convenção, regimento e ATAs.',
+                ],
+            ],
+            [
+                'version' => 'v1.10',
+                'date' => '14/04/2026',
                 'title' => 'Documento do proprietário no termo',
                 'items' => [
                     'Geração do termo passa a buscar o documento cadastrado na unidade e, como fallback, no proprietário vinculado.',

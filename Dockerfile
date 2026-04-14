@@ -43,6 +43,13 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     /etc/apache2/apache2.conf \
     /etc/apache2/conf-available/*.conf
 
+RUN { \
+        echo 'upload_max_filesize=64M'; \
+        echo 'post_max_size=72M'; \
+        echo 'max_file_uploads=30'; \
+        echo 'memory_limit=256M'; \
+    } > /usr/local/etc/php/conf.d/ancora-uploads.ini
+
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build

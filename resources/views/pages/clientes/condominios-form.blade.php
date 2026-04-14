@@ -133,6 +133,9 @@
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Suba a convenção, o regimento interno e quantas ATAs forem necessárias.
                         </p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Limite recomendado: até 20 MB por arquivo e 72 MB por envio.
+                        </p>
                     </div>
                 </div>
 
@@ -147,6 +150,7 @@
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['convention']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB.</p>
 
                         @if($groupedAttachments['convention']->count())
                             <div class="mt-3 space-y-2">
@@ -173,6 +177,7 @@
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['regiment']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB.</p>
 
                         @if($groupedAttachments['regiment']->count())
                             <div class="mt-3 space-y-2">
@@ -199,6 +204,7 @@
                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
                             {{ $groupedAttachments['atas']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
                         </div>
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB por arquivo.</p>
 
                         @if($groupedAttachments['atas']->count())
                             <div class="mt-3 space-y-2">

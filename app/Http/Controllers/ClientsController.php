@@ -525,6 +525,11 @@ class ClientsController extends Controller
 
     private function uploadAttachments(string $relatedType, int $relatedId, Request $request): void
     {
+        $request->validate([
+            'attachment_groups.*.files.*' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'attachments.*' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+        ]);
+
         $groupInputs = $request->input('attachment_groups', []);
         $groupFiles = $request->allFiles()['attachment_groups'] ?? [];
         $hasGroupedUpload = false;
@@ -561,6 +566,12 @@ class ClientsController extends Controller
 
     private function uploadCondominiumDocuments(int $condominiumId, Request $request): void
     {
+        $request->validate([
+            'document_convention' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'document_regiment' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'document_atas.*' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+        ]);
+
         $conventionFiles = $this->normalizeUploadedFiles($request->file('document_convention'));
         if (!empty($conventionFiles)) {
             $this->storeAttachmentFiles('condominium', $condominiumId, $conventionFiles, 'documento', $request, 'Convenção condominial');
