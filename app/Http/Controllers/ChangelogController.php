@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.6',
+            'version' => 'v1.7',
             'date' => '14/04/2026',
-            'label' => 'v1.6 • 14/04/2026',
+            'label' => 'v1.7 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hub mais direto e legível',
+                'items' => [
+                    'Bloco institucional Ecossistema Âncora removido da tela principal do hub.',
+                    'Cards dos módulos redesenhados com mais contraste, área útil e destaque visual.',
+                ],
+            ],
+            [
+                'version' => 'v1.6',
+                'date' => '14/04/2026',
                 'title' => 'Margens do termo de acordo',
                 'items' => [
                     'PDF do termo ajustado para margens de 3 cm no topo/esquerda e 2 cm no rodapé/direita.',

@@ -18,34 +18,20 @@
     </div>
 </x-ancora.section-header>
 
-<div class="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-    <div class="max-w-3xl">
-        <div class="text-xs font-semibold uppercase tracking-[0.25em] text-brand-500">Ecossistema Âncora</div>
-        <h2 class="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">Organize clientes, condomínios, propostas e acessos em uma operação mais clara, profissional e pronta para o dia a dia do seu escritório.</h2>
-        <p class="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">Centralize cadastros, documentos, histórico comercial e permissões em um único ambiente, reduzindo retrabalho e dando mais previsibilidade à gestão.</p>
-    </div>
-
-    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Clientes e condomínios</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Cadastros estruturados para síndicos, administradoras, unidades e documentos.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Propostas premium</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fluxo comercial com histórico, anexos e documento profissional.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Permissões e segurança</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Controle de acesso por módulo e por rota para trabalhar em equipe.</p></div>
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-sm font-semibold text-gray-900 dark:text-white">Rotina mais eficiente</div><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Mais organização, menos retrabalho e melhor visão da operação.</p></div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+<div class="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3">
     @foreach($tiles as $tile)
-        <a href="{{ $tile['route'] }}" class="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-theme-xs transition duration-300 hover:-translate-y-1 hover:shadow-theme-lg dark:border-gray-800 dark:bg-white/[0.03]">
-            <div class="absolute top-0 right-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-brand-500/5 transition duration-300 group-hover:scale-125"></div>
+        <a href="{{ $tile['route'] }}" class="group relative overflow-hidden rounded-[2rem] border border-gray-200 bg-white p-7 shadow-theme-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-theme-lg hover:ring-brand-100 dark:border-gray-800 dark:bg-white/[0.04] dark:hover:border-brand-800 dark:hover:ring-brand-900/40">
+            <div class="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/10 blur-2xl transition duration-300 group-hover:scale-125 group-hover:bg-brand-500/15"></div>
+            <div class="absolute bottom-0 left-0 h-1 w-full origin-left scale-x-0 bg-brand-500 transition duration-300 group-hover:scale-x-100"></div>
             <div class="relative flex items-start justify-between gap-4">
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl {{ $tile['accent'] === 'success' ? 'bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400' : ($tile['accent'] === 'warning' ? 'bg-warning-50 text-warning-600 dark:bg-warning-500/10 dark:text-warning-400' : ($tile['accent'] === 'gray' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' : 'bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-400')) }}">
-                    <i class="{{ $tile['icon_class'] }} text-xl"></i>
+                <div class="flex h-16 w-16 items-center justify-center rounded-3xl shadow-sm {{ $tile['accent'] === 'success' ? 'bg-success-50 text-success-600 ring-1 ring-success-100 dark:bg-success-500/10 dark:text-success-400 dark:ring-success-500/20' : ($tile['accent'] === 'warning' ? 'bg-warning-50 text-warning-600 ring-1 ring-warning-100 dark:bg-warning-500/10 dark:text-warning-400 dark:ring-warning-500/20' : ($tile['accent'] === 'gray' ? 'bg-gray-100 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700' : 'bg-brand-50 text-brand-500 ring-1 ring-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:ring-brand-500/20')) }}">
+                    <i class="{{ $tile['icon_class'] }} text-2xl"></i>
                 </div>
-                <span class="rounded-full border border-gray-200 px-3 py-1 text-xs uppercase tracking-[0.2em] text-gray-500 dark:border-gray-700 dark:text-gray-300">{{ $tile['enabled'] ? 'ativo' : 'inativo' }}</span>
+                <span class="rounded-full border border-gray-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:border-gray-700 dark:bg-gray-950/40 dark:text-gray-300">{{ $tile['enabled'] ? 'ativo' : 'inativo' }}</span>
             </div>
-            <h3 class="relative mt-6 text-xl font-semibold text-gray-900 dark:text-white">{{ $tile['name'] }}</h3>
-            <p class="relative mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ $tile['description'] }}</p>
-            <div class="relative mt-6 flex items-center gap-2 text-sm font-medium text-brand-500 dark:text-brand-400"><span>Acessar</span><i class="fa-solid fa-arrow-right transition duration-300 group-hover:translate-x-1"></i></div>
+            <h3 class="relative mt-7 text-2xl font-semibold text-gray-950 dark:text-white">{{ $tile['name'] }}</h3>
+            <p class="relative mt-3 min-h-[72px] text-sm leading-6 text-gray-600 dark:text-gray-300">{{ $tile['description'] }}</p>
+            <div class="relative mt-7 inline-flex items-center gap-2 rounded-full bg-gray-50 px-4 py-2 text-sm font-semibold text-brand-600 transition duration-300 group-hover:bg-brand-500 group-hover:text-white dark:bg-white/[0.06] dark:text-brand-300"><span>Acessar</span><i class="fa-solid fa-arrow-right transition duration-300 group-hover:translate-x-1"></i></div>
         </a>
     @endforeach
 </div>
