@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.5',
-            'date' => '12/04/2026',
-            'label' => 'v1.5 • 12/04/2026',
+            'version' => 'v1.6',
+            'date' => '14/04/2026',
+            'label' => 'v1.6 • 14/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Margens do termo de acordo',
+                'items' => [
+                    'PDF do termo ajustado para margens de 3 cm no topo/esquerda e 2 cm no rodapé/direita.',
+                    'Altura útil da folha recalculada para manter o rodapé no final da área imprimível quando o termo não ocupa a página inteira.',
+                ],
+            ],
+            [
+                'version' => 'v1.5',
+                'date' => '12/04/2026',
                 'title' => 'Correção do salvamento da OS',
                 'items' => [
                     'Modal de divisão automática movido para fora do formulário principal da OS, removendo formulário aninhado inválido.',

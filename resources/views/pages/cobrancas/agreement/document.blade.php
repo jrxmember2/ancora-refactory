@@ -67,7 +67,18 @@
     <style>
         @page {
             size: A4;
-            margin: 0;
+            margin: 30mm 20mm 20mm 30mm;
+        }
+
+        :root {
+            --page-width: 210mm;
+            --page-height: 297mm;
+            --page-margin-top: 30mm;
+            --page-margin-right: 20mm;
+            --page-margin-bottom: 20mm;
+            --page-margin-left: 30mm;
+            --printable-width: 160mm;
+            --printable-height: 247mm;
         }
 
         * {
@@ -89,19 +100,19 @@
         }
 
         .sheet {
-            width: 210mm;
-            min-height: 297mm;
+            width: var(--page-width);
+            min-height: var(--page-height);
             margin: 0 auto;
             background: #fff;
-            padding: 14mm 16mm 11mm;
+            padding: var(--page-margin-top) var(--page-margin-right) var(--page-margin-bottom) var(--page-margin-left);
             box-shadow: 0 20px 70px rgba(15, 23, 42, .18);
         }
 
         .sheet-table {
             display: table;
             width: 100%;
-            height: 272mm;
-            min-height: 272mm;
+            height: var(--printable-height);
+            min-height: var(--printable-height);
             table-layout: fixed;
         }
 
@@ -211,10 +222,16 @@
             }
 
             .sheet {
-                width: 210mm;
-                min-height: 297mm;
+                width: auto;
+                min-height: var(--printable-height);
                 margin: 0;
+                padding: 0;
                 box-shadow: none;
+            }
+
+            .sheet-table {
+                height: var(--printable-height);
+                min-height: var(--printable-height);
             }
         }
     </style>
