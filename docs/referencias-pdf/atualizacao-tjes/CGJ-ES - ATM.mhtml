@@ -1,0 +1,421 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://sistemas.tjes.jus.br/sistemaspublicos/corregedoria/Atm/input.cfm
+Subject: CGJ-ES - ATM
+Date: Wed, 15 Apr 2026 16:16:24 -0300
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--avA5xovrf1UpFvu8Ggswf9oHUSakl1suKRT85HABcG----"
+
+
+------MultipartBoundary--avA5xovrf1UpFvu8Ggswf9oHUSakl1suKRT85HABcG----
+Content-Type: text/html
+Content-ID: <frame-69F3CEDA92D2A660249590873C58DF2F@mhtml.blink>
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://sistemas.tjes.jus.br/sistemaspublicos/corregedoria/Atm/input.cfm
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns=3D"http://www.w3.=
+org/1999/xhtml"><head runat=3D"server"><meta http-equiv=3D"Content-Type" co=
+ntent=3D"text/html; charset=3Dwindows-1252">
+ =20
+  <meta http-equiv=3D"Cache-Control" content=3D"No-Cache">
+  <meta http-equiv=3D"Pragma" content=3D"no-cache">
+  <meta name=3D"MSSmartTagsPreventParsing" content=3D"true">
+  <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge,chrome=3D1">
+  <title>CGJ-ES - ATM</title>
+ =20
+ =20
+  <link href=3D"https://sistemas.tjes.jus.br/sistemaspublicos/corregedoria/=
+Atm/Layout.css" rel=3D"stylesheet" type=3D"text/css">
+     =20
+ =20
+<meta id=3D"acfifjfajpekbmhmjppnmmjgmhjkildl"><meta id=3D"bbafmabaelnnkondp=
+fpjmdklbmfnbmol"><meta id=3D"dcngeagmmhegagicpcmpinaoklddcgon"></head>
+<body style=3D"text-align:center">
+<form name=3D"form1" id=3D"form1" method=3D"post" action=3D"https://sistema=
+s.tjes.jus.br/sistemaspublicos/corregedoria/Atm/resultado.cfm">
+ =20
+  <div id=3D"geral">
+    <table width=3D"700px" border=3D"0" cellspacing=3D"3" cellpadding=3D"0"=
+>
+      <tbody><tr>
+        <td style=3D"width: 700px; text-align:center; height: 139px;">
+          <div style=3D"width:320px; margin:0 auto">
+            <table width=3D"320px" border=3D"0" cellpadding=3D"0" cellspaci=
+ng=3D"1">
+              <tbody><tr>
+                <td style=3D"vertical-align: top; width: 550px; text-align:=
+ center">
+                  <table width=3D"320" border=3D"0" cellspacing=3D"3" cellp=
+adding=3D"0">
+                    <tbody><tr>
+                      <td style=3D"width:85px; text-align:right"><img alt=
+=3D"Poder Judici=E1rio do Estado do Esp=EDrito Santo" src=3D"https://sistem=
+as.tjes.jus.br/sistemaspublicos/corregedoria/Atm/imagens/timbre.jpg" width=
+=3D"77" height=3D"83"></td>
+                      <td style=3D"width:235px">
+                        ESTADO DO ESP=CDRITO SANTO<br>
+                        PODER JUDICI=C1RIO<br>
+                        CORREGEDORIA GERAL DA JUSTI=C7A
+                      </td>
+                    </tr>
+                  </tbody></table>
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class=3D"titulopagina">Atualiza=E7=E3o Monet=E1ria de D=E9bitos=
+ Judiciais</td>
+      </tr>
+    </tbody></table>
+    <table width=3D"700px" border=3D"0" cellspacing=3D"3" cellpadding=3D"0"=
+>
+      <tbody><tr>
+        <td>(Fatores de corre=E7=E3o de atualiza=E7=E3o a partir de janeiro=
+ de 1969)</td>
+      </tr>
+      <tr>
+        <td></td>
+      </tr>
+      <tr>
+        <td>
+          <table width=3D"700px" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+            <tbody><tr>
+              <td style=3D"width:400px; text-align: right;"><b>Principal</b=
+></td>
+              <td style=3D"width:300px;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style=3D"text-align: right">Valor em moeda:</td>
+              <td>
+                <input type=3D"text" name=3D"txtValorPrincipal" id=3D"txtVa=
+lorPrincipal" placeholder=3D"0,00" value=3D"">
+              </td>
+            </tr>
+          </tbody></table>
+        </td>
+      </tr>
+      <tr id=3D"pnlCorrecao">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700px" border=3D"0" cellspacing=3D"3" cellpaddi=
+ng=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;">&nbsp;<b>Corr=
+e=E7=E3o Monet=E1ria</b></td>
+                <td style=3D"width:300px">&nbsp;</td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Data inicial (dd/mm/aaaa):=
+</td>
+                <td>
+                  <input type=3D"text" name=3D"txtDataCorrecao" id=3D"txtDa=
+taCorrecao" maxlength=3D"10" value=3D"">
+                </td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Fator de atualiza=E7=E3o:<=
+/td>
+                <td>
+                  <select name=3D"ddlFatorCorrecao" id=3D"ddlFatorCorrecao"=
+ style=3D"width:155px">
+                    <option value=3D"ATM" selected=3D"selected">=CDndice do=
+ TJES</option>
+                    <option value=3D"VRTE">VRTE</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlJuros">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"715" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td width=3D"280" style=3D"width:400px; text-align: right;"=
+>&nbsp;<b>Juros Morat=F3rios</b></td>
+                <td width=3D"426" style=3D"width:300px">&nbsp;</td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Tipo de juros:</td>
+                <td>
+                  <select name=3D"ddlTipoJuros" id=3D"ddlTipoJuros" style=
+=3D"width:224px">
+                    <option value=3D"L" selected=3D"selected">Juros Legais<=
+/option>
+                    <option value=3D"C">Juros Contratuais</option>
+                  </select>
+                </td>
+              </tr>
+              <tr id=3D"trJurosContratuais" style=3D"display: none;">
+                <td style=3D"text-align: right;">Percentual mensal:</td>
+                <td>
+                  <input type=3D"text" name=3D"txtTaxaJuros" id=3D"txtTaxaJ=
+uros" placeholder=3D"0,00" value=3D"0">
+                </td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Data inicial (dd/mm/aaaa):=
+</td>
+                <td>
+                  <input type=3D"text" name=3D"txtDataJuros" id=3D"txtDataJ=
+uros" maxlength=3D"10" value=3D"">
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlCustas" style=3D"display: none;">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;"><b>Custas Pag=
+as</b></td>
+                <td style=3D"width:300px"></td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Valor:</td>
+                <td>
+                  <input type=3D"text" name=3D"txtValorCustasPagas" id=3D"t=
+xtValorCustasPagas" placeholder=3D"0,00" value=3D"">
+                </td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Data inicial (dd/mm/aaaa):=
+</td>
+                <td>
+                  <input type=3D"text" name=3D"txtDataCustasPagas" id=3D"tx=
+tDataCustasPagas" maxlength=3D"10" value=3D"">
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlHonorarios">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;"><b>Honor=E1ri=
+os Advocat=EDcios (%)</b></td>
+                <td style=3D"width:300px"></td>
+              </tr>
+              <tr>
+                <td style=3D"width: 400px; text-align: right">Percentual:</=
+td>
+                <td style=3D"width: 300px">
+                  <input type=3D"text" name=3D"txtTaxaHonorarios" id=3D"txt=
+TaxaHonorarios" placeholder=3D"0,00" value=3D"">
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlMulta">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;"><b>Multa (%)<=
+/b></td>
+                <td style=3D"width:300px"></td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Percentual:</td>
+                <td>
+                  <input type=3D"text" name=3D"txtTaxaMulta" id=3D"txtTaxaM=
+ulta" placeholder=3D"0,00" value=3D"">
+                </td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlMulta523" style=3D"display: none;">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;"><b>Multa de 1=
+0% prevista no Art. 523, =A7 1=BA do CPC (%)</b></td>
+                <td style=3D"width:300px"><font color=3D"#FF0000"> SIM </fo=
+nt></td>
+              </tr>
+            </tbody></table>
+          </div>
+        </td>
+      </tr>
+      <tr id=3D"pnlAbateValor" style=3D"display: none;">
+        <td>
+          <div style=3D"width:700px">
+            <table width=3D"700" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+              <tbody><tr>
+                <td style=3D"width:400px; text-align: right;"><b>Abater Val=
+or</b></td>
+                <td style=3D"width:300px"></td>
+              </tr>
+              <tr>
+                <td style=3D"text-align: right;">Valor a ser abatido na dat=
+a final do c=E1lculo:</td>
+                <td>
+                  <input type=3D"text" name=3D"txtAbateValor" id=3D"txtAbat=
+eValor" placeholder=3D"0,00" value=3D"">
+                </td>
+              </tr>
+
+            </tbody></table>
+          </div>
+        </td>
+      </tr>     =20
+      <tr>
+        <td>
+          <table width=3D"700px" border=3D"0" cellspacing=3D"3" cellpadding=
+=3D"0">
+            <tbody><tr>
+              <td style=3D"width:400px; text-align: right;"><b>Data final d=
+o c=E1lculo (dd/mm/aaaa):</b></td>
+              <td style=3D"width:300px">
+                <input type=3D"text" name=3D"txtDataFinal" id=3D"txtDataFin=
+al" maxlength=3D"10" value=3D""> (opcional)
+              </td>
+            </tr>
+          </tbody></table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          &nbsp;<a>In=EDcio</a>&nbsp;
+          <a>Pr=F3ximo</a>
+        </td>
+      </tr>
+      <tr><td></td></tr>
+    </tbody></table>
+  </div>
+ =20
+</form>
+
+</body></html>
+------MultipartBoundary--avA5xovrf1UpFvu8Ggswf9oHUSakl1suKRT85HABcG----
+Content-Type: image/jpeg
+Content-Transfer-Encoding: base64
+Content-Location: https://sistemas.tjes.jus.br/sistemaspublicos/corregedoria/Atm/imagens/timbre.jpg
+
+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
+
+------MultipartBoundary--avA5xovrf1UpFvu8Ggswf9oHUSakl1suKRT85HABcG----
+Content-Type: text/css
+Content-Transfer-Encoding: quoted-printable
+Content-Location: https://sistemas.tjes.jus.br/sistemaspublicos/corregedoria/Atm/Layout.css
+
+@charset "utf-8";
+
+body { font-family: Tahoma, Verdana, Arial, Helvetica, sans-serif; font-siz=
+e: small; }
+
+#geral { text-align: left; margin: 5px auto 0px; width: 710px; border: 1px =
+solid black; }
+
+.titulopagina { text-align: center; font-weight: bold; }
+
+.subtitulopagina { text-align: center; font-weight: bold; font-size: x-smal=
+l; }
+
+.AvisoDeErro { margin-left: 5px; font-size: small; font-weight: bold; borde=
+r: 1px solid gold; padding: 10px 10px 10px 60px; margin-bottom: 10px; width=
+: 625px; background: url("Imagens/erro.png") 9px 9px no-repeat; }
+
+a:link, a:visited { text-decoration: none; font-weight: bold; color: maroon=
+; }
+
+a:hover, a:active { text-decoration: underline; font-weight: bold; color: r=
+ed; }
+
+a.marca:link, a.marca:visited { text-decoration: none; font-weight: normal;=
+ color: blue; }
+
+a.marca:hover, a.marca:active { text-decoration: underline; font-weight: no=
+rmal; color: blue; }
+------MultipartBoundary--avA5xovrf1UpFvu8Ggswf9oHUSakl1suKRT85HABcG------

@@ -95,6 +95,10 @@ Route::middleware('ancora.auth')->group(function () {
         Route::get('/{cobranca}/termo-acordo', [CobrancaController::class, 'agreementEdit'])->name('cobrancas.agreement.edit')->middleware('ancora.route:cobrancas.agreement.edit');
         Route::post('/{cobranca}/termo-acordo', [CobrancaController::class, 'agreementSave'])->name('cobrancas.agreement.save')->middleware('ancora.route:cobrancas.agreement.save');
         Route::get('/{cobranca}/termo-acordo/pdf', [CobrancaController::class, 'agreementPrint'])->name('cobrancas.agreement.pdf')->middleware('ancora.route:cobrancas.agreement.pdf');
+        Route::post('/{cobranca}/atualizacao-monetaria/preview', [CobrancaController::class, 'monetaryPreview'])->name('cobrancas.monetary.preview')->middleware('ancora.route:cobrancas.monetary.preview');
+        Route::post('/{cobranca}/atualizacao-monetaria', [CobrancaController::class, 'monetaryStore'])->name('cobrancas.monetary.store')->middleware('ancora.route:cobrancas.monetary.store');
+        Route::post('/{cobranca}/atualizacao-monetaria/{update}/aplicar', [CobrancaController::class, 'monetaryApply'])->name('cobrancas.monetary.apply')->middleware('ancora.route:cobrancas.monetary.apply');
+        Route::get('/{cobranca}/atualizacao-monetaria/{update}/pdf', [CobrancaController::class, 'monetaryPdf'])->name('cobrancas.monetary.pdf')->middleware('ancora.route:cobrancas.monetary.pdf');
         Route::get('/{cobranca}', [CobrancaController::class, 'show'])->name('cobrancas.show')->middleware('ancora.route:cobrancas.show');
         Route::get('/{cobranca}/editar', [CobrancaController::class, 'edit'])->name('cobrancas.edit')->middleware('ancora.route:cobrancas.edit');
         Route::match(['post', 'put'], '/{cobranca}', [CobrancaController::class, 'update'])->name('cobrancas.update')->middleware('ancora.route:cobrancas.update');

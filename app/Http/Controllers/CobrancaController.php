@@ -16,8 +16,12 @@ use App\Models\CobrancaCaseTimeline;
 use App\Models\CobrancaAgreementTerm;
 use App\Models\CobrancaImportBatch;
 use App\Models\CobrancaImportRow;
+use App\Models\CobrancaMonetaryUpdate;
+use App\Models\CobrancaMonetaryUpdateItem;
 use App\Services\CobrancaAgreementTermService;
+use App\Services\CobrancaMonetaryUpdateService;
 use App\Support\AncoraAuth;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -450,10 +454,15 @@ class CobrancaController extends Controller
         $cobranca->load([
             'condominium', 'block', 'unit.owner', 'unit.tenant', 'contacts', 'quotas', 'installments', 'timeline', 'attachments',
         ]);
+        $monetaryStorageReady = $this->monetaryUpdateStorageReady();
+        if ($monetaryStorageReady) {
+            $cobranca->load(['monetaryUpdates.items']);
+        }
 
         return view('pages.cobrancas.show', [
             'title' => 'OS ' . $cobranca->os_number,
             'case' => $cobranca,
+            'monetaryStorageReady' => $monetaryStorageReady,
             'n8nPayload' => $this->n8nPayload($cobranca),
             'stageLabels' => $this->workflowStageLabels(),
             'situationLabels' => $this->situationLabels(),
@@ -925,6 +934,303 @@ class CobrancaController extends Controller
         }
 
         return 'O plano de pagamento excede o valor do acordo em ' . $this->centsToMoney(abs($difference)) . '. Ajuste antes de gerar o termo.';
+    }
+
+    public function monetaryPreview(Request $request, CobrancaCase $cobranca, CobrancaMonetaryUpdateService $service): JsonResponse
+    {
+        if (!$this->monetaryUpdateStorageReady()) {
+            return response()->json([
+                'message' => 'A estrutura de atualização monetária ainda não existe no banco. Rode as migrations antes de simular.',
+            ], 409);
+        }
+
+        try {
+            $cobranca->load('quotas');
+            $calculation = $service->calculate($cobranca, $this->monetaryOptionsFromRequest($request));
+
+            return response()->json($service->formatPreview($calculation));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function monetaryStore(Request $request, CobrancaCase $cobranca, CobrancaMonetaryUpdateService $service): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        if (!$this->monetaryUpdateStorageReady()) {
+            return back()->with('error', 'A estrutura de atualização monetária ainda não existe no banco. Rode a migration 2026_04_15_000400 antes de salvar cálculos.');
+        }
+
+        try {
+            $cobranca->load('quotas');
+            $calculation = $service->calculate($cobranca, $this->monetaryOptionsFromRequest($request));
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', 'Não foi possível calcular a atualização monetária: ' . $e->getMessage());
+        }
+
+        $applyToCase = $request->boolean('apply_to_case');
+
+        $update = DB::transaction(function () use ($cobranca, $calculation, $request, $user, $applyToCase) {
+            $update = $this->persistMonetaryUpdate($cobranca, $calculation, $user->id);
+            if ($applyToCase) {
+                $this->applyMonetaryUpdateToCase($cobranca, $update, $user->id);
+            }
+
+            $message = 'Memória de cálculo TJES salva'
+                . ($applyToCase ? ' e aplicada à OS.' : '.')
+                . ' Total geral: ' . $this->centsToMoney((int) $calculation['totals']['grand_total_cents']) . '.';
+            $this->recordTimeline($cobranca, 'atualizacao_tjes', $message, $request, now());
+            $this->logAction($request, 'save_cobranca_monetary_update', $cobranca->id, 'Atualização monetária TJES - ' . $cobranca->os_number);
+
+            return $update;
+        });
+
+        $success = $applyToCase
+            ? 'Memória de cálculo salva e aplicada à OS. Revise o plano de pagamento antes de gerar o termo.'
+            : 'Memória de cálculo salva. Você pode aplicar na OS ou gerar o PDF pelo histórico.';
+
+        return redirect()
+            ->route('cobrancas.show', $cobranca)
+            ->with('success', $success . ' Total geral: R$ ' . number_format((float) $update->grand_total, 2, ',', '.'));
+    }
+
+    public function monetaryApply(Request $request, CobrancaCase $cobranca, string $update): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        if (!$this->monetaryUpdateStorageReady()) {
+            return back()->with('error', 'A estrutura de atualização monetária ainda não existe no banco.');
+        }
+
+        $monetaryUpdate = CobrancaMonetaryUpdate::query()->findOrFail((int) $update);
+        abort_if((int) $monetaryUpdate->cobranca_case_id !== (int) $cobranca->id, 404);
+
+        DB::transaction(function () use ($request, $cobranca, $monetaryUpdate, $user) {
+            $this->applyMonetaryUpdateToCase($cobranca, $monetaryUpdate, $user->id);
+            $this->recordTimeline($cobranca, 'atualizacao_tjes', 'Memória de cálculo TJES aplicada à OS. Total geral: R$ ' . number_format((float) $monetaryUpdate->grand_total, 2, ',', '.') . '.', $request, now());
+            $this->logAction($request, 'apply_cobranca_monetary_update', $cobranca->id, 'Aplicação de atualização monetária TJES - ' . $cobranca->os_number);
+        });
+
+        return back()->with('success', 'Atualização aplicada à OS. Revise parcelas/vencimentos antes de gerar o termo.');
+    }
+
+    public function monetaryPdf(Request $request, CobrancaCase $cobranca, string $update): View|BinaryFileResponse
+    {
+        abort_unless($this->monetaryUpdateStorageReady(), 404);
+
+        $monetaryUpdate = CobrancaMonetaryUpdate::query()->findOrFail((int) $update);
+        abort_if((int) $monetaryUpdate->cobranca_case_id !== (int) $cobranca->id, 404);
+
+        $cobranca->load(['condominium', 'block', 'unit.owner', 'debtor']);
+        $monetaryUpdate->load(['items', 'generator']);
+        $this->logAction($request, 'print_cobranca_monetary_update', $cobranca->id, 'PDF da memória de cálculo TJES - ' . $cobranca->os_number);
+
+        $viewData = [
+            'case' => $cobranca,
+            'update' => $monetaryUpdate,
+            'autoPrint' => true,
+            'pdfMode' => false,
+        ];
+
+        if ($pdfResponse = $this->monetaryPdfResponse($viewData)) {
+            return $pdfResponse;
+        }
+
+        return view('pages.cobrancas.monetary.document', $viewData);
+    }
+
+    private function monetaryPdfResponse(array $viewData): ?BinaryFileResponse
+    {
+        $htmlPath = null;
+        $pdfPath = null;
+
+        try {
+            $dir = storage_path('app/generated/cobranca-monetary-updates');
+            File::ensureDirectoryExists($dir);
+
+            /** @var CobrancaCase $case */
+            $case = $viewData['case'];
+            /** @var CobrancaMonetaryUpdate $update */
+            $update = $viewData['update'];
+            $baseName = Str::slug(($case->os_number ?: 'os') . '-memoria-calculo-' . $update->id) . '-' . now()->format('YmdHis') . '-' . Str::random(6);
+            $htmlPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.html';
+            $pdfPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
+
+            File::put($htmlPath, view('pages.cobrancas.monetary.document', array_merge($viewData, [
+                'autoPrint' => false,
+                'pdfMode' => true,
+            ]))->render());
+
+            $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
+                || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath);
+
+            File::delete($htmlPath);
+
+            if (!$generated || !is_file($pdfPath)) {
+                File::delete($pdfPath);
+                return null;
+            }
+
+            return response()
+                ->file($pdfPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $case->os_number . '-memoria-calculo-tjes.pdf"',
+                ])
+                ->deleteFileAfterSend(true);
+        } catch (\Throwable) {
+            if ($htmlPath) {
+                File::delete($htmlPath);
+            }
+            if ($pdfPath) {
+                File::delete($pdfPath);
+            }
+
+            return null;
+        }
+    }
+
+    private function persistMonetaryUpdate(CobrancaCase $case, array $calculation, int $userId): CobrancaMonetaryUpdate
+    {
+        $settings = $calculation['settings'];
+        $totals = $calculation['totals'];
+
+        /** @var CobrancaMonetaryUpdate $update */
+        $update = CobrancaMonetaryUpdate::query()->create([
+            'cobranca_case_id' => $case->id,
+            'index_code' => $settings['index_code'],
+            'calculation_date' => $settings['calculation_date'],
+            'final_date' => $settings['final_date']->toDateString(),
+            'interest_type' => $settings['interest_type'],
+            'interest_rate_monthly' => $settings['interest_type'] === 'contractual' ? $settings['interest_rate_monthly'] : null,
+            'fine_percent' => $settings['fine_percent'],
+            'attorney_fee_type' => $settings['attorney_fee_type'],
+            'attorney_fee_value' => $settings['attorney_fee_type'] === 'fixed'
+                ? $this->decimalFromCents((int) $settings['attorney_fee_value'])
+                : (float) $settings['attorney_fee_value'],
+            'costs_amount' => $this->decimalFromCents((int) $settings['costs_cents']),
+            'costs_date' => $settings['costs_date']?->toDateString(),
+            'costs_corrected_amount' => $this->decimalFromCents((int) $totals['costs_corrected_cents']),
+            'abatement_amount' => $this->decimalFromCents((int) $totals['abatement_cents']),
+            'original_total' => $this->decimalFromCents((int) $totals['original_cents']),
+            'corrected_total' => $this->decimalFromCents((int) $totals['corrected_cents']),
+            'interest_total' => $this->decimalFromCents((int) $totals['interest_cents']),
+            'fine_total' => $this->decimalFromCents((int) $totals['fine_cents']),
+            'debit_total' => $this->decimalFromCents((int) $totals['debit_total_cents']),
+            'attorney_fee_amount' => $this->decimalFromCents((int) $totals['attorney_fee_cents']),
+            'grand_total' => $this->decimalFromCents((int) $totals['grand_total_cents']),
+            'payload_json' => $this->monetaryPayload($calculation),
+            'generated_by' => $userId,
+        ]);
+
+        foreach ($calculation['items'] as $item) {
+            CobrancaMonetaryUpdateItem::query()->create([
+                'cobranca_monetary_update_id' => $update->id,
+                'cobranca_case_quota_id' => $item['quota_id'],
+                'reference_label' => Str::limit((string) $item['reference_label'], 100, ''),
+                'due_date' => $item['due_date']->toDateString(),
+                'original_amount' => $this->decimalFromCents((int) $item['original_cents']),
+                'correction_factor' => $item['correction_factor'],
+                'corrected_amount' => $this->decimalFromCents((int) $item['corrected_cents']),
+                'interest_months' => $item['interest_months'],
+                'interest_percent' => $item['interest_percent'],
+                'interest_amount' => $this->decimalFromCents((int) $item['interest_cents']),
+                'fine_percent' => $item['fine_percent'],
+                'fine_amount' => $this->decimalFromCents((int) $item['fine_cents']),
+                'total_amount' => $this->decimalFromCents((int) $item['total_cents']),
+                'created_at' => now(),
+            ]);
+        }
+
+        return $update->load('items');
+    }
+
+    private function applyMonetaryUpdateToCase(CobrancaCase $case, CobrancaMonetaryUpdate $update, int $userId): void
+    {
+        $update->loadMissing('items');
+        foreach ($update->items as $item) {
+            if (!$item->cobranca_case_quota_id) {
+                continue;
+            }
+
+            CobrancaCaseQuota::query()
+                ->whereKey($item->cobranca_case_quota_id)
+                ->where('cobranca_case_id', $case->id)
+                ->update(['updated_amount' => $item->total_amount]);
+        }
+
+        $case->update([
+            'agreement_total' => $update->grand_total,
+            'fees_amount' => $update->attorney_fee_amount,
+            'calc_base_date' => $update->final_date,
+            'updated_by' => $userId,
+        ]);
+
+        $update->forceFill([
+            'applied_to_case' => true,
+            'applied_at' => now(),
+            'applied_by' => $userId,
+        ])->save();
+    }
+
+    private function monetaryPayload(array $calculation): array
+    {
+        $settings = $calculation['settings'];
+
+        return [
+            'settings' => [
+                'index_code' => $settings['index_code'],
+                'index_label' => $settings['index_label'],
+                'calculation_date' => $settings['calculation_date'],
+                'final_date' => $settings['final_date']->toDateString(),
+                'interest_type' => $settings['interest_type'],
+                'interest_rate_monthly' => $settings['interest_rate_monthly'],
+                'fine_percent' => $settings['fine_percent'],
+                'attorney_fee_type' => $settings['attorney_fee_type'],
+                'attorney_fee_value' => $settings['attorney_fee_value'],
+                'costs_cents' => $settings['costs_cents'],
+                'costs_date' => $settings['costs_date']?->toDateString(),
+                'abatement_cents' => $settings['abatement_cents'],
+                'quota_ids' => $settings['quota_ids'],
+            ],
+            'totals_cents' => $calculation['totals'],
+            'summary' => $calculation['summary'],
+        ];
+    }
+
+    private function monetaryOptionsFromRequest(Request $request): array
+    {
+        return [
+            'final_date' => $request->input('final_date'),
+            'index_code' => $request->input('index_code', 'ATM'),
+            'quota_ids' => $request->input('quota_ids', []),
+            'interest_type' => $request->input('interest_type', 'legal'),
+            'interest_rate_monthly' => $request->input('interest_rate_monthly'),
+            'fine_percent' => $request->input('fine_percent'),
+            'attorney_fee_type' => $request->input('attorney_fee_type', 'percent'),
+            'attorney_fee_value' => $request->input('attorney_fee_value'),
+            'costs_amount' => $request->input('costs_amount'),
+            'costs_date' => $request->input('costs_date'),
+            'abatement_amount' => $request->input('abatement_amount'),
+        ];
+    }
+
+    private function monetaryUpdateStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('cobranca_monetary_index_factors')
+                && Schema::hasTable('cobranca_monetary_updates')
+                && Schema::hasTable('cobranca_monetary_update_items');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function decimalFromCents(int $cents): float
+    {
+        return round($cents / 100, 2);
     }
 
     public function edit(CobrancaCase $cobranca): View

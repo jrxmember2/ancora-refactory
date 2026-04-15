@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.11',
-            'date' => '14/04/2026',
-            'label' => 'v1.11 • 14/04/2026',
+            'version' => 'v1.12',
+            'date' => '15/04/2026',
+            'label' => 'v1.12 • 15/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Atualização monetária TJES na cobrança',
+                'items' => [
+                    'Nova base de fatores mensais do índice TJES/ATM importada do relatório oficial salvo nos documentos de referência, cobrindo competências de 1969 a 2026.',
+                    'OS de cobrança ganha modal para simular atualização monetária com juros legais ou contratuais, multa, custas, abatimento e honorários em percentual ou valor fixo.',
+                    'Memórias de cálculo podem ser salvas no histórico da OS, aplicadas ao valor do acordo e exportadas em PDF.',
+                    'Aplicação do cálculo atualiza valores das quotas, valor total do acordo, honorários e data-base da OS de forma auditável.',
+                ],
+            ],
+            [
+                'version' => 'v1.11',
+                'date' => '14/04/2026',
                 'title' => 'Uploads maiores em condomínios',
                 'items' => [
                     'Limites PHP do container ajustados para 64 MB por arquivo e 72 MB por envio.',
