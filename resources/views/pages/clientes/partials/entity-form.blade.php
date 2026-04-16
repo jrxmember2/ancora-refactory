@@ -6,6 +6,7 @@
     $selectedInactive = old('is_inactive', ($entity && !$entity->is_active) ? 1 : 0);
     $addressesMatch = !empty($primary) && $primary === $billing;
     $selectedSameBilling = old('billing_same_as_primary', $addressesMatch ? 1 : 0);
+    $roleOptions = $roleOptions ?? $entityRoles ?? collect();
     $maritalOptions = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Separado(a)', 'Viúvo(a)', 'União estável'];
 
     $phonesRows = old('phones');
@@ -81,7 +82,7 @@
                     <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Perfil / papel</label>
                     <select name="role_tag" class="{{ $selectClass }}" required>
                         <option value="">Selecione</option>
-                        @foreach(($entityRoles ?? collect()) as $role)
+                        @foreach($roleOptions as $role)
                             <option value="{{ $role->name }}" @selected(old('role_tag', $entity?->role_tag ?? $roleTag) === $role->name)>{{ $role->name }}</option>
                         @endforeach
                     </select>

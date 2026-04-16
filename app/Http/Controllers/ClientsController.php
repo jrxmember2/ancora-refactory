@@ -36,10 +36,93 @@ class ClientsController extends Controller
         ];
     }
 
+    private function partnerRoleKeywords(): array
+    {
+        return ['sindico', 'sindica', 'administradora', 'imobiliaria', 'corretor', 'corretora'];
+    }
+
+    private function condominoRoleKeywords(): array
+    {
+        return ['proprietario', 'locatario', 'inquilino'];
+    }
+
+    private function roleSearchTerms(array $keywords): array
+    {
+        $accented = [
+            'sindico' => ['síndico'],
+            'sindica' => ['síndica'],
+            'imobiliaria' => ['imobiliária'],
+            'proprietario' => ['proprietário'],
+            'locatario' => ['locatário'],
+        ];
+
+        $terms = [];
+        foreach ($keywords as $keyword) {
+            $terms[] = $keyword;
+            foreach ($accented[$keyword] ?? [] as $variant) {
+                $terms[] = $variant;
+            }
+        }
+
+        return array_values(array_unique($terms));
+    }
+
+    private function normalizedRoleText(?string $value): string
+    {
+        return Str::of(Str::ascii((string) $value))->lower()->squish()->toString();
+    }
+
+    private function roleTagMatches(?string $roleTag, array $keywords): bool
+    {
+        $roleTag = $this->normalizedRoleText($roleTag);
+        if ($roleTag === '') {
+            return false;
+        }
+
+        foreach ($keywords as $keyword) {
+            if (str_contains($roleTag, $this->normalizedRoleText($keyword))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function applyRoleKeywordFilter($query, array $keywords): void
+    {
+        $terms = $this->roleSearchTerms($keywords);
+
+        $query->where(function ($roleQuery) use ($terms) {
+            foreach ($terms as $term) {
+                $roleQuery->orWhere('role_tag', 'like', '%' . $term . '%');
+            }
+        });
+    }
+
+    private function roleOptionsForKeywords(array $keywords)
+    {
+        return ClientType::query()
+            ->where('scope', 'entity_role')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn ($role) => $this->roleTagMatches((string) $role->name, $keywords))
+            ->values();
+    }
+
+    private function partnerRolesForSelect()
+    {
+        return $this->roleOptionsForKeywords($this->partnerRoleKeywords());
+    }
+
     private function partnerEntitiesQuery()
     {
         return ClientEntity::query()
             ->where('profile_scope', 'contato')
+            ->where(function ($query) {
+                $this->applyRoleKeywordFilter($query, $this->partnerRoleKeywords());
+            })
             ->whereNotIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'))
             ->whereNotIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
     }
@@ -50,7 +133,10 @@ class ClientsController extends Controller
             ->where('profile_scope', 'contato')
             ->where(function ($query) {
                 $query->whereIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'))
-                    ->orWhereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
+                    ->orWhereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'))
+                    ->orWhere(function ($roleQuery) {
+                        $this->applyRoleKeywordFilter($roleQuery, $this->condominoRoleKeywords());
+                    });
             });
     }
 
@@ -66,7 +152,8 @@ class ClientsController extends Controller
     {
         $counts = $this->entityUnitLinkCounts($entity);
 
-        return ($counts['owner'] + $counts['tenant']) > 0;
+        return ($counts['owner'] + $counts['tenant']) > 0
+            || $this->roleTagMatches($entity->role_tag, $this->condominoRoleKeywords());
     }
 
     private function blockNameKey(string $name): string
@@ -903,11 +990,15 @@ class ClientsController extends Controller
     public function contatos(Request $request): View
     {
         $query = $this->partnerEntitiesQuery();
+        $partnerRoles = $this->partnerRolesForSelect();
+
         if ($term = trim((string) $request->input('q'))) {
             $query->where(fn ($sub) => $sub->where('display_name', 'like', "%{$term}%")->orWhere('cpf_cnpj', 'like', "%{$term}%"));
         }
-        if ($request->filled('role_tag')) {
-            $query->where('role_tag', $request->input('role_tag'));
+
+        $roleFilter = $this->normalizeWhitespace($request->input('role_tag', ''));
+        if ($roleFilter !== '' && $this->roleTagMatches($roleFilter, $this->partnerRoleKeywords())) {
+            $query->where('role_tag', $roleFilter);
         }
 
         $sortState = SortableQuery::apply($query, $request, [
@@ -923,6 +1014,7 @@ class ClientsController extends Controller
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
             'sortState' => $sortState,
+            'partnerRoles' => $partnerRoles,
         ], $this->commonViewData()));
     }
 
@@ -944,9 +1036,19 @@ class ClientsController extends Controller
         }
 
         if ($request->input('vinculo') === 'proprietario') {
-            $query->whereIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'));
+            $query->where(function ($sub) {
+                $sub->whereIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'))
+                    ->orWhere(function ($roleQuery) {
+                        $this->applyRoleKeywordFilter($roleQuery, ['proprietario']);
+                    });
+            });
         } elseif ($request->input('vinculo') === 'locatario') {
-            $query->whereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
+            $query->where(function ($sub) {
+                $sub->whereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'))
+                    ->orWhere(function ($roleQuery) {
+                        $this->applyRoleKeywordFilter($roleQuery, ['locatario', 'inquilino']);
+                    });
+            });
         }
 
         $sortState = SortableQuery::apply($query, $request, [
@@ -971,6 +1073,7 @@ class ClientsController extends Controller
             'title' => 'Novo parceiro / fornecedor',
             'item' => null,
             'mode' => 'create',
+            'partnerRoles' => $this->partnerRolesForSelect(),
             'attachments' => collect(),
             'timeline' => collect(),
         ], $this->commonViewData()));
@@ -979,6 +1082,12 @@ class ClientsController extends Controller
     public function contatoStore(Request $request): RedirectResponse
     {
         $payload = $this->entityPayloadFromRequest($request, 'contato', 'administradora');
+        if (!$this->roleTagMatches($payload['role_tag'] ?? '', $this->partnerRoleKeywords())) {
+            return back()
+                ->withInput()
+                ->with('errors_list', ['Em parceiros/fornecedores, selecione apenas Síndico, Administradora ou Imobiliária/Corretor.']);
+        }
+
         $errors = $this->validateEntity($payload);
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
@@ -1003,10 +1112,11 @@ class ClientsController extends Controller
             'title' => $isCondomino ? 'Editar condômino' : 'Editar parceiro / fornecedor',
             'formSubtitle' => $isCondomino
                 ? 'Cadastro de proprietário ou locatário vinculado a uma ou mais unidades.'
-                : 'Cadastro de síndicos, administradoras, parceiros e fornecedores reutilizáveis.',
+                : 'Cadastro de síndicos, administradoras e imobiliária/corretor reutilizáveis.',
             'item' => $contato,
             'mode' => 'edit',
             'isCondomino' => $isCondomino,
+            'partnerRoles' => $this->partnerRolesForSelect(),
             'attachments' => ClientAttachment::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
         ], $this->commonViewData()));
@@ -1016,7 +1126,14 @@ class ClientsController extends Controller
     {
         abort_if($contato->profile_scope !== 'contato', 404);
 
+        $isCondomino = $this->isCondominoEntity($contato);
         $payload = $this->entityPayloadFromRequest($request, 'contato', $contato->role_tag ?: 'administradora');
+        if (!$isCondomino && !$this->roleTagMatches($payload['role_tag'] ?? '', $this->partnerRoleKeywords())) {
+            return back()
+                ->withInput()
+                ->with('errors_list', ['Em parceiros/fornecedores, selecione apenas Síndico, Administradora ou Imobiliária/Corretor.']);
+        }
+
         $errors = $this->validateEntity($payload);
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);

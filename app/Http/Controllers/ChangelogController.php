@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.15',
+            'version' => 'v1.16',
             'date' => '16/04/2026',
-            'label' => 'v1.15 • 16/04/2026',
+            'label' => 'v1.16 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Separação rígida entre parceiros e condôminos',
+                'items' => [
+                    'Parceiros/fornecedores passam a listar somente Síndico, Administradora e Imobiliária/Corretor.',
+                    'Proprietários, locatários e inquilinos passam a ficar concentrados na tela de Condôminos, inclusive quando ainda não estão vinculados a uma unidade.',
+                    'Formulários e filtros de parceiros deixam de oferecer papéis de proprietário ou locatário e o backend bloqueia envio manual desses papéis nessa seção.',
+                ],
+            ],
+            [
+                'version' => 'v1.15',
+                'date' => '16/04/2026',
                 'title' => 'Importação segura de unidades e auditoria',
                 'items' => [
                     'Importação em massa de unidades passa a abrir prévia em modal antes de criar registros.',

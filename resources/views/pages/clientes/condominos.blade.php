@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Condôminos" subtitle="Proprietários e locatários vinculados às unidades, separados de parceiros e fornecedores." />
+<x-ancora.section-header title="Condôminos" subtitle="Proprietários, locatários e inquilinos, separados de parceiros e fornecedores." />
 @include('pages.clientes.partials.subnav')
 
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -21,7 +21,7 @@
 
 <div class="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     @if($items->count() === 0)
-        <div class="p-6"><x-ancora.empty-state icon="fa-solid fa-people-roof" title="Sem condôminos" subtitle="Nenhum proprietário ou locatário vinculado a unidades foi encontrado." /></div>
+        <div class="p-6"><x-ancora.empty-state icon="fa-solid fa-people-roof" title="Sem condôminos" subtitle="Nenhum proprietário, locatário ou inquilino foi encontrado." /></div>
     @else
         <div class="overflow-x-auto">
             <table class="min-w-full text-left">

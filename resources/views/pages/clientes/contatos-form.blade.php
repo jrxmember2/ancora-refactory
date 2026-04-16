@@ -1,14 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header :title="$title" :subtitle="$formSubtitle ?? 'Cadastro de síndicos, administradoras, parceiros e fornecedores reutilizáveis.'" />
+<x-ancora.section-header :title="$title" :subtitle="$formSubtitle ?? 'Cadastro de síndicos, administradoras e imobiliária/corretor reutilizáveis.'" />
 @include('pages.clientes.partials.subnav')
 
 <form id="contato-form" method="post" action="{{ $mode === 'create' ? route('clientes.contatos.store') : route('clientes.contatos.update', $item) }}" enctype="multipart/form-data" class="space-y-6" data-clientes-form>
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
-    @include('pages.clientes.partials.entity-form', ['roleTag' => $item?->role_tag ?? 'administradora'])
+    @include('pages.clientes.partials.entity-form', [
+        'roleTag' => $item?->role_tag ?? 'administradora',
+        'roleOptions' => empty($isCondomino) ? ($partnerRoles ?? collect()) : ($entityRoles ?? collect()),
+    ])
 </form>
 
 <div class="mt-3 flex flex-wrap gap-3">

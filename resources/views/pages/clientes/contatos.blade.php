@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Parceiros e fornecedores" subtitle="Cadastre síndicos, administradoras, parceiros estratégicos e fornecedores reutilizáveis.">
+<x-ancora.section-header title="Parceiros e fornecedores" subtitle="Somente síndicos, administradoras e imobiliária/corretor. Proprietários e locatários ficam em Condôminos.">
     <a href="{{ route('clientes.contatos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cadastro</a>
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
@@ -9,7 +9,7 @@
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
-        <select name="role_tag" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100"><option value="">Todos os papéis</option>@foreach(($entityRoles ?? collect()) as $role)<option value="{{ $role->name }}" @selected(($filters['role_tag'] ?? '')===$role->name)>{{ $role->name }}</option>@endforeach</select>
+        <select name="role_tag" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100"><option value="">Todos os papéis</option>@foreach(($partnerRoles ?? collect()) as $role)<option value="{{ $role->name }}" @selected(($filters['role_tag'] ?? '')===$role->name)>{{ $role->name }}</option>@endforeach</select>
         <div class="flex gap-3"><button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Filtrar</button><a href="{{ route('clientes.contatos') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Limpar</a></div>
     </form>
 </div>
