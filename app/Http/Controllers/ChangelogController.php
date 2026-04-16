@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.16',
+            'version' => 'v1.17',
             'date' => '16/04/2026',
-            'label' => 'v1.16 • 16/04/2026',
+            'label' => 'v1.17 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Logs mais claros para auditoria',
+                'items' => [
+                    'Tela de logs passa a exibir ações em linguagem clara, como Criou condomínio, Atualizou unidade e Importou unidades.',
+                    'Detalhes técnicos de requisição passam a ser substituídos por mensagens compreensíveis, incluindo o nome do registro quando disponível.',
+                    'Filtros de ações e módulos agora mostram rótulos amigáveis em vez de nomes técnicos de rotas e tabelas.',
+                    'Logs específicos de importação, cobrança e proposta deixam de gerar uma segunda linha genérica duplicada no middleware.',
+                ],
+            ],
+            [
+                'version' => 'v1.16',
+                'date' => '16/04/2026',
                 'title' => 'Separação rígida entre parceiros e condôminos',
                 'items' => [
                     'Parceiros/fornecedores passam a listar somente Síndico, Administradora e Imobiliária/Corretor.',

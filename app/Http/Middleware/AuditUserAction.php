@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\AuditLog;
 use App\Support\AncoraAuth;
+use App\Support\AuditLogPresenter;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,7 +25,9 @@ class AuditUserAction
 
         try {
             $response = $next($request);
-            $this->write($request, $user, $routeName, $entityType, $entityId, $response->getStatusCode());
+            if (!$request->attributes->get('audit.skip_generic')) {
+                $this->write($request, $user, $routeName, $entityType, $entityId, $response->getStatusCode());
+            }
 
             return $response;
         } catch (\Throwable $e) {
@@ -56,13 +59,15 @@ class AuditUserAction
     private function write(Request $request, mixed $user, string $routeName, ?string $entityType, ?int $entityId, int $status): void
     {
         try {
+            $entityType = AuditLogPresenter::entityTypeForRoute($routeName, $entityType);
+
             AuditLog::query()->create([
                 'user_id' => $user?->id,
                 'user_email' => $user?->email ?? 'desconhecido',
                 'action' => $routeName,
                 'entity_type' => $entityType,
                 'entity_id' => $entityId,
-                'details' => sprintf('%s /%s · HTTP %s', strtoupper($request->method()), ltrim($request->path(), '/'), $status),
+                'details' => AuditLogPresenter::detailsFromRequest($request, $routeName, $status),
                 'ip_address' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 255),
                 'created_at' => now(),

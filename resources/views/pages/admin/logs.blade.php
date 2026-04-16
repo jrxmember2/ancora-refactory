@@ -15,13 +15,13 @@
         <select name="entity_type" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
             <option value="">Todos os módulos</option>
             @foreach($filterOptions['entityTypes'] ?? [] as $type)
-                <option value="{{ $type }}" @selected(($filters['entity_type'] ?? '') === $type)>{{ $type }}</option>
+                <option value="{{ $type['value'] }}" @selected(($filters['entity_type'] ?? '') === $type['value'])>{{ $type['label'] }}</option>
             @endforeach
         </select>
         <select name="action" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 xl:col-span-2 dark:border-gray-700 dark:text-gray-100">
             <option value="">Todas as ações</option>
             @foreach($filterOptions['actions'] ?? [] as $action)
-                <option value="{{ $action }}" @selected(($filters['action'] ?? '') === $action)>{{ $action }}</option>
+                <option value="{{ $action['value'] }}" @selected(($filters['action'] ?? '') === $action['value'])>{{ $action['label'] }}</option>
             @endforeach
         </select>
         <input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
@@ -53,9 +53,9 @@
                         <tr>
                             <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{{ optional($item->created_at)->format('d/m/Y H:i') }}</td>
                             <td class="px-6 py-4"><div class="font-medium text-gray-900 dark:text-white">{{ $item->user_email }}</div><div class="text-xs text-gray-500 dark:text-gray-400">ID {{ $item->user_id ?: '—' }}</div></td>
-                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-200">{{ $item->entity_type ?: '—' }} @if($item->entity_id)<span class="text-xs text-gray-500">#{{ $item->entity_id }}</span>@endif</td>
-                            <td class="px-6 py-4"><span class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{{ $item->action }}</span></td>
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{{ $item->details }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-200">{{ $auditPresenter::moduleLabel($item->entity_type) }} @if($item->entity_id)<span class="text-xs text-gray-500">#{{ $item->entity_id }}</span>@endif</td>
+                            <td class="px-6 py-4"><span title="{{ $item->action }}" class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{{ $auditPresenter::actionLabel($item->action) }}</span></td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{{ $auditPresenter::detailsForDisplay($item) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

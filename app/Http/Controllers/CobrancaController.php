@@ -2715,6 +2715,7 @@ class CobrancaController extends Controller
             'user_agent' => substr((string) $request->userAgent(), 0, 255),
             'created_at' => now(),
         ]);
+        $request->attributes->set('audit.skip_generic', true);
     }
 
     private function chargeTypeLabels(): array

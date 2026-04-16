@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Support\AuditLogPresenter;
 use App\Support\SortableQuery;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,11 +14,35 @@ class LogController extends Controller
     {
         $query = AuditLog::query();
         if ($term = trim((string) $request->input('q', ''))) {
-            $query->where(function ($sub) use ($term) {
+            $matchingActions = AuditLog::query()
+                ->select('action')
+                ->whereNotNull('action')
+                ->distinct()
+                ->pluck('action')
+                ->filter(fn ($action) => AuditLogPresenter::labelMatches(AuditLogPresenter::actionLabel($action), $term))
+                ->values();
+
+            $matchingEntityTypes = AuditLog::query()
+                ->select('entity_type')
+                ->whereNotNull('entity_type')
+                ->distinct()
+                ->pluck('entity_type')
+                ->filter(fn ($type) => AuditLogPresenter::labelMatches(AuditLogPresenter::moduleLabel($type), $term))
+                ->values();
+
+            $query->where(function ($sub) use ($term, $matchingActions, $matchingEntityTypes) {
                 $sub->where('details', 'like', "%{$term}%")
                     ->orWhere('action', 'like', "%{$term}%")
                     ->orWhere('user_email', 'like', "%{$term}%")
                     ->orWhere('entity_type', 'like', "%{$term}%");
+
+                if ($matchingActions->isNotEmpty()) {
+                    $sub->orWhereIn('action', $matchingActions);
+                }
+
+                if ($matchingEntityTypes->isNotEmpty()) {
+                    $sub->orWhereIn('entity_type', $matchingEntityTypes);
+                }
             });
         }
         if ($request->filled('action')) {
@@ -49,11 +74,32 @@ class LogController extends Controller
             'items' => $query->paginate(25)->withQueryString(),
             'filters' => $request->all(),
             'filterOptions' => [
-                'actions' => AuditLog::query()->select('action')->whereNotNull('action')->distinct()->orderBy('action')->pluck('action'),
-                'entityTypes' => AuditLog::query()->select('entity_type')->whereNotNull('entity_type')->distinct()->orderBy('entity_type')->pluck('entity_type'),
+                'actions' => AuditLog::query()
+                    ->select('action')
+                    ->whereNotNull('action')
+                    ->distinct()
+                    ->pluck('action')
+                    ->map(fn ($action) => [
+                        'value' => $action,
+                        'label' => AuditLogPresenter::actionLabel($action),
+                    ])
+                    ->sortBy('label')
+                    ->values(),
+                'entityTypes' => AuditLog::query()
+                    ->select('entity_type')
+                    ->whereNotNull('entity_type')
+                    ->distinct()
+                    ->pluck('entity_type')
+                    ->map(fn ($type) => [
+                        'value' => $type,
+                        'label' => AuditLogPresenter::moduleLabel($type),
+                    ])
+                    ->sortBy('label')
+                    ->values(),
                 'users' => AuditLog::query()->select('user_email')->whereNotNull('user_email')->distinct()->orderBy('user_email')->pluck('user_email'),
             ],
             'sortState' => $sortState,
+            'auditPresenter' => AuditLogPresenter::class,
         ]);
     }
 }
