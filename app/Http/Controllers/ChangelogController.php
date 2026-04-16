@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.13',
-            'date' => '15/04/2026',
-            'label' => 'v1.13 • 15/04/2026',
+            'version' => 'v1.14',
+            'date' => '16/04/2026',
+            'label' => 'v1.14 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix da tela de condôminos',
+                'items' => [
+                    'Corrigida a montagem dos vínculos de proprietário e locatário na nova tela de condôminos.',
+                    'A listagem deixa de tentar tratar arrays como models Eloquent, eliminando o erro getKey() ao acessar o menu.',
+                ],
+            ],
+            [
+                'version' => 'v1.13',
+                'date' => '15/04/2026',
                 'title' => 'Clientes mais seguros e listas ordenáveis',
                 'items' => [
                     'Exclusão de condomínio passa a ser bloqueada quando ainda houver OS, unidades ou blocos vinculados.',

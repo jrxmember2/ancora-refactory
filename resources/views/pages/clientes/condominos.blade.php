@@ -39,8 +39,9 @@
                         @php
                             $owned = $item->ownedUnits ?? collect();
                             $rented = $item->rentedUnits ?? collect();
-                            $unitLinks = $owned->map(fn ($unit) => ['type' => 'Proprietário', 'unit' => $unit])
-                                ->merge($rented->map(fn ($unit) => ['type' => 'Locatário', 'unit' => $unit]));
+                            $unitLinks = collect($owned)->map(fn ($unit) => ['type' => 'Proprietário', 'unit' => $unit])
+                                ->concat(collect($rented)->map(fn ($unit) => ['type' => 'Locatário', 'unit' => $unit]))
+                                ->values();
                             $address = $item->primary_address_json ?? [];
                         @endphp
                         <tr>
