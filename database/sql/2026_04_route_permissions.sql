@@ -60,6 +60,7 @@ INSERT INTO `route_permissions` (`group_key`, `route_name`, `label`, `created_at
 ('clientes', 'clientes.contatos.edit', 'Editar contato', NOW()),
 ('clientes', 'clientes.contatos.update', 'Atualizar contato', NOW()),
 ('clientes', 'clientes.contatos.delete', 'Excluir contato', NOW()),
+('clientes', 'clientes.condominos', 'Listar condôminos', NOW()),
 ('clientes', 'clientes.condominios', 'Listar condomínios', NOW()),
 ('clientes', 'clientes.condominios.create', 'Novo condomínio', NOW()),
 ('clientes', 'clientes.condominios.store', 'Salvar condomínio', NOW()),

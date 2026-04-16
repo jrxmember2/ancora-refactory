@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClientEntity extends Model
 {
@@ -29,5 +30,15 @@ class ClientEntity extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function ownedUnits(): HasMany
+    {
+        return $this->hasMany(ClientUnit::class, 'owner_entity_id');
+    }
+
+    public function rentedUnits(): HasMany
+    {
+        return $this->hasMany(ClientUnit::class, 'tenant_entity_id');
     }
 }

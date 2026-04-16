@@ -64,11 +64,11 @@
             <table class="min-w-full text-left">
                 <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
                     <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
-                        <th class="px-6 py-4">Proposta</th>
-                        <th class="px-6 py-4">Cliente</th>
-                        <th class="px-6 py-4">Serviço</th>
-                        <th class="px-6 py-4">Status</th>
-                        <th class="px-6 py-4">Valores</th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="proposal" label="Proposta" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="client" label="Cliente" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="service" label="Serviço" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="status" label="Status" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="proposal_total" label="Valores" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4">Ações</th>
                     </tr>
                 </thead>

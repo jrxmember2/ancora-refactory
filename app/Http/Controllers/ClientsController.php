@@ -9,7 +9,9 @@ use App\Models\ClientEntity;
 use App\Models\ClientTimeline;
 use App\Models\ClientType;
 use App\Models\ClientUnit;
+use App\Models\CobrancaCase;
 use App\Support\AncoraAuth;
+use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -31,6 +33,44 @@ class ClientsController extends Controller
             'administradorasList' => ClientEntity::query()->whereIn('role_tag', ['administradora', 'Administradora'])->orderBy('display_name')->get(),
             'condominiumsDropdown' => ClientCondominium::query()->with('blocks')->orderBy('name')->get(),
         ];
+    }
+
+    private function partnerEntitiesQuery()
+    {
+        return ClientEntity::query()
+            ->where('profile_scope', 'contato')
+            ->whereNotIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'))
+            ->whereNotIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
+    }
+
+    private function condominoEntitiesQuery()
+    {
+        return ClientEntity::query()
+            ->where('profile_scope', 'contato')
+            ->where(function ($query) {
+                $query->whereIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'))
+                    ->orWhereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
+            });
+    }
+
+    private function entityUnitLinkCounts(ClientEntity $entity): array
+    {
+        return [
+            'owner' => ClientUnit::query()->where('owner_entity_id', $entity->id)->count(),
+            'tenant' => ClientUnit::query()->where('tenant_entity_id', $entity->id)->count(),
+        ];
+    }
+
+    private function isCondominoEntity(ClientEntity $entity): bool
+    {
+        $counts = $this->entityUnitLinkCounts($entity);
+
+        return ($counts['owner'] + $counts['tenant']) > 0;
+    }
+
+    private function blockNameKey(string $name): string
+    {
+        return Str::of($name)->squish()->lower()->toString();
     }
 
     private function parseLines(?string $text, array $keys): array
@@ -698,6 +738,8 @@ class ClientsController extends Controller
             return $existing
                 ? back()->with('success', $successMessage)
                 : redirect()->route('clientes.condominios.edit', $condo)->with('success', $successMessage);
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
             return back()->withInput()->with('error', 'Não foi possível salvar o condomínio agora. Revise os dados e tente novamente.');
@@ -711,6 +753,8 @@ class ClientsController extends Controller
             'entityCounts' => [
                 'total' => ClientEntity::query()->count(),
                 'avulsos_total' => ClientEntity::query()->where('profile_scope', 'avulso')->count(),
+                'contatos_total' => $this->partnerEntitiesQuery()->count(),
+                'condominos_total' => $this->condominoEntitiesQuery()->count(),
             ],
             'condominiumCounts' => [
                 'total' => ClientCondominium::query()->count(),
@@ -727,7 +771,7 @@ class ClientsController extends Controller
 
     public function avulsos(Request $request): View
     {
-        $query = ClientEntity::query()->where('profile_scope', 'avulso')->orderBy('display_name');
+        $query = ClientEntity::query()->where('profile_scope', 'avulso');
         if ($term = trim((string) $request->input('q'))) {
             $query->where(fn ($sub) => $sub
                 ->where('display_name', 'like', "%{$term}%")
@@ -744,10 +788,20 @@ class ClientsController extends Controller
             $query->where('role_tag', $request->input('role_tag'));
         }
 
+        $sortState = SortableQuery::apply($query, $request, [
+            'name' => 'display_name',
+            'role' => 'role_tag',
+            'type' => 'entity_type',
+            'document' => 'cpf_cnpj',
+            'status' => 'is_active',
+            'created_at' => 'created_at',
+        ], 'name');
+
         return view('pages.clientes.avulsos', array_merge([
             'title' => 'Clientes avulsos',
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
+            'sortState' => $sortState,
         ], $this->commonViewData()));
     }
 
@@ -826,7 +880,7 @@ class ClientsController extends Controller
 
     public function contatos(Request $request): View
     {
-        $query = ClientEntity::query()->where('profile_scope', 'contato')->orderBy('display_name');
+        $query = $this->partnerEntitiesQuery();
         if ($term = trim((string) $request->input('q'))) {
             $query->where(fn ($sub) => $sub->where('display_name', 'like', "%{$term}%")->orWhere('cpf_cnpj', 'like', "%{$term}%"));
         }
@@ -834,10 +888,58 @@ class ClientsController extends Controller
             $query->where('role_tag', $request->input('role_tag'));
         }
 
+        $sortState = SortableQuery::apply($query, $request, [
+            'name' => 'display_name',
+            'role' => 'role_tag',
+            'type' => 'entity_type',
+            'document' => 'cpf_cnpj',
+            'created_at' => 'created_at',
+        ], 'name');
+
         return view('pages.clientes.contatos', array_merge([
             'title' => 'Parceiros e fornecedores',
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
+            'sortState' => $sortState,
+        ], $this->commonViewData()));
+    }
+
+    public function condominos(Request $request): View
+    {
+        $query = $this->condominoEntitiesQuery()
+            ->withCount(['ownedUnits', 'rentedUnits'])
+            ->with([
+                'ownedUnits.condominium',
+                'ownedUnits.block',
+                'rentedUnits.condominium',
+                'rentedUnits.block',
+            ]);
+
+        if ($term = trim((string) $request->input('q'))) {
+            $query->where(fn ($sub) => $sub
+                ->where('display_name', 'like', "%{$term}%")
+                ->orWhere('cpf_cnpj', 'like', "%{$term}%"));
+        }
+
+        if ($request->input('vinculo') === 'proprietario') {
+            $query->whereIn('id', ClientUnit::query()->select('owner_entity_id')->whereNotNull('owner_entity_id'));
+        } elseif ($request->input('vinculo') === 'locatario') {
+            $query->whereIn('id', ClientUnit::query()->select('tenant_entity_id')->whereNotNull('tenant_entity_id'));
+        }
+
+        $sortState = SortableQuery::apply($query, $request, [
+            'name' => 'display_name',
+            'role' => 'role_tag',
+            'type' => 'entity_type',
+            'document' => 'cpf_cnpj',
+            'created_at' => 'created_at',
+        ], 'name');
+
+        return view('pages.clientes.condominos', array_merge([
+            'title' => 'Condôminos',
+            'items' => $query->paginate(15)->withQueryString(),
+            'filters' => $request->all(),
+            'sortState' => $sortState,
         ], $this->commonViewData()));
     }
 
@@ -873,11 +975,16 @@ class ClientsController extends Controller
     public function contatoEdit(ClientEntity $contato): View
     {
         abort_if($contato->profile_scope !== 'contato', 404);
+        $isCondomino = $this->isCondominoEntity($contato);
 
         return view('pages.clientes.contatos-form', array_merge([
-            'title' => 'Editar parceiro / fornecedor',
+            'title' => $isCondomino ? 'Editar condômino' : 'Editar parceiro / fornecedor',
+            'formSubtitle' => $isCondomino
+                ? 'Cadastro de proprietário ou locatário vinculado a uma ou mais unidades.'
+                : 'Cadastro de síndicos, administradoras, parceiros e fornecedores reutilizáveis.',
             'item' => $contato,
             'mode' => 'edit',
+            'isCondomino' => $isCondomino,
             'attachments' => ClientAttachment::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
         ], $this->commonViewData()));
@@ -906,21 +1013,39 @@ class ClientsController extends Controller
     public function contatoDelete(ClientEntity $contato): RedirectResponse
     {
         abort_if($contato->profile_scope !== 'contato', 404);
+        $linkCounts = $this->entityUnitLinkCounts($contato);
+        if (($linkCounts['owner'] + $linkCounts['tenant']) > 0) {
+            return back()->with('error', 'Não é possível excluir este condômino porque ele está vinculado a unidade(s). Remova ou altere o vínculo na unidade antes de excluir o cadastro.');
+        }
+
         $contato->delete();
         return redirect()->route('clientes.contatos')->with('success', 'Cadastro excluído.');
     }
 
     public function condominios(Request $request): View
     {
-        $query = ClientCondominium::query()->with(['type', 'syndic', 'administradora'])->orderBy('name');
+        $query = ClientCondominium::query()
+            ->select('client_condominiums.*')
+            ->leftJoin('client_types as condominium_type_sort', 'condominium_type_sort.id', '=', 'client_condominiums.condominium_type_id')
+            ->leftJoin('client_entities as condominium_syndic_sort', 'condominium_syndic_sort.id', '=', 'client_condominiums.syndico_entity_id')
+            ->with(['type', 'syndic', 'administradora']);
         if ($term = trim((string) $request->input('q'))) {
-            $query->where('name', 'like', "%{$term}%");
+            $query->where('client_condominiums.name', 'like', "%{$term}%");
         }
+
+        $sortState = SortableQuery::apply($query, $request, [
+            'name' => 'client_condominiums.name',
+            'type' => 'condominium_type_sort.name',
+            'syndic' => 'condominium_syndic_sort.display_name',
+            'blocks' => 'client_condominiums.has_blocks',
+            'created_at' => 'client_condominiums.created_at',
+        ], 'name');
 
         return view('pages.clientes.condominios', [
             'title' => 'Condomínios',
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
+            'sortState' => $sortState,
         ]);
     }
 
@@ -984,24 +1109,55 @@ class ClientsController extends Controller
 
     public function condominioDelete(ClientCondominium $condominio): RedirectResponse
     {
+        $caseCount = CobrancaCase::query()->where('condominium_id', $condominio->id)->count();
+        if ($caseCount > 0) {
+            return back()->with('error', "Não é possível excluir este condomínio porque existem {$caseCount} OS vinculada(s). Exclua as OS antes de remover o condomínio.");
+        }
+
+        $unitCount = ClientUnit::query()->where('condominium_id', $condominio->id)->count();
+        if ($unitCount > 0) {
+            return back()->with('error', "Não é possível excluir este condomínio porque existem {$unitCount} unidade(s) cadastrada(s). A ordem segura é: excluir OS, depois unidades, depois blocos e por último o condomínio.");
+        }
+
+        $blockCount = ClientBlock::query()->where('condominium_id', $condominio->id)->count();
+        if ($blockCount > 0) {
+            return back()->with('error', "Não é possível excluir este condomínio porque ainda existem {$blockCount} bloco(s). Remova os blocos no cadastro do condomínio antes de excluir.");
+        }
+
         $condominio->delete();
         return redirect()->route('clientes.condominios')->with('success', 'Condomínio excluído.');
     }
 
     public function unidades(Request $request): View
     {
-        $query = ClientUnit::query()->with(['condominium', 'block', 'type', 'owner', 'tenant'])->orderByDesc('id');
+        $query = ClientUnit::query()
+            ->select('client_units.*')
+            ->leftJoin('client_condominiums as unit_condominium_sort', 'unit_condominium_sort.id', '=', 'client_units.condominium_id')
+            ->leftJoin('client_condominium_blocks as unit_block_sort', 'unit_block_sort.id', '=', 'client_units.block_id')
+            ->leftJoin('client_entities as unit_owner_sort', 'unit_owner_sort.id', '=', 'client_units.owner_entity_id')
+            ->leftJoin('client_entities as unit_tenant_sort', 'unit_tenant_sort.id', '=', 'client_units.tenant_entity_id')
+            ->with(['condominium', 'block', 'type', 'owner', 'tenant']);
         if ($term = trim((string) $request->input('q'))) {
-            $query->where('unit_number', 'like', "%{$term}%");
+            $query->where('client_units.unit_number', 'like', "%{$term}%");
         }
         if ($request->filled('condominium_id')) {
-            $query->where('condominium_id', (int) $request->input('condominium_id'));
+            $query->where('client_units.condominium_id', (int) $request->input('condominium_id'));
         }
+
+        $sortState = SortableQuery::apply($query, $request, [
+            'condominium' => 'unit_condominium_sort.name',
+            'block' => 'unit_block_sort.name',
+            'unit' => 'client_units.unit_number',
+            'owner' => 'unit_owner_sort.display_name',
+            'tenant' => 'unit_tenant_sort.display_name',
+            'created_at' => 'client_units.created_at',
+        ], 'created_at', 'desc');
 
         return view('pages.clientes.unidades', array_merge([
             'title' => 'Unidades',
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
+            'sortState' => $sortState,
         ], $this->commonViewData()));
     }
 
@@ -1096,6 +1252,20 @@ class ClientsController extends Controller
 
     public function unidadeDelete(ClientUnit $unidade): RedirectResponse
     {
+        $caseCount = CobrancaCase::query()->where('unit_id', $unidade->id)->count();
+        if ($caseCount > 0) {
+            $examples = CobrancaCase::query()
+                ->where('unit_id', $unidade->id)
+                ->orderByDesc('id')
+                ->limit(3)
+                ->pluck('os_number')
+                ->filter()
+                ->implode(', ');
+
+            $suffix = $examples !== '' ? " OS: {$examples}." : '';
+            return back()->with('error', "Não é possível excluir esta unidade porque existem {$caseCount} OS vinculada(s). Exclua as OS primeiro e depois tente remover a unidade.{$suffix}");
+        }
+
         $unidade->delete();
         return redirect()->route('clientes.unidades')->with('success', 'Unidade excluída.');
     }
@@ -1227,12 +1397,42 @@ class ClientsController extends Controller
             ->filter()
             ->values();
 
-        $condo->blocks()->delete();
+        $desired = [];
         foreach ($names as $index => $name) {
-            ClientBlock::query()->create([
-                'condominium_id' => $condo->id,
+            $desired[$this->blockNameKey($name)] = [
                 'name' => $name,
                 'sort_order' => $index,
+            ];
+        }
+
+        $existingBlocks = ClientBlock::query()
+            ->where('condominium_id', $condo->id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($existingBlocks as $block) {
+            $key = $this->blockNameKey((string) $block->name);
+            if (array_key_exists($key, $desired)) {
+                $block->update($desired[$key]);
+                unset($desired[$key]);
+                continue;
+            }
+
+            $unitCount = ClientUnit::query()->where('block_id', $block->id)->count();
+            $caseCount = CobrancaCase::query()->where('block_id', $block->id)->count();
+            if (($unitCount + $caseCount) > 0) {
+                throw new \RuntimeException("Não é possível remover o bloco {$block->name} porque ele possui {$unitCount} unidade(s) e {$caseCount} OS vinculada(s). Remova as OS e as unidades antes de apagar o bloco.");
+            }
+
+            $block->delete();
+        }
+
+        foreach ($desired as $block) {
+            ClientBlock::query()->create([
+                'condominium_id' => $condo->id,
+                'name' => $block['name'],
+                'sort_order' => $block['sort_order'],
             ]);
         }
     }

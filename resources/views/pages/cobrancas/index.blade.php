@@ -62,12 +62,12 @@
             <table class="min-w-full text-left">
                 <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
                     <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
-                        <th class="px-6 py-4">OS</th>
-                        <th class="px-6 py-4">Condomínio / unidade</th>
-                        <th class="px-6 py-4">Devedor</th>
-                        <th class="px-6 py-4">Etapa</th>
-                        <th class="px-6 py-4">Situação</th>
-                        <th class="px-6 py-4">Acordo</th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="os" label="OS" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="condominium" label="Condomínio / unidade" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="debtor" label="Devedor" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="stage" label="Etapa" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="situation" label="Situação" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="agreement_total" label="Acordo" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4 text-right">Ações</th>
                     </tr>
                 </thead>

@@ -84,11 +84,11 @@
             <table class="min-w-full text-left">
                 <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
                     <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
-                        <th class="px-6 py-4">Condomínio</th>
-                        <th class="px-6 py-4">Bloco</th>
-                        <th class="px-6 py-4">Unidade</th>
-                        <th class="px-6 py-4">Proprietário</th>
-                        <th class="px-6 py-4">Locatário</th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="condominium" label="Condomínio" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="block" label="Bloco" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="unit" label="Unidade" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="owner" label="Proprietário" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="tenant" label="Locatário" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4 text-right">Ações</th>
                     </tr>
                 </thead>

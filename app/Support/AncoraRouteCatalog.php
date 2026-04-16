@@ -56,6 +56,7 @@ class AncoraRouteCatalog
                     'clientes.contatos.edit' => 'Editar contato',
                     'clientes.contatos.update' => 'Atualizar contato',
                     'clientes.contatos.delete' => 'Excluir contato',
+                    'clientes.condominos' => 'Listar condôminos',
                     'clientes.condominios' => 'Listar condomínios',
                     'clientes.condominios.create' => 'Novo condomínio',
                     'clientes.condominios.store' => 'Salvar condomínio',

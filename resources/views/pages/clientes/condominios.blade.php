@@ -19,7 +19,7 @@
     @else
         <div class="overflow-x-auto">
             <table class="min-w-full text-left">
-                <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40"><tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400"><th class="px-6 py-4">Condomínio</th><th class="px-6 py-4">Tipo</th><th class="px-6 py-4">Síndico</th><th class="px-6 py-4">Blocos</th><th class="px-6 py-4 text-right">Ações</th></tr></thead>
+                <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40"><tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400"><th class="px-6 py-4"><x-ancora.sort-link field="name" label="Condomínio" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4"><x-ancora.sort-link field="type" label="Tipo" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4"><x-ancora.sort-link field="syndic" label="Síndico" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4"><x-ancora.sort-link field="blocks" label="Blocos" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4 text-right">Ações</th></tr></thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @foreach($items as $item)
                         @php($address = $item->address_json ?? [])

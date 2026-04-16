@@ -20,7 +20,7 @@
     @else
         <div class="overflow-x-auto">
             <table class="min-w-full text-left">
-                <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40"><tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400"><th class="px-6 py-4">Nome</th><th class="px-6 py-4">Papel</th><th class="px-6 py-4">Documento</th><th class="px-6 py-4 text-right">Ações</th></tr></thead>
+                <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40"><tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400"><th class="px-6 py-4"><x-ancora.sort-link field="name" label="Nome" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4"><x-ancora.sort-link field="role" label="Papel" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4"><x-ancora.sort-link field="document" label="Documento" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th><th class="px-6 py-4 text-right">Ações</th></tr></thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @foreach($items as $item)
                         @php($address = $item->primary_address_json ?? [])

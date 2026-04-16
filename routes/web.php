@@ -125,6 +125,8 @@ Route::middleware('ancora.auth')->group(function () {
         Route::match(['post', 'put'], '/contatos/{contato}', [ClientsController::class, 'contatoUpdate'])->name('clientes.contatos.update')->middleware('ancora.route:clientes.contatos.update');
         Route::match(['post', 'delete'], '/contatos/{contato}/excluir', [ClientsController::class, 'contatoDelete'])->name('clientes.contatos.delete')->middleware('ancora.route:clientes.contatos.delete');
 
+        Route::get('/condominos', [ClientsController::class, 'condominos'])->name('clientes.condominos')->middleware('ancora.route:clientes.condominos');
+
         Route::get('/condominios', [ClientsController::class, 'condominios'])->name('clientes.condominios')->middleware('ancora.route:clientes.condominios');
         Route::get('/condominios/novo', [ClientsController::class, 'condominioCreate'])->name('clientes.condominios.create')->middleware('ancora.route:clientes.condominios.create');
         Route::post('/condominios/store', [ClientsController::class, 'condominioStore'])->name('clientes.condominios.store')->middleware('ancora.route:clientes.condominios.store');

@@ -21,6 +21,7 @@ use App\Models\CobrancaMonetaryUpdateItem;
 use App\Services\CobrancaAgreementTermService;
 use App\Services\CobrancaMonetaryUpdateService;
 use App\Support\AncoraAuth;
+use App\Support\SortableQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,9 +72,11 @@ class CobrancaController extends Controller
     public function index(Request $request): View
     {
         $query = CobrancaCase::query()
+            ->select('cobranca_cases.*')
+            ->leftJoin('client_condominiums as cobranca_condominium_sort', 'cobranca_condominium_sort.id', '=', 'cobranca_cases.condominium_id')
+            ->leftJoin('client_units as cobranca_unit_sort', 'cobranca_unit_sort.id', '=', 'cobranca_cases.unit_id')
             ->with(['condominium', 'block', 'unit'])
-            ->withCount(['contacts', 'quotas', 'attachments'])
-            ->orderByDesc('id');
+            ->withCount(['contacts', 'quotas', 'attachments']);
 
         if ($term = trim((string) $request->input('q', ''))) {
             $query->where(function ($sub) use ($term) {
@@ -87,15 +90,27 @@ class CobrancaController extends Controller
         }
 
         if ($request->filled('condominium_id')) {
-            $query->where('condominium_id', (int) $request->integer('condominium_id'));
+            $query->where('cobranca_cases.condominium_id', (int) $request->integer('condominium_id'));
         }
         foreach (['charge_type', 'situation', 'workflow_stage', 'billing_status'] as $filter) {
             if ($request->filled($filter)) {
-                $query->where($filter, (string) $request->input($filter));
+                $query->where('cobranca_cases.' . $filter, (string) $request->input($filter));
             }
         }
-        if ($request->filled('date_from')) $query->whereDate('created_at', '>=', $request->input('date_from'));
-        if ($request->filled('date_to')) $query->whereDate('created_at', '<=', $request->input('date_to'));
+        if ($request->filled('date_from')) $query->whereDate('cobranca_cases.created_at', '>=', $request->input('date_from'));
+        if ($request->filled('date_to')) $query->whereDate('cobranca_cases.created_at', '<=', $request->input('date_to'));
+
+        $sortState = SortableQuery::apply($query, $request, [
+            'os' => 'cobranca_cases.os_number',
+            'condominium' => 'cobranca_condominium_sort.name',
+            'unit' => 'cobranca_unit_sort.unit_number',
+            'debtor' => 'cobranca_cases.debtor_name_snapshot',
+            'stage' => 'cobranca_cases.workflow_stage',
+            'situation' => 'cobranca_cases.situation',
+            'agreement_total' => 'cobranca_cases.agreement_total',
+            'created_at' => 'cobranca_cases.created_at',
+            'updated_at' => 'cobranca_cases.updated_at',
+        ], 'created_at', 'desc');
 
         $items = $query->paginate(max(10, min(100, (int) $request->integer('per_page', 15))))->withQueryString();
 
@@ -104,6 +119,7 @@ class CobrancaController extends Controller
             'items' => $items,
             'filters' => $request->all(),
             'filterOptions' => $this->filterOptions(),
+            'sortState' => $sortState,
         ]);
     }
 

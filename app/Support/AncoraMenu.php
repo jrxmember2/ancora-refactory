@@ -40,6 +40,7 @@ class AncoraMenu
                             ['label' => 'Visão geral', 'path' => route('clientes.index')],
                             ['label' => 'Avulsos', 'path' => route('clientes.avulsos')],
                             ['label' => 'Parceiros / fornecedores', 'path' => route('clientes.contatos')],
+                            ['label' => 'Condôminos', 'path' => route('clientes.condominos')],
                             ['label' => 'Condomínios', 'path' => route('clientes.condominios')],
                             ['label' => 'Unidades', 'path' => route('clientes.unidades')],
                         ],

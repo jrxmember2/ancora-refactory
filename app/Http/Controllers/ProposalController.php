@@ -13,6 +13,7 @@ use App\Models\StatusRetorno;
 use App\Services\ProposalDashboardService;
 use App\Services\ProposalService;
 use App\Support\AncoraAuth;
+use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,17 +45,20 @@ class ProposalController extends Controller
     public function index(Request $request): View
     {
         $query = Proposal::query()
+            ->select('propostas.*')
+            ->leftJoin('administradoras as proposal_admin_sort', 'proposal_admin_sort.id', '=', 'propostas.administradora_id')
+            ->leftJoin('servicos as proposal_service_sort', 'proposal_service_sort.id', '=', 'propostas.service_id')
+            ->leftJoin('status_retorno as proposal_status_sort', 'proposal_status_sort.id', '=', 'propostas.response_status_id')
             ->with(['administradora', 'servico', 'formaEnvio', 'statusRetorno'])
-            ->withCount('attachments')
-            ->orderByDesc('id');
+            ->withCount('attachments');
 
         if ($term = trim((string) $request->input('q'))) {
             $query->where(function ($sub) use ($term) {
                 $sub->where('proposal_code', 'like', "%{$term}%")
-                    ->orWhere('client_name', 'like', "%{$term}%")
-                    ->orWhere('requester_name', 'like', "%{$term}%")
-                    ->orWhere('contact_email', 'like', "%{$term}%")
-                    ->orWhere('referral_name', 'like', "%{$term}%");
+                    ->orWhere('propostas.client_name', 'like', "%{$term}%")
+                    ->orWhere('propostas.requester_name', 'like', "%{$term}%")
+                    ->orWhere('propostas.contact_email', 'like', "%{$term}%")
+                    ->orWhere('propostas.referral_name', 'like', "%{$term}%");
             });
         }
         foreach (['administradora_id', 'service_id', 'response_status_id', 'send_method_id'] as $filter) {
@@ -65,24 +69,35 @@ class ProposalController extends Controller
                     'send_method_id' => 'send_method_id',
                     default => 'administradora_id',
                 };
-                $query->where($column, $request->integer($filter));
+                $query->where('propostas.' . $column, $request->integer($filter));
             }
         }
-        if ((int) $request->integer('year') > 0) $query->whereYear('proposal_date', (int) $request->integer('year'));
-        if ($request->filled('date_from')) $query->whereDate('proposal_date', '>=', $request->input('date_from'));
-        if ($request->filled('date_to')) $query->whereDate('proposal_date', '<=', $request->input('date_to'));
+        if ((int) $request->integer('year') > 0) $query->whereYear('propostas.proposal_date', (int) $request->integer('year'));
+        if ($request->filled('date_from')) $query->whereDate('propostas.proposal_date', '>=', $request->input('date_from'));
+        if ($request->filled('date_to')) $query->whereDate('propostas.proposal_date', '<=', $request->input('date_to'));
 
-        $proposals = $query->paginate(max(5, min(100, (int) $request->integer('per_page', 15))))->withQueryString();
+        $sortState = SortableQuery::apply($query, $request, [
+            'proposal' => 'propostas.proposal_code',
+            'client' => 'propostas.client_name',
+            'service' => 'proposal_service_sort.name',
+            'status' => 'proposal_status_sort.name',
+            'proposal_total' => 'propostas.proposal_total',
+            'closed_total' => 'propostas.closed_total',
+            'date' => 'propostas.proposal_date',
+        ], 'date', 'desc');
+
         $totalsQuery = clone $query;
+        $proposals = $query->paginate(max(5, min(100, (int) $request->integer('per_page', 15))))->withQueryString();
         $totals = [
-            'proposal_total' => (float) $totalsQuery->sum('proposal_total'),
-            'closed_total' => (float) (clone $query)->sum('closed_total'),
+            'proposal_total' => (float) $totalsQuery->sum('propostas.proposal_total'),
+            'closed_total' => (float) (clone $query)->sum('propostas.closed_total'),
         ];
 
         return view('pages.propostas.index', [
             'title' => 'Propostas',
             'proposals' => $proposals,
             'filters' => $request->all(),
+            'sortState' => $sortState,
             'totals' => $totals,
             'filterOptions' => [
                 'administradoras' => Administradora::query()->active()->get(),

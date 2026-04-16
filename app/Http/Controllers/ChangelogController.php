@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.12',
+            'version' => 'v1.13',
             'date' => '15/04/2026',
-            'label' => 'v1.12 • 15/04/2026',
+            'label' => 'v1.13 • 15/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Clientes mais seguros e listas ordenáveis',
+                'items' => [
+                    'Exclusão de condomínio passa a ser bloqueada quando ainda houver OS, unidades ou blocos vinculados.',
+                    'Exclusão de unidade passa a ser bloqueada quando existir OS de cobrança relacionada.',
+                    'Condôminos ganharam seção própria, separando proprietários e locatários da lista de parceiros e fornecedores.',
+                    'Listas principais passam a ter cabeçalhos clicáveis para alternar ordenação crescente e decrescente mantendo filtros e paginação.',
+                ],
+            ],
+            [
+                'version' => 'v1.12',
+                'date' => '15/04/2026',
                 'title' => 'Atualização monetária TJES na cobrança',
                 'items' => [
                     'Nova base de fatores mensais do índice TJES/ATM importada do relatório oficial salvo nos documentos de referência, cobrindo competências de 1969 a 2026.',
