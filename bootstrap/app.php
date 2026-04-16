@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAncoraAuthenticated;
+use App\Http\Middleware\AuditUserAction;
 use App\Http\Middleware\EnsureGuest;
 use App\Http\Middleware\EnsureRoutePermission;
 use App\Http\Middleware\EnsureSuperadmin;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ancora.guest' => EnsureGuest::class,
             'ancora.superadmin' => EnsureSuperadmin::class,
             'ancora.route' => EnsureRoutePermission::class,
+            'audit.activity' => AuditUserAction::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

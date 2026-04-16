@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.14',
+            'version' => 'v1.15',
             'date' => '16/04/2026',
-            'label' => 'v1.14 • 16/04/2026',
+            'label' => 'v1.15 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Importação segura de unidades e auditoria',
+                'items' => [
+                    'Importação em massa de unidades passa a abrir prévia em modal antes de criar registros.',
+                    'Duplicidade por condomínio, bloco e unidade é bloqueada no cadastro manual e na importação.',
+                    'Unidades podem ser selecionadas e excluídas em massa com modal de confirmação e bloqueio quando houver OS vinculada.',
+                    'Logs passam a registrar requisições de alteração dos usuários e ganham filtros por usuário, ação, módulo e período.',
+                ],
+            ],
+            [
+                'version' => 'v1.14',
+                'date' => '16/04/2026',
                 'title' => 'Hotfix da tela de condôminos',
                 'items' => [
                     'Corrigida a montagem dos vínculos de proprietário e locatário na nova tela de condôminos.',

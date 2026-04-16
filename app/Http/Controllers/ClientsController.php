@@ -10,6 +10,7 @@ use App\Models\ClientTimeline;
 use App\Models\ClientType;
 use App\Models\ClientUnit;
 use App\Models\CobrancaCase;
+use App\Models\AuditLog;
 use App\Support\AncoraAuth;
 use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
@@ -464,6 +465,27 @@ class ClientsController extends Controller
             $errors[] = 'Informe o motivo da inativação.';
         }
         return $errors;
+    }
+
+    private function unitAlreadyExists(int $condominiumId, ?int $blockId, string $unitNumber, ?int $ignoreUnitId = null): bool
+    {
+        $unitNumber = $this->normalizeUpper($unitNumber);
+        if ($unitNumber === '') {
+            return false;
+        }
+
+        return ClientUnit::query()
+            ->where('condominium_id', $condominiumId)
+            ->where('unit_number', $unitNumber)
+            ->when($ignoreUnitId, fn ($query) => $query->where('id', '<>', $ignoreUnitId))
+            ->where(function ($query) use ($blockId) {
+                if ($blockId) {
+                    $query->where('block_id', $blockId);
+                } else {
+                    $query->whereNull('block_id');
+                }
+            })
+            ->exists();
     }
 
     private function recordTimeline(string $relatedType, int $relatedId, string $note, Request $request): void
@@ -1153,11 +1175,18 @@ class ClientsController extends Controller
             'created_at' => 'client_units.created_at',
         ], 'created_at', 'desc');
 
+        $importPreviewToken = (string) $request->session()->get('unit_import_preview_token', '');
+        $importPreview = $importPreviewToken !== ''
+            ? $request->session()->get("client_unit_import_previews.{$importPreviewToken}")
+            : null;
+
         return view('pages.clientes.unidades', array_merge([
             'title' => 'Unidades',
             'items' => $query->paginate(15)->withQueryString(),
             'filters' => $request->all(),
             'sortState' => $sortState,
+            'importPreviewToken' => $importPreviewToken,
+            'importPreview' => $importPreview,
         ], $this->commonViewData()));
     }
 
@@ -1225,7 +1254,7 @@ class ClientsController extends Controller
 
         $payload = $this->unitPayload($request, $unidade->owner_entity_id, $unidade->tenant_entity_id);
         $payload['created_by'] = $unidade->created_by;
-        $errors = array_merge($errors, $this->validateUnit($payload));
+        $errors = array_merge($errors, $this->validateUnit($payload, (int) $unidade->id));
         if ($errors) {
             return back()->withInput()->with('errors_list', $errors);
         }
@@ -1453,7 +1482,7 @@ class ClientsController extends Controller
         ];
     }
 
-    private function validateUnit(array $payload): array
+    private function validateUnit(array $payload, ?int $ignoreUnitId = null): array
     {
         $errors = [];
         if (empty($payload['condominium_id'])) {
@@ -1462,6 +1491,15 @@ class ClientsController extends Controller
         if (($payload['unit_number'] ?? '') === '') {
             $errors[] = 'Informe o número da unidade.';
         }
+        if (!empty($payload['condominium_id']) && ($payload['unit_number'] ?? '') !== '' && $this->unitAlreadyExists(
+            (int) $payload['condominium_id'],
+            $payload['block_id'] ? (int) $payload['block_id'] : null,
+            (string) $payload['unit_number'],
+            $ignoreUnitId
+        )) {
+            $errors[] = 'Já existe uma unidade com este mesmo condomínio, bloco e número. Quando não houver bloco, o número da unidade também não pode se repetir no condomínio.';
+        }
+
         return $errors;
     }
 
@@ -1513,12 +1551,170 @@ class ClientsController extends Controller
             return null;
         }
 
+        $existing = $this->findBlockByName($condominium, $blockName);
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
         $block = ClientBlock::query()->firstOrCreate(
             ['condominium_id' => $condominium->id, 'name' => $blockName],
             ['sort_order' => 999]
         );
 
         return (int) $block->id;
+    }
+
+    private function findBlockByName(ClientCondominium $condominium, ?string $blockName): ?ClientBlock
+    {
+        $key = $this->blockNameKey((string) $blockName);
+        if ($key === '') {
+            return null;
+        }
+
+        return ClientBlock::query()
+            ->where('condominium_id', $condominium->id)
+            ->get()
+            ->first(fn (ClientBlock $block) => $this->blockNameKey((string) $block->name) === $key);
+    }
+
+    private function unitNumberKey(string $unitNumber): string
+    {
+        return Str::of($this->normalizeUpper($unitNumber))->squish()->toString();
+    }
+
+    private function readUnitImportCsv(ClientCondominium $condominium, UploadedFile $file): array
+    {
+        $handle = fopen($file->getRealPath(), 'r');
+        if (!$handle) {
+            throw new \RuntimeException('Não foi possível abrir a planilha CSV para importação.');
+        }
+
+        try {
+            $firstLine = fgets($handle);
+            if ($firstLine === false) {
+                throw new \RuntimeException('A planilha CSV está vazia.');
+            }
+
+            $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+            rewind($handle);
+
+            $header = fgetcsv($handle, 0, $delimiter);
+            if (!$header) {
+                throw new \RuntimeException('A planilha CSV está vazia.');
+            }
+
+            $header[0] = preg_replace("/^\xEF\xBB\xBF/", '', (string) ($header[0] ?? '')) ?? (string) ($header[0] ?? '');
+            $header = array_map(fn ($value) => $this->normalizeCsvHeader((string) $value), $header);
+            $rows = [];
+            $rowNumber = 1;
+
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $rowNumber++;
+                if (count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
+                    continue;
+                }
+
+                $data = [];
+                foreach ($header as $index => $column) {
+                    $data[$column] = $row[$index] ?? '';
+                }
+
+                $rows[] = [
+                    'row_number' => $rowNumber,
+                    'condominium_id' => (int) $condominium->id,
+                    'condominium_name' => (string) $condominium->name,
+                    'block_name' => $this->normalizeWhitespace($this->csvField($data, ['block', 'bloco', 'torre'])),
+                    'unit_number' => $this->normalizeUpper($this->csvField($data, ['unit_number', 'unidade', 'numero_unidade', 'numero'])),
+                    'unit_type_name' => $this->normalizeWhitespace($this->csvField($data, ['unit_type', 'tipo_unidade', 'tipo'])),
+                    'owner_name' => $this->normalizeTitleCase($this->csvField($data, ['owner_name', 'proprietario_nome', 'proprietario'])),
+                    'owner_document' => $this->formatCpfCnpj($this->csvField($data, ['owner_document', 'owner_cpf_cnpj', 'proprietario_documento', 'proprietario_cpf_cnpj'])),
+                    'owner_phone' => $this->normalizePhone($this->csvField($data, ['owner_phone', 'proprietario_telefone'])),
+                    'owner_email' => $this->normalizeEmail($this->csvField($data, ['owner_email', 'proprietario_email'])),
+                    'tenant_name' => $this->normalizeTitleCase($this->csvField($data, ['tenant_name', 'locatario_nome', 'locatario'])),
+                    'tenant_document' => $this->formatCpfCnpj($this->csvField($data, ['tenant_document', 'tenant_cpf_cnpj', 'locatario_documento', 'locatario_cpf_cnpj'])),
+                    'tenant_phone' => $this->normalizePhone($this->csvField($data, ['tenant_phone', 'locatario_telefone'])),
+                    'tenant_email' => $this->normalizeEmail($this->csvField($data, ['tenant_email', 'locatario_email'])),
+                ];
+            }
+
+            if (!$rows) {
+                throw new \RuntimeException('Nenhuma unidade válida foi encontrada no CSV.');
+            }
+
+            return $rows;
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function prepareUnitImportPreview(ClientCondominium $condominium, array $rows): array
+    {
+        $seen = [];
+        $preparedRows = [];
+        $summary = [
+            'total' => 0,
+            'ready' => 0,
+            'errors' => 0,
+            'new_blocks' => 0,
+        ];
+        $newBlockKeys = [];
+
+        foreach ($rows as $row) {
+            $row['condominium_id'] = (int) $condominium->id;
+            $row['condominium_name'] = (string) $condominium->name;
+            $row['block_name'] = $this->normalizeWhitespace((string) ($row['block_name'] ?? ''));
+            $row['unit_number'] = $this->normalizeUpper((string) ($row['unit_number'] ?? ''));
+            $row['unit_type_name'] = $this->normalizeWhitespace((string) ($row['unit_type_name'] ?? ''));
+            $messages = [];
+
+            if ($row['unit_number'] === '') {
+                $messages[] = 'Número da unidade não informado.';
+            }
+
+            $block = $this->findBlockByName($condominium, $row['block_name']);
+            $row['block_id'] = $block?->id;
+            $row['block_status'] = $row['block_name'] === '' ? 'none' : ($block ? 'existing' : 'new');
+
+            $blockKey = $row['block_name'] === '' ? '__sem_bloco__' : $this->blockNameKey($row['block_name']);
+            $unitKey = $this->unitNumberKey($row['unit_number']);
+            $duplicateKey = $condominium->id . '|' . $blockKey . '|' . $unitKey;
+
+            if ($unitKey !== '' && isset($seen[$duplicateKey])) {
+                $messages[] = 'Duplicada dentro da própria planilha com a linha ' . $seen[$duplicateKey] . '.';
+            } elseif ($unitKey !== '') {
+                $seen[$duplicateKey] = (int) ($row['row_number'] ?? 0);
+            }
+
+            if ($unitKey !== '') {
+                $alreadyExists = $row['block_name'] === ''
+                    ? $this->unitAlreadyExists($condominium->id, null, $row['unit_number'])
+                    : ($block && $this->unitAlreadyExists($condominium->id, (int) $block->id, $row['unit_number']));
+
+                if ($alreadyExists) {
+                    $messages[] = 'Já existe unidade cadastrada para este condomínio, bloco e número.';
+                }
+            }
+
+            if ($row['block_status'] === 'new') {
+                $newBlockKeys[$blockKey] = true;
+            }
+
+            $row['status'] = $messages ? 'error' : 'ready';
+            $row['messages'] = $messages;
+            $preparedRows[] = $row;
+            $summary['total']++;
+            $summary[$row['status'] === 'ready' ? 'ready' : 'errors']++;
+        }
+
+        $summary['new_blocks'] = count($newBlockKeys);
+
+        return [
+            'condominium_id' => (int) $condominium->id,
+            'condominium_name' => (string) $condominium->name,
+            'rows' => $preparedRows,
+            'summary' => $summary,
+            'created_at' => now()->toDateTimeString(),
+        ];
     }
 
     private function syncPartyEntityFromArray(array $data, string $roleTag, int $userId): ?int
@@ -1569,7 +1765,178 @@ class ClientsController extends Controller
         return (int) ClientEntity::query()->create($payload)->id;
     }
 
-    public function unidadesImport(Request $request): RedirectResponse
+    public function unidadesImportPreview(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'import_condominium_id' => ['required', 'integer'],
+            'import_file' => ['required', 'file', 'mimes:csv,txt'],
+        ]);
+
+        $condominium = ClientCondominium::query()->findOrFail((int) $request->input('import_condominium_id'));
+
+        try {
+            $rows = $this->readUnitImportCsv($condominium, $request->file('import_file'));
+            $preview = $this->prepareUnitImportPreview($condominium, $rows);
+            $token = (string) Str::uuid();
+
+            $request->session()->put("client_unit_import_previews.{$token}", $preview);
+            $this->logClientAction($request, 'clientes.unidades.import.preview', 'client_units', null, "Prévia de importação de {$preview['summary']['total']} unidade(s) para {$condominium->name}.");
+
+            $message = $preview['summary']['errors'] > 0
+                ? "Prévia gerada com {$preview['summary']['errors']} pendência(s). Corrija as linhas sinalizadas antes de executar."
+                : "Prévia gerada com {$preview['summary']['ready']} unidade(s) pronta(s) para criação. Confira e clique em executar.";
+
+            return redirect()->route('clientes.unidades')
+                ->with('unit_import_preview_token', $token)
+                ->with($preview['summary']['errors'] > 0 ? 'error' : 'success', $message);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->with('error', 'Não foi possível gerar a prévia da importação agora. Revise o CSV e tente novamente.');
+        }
+    }
+
+    public function unidadesImportExecute(Request $request): RedirectResponse
+    {
+        $token = (string) $request->input('import_token', '');
+        $preview = $token !== '' ? $request->session()->get("client_unit_import_previews.{$token}") : null;
+
+        if (!$preview || empty($preview['condominium_id']) || empty($preview['rows'])) {
+            return redirect()->route('clientes.unidades')->with('error', 'A prévia da importação expirou. Envie o CSV novamente.');
+        }
+
+        $condominium = ClientCondominium::query()->findOrFail((int) $preview['condominium_id']);
+        $preview = $this->prepareUnitImportPreview($condominium, (array) $preview['rows']);
+        $request->session()->put("client_unit_import_previews.{$token}", $preview);
+
+        if (($preview['summary']['errors'] ?? 0) > 0) {
+            return redirect()->route('clientes.unidades')
+                ->with('unit_import_preview_token', $token)
+                ->with('error', 'A importação não foi executada porque ainda existem linhas duplicadas ou inválidas na prévia.');
+        }
+
+        $userId = (int) (AncoraAuth::user($request)?->id ?? 0);
+
+        try {
+            $created = DB::transaction(function () use ($preview, $condominium, $userId) {
+                $created = 0;
+
+                foreach ($preview['rows'] as $row) {
+                    if (($row['status'] ?? '') !== 'ready') {
+                        continue;
+                    }
+
+                    $blockId = $this->resolveBlockId($condominium, $row['block_name'] ?? '');
+                    if ($this->unitAlreadyExists($condominium->id, $blockId, (string) $row['unit_number'])) {
+                        throw new \RuntimeException("A unidade {$row['unit_number']} já existe para este condomínio e bloco.");
+                    }
+
+                    $ownerId = $this->syncPartyEntityFromArray([
+                        'name' => $row['owner_name'] ?? '',
+                        'document' => $row['owner_document'] ?? '',
+                        'phones' => [$row['owner_phone'] ?? ''],
+                        'emails' => [$row['owner_email'] ?? ''],
+                    ], 'proprietario', $userId);
+
+                    $tenantId = $this->syncPartyEntityFromArray([
+                        'name' => $row['tenant_name'] ?? '',
+                        'document' => $row['tenant_document'] ?? '',
+                        'phones' => [$row['tenant_phone'] ?? ''],
+                        'emails' => [$row['tenant_email'] ?? ''],
+                    ], 'locatario', $userId);
+
+                    ClientUnit::query()->create([
+                        'condominium_id' => $condominium->id,
+                        'block_id' => $blockId,
+                        'unit_type_id' => $this->resolveUnitTypeId($row['unit_type_name'] ?? ''),
+                        'unit_number' => $this->normalizeUpper($row['unit_number'] ?? ''),
+                        'owner_entity_id' => $ownerId,
+                        'tenant_entity_id' => $tenantId,
+                        'owner_notes' => null,
+                        'tenant_notes' => null,
+                        'created_by' => $userId ?: null,
+                        'updated_by' => $userId ?: null,
+                    ]);
+
+                    $created++;
+                }
+
+                return $created;
+            });
+
+            $request->session()->forget("client_unit_import_previews.{$token}");
+            $this->logClientAction($request, 'clientes.unidades.import.execute', 'client_units', null, "Importação executada: {$created} unidade(s) criada(s) para {$condominium->name}.");
+
+            return redirect()->route('clientes.unidades')->with('success', "Importação executada. {$created} unidade(s) criada(s).");
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('clientes.unidades')
+                ->with('unit_import_preview_token', $token)
+                ->with('error', $e instanceof \RuntimeException ? $e->getMessage() : 'Não foi possível executar a importação agora. Tente novamente.');
+        }
+    }
+
+    public function unidadesBulkDelete(Request $request): RedirectResponse
+    {
+        $ids = collect((array) $request->input('unit_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return back()->with('error', 'Selecione ao menos uma unidade para excluir.');
+        }
+
+        $caseCount = CobrancaCase::query()->whereIn('unit_id', $ids)->count();
+        if ($caseCount > 0) {
+            return back()->with('error', "Não foi possível excluir em massa: existem {$caseCount} OS vinculada(s) às unidades selecionadas. Exclua as OS primeiro.");
+        }
+
+        $units = ClientUnit::query()
+            ->with(['condominium', 'block'])
+            ->whereIn('id', $ids)
+            ->get();
+
+        if ($units->isEmpty()) {
+            return back()->with('error', 'Nenhuma unidade válida foi encontrada para exclusão.');
+        }
+
+        $deleted = DB::transaction(function () use ($units) {
+            $count = $units->count();
+            ClientUnit::query()->whereIn('id', $units->pluck('id'))->delete();
+
+            return $count;
+        });
+
+        $this->logClientAction($request, 'clientes.unidades.bulk-delete', 'client_units', null, "Exclusão em massa de {$deleted} unidade(s).");
+
+        return redirect()->route('clientes.unidades')->with('success', "{$deleted} unidade(s) excluída(s) com sucesso.");
+    }
+
+    private function logClientAction(Request $request, string $action, ?string $entityType, ?int $entityId, string $details): void
+    {
+        try {
+            $user = AncoraAuth::user($request);
+            AuditLog::query()->create([
+                'user_id' => $user?->id,
+                'user_email' => $user?->email ?? 'desconhecido',
+                'action' => $action,
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'details' => $details,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable) {
+            //
+        }
+    }
+
+    private function unidadesImportLegacy(Request $request): RedirectResponse
     {
         $request->validate([
             'import_condominium_id' => ['required', 'integer'],

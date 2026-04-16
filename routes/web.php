@@ -24,7 +24,7 @@ Route::middleware('ancora.guest')->group(function () {
     Route::post('/resetar-senha', [PasswordResetController::class, 'reset'])->name('password.reset.update');
 });
 
-Route::middleware('ancora.auth')->group(function () {
+Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::get('/', [HubController::class, 'index'])->name('hub');
     Route::get('/hub', [HubController::class, 'index']);
     Route::get('/desktop', [HubController::class, 'index']);
@@ -137,7 +137,9 @@ Route::middleware('ancora.auth')->group(function () {
         Route::get('/unidades', [ClientsController::class, 'unidades'])->name('clientes.unidades')->middleware('ancora.route:clientes.unidades');
         Route::get('/unidades/novo', [ClientsController::class, 'unidadeCreate'])->name('clientes.unidades.create')->middleware('ancora.route:clientes.unidades.create');
         Route::post('/unidades/store', [ClientsController::class, 'unidadeStore'])->name('clientes.unidades.store')->middleware('ancora.route:clientes.unidades.store');
-        Route::post('/unidades/importar', [ClientsController::class, 'unidadesImport'])->name('clientes.unidades.import')->middleware('ancora.route:clientes.unidades.store');
+        Route::post('/unidades/importar', [ClientsController::class, 'unidadesImportPreview'])->name('clientes.unidades.import')->middleware('ancora.route:clientes.unidades.store');
+        Route::post('/unidades/importar/executar', [ClientsController::class, 'unidadesImportExecute'])->name('clientes.unidades.import.execute')->middleware('ancora.route:clientes.unidades.store');
+        Route::match(['post', 'delete'], '/unidades/excluir-massa', [ClientsController::class, 'unidadesBulkDelete'])->name('clientes.unidades.bulk-delete')->middleware('ancora.route:clientes.unidades.delete');
         Route::get('/unidades/{unidade}/editar', [ClientsController::class, 'unidadeEdit'])->name('clientes.unidades.edit')->middleware('ancora.route:clientes.unidades.edit');
         Route::match(['post', 'put'], '/unidades/{unidade}', [ClientsController::class, 'unidadeUpdate'])->name('clientes.unidades.update')->middleware('ancora.route:clientes.unidades.update');
         Route::match(['post', 'delete'], '/unidades/{unidade}/excluir', [ClientsController::class, 'unidadeDelete'])->name('clientes.unidades.delete')->middleware('ancora.route:clientes.unidades.delete');
