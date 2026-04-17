@@ -36,8 +36,8 @@
 @endif
 
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-4">
-    <x-ancora.stat-card label="Etapa" :value="$stageLabels[$case->workflow_stage] ?? $case->workflow_stage" :hint="'Último andamento: ' . (optional($case->last_progress_at)->format('d/m/Y H:i') ?: '—')" icon="fa-solid fa-shoe-prints" />
-    <x-ancora.stat-card label="Situação" :value="$situationLabels[$case->situation] ?? $case->situation" :hint="$billingLabels[$case->billing_status] ?? $case->billing_status" icon="fa-solid fa-scale-balanced" />
+    <x-ancora.stat-card label="Situação da OS" :value="$stageLabels[$case->workflow_stage] ?? $case->workflow_stage" :hint="'Último andamento: ' . (optional($case->last_progress_at)->format('d/m/Y H:i') ?: '—')" icon="fa-solid fa-shoe-prints" />
+    <x-ancora.stat-card label="Faturamento" :value="$billingLabels[$case->billing_status] ?? $case->billing_status" :hint="$case->billing_date ? 'Faturado em '.optional($case->billing_date)->format('d/m/Y') : 'Sem data de faturamento'" icon="fa-solid fa-file-invoice-dollar" />
     <x-ancora.stat-card label="Valor do acordo" :value="$case->agreement_total ? 'R$ '.number_format((float) $case->agreement_total, 2, ',', '.') : 'Não definido'" :hint="'Honorários: R$ '.number_format((float) ($case->fees_amount ?? 0), 2, ',', '.')" icon="fa-solid fa-money-bill-wave" />
     <x-ancora.stat-card label="Entrada" :value="$case->entry_amount ? 'R$ '.number_format((float) $case->entry_amount, 2, ',', '.') : 'Não definida'" :hint="$entryStatusLabels[$case->entry_status] ?? ($case->entry_status ?: 'Sem status')" icon="fa-solid fa-receipt" />
 </div>

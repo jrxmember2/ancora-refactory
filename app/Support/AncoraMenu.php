@@ -52,6 +52,7 @@ class AncoraMenu
                             ['label' => 'Dashboard', 'path' => route('cobrancas.dashboard')],
                             ['label' => 'Lista de OS', 'path' => route('cobrancas.index')],
                             ['label' => 'Nova OS', 'path' => route('cobrancas.create')],
+                            ['label' => 'Faturamento', 'path' => route('cobrancas.billing.report')],
                             ['label' => 'Importar inadimplência', 'path' => route('cobrancas.import.index')],
                         ],
                     ] : null,

@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.18',
+            'version' => 'v1.19',
             'date' => '16/04/2026',
-            'label' => 'v1.18 • 16/04/2026',
+            'label' => 'v1.19 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'OS mais profissional e relatório de faturamento',
+                'items' => [
+                    'Formulário da OS passa a consolidar etapa/situação, entrada, honorários e parcelas em um único bloco financeiro mais objetivo.',
+                    'Status da entrada ganha opção Outro com campo livre, sem aumentar a complexidade do cadastro principal.',
+                    'Novo relatório de faturamento em cobrança com filtros por status, condomínio, tipo de cobrança e período de faturamento.',
+                    'Relatório agrupa dados por condomínio, bloco e unidade, somando acordo, valor recebido, valor projetado e honorários.',
+                    'Exportação em PDF do relatório passa a usar a logo do branding e layout próprio para fechamento financeiro.',
+                ],
+            ],
+            [
+                'version' => 'v1.18',
+                'date' => '16/04/2026',
                 'title' => 'Timezone global de São Paulo',
                 'items' => [
                     'Timezone global do Laravel alterado para America/Sao_Paulo por padrão.',

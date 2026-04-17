@@ -1,9 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Cobranças" subtitle="Lista de OS com filtros por condomínio, etapa, situação e faturamento.">
+<x-ancora.section-header title="Cobranças" subtitle="Lista de OS com filtros por condomínio, situação operacional e faturamento.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('cobrancas.dashboard') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Dashboard</a>
+        <a href="{{ route('cobrancas.billing.report') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Faturamento</a>
         <a href="{{ route('cobrancas.import.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Importar inadimplência</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
@@ -26,15 +27,9 @@
             @endforeach
         </select>
         <select name="workflow_stage" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-white">
-            <option value="">Etapa</option>
+            <option value="">Situação da OS</option>
             @foreach($filterOptions['workflowStages'] as $key => $label)
                 <option value="{{ $key }}" @selected(($filters['workflow_stage'] ?? '') === $key)>{{ $label }}</option>
-            @endforeach
-        </select>
-        <select name="situation" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-white">
-            <option value="">Situação</option>
-            @foreach($filterOptions['situations'] as $key => $label)
-                <option value="{{ $key }}" @selected(($filters['situation'] ?? '') === $key)>{{ $label }}</option>
             @endforeach
         </select>
         <select name="billing_status" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-white">
@@ -65,8 +60,7 @@
                         <th class="px-6 py-4"><x-ancora.sort-link field="os" label="OS" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="condominium" label="Condomínio / unidade" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="debtor" label="Devedor" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
-                        <th class="px-6 py-4"><x-ancora.sort-link field="stage" label="Etapa" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
-                        <th class="px-6 py-4"><x-ancora.sort-link field="situation" label="Situação" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="stage" label="Situação" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="agreement_total" label="Acordo" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4 text-right">Ações</th>
                     </tr>
@@ -89,7 +83,6 @@
                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->debtor_document_snapshot ?: 'Sem documento' }}</div>
                             </td>
                             <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $filterOptions['workflowStages'][$item->workflow_stage] ?? $item->workflow_stage }}</td>
-                            <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $filterOptions['situations'][$item->situation] ?? $item->situation }}</td>
                             <td class="px-6 py-4 align-top">
                                 <div class="text-sm text-gray-700 dark:text-gray-200">{{ $item->agreement_total ? 'R$ '.number_format((float) $item->agreement_total, 2, ',', '.') : 'Não definido' }}</div>
                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $filterOptions['billingStatuses'][$item->billing_status] ?? $item->billing_status }}</div>

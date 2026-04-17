@@ -206,49 +206,6 @@
     </div>
 
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Fluxo, entrada e honorários</h3>
-        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Etapa do fluxo</label>
-                <select name="workflow_stage" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    @foreach($workflowStageLabels as $key => $label)
-                        <option value="{{ $key }}" @selected(($formData['workflow_stage'] ?? '') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Situação</label>
-                <select name="situation" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    @foreach($situationLabels as $key => $label)
-                        <option value="{{ $key }}" @selected(($formData['situation'] ?? '') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status da entrada</label>
-                <select name="entry_status" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-                    <option value="">Selecione</option>
-                    @foreach($entryStatusLabels as $key => $label)
-                        <option value="{{ $key }}" @selected(($formData['entry_status'] ?? '') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vencimento da entrada</label>
-                <input type="date" name="entry_due_date" value="{{ $formData['entry_due_date'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-            </div>
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor da entrada</label>
-                <input type="text" data-money name="entry_amount" value="{{ $formData['entry_amount'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="0,00">
-            </div>
-            <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Honorários</label>
-                <input type="text" data-money name="fees_amount" value="{{ $formData['fees_amount'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="0,00">
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Quotas em aberto</h3>
@@ -368,6 +325,48 @@
                     <span class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Valor restante</span>
                     <strong id="installments-balance" class="ml-2 text-gray-900 dark:text-white">R$ 0,00</strong>
                     <span id="installments-balance-hint" class="ml-2 text-xs text-gray-500 dark:text-gray-400">Plano fechado.</span>
+                </div>
+            </div>
+        </div>
+        <div class="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/30">
+            <div class="flex flex-col gap-1">
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Situação, entrada e honorários</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Etapa e situação foram consolidadas para deixar o fluxo mais objetivo. A entrada e os honorários ficam junto do plano de pagamento.</p>
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Situação da OS</label>
+                    <select name="workflow_stage" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white">
+                        @foreach($workflowStageLabels as $key => $label)
+                            <option value="{{ $key }}" @selected(($formData['workflow_stage'] ?? '') === $key)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status da entrada</label>
+                    <select name="entry_status" id="entry-status-select" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white">
+                        <option value="">Selecione</option>
+                        @foreach($entryStatusLabels as $key => $label)
+                            <option value="{{ $key }}" @selected(($formData['entry_status'] ?? '') === $key)>{{ $label }}</option>
+                        @endforeach
+                        <option value="__custom" @selected(($formData['entry_status'] ?? '') === '__custom')>Outro</option>
+                    </select>
+                </div>
+                <div id="entry-status-custom-wrapper" class="{{ ($formData['entry_status'] ?? '') === '__custom' ? '' : 'hidden' }}">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Qual status?</label>
+                    <input type="text" name="entry_status_custom" value="{{ $formData['entry_status_custom'] ?? '' }}" maxlength="40" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white" placeholder="Ex.: PIX confirmado">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vencimento da entrada</label>
+                    <input type="date" name="entry_due_date" value="{{ $formData['entry_due_date'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor da entrada</label>
+                    <input type="text" data-money name="entry_amount" value="{{ $formData['entry_amount'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white" placeholder="0,00">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Honorários</label>
+                    <input type="text" data-money name="fees_amount" value="{{ $formData['fees_amount'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-800 dark:border-gray-700 dark:bg-transparent dark:text-white" placeholder="0,00">
                 </div>
             </div>
         </div>
@@ -560,6 +559,8 @@
     const entryDueDateInput = form?.querySelector('[name="entry_due_date"]');
     const entryAmountInput = form?.querySelector('[name="entry_amount"]');
     const entryStatusInput = form?.querySelector('[name="entry_status"]');
+    const entryStatusCustomWrapper = document.getElementById('entry-status-custom-wrapper');
+    const entryStatusCustomInput = form?.querySelector('[name="entry_status_custom"]');
     const installmentsBalance = document.getElementById('installments-balance');
     const installmentsBalanceHint = document.getElementById('installments-balance-hint');
     const autoSplitButton = document.getElementById('installments-auto-split');
@@ -730,6 +731,14 @@
     function updateChargeType() {
         if (!judicialField || !chargeType) return;
         judicialField.classList.toggle('hidden', chargeType.value !== 'judicial');
+    }
+
+    function updateEntryStatusCustomField() {
+        const isCustom = entryStatusInput?.value === '__custom';
+        entryStatusCustomWrapper?.classList.toggle('hidden', !isCustom);
+        if (!isCustom && entryStatusCustomInput) {
+            entryStatusCustomInput.value = '';
+        }
     }
 
     function resetSelect(select, placeholder) {
@@ -1075,6 +1084,7 @@
         if (entryAmountInput) entryAmountInput.value = '';
         if (entryDueDateInput) entryDueDateInput.value = '';
         if (entryStatusInput) entryStatusInput.value = '';
+        updateEntryStatusCustomField();
 
         rebuildInstallmentRows([{
             label: 'PARCELA ÚNICA',
@@ -1135,6 +1145,7 @@
         seedNotificationContactsFromSelectedUnit();
     });
     chargeType?.addEventListener('change', updateChargeType);
+    entryStatusInput?.addEventListener('change', updateEntryStatusCustomField);
     autoSplitButton?.addEventListener('click', openAutoSplitModal);
     autoSplitCancel?.addEventListener('click', () => autoSplitModal?.close());
     autoSplitForm?.addEventListener('submit', (event) => {
@@ -1160,6 +1171,7 @@
     }
 
     updateChargeType();
+    updateEntryStatusCustomField();
     initRepeater('emails');
     initRepeater('phones');
     initRepeater('quotas');

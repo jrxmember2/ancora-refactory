@@ -87,6 +87,8 @@ class AncoraRouteCatalog
                     'cobrancas.import.preview' => 'Analisar planilha de inadimplência',
                     'cobrancas.import.show' => 'Visualizar lote de importação de inadimplência',
                     'cobrancas.import.process' => 'Processar lote de inadimplência',
+                    'cobrancas.billing.report' => 'Acessar relatório de faturamento de cobrança',
+                    'cobrancas.billing.report.pdf' => 'Exportar PDF do relatório de faturamento',
                     'cobrancas.agreement.edit' => 'Editar termo de acordo da OS',
                     'cobrancas.agreement.save' => 'Salvar customização do termo de acordo',
                     'cobrancas.agreement.pdf' => 'Gerar PDF do termo de acordo',

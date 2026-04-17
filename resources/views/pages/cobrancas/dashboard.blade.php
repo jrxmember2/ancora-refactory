@@ -11,6 +11,7 @@
             </select>
             <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Aplicar</button>
         </form>
+        <a href="{{ route('cobrancas.billing.report') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.03]">Faturamento</a>
         <a href="{{ route('cobrancas.import.index') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.03]">Importar inadimplência</a>
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl border border-brand-300 px-4 py-3 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">Nova OS</a>
     </div>
@@ -72,7 +73,7 @@
                             <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $item->condominium?->name ?? 'Condomínio não vinculado' }}</div>
                             <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->block?->name ? $item->block->name.' · ' : '' }}Unidade {{ $item->unit?->unit_number ?? '—' }}</div>
                         </div>
-                        <span class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{{ $item->workflow_stage }}</span>
+                        <span class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{{ $stageLabels[$item->workflow_stage] ?? $item->workflow_stage }}</span>
                     </div>
                     <div class="mt-3 text-sm text-gray-700 dark:text-gray-200">{{ $item->debtor_name_snapshot }}</div>
                 </a>

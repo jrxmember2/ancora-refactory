@@ -43,10 +43,10 @@ class CobrancaController extends Controller
 
         $summary = [
             'total' => (clone $base)->count(),
-            'notificar' => (clone $base)->where('workflow_stage', 'apto_notificar')->count(),
-            'negociacao' => (clone $base)->where('workflow_stage', 'em_negociacao')->count(),
+            'notificar' => (clone $base)->whereIn('workflow_stage', ['apto_notificar', 'notificado'])->count(),
+            'negociacao' => (clone $base)->whereIn('workflow_stage', ['em_negociacao', 'sem_retorno', 'aguardando_termo'])->count(),
             'aguardando_assinatura' => (clone $base)->where('workflow_stage', 'aguardando_assinatura')->count(),
-            'acordo_ativo' => (clone $base)->where('workflow_stage', 'acordo_ativo')->count(),
+            'acordo_ativo' => (clone $base)->whereIn('workflow_stage', ['acordo_ativo', 'aguardando_boletos'])->count(),
             'judicializar' => (clone $base)->where('workflow_stage', 'apto_judicializar')->count(),
             'ajuizado' => (clone $base)->where('situation', 'ajuizado')->count(),
             'encerrado' => (clone $base)->where('situation', 'pago_encerrado')->count(),
@@ -66,6 +66,7 @@ class CobrancaController extends Controller
             'summary' => $summary,
             'latestCases' => $latest,
             'years' => CobrancaCase::query()->selectRaw('DISTINCT charge_year')->orderByDesc('charge_year')->pluck('charge_year'),
+            'stageLabels' => $this->workflowStageLabels(),
         ]);
     }
 
@@ -121,6 +122,31 @@ class CobrancaController extends Controller
             'filterOptions' => $this->filterOptions(),
             'sortState' => $sortState,
         ]);
+    }
+
+    public function billingReport(Request $request): View
+    {
+        return view('pages.cobrancas.billing-report', array_merge([
+            'title' => 'Relatório de faturamento',
+            'pdfMode' => false,
+        ], $this->billingReportData($request)));
+    }
+
+    public function billingReportPdf(Request $request): View|BinaryFileResponse
+    {
+        $viewData = array_merge([
+            'title' => 'Relatório de faturamento',
+            'autoPrint' => true,
+            'pdfMode' => false,
+        ], $this->billingReportData($request));
+
+        $this->logAction($request, 'print_cobranca_billing_report', 0, 'PDF do relatório de faturamento de cobrança.');
+
+        if ($pdfResponse = $this->billingReportPdfResponse($viewData)) {
+            return $pdfResponse;
+        }
+
+        return view('pages.cobrancas.billing-report-pdf', $viewData);
     }
 
 
@@ -1415,6 +1441,12 @@ class CobrancaController extends Controller
         ];
 
         $debtorSnapshot = $this->resolveDebtorSnapshot($unit, $debtorRole, $manual);
+        $workflowStage = $this->normalizeWorkflowStage(trim((string) $request->input('workflow_stage', 'triagem')) ?: 'triagem');
+        $entryStatus = trim((string) $request->input('entry_status', '')) ?: null;
+        if ($entryStatus === '__custom') {
+            $entryStatus = trim((string) $request->input('entry_status_custom', '')) ?: null;
+        }
+        $entryStatus = $entryStatus ? Str::limit($entryStatus, 40, '') : null;
 
         $payload = [
             'condominium_id' => $unit?->condominium_id,
@@ -1432,9 +1464,9 @@ class CobrancaController extends Controller
             'billing_date' => trim((string) $request->input('billing_date', '')) ?: null,
             'alert_message' => trim((string) $request->input('alert_message', '')) ?: null,
             'notes' => trim((string) $request->input('notes', '')) ?: null,
-            'situation' => trim((string) $request->input('situation', 'processo_aberto')) ?: 'processo_aberto',
-            'workflow_stage' => trim((string) $request->input('workflow_stage', 'triagem')) ?: 'triagem',
-            'entry_status' => trim((string) $request->input('entry_status', '')) ?: null,
+            'situation' => $this->situationFromWorkflowStage($workflowStage),
+            'workflow_stage' => $workflowStage,
+            'entry_status' => $entryStatus,
             'entry_due_date' => trim((string) $request->input('entry_due_date', '')) ?: null,
             'entry_amount' => $this->moneyToDb($request->input('entry_amount')),
             'fees_amount' => $this->moneyToDb($request->input('fees_amount')),
@@ -1460,10 +1492,7 @@ class CobrancaController extends Controller
             $errors[] = 'Selecione um tipo de cobrança válido.';
         }
         if (!in_array($payload['workflow_stage'], array_keys($this->workflowStageLabels()), true)) {
-            $errors[] = 'Selecione uma etapa válida.';
-        }
-        if (!in_array($payload['situation'], array_keys($this->situationLabels()), true)) {
-            $errors[] = 'Selecione uma situação válida.';
+            $errors[] = 'Selecione uma situação da OS válida.';
         }
         if (!in_array($payload['billing_status'], array_keys($this->billingStatusLabels()), true)) {
             $errors[] = 'Selecione um status de faturamento válido.';
@@ -1666,6 +1695,13 @@ class CobrancaController extends Controller
     private function formData(?CobrancaCase $case = null): array
     {
         $unit = $case?->relationLoaded('unit') ? $case->unit : ($case?->unit_id ? ClientUnit::query()->with(['owner', 'tenant'])->find($case->unit_id) : null);
+        $storedWorkflowStage = $this->normalizeWorkflowStage((string) ($case?->workflow_stage ?: $this->workflowStageFromSituation($case?->situation)));
+        $storedEntryStatus = (string) ($case?->entry_status ?? '');
+        $knownEntryStatuses = array_keys($this->entryStatusLabels());
+        $entryStatusValue = $storedEntryStatus !== '' && !in_array($storedEntryStatus, $knownEntryStatuses, true)
+            ? '__custom'
+            : ($storedEntryStatus ?: null);
+        $entryStatusCustom = $entryStatusValue === '__custom' ? $storedEntryStatus : '';
 
         return [
             'unit_id' => old('unit_id', $case?->unit_id),
@@ -1681,8 +1717,9 @@ class CobrancaController extends Controller
             'alert_message' => old('alert_message', $case?->alert_message),
             'notes' => old('notes', $case?->notes),
             'situation' => old('situation', $case?->situation ?: 'processo_aberto'),
-            'workflow_stage' => old('workflow_stage', $case?->workflow_stage ?: 'triagem'),
-            'entry_status' => old('entry_status', $case?->entry_status),
+            'workflow_stage' => $this->normalizeWorkflowStage((string) old('workflow_stage', $storedWorkflowStage ?: 'triagem')),
+            'entry_status' => old('entry_status', $entryStatusValue),
+            'entry_status_custom' => old('entry_status_custom', $entryStatusCustom),
             'entry_due_date' => old('entry_due_date', optional($case?->entry_due_date)->format('Y-m-d')),
             'entry_amount' => old('entry_amount', $case?->entry_amount),
             'fees_amount' => old('fees_amount', $case?->fees_amount),
@@ -2591,6 +2628,222 @@ class CobrancaController extends Controller
         };
     }
 
+    private function billingReportData(Request $request): array
+    {
+        $filters = [
+            'billing_status' => trim((string) $request->input('billing_status', 'a_faturar')),
+            'condominium_id' => trim((string) $request->input('condominium_id', '')),
+            'charge_type' => trim((string) $request->input('charge_type', '')),
+            'billing_date_from' => trim((string) $request->input('billing_date_from', '')),
+            'billing_date_to' => trim((string) $request->input('billing_date_to', '')),
+        ];
+
+        $query = CobrancaCase::query()
+            ->select('cobranca_cases.*')
+            ->leftJoin('client_condominiums as billing_condominium_sort', 'billing_condominium_sort.id', '=', 'cobranca_cases.condominium_id')
+            ->leftJoin('client_condominium_blocks as billing_block_sort', 'billing_block_sort.id', '=', 'cobranca_cases.block_id')
+            ->leftJoin('client_units as billing_unit_sort', 'billing_unit_sort.id', '=', 'cobranca_cases.unit_id')
+            ->with(['condominium', 'block', 'unit', 'installments']);
+
+        if ($filters['billing_status'] !== '') {
+            $query->where('cobranca_cases.billing_status', $filters['billing_status']);
+        }
+
+        if ((int) $filters['condominium_id'] > 0) {
+            $query->where('cobranca_cases.condominium_id', (int) $filters['condominium_id']);
+        }
+
+        if ($filters['charge_type'] !== '') {
+            $query->where('cobranca_cases.charge_type', $filters['charge_type']);
+        }
+
+        if ($filters['billing_date_from'] !== '') {
+            $query->whereDate('cobranca_cases.billing_date', '>=', $filters['billing_date_from']);
+        }
+
+        if ($filters['billing_date_to'] !== '') {
+            $query->whereDate('cobranca_cases.billing_date', '<=', $filters['billing_date_to']);
+        }
+
+        $cases = $query
+            ->orderBy('billing_condominium_sort.name')
+            ->orderBy('billing_block_sort.name')
+            ->orderBy('billing_unit_sort.unit_number')
+            ->orderBy('cobranca_cases.os_number')
+            ->get();
+
+        $rows = $cases->map(fn (CobrancaCase $case) => $this->billingReportRow($case))->values();
+
+        $groups = $rows
+            ->groupBy('condominium_key')
+            ->map(function ($condominiumRows) {
+                $condominiumRows = collect($condominiumRows);
+
+                return [
+                    'condominium' => (string) ($condominiumRows->first()['condominium'] ?? 'Condomínio não vinculado'),
+                    'totals' => $this->billingRowsTotals($condominiumRows),
+                    'blocks' => $condominiumRows
+                        ->groupBy('block_key')
+                        ->map(function ($blockRows) {
+                            $blockRows = collect($blockRows);
+
+                            return [
+                                'block' => (string) ($blockRows->first()['block'] ?? 'Sem bloco'),
+                                'rows' => $blockRows->values(),
+                                'totals' => $this->billingRowsTotals($blockRows),
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->values();
+
+        return [
+            'filters' => $filters,
+            'filterOptions' => [
+                'condominiums' => DB::table('client_condominiums')->orderBy('name')->get(['id', 'name']),
+                'chargeTypes' => $this->chargeTypeLabels(),
+                'billingStatuses' => $this->billingStatusLabels(),
+            ],
+            'rows' => $rows,
+            'groups' => $groups,
+            'totals' => $this->billingRowsTotals($rows),
+        ];
+    }
+
+    private function billingReportRow(CobrancaCase $case): array
+    {
+        $paid = $this->billingPaidSnapshot($case);
+        $agreementCents = $this->moneyToCents($case->agreement_total ?? 0);
+        $paidCents = (int) $paid['amount_cents'];
+        $feesCents = $this->moneyToCents($case->fees_amount ?? 0);
+        $projectedCents = max(0, $agreementCents - $paidCents);
+
+        $condominium = $case->condominium?->name ?: 'Condomínio não vinculado';
+        $block = $case->block?->name ?: 'Sem bloco';
+        $unit = $case->unit?->unit_label ?: $case->unit?->unit_number ?: '-';
+
+        return [
+            'id' => (int) $case->id,
+            'os_number' => (string) $case->os_number,
+            'condominium_key' => (string) ($case->condominium_id ?: 0) . '|' . $condominium,
+            'condominium' => $condominium,
+            'block_key' => (string) ($case->block_id ?: 0) . '|' . $block,
+            'block' => $block,
+            'unit' => (string) $unit,
+            'debtor' => (string) ($case->debtor_name_snapshot ?: '-'),
+            'charge_type' => (string) $case->charge_type,
+            'charge_type_label' => $this->chargeTypeLabels()[$case->charge_type] ?? (string) $case->charge_type,
+            'billing_status' => (string) $case->billing_status,
+            'billing_status_label' => $this->billingStatusLabels()[$case->billing_status] ?? (string) $case->billing_status,
+            'billing_date' => optional($case->billing_date)->format('d/m/Y'),
+            'agreement_total' => $this->decimalFromCents($agreementCents),
+            'paid_amount' => $this->decimalFromCents($paidCents),
+            'paid_label' => (string) $paid['label'],
+            'projected_amount' => $this->decimalFromCents($projectedCents),
+            'fees_amount' => $this->decimalFromCents($feesCents),
+            'installments_count' => (int) $case->installments->count(),
+        ];
+    }
+
+    private function billingPaidSnapshot(CobrancaCase $case): array
+    {
+        $entryCents = $this->moneyToCents($case->entry_amount ?? 0);
+        if ($entryCents > 0) {
+            return [
+                'amount_cents' => $entryCents,
+                'label' => 'Entrada',
+            ];
+        }
+
+        $entryInstallment = $case->installments->first(fn ($installment) => $installment->installment_type === 'entrada');
+        if ($entryInstallment && $this->moneyToCents($entryInstallment->amount ?? 0) > 0) {
+            return [
+                'amount_cents' => $this->moneyToCents($entryInstallment->amount ?? 0),
+                'label' => 'Entrada nas parcelas',
+            ];
+        }
+
+        if ($case->installments->count() === 1) {
+            return [
+                'amount_cents' => $this->moneyToCents($case->installments->first()->amount ?? 0),
+                'label' => 'Parcela única',
+            ];
+        }
+
+        $firstPaid = $case->installments->first(fn ($installment) => $installment->status === 'paga');
+        if ($firstPaid && $this->moneyToCents($firstPaid->amount ?? 0) > 0) {
+            return [
+                'amount_cents' => $this->moneyToCents($firstPaid->amount ?? 0),
+                'label' => '1ª parcela paga',
+            ];
+        }
+
+        return [
+            'amount_cents' => 0,
+            'label' => 'Sem pagamento registrado',
+        ];
+    }
+
+    private function billingRowsTotals($rows): array
+    {
+        $rows = collect($rows);
+
+        return [
+            'cases_count' => $rows->count(),
+            'agreement_total' => (float) $rows->sum('agreement_total'),
+            'paid_amount' => (float) $rows->sum('paid_amount'),
+            'projected_amount' => (float) $rows->sum('projected_amount'),
+            'fees_amount' => (float) $rows->sum('fees_amount'),
+        ];
+    }
+
+    private function billingReportPdfResponse(array $viewData): ?BinaryFileResponse
+    {
+        $htmlPath = null;
+        $pdfPath = null;
+
+        try {
+            $dir = storage_path('app/generated/cobranca-billing-reports');
+            File::ensureDirectoryExists($dir);
+
+            $baseName = 'relatorio-faturamento-cobranca-' . now()->format('YmdHis') . '-' . Str::random(6);
+            $htmlPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.html';
+            $pdfPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
+
+            File::put($htmlPath, view('pages.cobrancas.billing-report-pdf', array_merge($viewData, [
+                'autoPrint' => false,
+                'pdfMode' => true,
+            ]))->render());
+
+            $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
+                || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath);
+
+            File::delete($htmlPath);
+
+            if (!$generated || !is_file($pdfPath)) {
+                File::delete($pdfPath);
+                return null;
+            }
+
+            return response()
+                ->file($pdfPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="relatorio-faturamento-cobranca.pdf"',
+                ])
+                ->deleteFileAfterSend(true);
+        } catch (\Throwable) {
+            if ($htmlPath) {
+                File::delete($htmlPath);
+            }
+            if ($pdfPath) {
+                File::delete($pdfPath);
+            }
+
+            return null;
+        }
+    }
+
     private function filterOptions(): array
     {
         return [
@@ -2731,18 +2984,52 @@ class CobrancaController extends Controller
         return [
             'triagem' => 'Triagem',
             'apto_notificar' => 'Apto para notificar',
-            'notificado' => 'Notificado',
-            'sem_retorno' => 'Sem retorno',
             'em_negociacao' => 'Em negociação',
-            'aguardando_termo' => 'Aguardando termo',
             'aguardando_assinatura' => 'Aguardando assinatura',
-            'aguardando_boletos' => 'Aguardando boletos da administradora',
             'acordo_ativo' => 'Acordo ativo',
             'acordo_inadimplido' => 'Acordo inadimplido',
             'apto_judicializar' => 'Apto para judicializar',
             'judicializado' => 'Judicializado',
-            'encerrado' => 'Encerrado',
+            'pago_encerrado' => 'Pago / encerrado',
+            'cancelado' => 'Cancelado',
         ];
+    }
+
+    private function normalizeWorkflowStage(string $stage): string
+    {
+        $stage = trim($stage) ?: 'triagem';
+
+        return match ($stage) {
+            'notificado' => 'apto_notificar',
+            'sem_retorno', 'aguardando_termo' => 'em_negociacao',
+            'aguardando_boletos' => 'acordo_ativo',
+            'encerrado' => 'pago_encerrado',
+            default => array_key_exists($stage, $this->workflowStageLabels()) ? $stage : 'triagem',
+        };
+    }
+
+    private function situationFromWorkflowStage(string $stage): string
+    {
+        return match ($this->normalizeWorkflowStage($stage)) {
+            'acordo_ativo' => 'em_pagamento_acordo',
+            'acordo_inadimplido' => 'acordo_nao_pago',
+            'judicializado' => 'ajuizado',
+            'pago_encerrado' => 'pago_encerrado',
+            'cancelado' => 'cancelado',
+            default => 'processo_aberto',
+        };
+    }
+
+    private function workflowStageFromSituation(?string $situation): string
+    {
+        return match ((string) $situation) {
+            'acordo_nao_pago' => 'acordo_inadimplido',
+            'ajuizado' => 'judicializado',
+            'cancelado' => 'cancelado',
+            'em_pagamento_acordo', 'acordo_renegociado' => 'acordo_ativo',
+            'pago_encerrado' => 'pago_encerrado',
+            default => 'triagem',
+        };
     }
 
     private function situationLabels(): array
