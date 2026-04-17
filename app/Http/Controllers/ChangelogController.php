@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.17',
+            'version' => 'v1.18',
             'date' => '16/04/2026',
-            'label' => 'v1.17 • 16/04/2026',
+            'label' => 'v1.18 • 16/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Timezone global de São Paulo',
+                'items' => [
+                    'Timezone global do Laravel alterado para America/Sao_Paulo por padrão.',
+                    'Datas e horários gerados por now(), PDFs, logs, timelines e relatórios passam a seguir o horário de Brasília/São Paulo.',
+                    'Arquivo .env.example passa a declarar APP_TIMEZONE=America/Sao_Paulo para deixar a configuração explícita em novos ambientes.',
+                ],
+            ],
+            [
+                'version' => 'v1.17',
+                'date' => '16/04/2026',
                 'title' => 'Logs mais claros para auditoria',
                 'items' => [
                     'Tela de logs passa a exibir ações em linguagem clara, como Criou condomínio, Atualizou unidade e Importou unidades.',
