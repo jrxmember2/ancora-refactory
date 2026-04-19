@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.25',
+            'version' => 'v1.26',
             'date' => '19/04/2026',
-            'label' => 'v1.25 • 19/04/2026',
+            'label' => 'v1.26 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Notificação de movimentações processuais',
+                'items' => [
+                    'Sistema passa a avisar no layout quando houver novas movimentações em processos acessíveis ao usuário.',
+                    'Notificação possui botão Ver para listar os processos movimentados e Ciente para ocultar o aviso até surgir nova movimentação.',
+                    'Reconhecimento é salvo por usuário e respeita processos particulares e permissões de visualização do módulo Processos.',
+                ],
+            ],
+            [
+                'version' => 'v1.25',
+                'date' => '19/04/2026',
                 'title' => 'Fases DataJud com mais detalhes',
                 'items' => [
                     'Movimentos importados pelo DataJud passam a exibir complementos tabelados, codigo TPU, orgao julgador do movimento, dados da capa, assuntos, sistema, formato e datas de atualizacao.',

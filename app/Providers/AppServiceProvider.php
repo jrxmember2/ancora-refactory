@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Support\AncoraMenu;
 use App\Support\AncoraSettings;
 use App\Support\AncoraAuth;
+use App\Support\ProcessMovementNotifier;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -35,16 +36,24 @@ class AppServiceProvider extends ServiceProvider
                 'favicon' => '/favicon.ico',
             ];
             $menuGroups = [];
+            $processMovementNotification = null;
             $version = config('ancora_version.current', [
-                'version' => 'v1.25',
+                'version' => 'v1.26',
                 'date' => '19/04/2026',
-                'label' => 'v1.25 • 19/04/2026',
+                'label' => 'v1.26 • 19/04/2026',
             ]);
 
             try {
                 $user = $request ? AncoraAuth::user($request) : null;
                 $brand = AncoraSettings::brand();
                 $menuGroups = AncoraMenu::sidebar($user);
+                $routePermissions = ($request && method_exists($request, 'hasSession') && $request->hasSession())
+                    ? $request->session()->get('auth_user.route_permissions', [])
+                    : [];
+                $canSeeProcessNotifications = $user?->isSuperadmin() || in_array('processos.show', $routePermissions, true);
+                if ($user && $request && $canSeeProcessNotifications && AncoraAuth::hasModule($request, 'processos')) {
+                    $processMovementNotification = app(ProcessMovementNotifier::class)->forUser($user);
+                }
             } catch (\Throwable) {
                 // Error pages can be rendered before session or database services are available.
             }
@@ -52,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('ancoraBrand', $brand)
                 ->with('ancoraAuthUser', $user)
                 ->with('ancoraMenuGroups', $menuGroups)
+                ->with('processMovementNotification', $processMovementNotification)
                 ->with('ancoraVersion', $version);
         });
     }

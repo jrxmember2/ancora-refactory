@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\ProcessController;
+use App\Http\Controllers\ProcessNotificationController;
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalDocumentController;
 use App\Http\Controllers\SearchController;
@@ -86,6 +87,7 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index')->middleware('ancora.route:logs.index');
 
     Route::prefix('processos')->group(function () {
+        Route::post('/notificacoes/ciente', [ProcessNotificationController::class, 'acknowledge'])->name('processos.notifications.ack');
         Route::get('/', [ProcessController::class, 'index'])->name('processos.index')->middleware('ancora.route:processos.index');
         Route::get('/novo', [ProcessController::class, 'create'])->name('processos.create')->middleware('ancora.route:processos.create');
         Route::post('/store', [ProcessController::class, 'store'])->name('processos.store')->middleware('ancora.route:processos.store');

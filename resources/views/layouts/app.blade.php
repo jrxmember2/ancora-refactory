@@ -78,6 +78,7 @@
                         </ul>
                     </div>
                 @endif
+                @include('layouts.partials.process-movement-notification')
                 @yield('content')
             </main>
         </div>
