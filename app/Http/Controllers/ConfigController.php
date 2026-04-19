@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
 use App\Models\FormaEnvio;
+use App\Models\ProcessCaseOption;
 use App\Models\RoutePermission;
 use App\Models\Servico;
 use App\Models\StatusRetorno;
@@ -50,6 +51,8 @@ class ConfigController extends Controller
             'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
             'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
+            'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
+            'processOptionLabels' => $this->processOptionLabels(),
             'users' => $users,
             'modules' => SystemModule::query()->orderBy('sort_order')->orderBy('name')->get(),
             'routePermissionGroups' => $routePermissions,
@@ -247,6 +250,8 @@ class ConfigController extends Controller
                 'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
                 'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
                 'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
+                'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
+                'processOptionLabels' => $this->processOptionLabels(),
             ]);
         }
         return back()->with('success', $message);
@@ -304,6 +309,24 @@ class ConfigController extends Controller
     {
         $forma->delete();
         return $this->catalogResponse($request, 'Forma de envio excluída.');
+    }
+
+    public function storeProcessOption(Request $request)
+    {
+        ProcessCaseOption::query()->create($this->processOptionPayload($request));
+        return $this->catalogResponse($request, 'Configuracao de processo cadastrada.');
+    }
+
+    public function updateProcessOption(Request $request, ProcessCaseOption $option)
+    {
+        $option->update($this->processOptionPayload($request, $option));
+        return $this->catalogResponse($request, 'Configuracao de processo atualizada.');
+    }
+
+    public function deleteProcessOption(Request $request, ProcessCaseOption $option)
+    {
+        $option->delete();
+        return $this->catalogResponse($request, 'Configuracao de processo excluida.');
     }
 
     public function storeUsuario(Request $request): RedirectResponse
@@ -529,6 +552,46 @@ class ConfigController extends Controller
         $data['is_active'] = $request->boolean('is_active');
         $data['sort_order'] = (int) $request->integer('sort_order');
         return $data;
+    }
+
+    private function processOptionPayload(Request $request, ?ProcessCaseOption $current = null): array
+    {
+        $allowedGroups = array_keys($this->processOptionLabels());
+        $data = $request->validate([
+            'group_key' => ['required', Rule::in($allowedGroups)],
+            'name' => ['required', 'string', 'max:160'],
+            'slug' => ['nullable', 'string', 'max:160'],
+            'color_hex' => ['nullable', 'string', 'max:7'],
+            'sort_order' => ['nullable', 'integer'],
+            'is_active' => ['nullable'],
+        ]);
+
+        $slug = trim((string) ($data['slug'] ?? ''));
+        if ($slug === '') {
+            $slug = Str::slug($data['name']);
+        }
+
+        $data['slug'] = $slug !== '' ? $slug : Str::random(8);
+        $data['color_hex'] = $data['color_hex'] ?: null;
+        $data['is_active'] = $request->boolean('is_active');
+        $data['sort_order'] = (int) $request->integer('sort_order');
+
+        return $data;
+    }
+
+    private function processOptionLabels(): array
+    {
+        return [
+            'status' => 'Status',
+            'action_type' => 'Tipo de acao',
+            'process_type' => 'Tipo de processo',
+            'client_position' => 'Posicao do cliente',
+            'adverse_position' => 'Posicao do adverso',
+            'nature' => 'Natureza',
+            'win_probability' => 'Possibilidade de ganho',
+            'closure_type' => 'Tipo de encerramento',
+            'datajud_court' => 'Tribunal DataJud',
+        ];
     }
 
     private function storeBrandingAsset($file, string $prefix, string $currentPath): string

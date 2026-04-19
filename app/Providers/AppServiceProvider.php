@@ -36,9 +36,9 @@ class AppServiceProvider extends ServiceProvider
             ];
             $menuGroups = [];
             $version = config('ancora_version.current', [
-                'version' => 'v1.21',
+                'version' => 'v1.22',
                 'date' => '19/04/2026',
-                'label' => 'v1.21 • 19/04/2026',
+                'label' => 'v1.22 • 19/04/2026',
             ]);
 
             try {

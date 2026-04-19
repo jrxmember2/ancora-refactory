@@ -54,6 +54,14 @@ class AuditLogPresenter
             'cobrancas.attachments.upload' => 'Anexou arquivo na cobrança',
             'cobrancas.attachments.delete' => 'Excluiu anexo da cobrança',
 
+            'processos.store' => 'Criou processo',
+            'processos.update' => 'Atualizou processo',
+            'processos.delete' => 'Excluiu processo',
+            'processos.phases.store' => 'Cadastrou fase do processo',
+            'processos.attachments.upload' => 'Anexou arquivo no processo',
+            'processos.attachments.delete' => 'Excluiu anexo do processo',
+            'processos.datajud.sync' => 'Sincronizou processo com DataJud',
+
             'propostas.store' => 'Criou proposta',
             'propostas.update' => 'Atualizou proposta',
             'propostas.delete' => 'Excluiu proposta',
@@ -116,6 +124,8 @@ class AuditLogPresenter
             'client_units' => 'Unidades',
             'client_blocks' => 'Blocos',
             'cobrancas' => 'Cobranças',
+            'processos' => 'Processos',
+            'process_cases' => 'Processos',
             'propostas' => 'Propostas',
             'users' => 'Usuários',
             'config' => 'Configurações',
@@ -134,6 +144,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'clientes.config') => 'clientes',
             Str::startsWith($routeName, 'clientes.attachments') => 'clientes',
             Str::startsWith($routeName, 'cobrancas') => 'cobrancas',
+            Str::startsWith($routeName, 'processos') => 'process_cases',
             Str::startsWith($routeName, 'propostas') => 'propostas',
             Str::startsWith($routeName, 'config.users') => 'users',
             Str::startsWith($routeName, 'config') => 'config',
@@ -217,6 +228,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'clientes.unidades') => self::unitRecord($request),
             Str::startsWith($routeName, 'config.users') => self::namedRecord('USUÁRIO', self::inputOrRouteValue($request, ['email'], ['user'], ['email'])),
             Str::startsWith($routeName, 'cobrancas') => self::namedRecord('OS DE COBRANÇA', self::inputOrRouteValue($request, ['os_number'], ['cobranca'], ['os_number'])),
+            Str::startsWith($routeName, 'processos') => self::namedRecord('PROCESSO', self::inputOrRouteValue($request, ['process_number', 'client_name'], ['processo'], ['process_number', 'client_name_snapshot'])),
             Str::startsWith($routeName, 'propostas') => self::namedRecord('PROPOSTA', self::inputOrRouteValue($request, ['proposal_code'], ['proposta'], ['proposal_code'])),
             default => '',
         };
@@ -231,6 +243,7 @@ class AuditLogPresenter
             Str::startsWith($action, 'clientes.contatos') => 'PARCEIRO/FORNECEDOR',
             Str::startsWith($action, 'config.users') => 'USUÁRIO',
             Str::startsWith($action, 'cobrancas') && !Str::contains($action, '.import') => 'OS DE COBRANÇA',
+            Str::startsWith($action, 'processos') => 'PROCESSO',
             Str::startsWith($action, 'propostas') => 'PROPOSTA',
             default => '',
         };

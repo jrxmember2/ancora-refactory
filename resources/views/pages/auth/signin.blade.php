@@ -42,7 +42,7 @@
                         <span>Powered by Serratech</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                     </a>
-                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.21 • 19/04/2026' }}</div>
+                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.22 • 19/04/2026' }}</div>
                 </div>
             </div>
         </div>

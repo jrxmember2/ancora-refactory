@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.21',
+            'version' => 'v1.22',
             'date' => '19/04/2026',
-            'label' => 'v1.21 • 19/04/2026',
+            'label' => 'v1.22 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Módulo Processos com fases, anexos e DataJud',
+                'items' => [
+                    'Novo módulo Processos para cadastrar casos judiciais e administrativos com dados principais, partes, valores, descrição e encerramento.',
+                    'Configurações ganham cadastros próprios do módulo Processos, incluindo status, tipo de ação, tipo de processo, posições, natureza, possibilidade de ganho, encerramento e tribunal DataJud.',
+                    'Processos passam a ter abas de fases/andamentos e anexos, com marcações de privacidade e parecer revisado.',
+                    'Sincronização com a API pública DataJud preparada por processo e por rotina diária às 06:00 via Laravel Scheduler.',
+                    'Processos particulares ficam restritos ao responsável, ao usuário que cadastrou e aos superadmins.',
+                ],
+            ],
+            [
+                'version' => 'v1.21',
+                'date' => '19/04/2026',
                 'title' => 'Correção visual dos gráficos de cobrança',
                 'items' => [
                     'Cards de gráficos do dashboard de cobrança passam a conter corretamente os gráficos ApexCharts dentro da coluna.',

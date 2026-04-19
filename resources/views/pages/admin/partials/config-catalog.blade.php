@@ -105,3 +105,61 @@
         </div>
     </div>
 </div>
+
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="process-catalog-section">
+    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Processos</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Cadastros auxiliares usados no modulo Processos.</p>
+        </div>
+        <div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-xs text-brand-700 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-200">
+            O campo Tribunal DataJud usa o alias oficial, por exemplo <strong>api_publica_tjes</strong>.
+        </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+        @foreach(($processOptionLabels ?? []) as $groupKey => $groupLabel)
+            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ $groupLabel }}</h4>
+                <form method="post" action="{{ route('config.process-options.store') }}" class="mt-4 space-y-3 js-async-form" data-refresh-target="#process-catalog-section">
+                    @csrf
+                    <input type="hidden" name="group_key" value="{{ $groupKey }}">
+                    <input name="name" placeholder="Nome" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" required>
+                    <input name="slug" placeholder="{{ $groupKey === 'datajud_court' ? 'Alias DataJud' : 'Slug automatico' }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input name="color_hex" placeholder="#941415" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                        <input type="number" name="sort_order" placeholder="Ordem" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" checked> Ativo</label>
+                    <button class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }} w-full">Adicionar</button>
+                </form>
+
+                <div class="mt-4 max-h-80 space-y-3 overflow-auto pr-1">
+                    @foreach(($processOptions[$groupKey] ?? collect()) as $item)
+                        <form method="post" action="{{ route('config.process-options.update', $item) }}" class="rounded-2xl border border-gray-100 p-3 dark:border-gray-800 js-async-form" data-refresh-target="#process-catalog-section">
+                            @csrf
+                            <input type="hidden" name="group_key" value="{{ $groupKey }}">
+                            <div class="mb-2 flex items-center gap-2">
+                                @if($item->color_hex)
+                                    <span class="h-3 w-3 rounded-full" style="background-color: {{ $item->color_hex }}"></span>
+                                @endif
+                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ $item->slug }}</span>
+                            </div>
+                            <input name="name" value="{{ $item->name }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" required>
+                            <input name="slug" value="{{ $item->slug }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }} mt-2">
+                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                <input name="color_hex" value="{{ $item->color_hex }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                                <input type="number" name="sort_order" value="{{ $item->sort_order }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                            </div>
+                            <label class="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" name="is_active" value="1" @checked($item->is_active)> Ativo</label>
+                            <div class="mt-3 flex gap-2">
+                                <button class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }} flex-1">Salvar</button>
+                                <button formaction="{{ route('config.process-options.delete', $item) }}" formmethod="POST" class="rounded-xl border border-error-300 px-3 py-2 text-xs font-medium text-error-600">Excluir</button>
+                            </div>
+                        </form>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>

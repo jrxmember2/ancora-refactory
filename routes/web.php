@@ -9,6 +9,7 @@ use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\ProcessController;
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalDocumentController;
 use App\Http\Controllers\SearchController;
@@ -75,12 +76,29 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::post('/config/formas-envio/store', [ConfigController::class, 'storeFormaEnvio'])->name('config.formas.store')->middleware(['ancora.superadmin', 'ancora.route:config.formas.store']);
     Route::match(['post', 'put'], '/config/formas-envio/{forma}', [ConfigController::class, 'updateFormaEnvio'])->name('config.formas.update')->middleware(['ancora.superadmin', 'ancora.route:config.formas.update']);
     Route::match(['post', 'delete'], '/config/formas-envio/{forma}/excluir', [ConfigController::class, 'deleteFormaEnvio'])->name('config.formas.delete')->middleware(['ancora.superadmin', 'ancora.route:config.formas.delete']);
+    Route::post('/config/processos/opcoes/store', [ConfigController::class, 'storeProcessOption'])->name('config.process-options.store')->middleware(['ancora.superadmin', 'ancora.route:config.process-options.store']);
+    Route::match(['post', 'put'], '/config/processos/opcoes/{option}', [ConfigController::class, 'updateProcessOption'])->name('config.process-options.update')->middleware(['ancora.superadmin', 'ancora.route:config.process-options.update']);
+    Route::match(['post', 'delete'], '/config/processos/opcoes/{option}/excluir', [ConfigController::class, 'deleteProcessOption'])->name('config.process-options.delete')->middleware(['ancora.superadmin', 'ancora.route:config.process-options.delete']);
     Route::post('/config/usuarios/store', [ConfigController::class, 'storeUsuario'])->name('config.users.store')->middleware(['ancora.superadmin', 'ancora.route:config.users.store']);
     Route::match(['post', 'put'], '/config/usuarios/{user}', [ConfigController::class, 'updateUsuario'])->name('config.users.update')->middleware(['ancora.superadmin', 'ancora.route:config.users.update']);
     Route::match(['post', 'delete'], '/config/usuarios/{user}/excluir', [ConfigController::class, 'deleteUsuario'])->name('config.users.delete')->middleware(['ancora.superadmin', 'ancora.route:config.users.delete']);
 
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index')->middleware('ancora.route:logs.index');
 
+    Route::prefix('processos')->group(function () {
+        Route::get('/', [ProcessController::class, 'index'])->name('processos.index')->middleware('ancora.route:processos.index');
+        Route::get('/novo', [ProcessController::class, 'create'])->name('processos.create')->middleware('ancora.route:processos.create');
+        Route::post('/store', [ProcessController::class, 'store'])->name('processos.store')->middleware('ancora.route:processos.store');
+        Route::get('/{processo}', [ProcessController::class, 'show'])->name('processos.show')->middleware('ancora.route:processos.show');
+        Route::get('/{processo}/editar', [ProcessController::class, 'edit'])->name('processos.edit')->middleware('ancora.route:processos.edit');
+        Route::match(['post', 'put'], '/{processo}', [ProcessController::class, 'update'])->name('processos.update')->middleware('ancora.route:processos.update');
+        Route::match(['post', 'delete'], '/{processo}/excluir', [ProcessController::class, 'destroy'])->name('processos.delete')->middleware('ancora.route:processos.delete');
+        Route::post('/{processo}/fases', [ProcessController::class, 'storePhase'])->name('processos.phases.store')->middleware('ancora.route:processos.phases.store');
+        Route::post('/{processo}/anexos/upload', [ProcessController::class, 'uploadAttachment'])->name('processos.attachments.upload')->middleware('ancora.route:processos.attachments.upload');
+        Route::get('/{processo}/anexos/{attachment}/download', [ProcessController::class, 'downloadAttachment'])->name('processos.attachments.download')->middleware('ancora.route:processos.attachments.download');
+        Route::match(['post', 'delete'], '/{processo}/anexos/{attachment}', [ProcessController::class, 'deleteAttachment'])->name('processos.attachments.delete')->middleware('ancora.route:processos.attachments.delete');
+        Route::post('/{processo}/datajud/sincronizar', [ProcessController::class, 'syncDataJud'])->name('processos.datajud.sync')->middleware('ancora.route:processos.datajud.sync');
+    });
 
     Route::prefix('cobrancas')->group(function () {
         Route::get('/dashboard', [CobrancaController::class, 'dashboard'])->name('cobrancas.dashboard')->middleware('ancora.route:cobrancas.dashboard');
