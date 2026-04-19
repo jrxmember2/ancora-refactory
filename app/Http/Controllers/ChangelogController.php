@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.23',
+            'version' => 'v1.24',
             'date' => '19/04/2026',
-            'label' => 'v1.23 • 19/04/2026',
+            'label' => 'v1.24 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix de permissões do módulo Processos',
+                'items' => [
+                    'Seed de permissões do módulo Processos passa a respeitar a estrutura real da tabela route_permissions.',
+                    'Migration deixa de exigir updated_at em bancos legados que possuem apenas created_at nas permissões por rota.',
+                ],
+            ],
+            [
+                'version' => 'v1.23',
+                'date' => '19/04/2026',
                 'title' => 'Hotfix da migration do módulo Processos',
                 'items' => [
                     'Migration do módulo Processos passa a usar o mesmo tipo de ID do cadastro legado de clientes.',

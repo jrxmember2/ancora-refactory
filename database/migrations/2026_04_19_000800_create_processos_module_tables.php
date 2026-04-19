@@ -300,14 +300,22 @@ return new class extends Migration
         }
 
         foreach ($this->routePermissions() as $routeName => $label) {
+            $payload = [
+                'group_key' => str_starts_with($routeName, 'config.') ? 'config' : 'processos',
+                'label' => $label,
+            ];
+
+            if (Schema::hasColumn('route_permissions', 'created_at')) {
+                $payload['created_at'] = now();
+            }
+
+            if (Schema::hasColumn('route_permissions', 'updated_at')) {
+                $payload['updated_at'] = now();
+            }
+
             DB::table('route_permissions')->updateOrInsert(
                 ['route_name' => $routeName],
-                [
-                    'group_key' => str_starts_with($routeName, 'config.') ? 'config' : 'processos',
-                    'label' => $label,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
+                $payload
             );
         }
     }
