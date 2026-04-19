@@ -12,6 +12,7 @@ use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -30,6 +31,168 @@ class ProcessController extends Controller
         'closure_type' => 'Tipo de encerramento',
         'datajud_court' => 'Tribunal DataJud',
     ];
+
+    public function dashboard(Request $request): View
+    {
+        $year = max(2024, (int) $request->integer('year', now()->year));
+        $monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        $monthStart = now()->copy()->startOfMonth();
+        $monthEnd = now()->copy()->endOfMonth();
+
+        $casesQuery = $this->visibleProcessQuery($request)
+            ->with([
+                'statusOption',
+                'actionTypeOption',
+                'processTypeOption',
+                'natureOption',
+                'winProbabilityOption',
+            ])
+            ->withCount(['phases', 'attachments'])
+            ->withMax('phases', 'phase_date');
+
+        $cases = $casesQuery->get();
+
+        $phaseYearQuery = $this->visibleProcessPhaseQuery($request)
+            ->where(function ($query) use ($year) {
+                $query->whereYear('phase_date', $year)
+                    ->orWhere(function ($fallback) use ($year) {
+                        $fallback->whereNull('phase_date')->whereYear('created_at', $year);
+                    });
+            });
+
+        $phasesForYear = $phaseYearQuery->get();
+        $phaseMonthCount = $this->visibleProcessPhaseQuery($request)
+            ->where(function ($query) use ($monthStart, $monthEnd) {
+                $query->whereBetween('phase_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                    ->orWhere(function ($fallback) use ($monthStart, $monthEnd) {
+                        $fallback->whereNull('phase_date')
+                            ->whereBetween('created_at', [$monthStart, $monthEnd]);
+                    });
+            })
+            ->count();
+
+        $caseCounts = array_fill(0, 12, 0);
+        foreach ($cases as $case) {
+            $referenceDate = $this->processReferenceDate($case);
+            if ($referenceDate && (int) $referenceDate->year === $year) {
+                $caseCounts[$referenceDate->month - 1]++;
+            }
+        }
+
+        $movementCounts = array_fill(0, 12, 0);
+        $manualMovementCounts = array_fill(0, 12, 0);
+        $datajudMovementCounts = array_fill(0, 12, 0);
+        foreach ($phasesForYear as $phase) {
+            $referenceDate = $this->phaseReferenceDate($phase);
+            if (!$referenceDate || (int) $referenceDate->year !== $year) {
+                continue;
+            }
+
+            $index = $referenceDate->month - 1;
+            $movementCounts[$index]++;
+            if ($phase->source === 'datajud') {
+                $datajudMovementCounts[$index]++;
+            } else {
+                $manualMovementCounts[$index]++;
+            }
+        }
+
+        $currentMonthCases = $cases->filter(function (ProcessCase $case) use ($monthStart, $monthEnd) {
+            $referenceDate = $this->processReferenceDate($case);
+            return $referenceDate && $referenceDate->between($monthStart, $monthEnd);
+        });
+
+        $yearCases = $cases->filter(function (ProcessCase $case) use ($year) {
+            $referenceDate = $this->processReferenceDate($case);
+            return $referenceDate && (int) $referenceDate->year === $year;
+        });
+
+        $attentionRows = $cases
+            ->filter(fn (ProcessCase $case) => !$case->closed_at)
+            ->map(function (ProcessCase $case) {
+                $lastMovementDate = $this->lastMovementDate($case);
+
+                return [
+                    'case' => $case,
+                    'last_movement_date' => $lastMovementDate,
+                    'days_without_movement' => $lastMovementDate ? $lastMovementDate->diffInDays(now()) : null,
+                ];
+            })
+            ->sortBy(fn (array $row) => $row['last_movement_date']?->timestamp ?? 0);
+
+        $attentionCases = $attentionRows->take(6)->values();
+
+        $summary = [
+            'total' => $cases->count(),
+            'year_total' => $yearCases->count(),
+            'month_total' => $currentMonthCases->count(),
+            'active' => $cases->filter(fn (ProcessCase $case) => !$case->closed_at)->count(),
+            'closed' => $cases->filter(fn (ProcessCase $case) => (bool) $case->closed_at)->count(),
+            'private' => $cases->where('is_private', true)->count(),
+            'datajud_ready' => $cases->filter(fn (ProcessCase $case) => filled($case->process_number) && filled($case->datajud_court))->count(),
+            'datajud_synced' => $cases->filter(fn (ProcessCase $case) => (bool) $case->last_datajud_sync_at)->count(),
+            'movements_year' => $phasesForYear->count(),
+            'movements_month' => $phaseMonthCount,
+            'manual_movements_year' => $phasesForYear->where('source', 'manual')->count(),
+            'datajud_movements_year' => $phasesForYear->where('source', 'datajud')->count(),
+            'stale_90' => $attentionRows->filter(fn (array $row) => ($row['days_without_movement'] ?? 0) >= 90)->count(),
+            'claim_amount' => $cases->sum(fn (ProcessCase $case) => (float) $case->claim_amount),
+            'provisioned_amount' => $cases->sum(fn (ProcessCase $case) => (float) $case->provisioned_amount),
+            'court_paid_amount' => $cases->sum(fn (ProcessCase $case) => (float) $case->court_paid_amount),
+            'process_cost_amount' => $cases->sum(fn (ProcessCase $case) => (float) $case->process_cost_amount),
+            'sentence_amount' => $cases->sum(fn (ProcessCase $case) => (float) $case->sentence_amount),
+            'month_label' => $monthLabels[now()->month - 1] . '/' . now()->year,
+        ];
+
+        $latestCases = $this->visibleProcessQuery($request)
+            ->with(['statusOption', 'processTypeOption'])
+            ->withCount(['phases', 'attachments'])
+            ->latest('updated_at')
+            ->limit(8)
+            ->get();
+
+        $latestPhases = $this->visibleProcessPhaseQuery($request)
+            ->with(['processCase.statusOption'])
+            ->latest('created_at')
+            ->limit(8)
+            ->get();
+
+        $years = $this->visibleProcessQuery($request)
+            ->selectRaw('YEAR(COALESCE(opened_at, created_at)) as year_number')
+            ->groupByRaw('YEAR(COALESCE(opened_at, created_at))')
+            ->orderByDesc('year_number')
+            ->pluck('year_number')
+            ->filter()
+            ->values();
+
+        return view('pages.processos.dashboard', [
+            'title' => 'Dashboard de Processos',
+            'year' => $year,
+            'years' => $years,
+            'summary' => $summary,
+            'statusDistribution' => $this->optionDistribution($cases, 'statusOption', 'Sem status'),
+            'typeDistribution' => $this->optionDistribution($cases, 'processTypeOption', 'Sem tipo'),
+            'natureDistribution' => $this->optionDistribution($cases, 'natureOption', 'Sem natureza'),
+            'latestCases' => $latestCases,
+            'latestPhases' => $latestPhases,
+            'attentionCases' => $attentionCases,
+            'chartData' => [
+                'labels' => $monthLabels,
+                'caseCounts' => $caseCounts,
+                'movementCounts' => $movementCounts,
+                'manualMovementCounts' => $manualMovementCounts,
+                'datajudMovementCounts' => $datajudMovementCounts,
+                'financialLabels' => ['Valor da causa', 'Provisionado', 'Pago em juizo', 'Custos', 'Sentenca'],
+                'financialTotals' => [
+                    round((float) $summary['claim_amount'], 2),
+                    round((float) $summary['provisioned_amount'], 2),
+                    round((float) $summary['court_paid_amount'], 2),
+                    round((float) $summary['process_cost_amount'], 2),
+                    round((float) $summary['sentence_amount'], 2),
+                ],
+            ],
+        ]);
+    }
 
     public function index(Request $request): View
     {
@@ -488,6 +651,62 @@ class ProcessController extends Controller
                 $inner->orWhereRaw('LOWER(responsible_lawyer) like ?', ['%' . $needleEmail . '%']);
             }
         });
+    }
+
+    private function visibleProcessQuery(Request $request)
+    {
+        $query = ProcessCase::query();
+        $this->applyVisibility($query, $request);
+
+        return $query;
+    }
+
+    private function visibleProcessPhaseQuery(Request $request)
+    {
+        return ProcessCasePhase::query()
+            ->whereHas('processCase', function ($query) use ($request) {
+                $this->applyVisibility($query, $request);
+            });
+    }
+
+    private function processReferenceDate(ProcessCase $case): ?Carbon
+    {
+        $date = $case->opened_at ?: $case->created_at;
+
+        return $date ? Carbon::parse($date) : null;
+    }
+
+    private function phaseReferenceDate(ProcessCasePhase $phase): ?Carbon
+    {
+        $date = $phase->phase_date ?: $phase->created_at;
+
+        return $date ? Carbon::parse($date) : null;
+    }
+
+    private function lastMovementDate(ProcessCase $case): ?Carbon
+    {
+        $date = $case->phases_max_phase_date ?: $this->processReferenceDate($case);
+
+        return $date ? Carbon::parse($date) : null;
+    }
+
+    private function optionDistribution($cases, string $relation, string $fallback): array
+    {
+        return $cases
+            ->groupBy(fn (ProcessCase $case) => $case->{$relation}?->name ?: $fallback)
+            ->map(function ($group, string $label) use ($relation) {
+                $first = $group->first();
+                $option = $first ? $first->{$relation} : null;
+
+                return [
+                    'label' => $label,
+                    'count' => $group->count(),
+                    'color' => $option?->color_hex ?: '#6B7280',
+                ];
+            })
+            ->sortByDesc('count')
+            ->values()
+            ->all();
     }
 
     private function authorizeProcessAccess(Request $request, ProcessCase $case): void

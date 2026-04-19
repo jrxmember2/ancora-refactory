@@ -323,6 +323,7 @@ return new class extends Migration
     private function routePermissions(): array
     {
         return [
+            'processos.dashboard' => 'Acessar dashboard de processos',
             'processos.index' => 'Listar processos',
             'processos.create' => 'Novo processo',
             'processos.store' => 'Salvar processo',

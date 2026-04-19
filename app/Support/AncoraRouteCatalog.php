@@ -112,6 +112,7 @@ class AncoraRouteCatalog
             'processos' => [
                 'label' => 'Processos',
                 'routes' => [
+                    'processos.dashboard' => 'Acessar dashboard de processos',
                     'processos.index' => 'Listar processos',
                     'processos.create' => 'Novo processo',
                     'processos.store' => 'Salvar processo',

@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.27',
+            'version' => 'v1.28',
             'date' => '19/04/2026',
-            'label' => 'v1.27 • 19/04/2026',
+            'label' => 'v1.28 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Dashboard completo do módulo Processos',
+                'items' => [
+                    'Novo dashboard de Processos com indicadores gerais, processos ativos, encerrados, particulares e movimentos DataJud/manuais.',
+                    'Tela traz graficos de evolucao mensal, distribuicao por status e panorama financeiro do acervo processual.',
+                    'Hub e menu principal passam a abrir Processos pelo dashboard, mantendo a lista e o cadastro rapido no proprio modulo.',
+                ],
+            ],
+            [
+                'version' => 'v1.27',
+                'date' => '19/04/2026',
                 'title' => 'Hub compacto com mais módulos por linha',
                 'items' => [
                     'Cards da página inicial foram reduzidos para comportar melhor o crescimento dos módulos.',

@@ -9,6 +9,7 @@
 @section('content')
 <x-ancora.section-header title="Processos" subtitle="Controle processual do escritorio com cadastro, fases, anexos e sincronizacao DataJud.">
     <div class="flex flex-wrap gap-3">
+        <a href="{{ route('processos.dashboard') }}" class="{{ $softButtonClass }}">Dashboard</a>
         <a href="{{ route('processos.create') }}" class="{{ $buttonClass }}">Novo processo</a>
     </div>
 </x-ancora.section-header>

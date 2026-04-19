@@ -88,6 +88,7 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
 
     Route::prefix('processos')->group(function () {
         Route::post('/notificacoes/ciente', [ProcessNotificationController::class, 'acknowledge'])->name('processos.notifications.ack');
+        Route::get('/dashboard', [ProcessController::class, 'dashboard'])->name('processos.dashboard')->middleware('ancora.route:processos.dashboard');
         Route::get('/', [ProcessController::class, 'index'])->name('processos.index')->middleware('ancora.route:processos.index');
         Route::get('/novo', [ProcessController::class, 'create'])->name('processos.create')->middleware('ancora.route:processos.create');
         Route::post('/store', [ProcessController::class, 'store'])->name('processos.store')->middleware('ancora.route:processos.store');

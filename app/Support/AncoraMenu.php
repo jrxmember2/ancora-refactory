@@ -60,6 +60,7 @@ class AncoraMenu
                         'label' => 'Processos',
                         'icon' => 'fa-solid fa-scale-balanced',
                         'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('processos.dashboard')],
                             ['label' => 'Lista', 'path' => route('processos.index')],
                             ['label' => 'Novo processo', 'path' => route('processos.create')],
                         ],
@@ -114,7 +115,7 @@ class AncoraMenu
                     'logs' => route('logs.index'),
                     'clientes' => route('clientes.index'),
                     'cobrancas' => route('cobrancas.dashboard'),
-                    'processos' => route('processos.index'),
+                    'processos' => route('processos.dashboard'),
                     default => '#',
                 },
                 'description' => $descriptions[$module->slug] ?? 'Módulo em evolução no novo core Laravel.',
