@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.22',
+            'version' => 'v1.23',
             'date' => '19/04/2026',
-            'label' => 'v1.22 • 19/04/2026',
+            'label' => 'v1.23 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix da migration do módulo Processos',
+                'items' => [
+                    'Migration do módulo Processos passa a usar o mesmo tipo de ID do cadastro legado de clientes.',
+                    'Tentativas parcialmente criadas no banco são reparadas antes de retomar a criação das tabelas de fases e anexos.',
+                ],
+            ],
+            [
+                'version' => 'v1.22',
+                'date' => '19/04/2026',
                 'title' => 'Módulo Processos com fases, anexos e DataJud',
                 'items' => [
                     'Novo módulo Processos para cadastrar casos judiciais e administrativos com dados principais, partes, valores, descrição e encerramento.',

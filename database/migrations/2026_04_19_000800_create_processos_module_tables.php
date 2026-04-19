@@ -36,9 +36,9 @@ return new class extends Migration
                 $table->foreignId('status_option_id')->nullable()->constrained('process_case_options')->nullOnDelete();
                 $table->foreignId('action_type_option_id')->nullable()->constrained('process_case_options')->nullOnDelete();
                 $table->foreignId('process_type_option_id')->nullable()->constrained('process_case_options')->nullOnDelete();
-                $table->foreignId('client_entity_id')->nullable()->constrained('client_entities')->nullOnDelete();
+                $table->integer('client_entity_id')->nullable();
                 $table->string('client_name_snapshot', 190)->nullable();
-                $table->foreignId('adverse_entity_id')->nullable()->constrained('client_entities')->nullOnDelete();
+                $table->integer('adverse_entity_id')->nullable();
                 $table->string('adverse_name', 190)->nullable();
                 $table->foreignId('client_position_option_id')->nullable()->constrained('process_case_options')->nullOnDelete();
                 $table->foreignId('adverse_position_option_id')->nullable()->constrained('process_case_options')->nullOnDelete();
@@ -72,8 +72,13 @@ return new class extends Migration
                 $table->index(['status_option_id', 'process_type_option_id'], 'idx_process_cases_status_type');
                 $table->index(['client_entity_id', 'adverse_entity_id'], 'idx_process_cases_parties');
                 $table->index(['is_private', 'created_by'], 'idx_process_cases_private_creator');
+
+                $table->foreign('client_entity_id')->references('id')->on('client_entities')->nullOnDelete();
+                $table->foreign('adverse_entity_id')->references('id')->on('client_entities')->nullOnDelete();
             });
         }
+
+        $this->repairPartialProcessCasesTable();
 
         if (!Schema::hasTable('process_case_phases')) {
             Schema::create('process_case_phases', function (Blueprint $table) {
@@ -222,6 +227,50 @@ return new class extends Migration
                 );
             }
         }
+    }
+
+    private function repairPartialProcessCasesTable(): void
+    {
+        if (!Schema::hasTable('process_cases')) {
+            return;
+        }
+
+        if (Schema::hasColumn('process_cases', 'client_entity_id')) {
+            $this->dropForeignIfExists('process_cases', 'process_cases_client_entity_id_foreign');
+            DB::statement('ALTER TABLE process_cases MODIFY client_entity_id INT NULL');
+        }
+
+        if (Schema::hasColumn('process_cases', 'adverse_entity_id')) {
+            $this->dropForeignIfExists('process_cases', 'process_cases_adverse_entity_id_foreign');
+            DB::statement('ALTER TABLE process_cases MODIFY adverse_entity_id INT NULL');
+        }
+
+        if (Schema::hasTable('client_entities') && Schema::hasColumn('process_cases', 'client_entity_id') && !$this->foreignKeyExists('process_cases', 'process_cases_client_entity_id_foreign')) {
+            DB::statement('ALTER TABLE process_cases ADD CONSTRAINT process_cases_client_entity_id_foreign FOREIGN KEY (client_entity_id) REFERENCES client_entities(id) ON DELETE SET NULL');
+        }
+
+        if (Schema::hasTable('client_entities') && Schema::hasColumn('process_cases', 'adverse_entity_id') && !$this->foreignKeyExists('process_cases', 'process_cases_adverse_entity_id_foreign')) {
+            DB::statement('ALTER TABLE process_cases ADD CONSTRAINT process_cases_adverse_entity_id_foreign FOREIGN KEY (adverse_entity_id) REFERENCES client_entities(id) ON DELETE SET NULL');
+        }
+    }
+
+    private function dropForeignIfExists(string $table, string $constraint): void
+    {
+        if ($this->foreignKeyExists($table, $constraint)) {
+            DB::statement("ALTER TABLE {$table} DROP FOREIGN KEY {$constraint}");
+        }
+    }
+
+    private function foreignKeyExists(string $table, string $constraint): bool
+    {
+        $database = DB::getDatabaseName();
+
+        return DB::table('information_schema.TABLE_CONSTRAINTS')
+            ->where('CONSTRAINT_SCHEMA', $database)
+            ->where('TABLE_NAME', $table)
+            ->where('CONSTRAINT_NAME', $constraint)
+            ->where('CONSTRAINT_TYPE', 'FOREIGN KEY')
+            ->exists();
     }
 
     private function seedModule(): void
