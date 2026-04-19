@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.20',
+            'version' => 'v1.21',
             'date' => '19/04/2026',
-            'label' => 'v1.20 • 19/04/2026',
+            'label' => 'v1.21 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Correção visual dos gráficos de cobrança',
+                'items' => [
+                    'Cards de gráficos do dashboard de cobrança passam a conter corretamente os gráficos ApexCharts dentro da coluna.',
+                    'Containers de evolução dos acordos e OS criadas receberam contenção responsiva para não invadir o card de OS recentes.',
+                    'Configuração dos gráficos passa a declarar largura de 100% para respeitar o tamanho disponível do card.',
+                ],
+            ],
+            [
+                'version' => 'v1.20',
+                'date' => '19/04/2026',
                 'title' => 'Dashboard de cobrança com visão mensal e evolução',
                 'items' => [
                     'Dashboard de cobrança ganha cards de OS no mês, acordos no mês, honorários do mês e honorários anual.',

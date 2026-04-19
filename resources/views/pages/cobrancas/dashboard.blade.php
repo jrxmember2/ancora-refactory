@@ -40,8 +40,8 @@
     <x-ancora.stat-card label="Encerrados" :value="$summary['encerrado']" hint="Pagos / finalizados." icon="fa-solid fa-circle-check" />
 </div>
 
-<div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+<div class="mt-6 grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+    <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Evolução dos acordos</h3>
@@ -49,8 +49,10 @@
             </div>
             <a href="{{ route('cobrancas.billing.report') }}" class="text-sm font-medium text-brand-600 dark:text-brand-300">Abrir faturamento</a>
         </div>
-        <div id="cobrancaAgreementChart" class="mt-6 h-[320px]"></div>
-        <div class="mt-6 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+        <div class="mt-6 min-w-0 overflow-hidden">
+            <div id="cobrancaAgreementChart" class="h-[320px] min-w-0 max-w-full"></div>
+        </div>
+        <div class="mt-6 min-w-0 overflow-hidden rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h4 class="text-sm font-semibold text-gray-900 dark:text-white">OS criadas por mês</h4>
@@ -58,11 +60,13 @@
                 </div>
                 <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">{{ $year }}</span>
             </div>
-            <div id="cobrancaOsChart" class="mt-4 h-[180px]"></div>
+            <div class="mt-4 min-w-0 overflow-hidden">
+                <div id="cobrancaOsChart" class="h-[180px] min-w-0 max-w-full"></div>
+            </div>
         </div>
     </div>
 
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+    <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="flex items-center justify-between gap-3">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">OS recentes</h3>
             <a href="{{ route('cobrancas.index') }}" class="text-sm font-medium text-brand-600 dark:text-brand-300">Ver todas</a>
@@ -103,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const agreementChartEl = document.querySelector('#cobrancaAgreementChart');
     if (agreementChartEl) {
         new ApexCharts(agreementChartEl, {
-            chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
+            chart: { type: 'area', height: 320, width: '100%', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
             series: [
                 { name: 'Acordos', data: agreementTotals },
                 { name: 'Honorários', data: feesTotals },
@@ -124,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const osChartEl = document.querySelector('#cobrancaOsChart');
     if (osChartEl) {
         new ApexCharts(osChartEl, {
-            chart: { type: 'bar', height: 180, toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
+            chart: { type: 'bar', height: 180, width: '100%', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
             series: [{ name: 'OS criadas', data: caseCounts }],
             xaxis: { categories: labels },
             colors: ['#f59e0b'],
