@@ -21,7 +21,7 @@ Artisan::command('processos:datajud-sync {--case=}', function () {
         }
 
         $result = $service->syncCase($case);
-        $this->info('Processo verificado. Movimentos novos: ' . ($result['created'] ?? 0));
+        $this->info('Processo verificado. Movimentos novos: ' . ($result['created'] ?? 0) . '. Movimentos atualizados: ' . ($result['refreshed'] ?? 0));
         if (!empty($result['error'])) {
             $this->warn('Aviso: ' . $result['error']);
         }
@@ -31,10 +31,11 @@ Artisan::command('processos:datajud-sync {--case=}', function () {
 
     $summary = $service->syncAll();
     $this->info(sprintf(
-        'DataJud: %d processo(s) verificado(s), %d atualizado(s), %d movimento(s) criado(s), %d ignorado(s).',
+        'DataJud: %d processo(s) verificado(s), %d atualizado(s), %d movimento(s) criado(s), %d movimento(s) revisado(s), %d ignorado(s).',
         $summary['checked'],
         $summary['updated'],
         $summary['created'],
+        $summary['refreshed'],
         $summary['skipped']
     ));
 

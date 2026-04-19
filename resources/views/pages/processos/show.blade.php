@@ -159,7 +159,10 @@
                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $phase->attachments->count() }} anexo(s)</div>
                     </div>
                     @if($phase->notes)
-                        <div class="mt-4 whitespace-pre-line text-sm text-gray-700 dark:text-gray-200">{{ $phase->notes }}</div>
+                        <div class="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">{{ $phase->source === 'datajud' ? 'Detalhes DataJud' : 'Observacoes' }}</div>
+                            <div class="whitespace-pre-line text-sm leading-6 text-gray-700 dark:text-gray-200">{{ $phase->notes }}</div>
+                        </div>
                     @endif
                     @if($phase->legal_opinion || $phase->conference)
                         <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

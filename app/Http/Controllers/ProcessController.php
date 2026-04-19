@@ -284,7 +284,7 @@ class ProcessController extends Controller
         }
 
         return redirect()->route('processos.show', ['processo' => $processo, 'tab' => 'fases'])
-            ->with('success', 'DataJud sincronizado. Movimentos novos: ' . ($result['created'] ?? 0) . '.');
+            ->with('success', 'DataJud sincronizado. Movimentos novos: ' . ($result['created'] ?? 0) . ' · movimentos atualizados: ' . ($result['refreshed'] ?? 0) . '.');
     }
 
     private function payloadFromRequest(Request $request, ?ProcessCase $current): array

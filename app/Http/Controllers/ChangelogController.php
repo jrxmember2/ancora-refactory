@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.24',
+            'version' => 'v1.25',
             'date' => '19/04/2026',
-            'label' => 'v1.24 • 19/04/2026',
+            'label' => 'v1.25 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Fases DataJud com mais detalhes',
+                'items' => [
+                    'Movimentos importados pelo DataJud passam a exibir complementos tabelados, codigo TPU, orgao julgador do movimento, dados da capa, assuntos, sistema, formato e datas de atualizacao.',
+                    'Nova sincronizacao atualiza os andamentos DataJud ja existentes, permitindo enriquecer fases importadas anteriormente sem apagar o processo.',
+                    'Tela de fases destaca os detalhes DataJud em bloco proprio para leitura mais clara.',
+                ],
+            ],
+            [
+                'version' => 'v1.24',
+                'date' => '19/04/2026',
                 'title' => 'Hotfix de permissões do módulo Processos',
                 'items' => [
                     'Seed de permissões do módulo Processos passa a respeitar a estrutura real da tabela route_permissions.',
