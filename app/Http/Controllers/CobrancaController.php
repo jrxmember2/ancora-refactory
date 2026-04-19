@@ -40,9 +40,32 @@ class CobrancaController extends Controller
     {
         $year = max(2024, (int) $request->integer('year', now()->year));
         $base = CobrancaCase::query()->where('charge_year', $year);
+        $monthStart = now()->copy()->setDate($year, now()->month, 1)->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $monthBase = CobrancaCase::query()->whereBetween('created_at', [$monthStart, $monthEnd]);
+
+        $monthlyRows = CobrancaCase::query()
+            ->whereYear('created_at', $year)
+            ->selectRaw('MONTH(created_at) as month_number, COUNT(*) as cases_count, COALESCE(SUM(agreement_total), 0) as agreement_total, COALESCE(SUM(fees_amount), 0) as fees_total')
+            ->groupByRaw('MONTH(created_at)')
+            ->get()
+            ->keyBy('month_number');
+
+        $monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        $agreementEvolution = [];
+        $feesEvolution = [];
+        $caseEvolution = [];
+
+        foreach (range(1, 12) as $month) {
+            $row = $monthlyRows->get($month);
+            $agreementEvolution[] = round((float) ($row->agreement_total ?? 0), 2);
+            $feesEvolution[] = round((float) ($row->fees_total ?? 0), 2);
+            $caseEvolution[] = (int) ($row->cases_count ?? 0);
+        }
 
         $summary = [
             'total' => (clone $base)->count(),
+            'month_total' => (clone $monthBase)->count(),
             'notificar' => (clone $base)->whereIn('workflow_stage', ['apto_notificar', 'notificado'])->count(),
             'negociacao' => (clone $base)->whereIn('workflow_stage', ['em_negociacao', 'sem_retorno', 'aguardando_termo'])->count(),
             'aguardando_assinatura' => (clone $base)->where('workflow_stage', 'aguardando_assinatura')->count(),
@@ -51,7 +74,11 @@ class CobrancaController extends Controller
             'ajuizado' => (clone $base)->where('situation', 'ajuizado')->count(),
             'encerrado' => (clone $base)->where('situation', 'pago_encerrado')->count(),
             'agreement_total' => (float) (clone $base)->sum('agreement_total'),
+            'agreement_month_total' => (float) (clone $monthBase)->sum('agreement_total'),
             'entry_total' => (float) (clone $base)->sum('entry_amount'),
+            'fees_total' => (float) (clone $base)->sum('fees_amount'),
+            'fees_month_total' => (float) (clone $monthBase)->sum('fees_amount'),
+            'month_label' => $monthLabels[now()->month - 1] . '/' . $year,
         ];
 
         $latest = CobrancaCase::query()
@@ -67,6 +94,12 @@ class CobrancaController extends Controller
             'latestCases' => $latest,
             'years' => CobrancaCase::query()->selectRaw('DISTINCT charge_year')->orderByDesc('charge_year')->pluck('charge_year'),
             'stageLabels' => $this->workflowStageLabels(),
+            'chartData' => [
+                'labels' => $monthLabels,
+                'agreementTotals' => $agreementEvolution,
+                'feesTotals' => $feesEvolution,
+                'caseCounts' => $caseEvolution,
+            ],
         ]);
     }
 

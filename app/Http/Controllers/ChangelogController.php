@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.19',
-            'date' => '16/04/2026',
-            'label' => 'v1.19 • 16/04/2026',
+            'version' => 'v1.20',
+            'date' => '19/04/2026',
+            'label' => 'v1.20 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Dashboard de cobrança com visão mensal e evolução',
+                'items' => [
+                    'Dashboard de cobrança ganha cards de OS no mês, acordos no mês, honorários do mês e honorários anual.',
+                    'Card de valor em acordos passa a deixar claro o total anual e ganha contraponto mensal.',
+                    'Bloco Fluxo sugerido foi substituído por gráficos de evolução mensal de acordos, honorários e OS criadas.',
+                    'Evolução respeita o ano selecionado no filtro do dashboard, mantendo o mês de referência alinhado ao período escolhido.',
+                ],
+            ],
+            [
+                'version' => 'v1.19',
+                'date' => '16/04/2026',
                 'title' => 'OS mais profissional e relatório de faturamento',
                 'items' => [
                     'Formulário da OS passa a consolidar etapa/situação, entrada, honorários e parcelas em um único bloco financeiro mais objetivo.',

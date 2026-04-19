@@ -19,43 +19,46 @@
 @include('pages.cobrancas.partials.subnav')
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
-    <x-ancora.stat-card label="OS no ano" :value="$summary['total']" hint="Cadastro total de cobranças no período." icon="fa-solid fa-folder-open" />
+    <x-ancora.stat-card label="OS no ano" :value="$summary['total']" :hint="'Ano selecionado: '.$year" icon="fa-solid fa-folder-open" />
+    <x-ancora.stat-card label="OS no mês" :value="$summary['month_total']" :hint="'Mês de referência: '.$summary['month_label']" icon="fa-solid fa-calendar-days" />
+    <x-ancora.stat-card label="Acordos no ano" :value="'R$ '.number_format((float) $summary['agreement_total'], 2, ',', '.')" :hint="'Entradas somadas: R$ '.number_format((float) $summary['entry_total'], 2, ',', '.')" icon="fa-solid fa-money-bill-wave" />
+    <x-ancora.stat-card label="Acordos no mês" :value="'R$ '.number_format((float) $summary['agreement_month_total'], 2, ',', '.')" :hint="'Competência: '.$summary['month_label']" icon="fa-solid fa-chart-simple" />
+    <x-ancora.stat-card label="Honorários do mês" :value="'R$ '.number_format((float) $summary['fees_month_total'], 2, ',', '.')" :hint="'Competência: '.$summary['month_label']" icon="fa-solid fa-briefcase" />
+</div>
+
+<div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+    <x-ancora.stat-card label="Honorários anual" :value="'R$ '.number_format((float) $summary['fees_total'], 2, ',', '.')" :hint="'Ano selecionado: '.$year" icon="fa-solid fa-scale-balanced" />
     <x-ancora.stat-card label="Aptas para notificar" :value="$summary['notificar']" hint="Prontas para acionar WhatsApp/e-mail." icon="fa-solid fa-paper-plane" />
     <x-ancora.stat-card label="Em negociação" :value="$summary['negociacao']" hint="OS com tratativa ativa." icon="fa-solid fa-comments-dollar" />
     <x-ancora.stat-card label="Aguardando assinatura" :value="$summary['aguardando_assinatura']" hint="Termos aguardando aceite." icon="fa-solid fa-file-signature" />
-    <x-ancora.stat-card label="Aptas para judicializar" :value="$summary['judicializar']" hint="Casos prontos para virar ação." icon="fa-solid fa-gavel" />
+    <x-ancora.stat-card label="Acordos ativos" :value="$summary['acordo_ativo']" hint="Parcelamentos em execução." icon="fa-solid fa-receipt" />
 </div>
 
-<div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-    <x-ancora.stat-card label="Acordos ativos" :value="$summary['acordo_ativo']" hint="Parcelamentos em execução." icon="fa-solid fa-receipt" />
+<div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+    <x-ancora.stat-card label="Aptas para judicializar" :value="$summary['judicializar']" hint="Casos prontos para virar ação." icon="fa-solid fa-gavel" />
     <x-ancora.stat-card label="Ajuizados" :value="$summary['ajuizado']" hint="OS já levadas ao judicial." icon="fa-solid fa-scale-balanced" />
     <x-ancora.stat-card label="Encerrados" :value="$summary['encerrado']" hint="Pagos / finalizados." icon="fa-solid fa-circle-check" />
-    <x-ancora.stat-card label="Valor em acordos" :value="'R$ '.number_format((float) $summary['agreement_total'], 2, ',', '.')" :hint="'Entradas somadas: R$ '.number_format((float) $summary['entry_total'], 2, ',', '.')" icon="fa-solid fa-money-bill-wave" />
 </div>
 
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="flex items-center justify-between gap-3">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Fluxo sugerido</h3>
-            <a href="{{ route('cobrancas.index') }}" class="text-sm font-medium text-brand-600 dark:text-brand-300">Abrir lista</a>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Evolução dos acordos</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Acompanhamento mensal dos acordos e honorários no ano selecionado.</p>
+            </div>
+            <a href="{{ route('cobrancas.billing.report') }}" class="text-sm font-medium text-brand-600 dark:text-brand-300">Abrir faturamento</a>
         </div>
-        <div class="mt-5 grid gap-4 md:grid-cols-2">
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                <div class="text-sm font-semibold text-gray-900 dark:text-white">1. Triagem e quotas</div>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Abra a OS, vincule unidade, preencha quotas em aberto e defina o devedor correto.</p>
+        <div id="cobrancaAgreementChart" class="mt-6 h-[320px]"></div>
+        <div class="mt-6 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">OS criadas por mês</h4>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Volume mensal de novas OS para comparar operação e conversão em acordos.</p>
+                </div>
+                <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">{{ $year }}</span>
             </div>
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                <div class="text-sm font-semibold text-gray-900 dark:text-white">2. Notificação</div>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Registre e-mails e telefones, avance para “Apto para notificar” e use o payload n8n da OS.</p>
-            </div>
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                <div class="text-sm font-semibold text-gray-900 dark:text-white">3. Negociação</div>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Cadastre entrada, honorários, parcelas e acompanhe o histórico completo na timeline.</p>
-            </div>
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-                <div class="text-sm font-semibold text-gray-900 dark:text-white">4. Judicialização</div>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Quando necessário, marque a etapa adequada e mantenha GED + andamentos prontos para ação.</p>
-            </div>
+            <div id="cobrancaOsChart" class="mt-4 h-[180px]"></div>
         </div>
     </div>
 
@@ -84,3 +87,54 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof ApexCharts === 'undefined') return;
+
+    const labels = @json($chartData['labels']);
+    const agreementTotals = @json($chartData['agreementTotals']);
+    const feesTotals = @json($chartData['feesTotals']);
+    const caseCounts = @json($chartData['caseCounts']);
+    const isDark = document.documentElement.classList.contains('dark');
+    const moneyFormatter = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    const agreementChartEl = document.querySelector('#cobrancaAgreementChart');
+    if (agreementChartEl) {
+        new ApexCharts(agreementChartEl, {
+            chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
+            series: [
+                { name: 'Acordos', data: agreementTotals },
+                { name: 'Honorários', data: feesTotals },
+            ],
+            xaxis: { categories: labels },
+            yaxis: { labels: { formatter: (value) => moneyFormatter(value) } },
+            colors: ['#941415', '#465fff'],
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3 },
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.34, opacityTo: 0.04 } },
+            grid: { borderColor: isDark ? '#1f2937' : '#e5e7eb' },
+            legend: { position: 'top', horizontalAlign: 'left' },
+            tooltip: { y: { formatter: (value) => moneyFormatter(value) } },
+            theme: { mode: isDark ? 'dark' : 'light' },
+        }).render();
+    }
+
+    const osChartEl = document.querySelector('#cobrancaOsChart');
+    if (osChartEl) {
+        new ApexCharts(osChartEl, {
+            chart: { type: 'bar', height: 180, toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
+            series: [{ name: 'OS criadas', data: caseCounts }],
+            xaxis: { categories: labels },
+            colors: ['#f59e0b'],
+            dataLabels: { enabled: false },
+            grid: { borderColor: isDark ? '#1f2937' : '#e5e7eb' },
+            plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+            tooltip: { y: { formatter: (value) => `${Number(value || 0)} OS` } },
+            theme: { mode: isDark ? 'dark' : 'light' },
+        }).render();
+    }
+});
+</script>
+@endpush
