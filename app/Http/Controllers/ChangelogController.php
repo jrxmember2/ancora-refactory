@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.26',
+            'version' => 'v1.27',
             'date' => '19/04/2026',
-            'label' => 'v1.26 • 19/04/2026',
+            'label' => 'v1.27 • 19/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hub compacto com mais módulos por linha',
+                'items' => [
+                    'Cards da página inicial foram reduzidos para comportar melhor o crescimento dos módulos.',
+                    'Grade do Hub passa a exibir até cinco cards por linha em telas grandes.',
+                    'Ícones, espaçamentos e descrições foram compactados mantendo contraste e acesso rápido.',
+                ],
+            ],
+            [
+                'version' => 'v1.26',
+                'date' => '19/04/2026',
                 'title' => 'Notificação de movimentações processuais',
                 'items' => [
                     'Sistema passa a avisar no layout quando houver novas movimentações em processos acessíveis ao usuário.',
