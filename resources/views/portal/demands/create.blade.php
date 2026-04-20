@@ -17,6 +17,22 @@
                     @endforeach
                 </select>
             </div>
+            @if($condominiums->count() > 1)
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Condominio relacionado</label>
+                    <select name="client_condominium_id" required class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]">
+                        <option value="">Selecione</option>
+                        @foreach($condominiums as $condominium)
+                            <option value="{{ $condominium->id }}" @selected((int) old('client_condominium_id') === (int) $condominium->id)>{{ $condominium->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @elseif($condominiums->count() === 1)
+                <input type="hidden" name="client_condominium_id" value="{{ $condominiums->first()->id }}">
+                <div class="rounded-2xl border border-[#eadfd5] bg-[#f7f2ec] px-4 py-3 text-sm text-gray-700">
+                    Condominio relacionado: <strong>{{ $condominiums->first()->name }}</strong>
+                </div>
+            @endif
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700">Assunto</label>
                 <input name="subject" value="{{ old('subject') }}" required maxlength="180" class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]" placeholder="Resumo da solicitação">

@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.29',
+            'version' => 'v1.30',
             'date' => '20/04/2026',
-            'label' => 'v1.29 - 20/04/2026',
+            'label' => 'v1.30 - 20/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Portal com multiplos condominios por usuario',
+                'items' => [
+                    'Usuarios do Portal do Cliente passam a poder ser vinculados a mais de um condominio.',
+                    'Escopo de processos, cobrancas e demandas do portal passa a considerar todos os condominios vinculados ao usuario.',
+                    'Abertura de solicitacao no portal pede o condominio relacionado quando o usuario possui multiplos vinculos.',
+                    'Cadastro de usuarios do portal passa a reabrir o modal e exibir erros detalhados quando alguma validacao impedir o salvamento.',
+                ],
+            ],
+            [
+                'version' => 'v1.29',
+                'date' => '20/04/2026',
                 'title' => 'Portal do Cliente e Demandas',
                 'items' => [
                     'Nova area externa do Portal do Cliente com login proprio por subdominio, sessao separada e troca obrigatoria de senha no primeiro acesso.',

@@ -13,15 +13,16 @@ class ClientPortalAccess
     public function scopeProcesses(Builder $query, ClientPortalUser $user): Builder
     {
         return $query->where(function (Builder $inner) use ($user) {
-            if ($user->client_condominium_id) {
-                $inner->orWhere('client_condominium_id', $user->client_condominium_id);
+            $condominiumIds = $user->accessibleCondominiumIds();
+            if ($condominiumIds !== []) {
+                $inner->orWhereIn('client_condominium_id', $condominiumIds);
             }
 
             if ($user->client_entity_id) {
                 $inner->orWhere('client_entity_id', $user->client_entity_id);
             }
 
-            if (!$user->client_condominium_id && !$user->client_entity_id) {
+            if ($condominiumIds === [] && !$user->client_entity_id) {
                 $inner->whereRaw('1 = 0');
             }
         });
@@ -30,15 +31,16 @@ class ClientPortalAccess
     public function scopeCobrancas(Builder $query, ClientPortalUser $user): Builder
     {
         return $query->where(function (Builder $inner) use ($user) {
-            if ($user->client_condominium_id) {
-                $inner->orWhere('condominium_id', $user->client_condominium_id);
+            $condominiumIds = $user->accessibleCondominiumIds();
+            if ($condominiumIds !== []) {
+                $inner->orWhereIn('condominium_id', $condominiumIds);
             }
 
             if ($user->client_entity_id) {
                 $inner->orWhere('debtor_entity_id', $user->client_entity_id);
             }
 
-            if (!$user->client_condominium_id && !$user->client_entity_id) {
+            if ($condominiumIds === [] && !$user->client_entity_id) {
                 $inner->whereRaw('1 = 0');
             }
         });
@@ -49,8 +51,9 @@ class ClientPortalAccess
         return $query->where(function (Builder $inner) use ($user) {
             $inner->where('client_portal_user_id', $user->id);
 
-            if ($user->client_condominium_id) {
-                $inner->orWhere('client_condominium_id', $user->client_condominium_id);
+            $condominiumIds = $user->accessibleCondominiumIds();
+            if ($condominiumIds !== []) {
+                $inner->orWhereIn('client_condominium_id', $condominiumIds);
             }
 
             if ($user->client_entity_id) {
@@ -65,7 +68,9 @@ class ClientPortalAccess
             return false;
         }
 
-        return ($user->client_condominium_id && (int) $case->client_condominium_id === (int) $user->client_condominium_id)
+        $condominiumIds = $user->accessibleCondominiumIds();
+
+        return (in_array((int) $case->client_condominium_id, $condominiumIds, true))
             || ($user->client_entity_id && (int) $case->client_entity_id === (int) $user->client_entity_id);
     }
 
@@ -75,7 +80,9 @@ class ClientPortalAccess
             return false;
         }
 
-        return ($user->client_condominium_id && (int) $case->condominium_id === (int) $user->client_condominium_id)
+        $condominiumIds = $user->accessibleCondominiumIds();
+
+        return (in_array((int) $case->condominium_id, $condominiumIds, true))
             || ($user->client_entity_id && (int) $case->debtor_entity_id === (int) $user->client_entity_id);
     }
 
@@ -90,7 +97,7 @@ class ClientPortalAccess
         }
 
         return (int) $demand->client_portal_user_id === (int) $user->id
-            || ($user->client_condominium_id && (int) $demand->client_condominium_id === (int) $user->client_condominium_id)
+            || (in_array((int) $demand->client_condominium_id, $user->accessibleCondominiumIds(), true))
             || ($user->client_entity_id && (int) $demand->client_entity_id === (int) $user->client_entity_id);
     }
 }

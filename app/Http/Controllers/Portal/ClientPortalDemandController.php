@@ -56,6 +56,7 @@ class ClientPortalDemandController extends Controller
         return view('portal.demands.create', [
             'title' => 'Nova solicitação',
             'categories' => DemandCategory::query()->active()->get(),
+            'condominiums' => $user->accessibleCondominiums(),
         ]);
     }
 
@@ -66,18 +67,33 @@ class ClientPortalDemandController extends Controller
 
         $validated = $request->validate([
             'category_id' => ['required', 'integer', 'exists:demand_categories,id'],
+            'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'subject' => ['required', 'string', 'max:180'],
             'description' => ['required', 'string', 'max:12000'],
             'files.*' => ['nullable', 'file', 'max:20480'],
         ]);
 
-        $demand = DB::transaction(function () use ($validated, $request, $user) {
+        $condominiumIds = $user->accessibleCondominiumIds();
+        $selectedCondominiumId = (int) ($validated['client_condominium_id'] ?? 0);
+        if (count($condominiumIds) === 1) {
+            $selectedCondominiumId = $condominiumIds[0];
+        }
+
+        if (count($condominiumIds) > 1 && !$selectedCondominiumId) {
+            return back()->withErrors(['client_condominium_id' => 'Selecione o condominio relacionado a solicitacao.'])->withInput();
+        }
+
+        if ($selectedCondominiumId && !in_array($selectedCondominiumId, $condominiumIds, true)) {
+            abort(403);
+        }
+
+        $demand = DB::transaction(function () use ($validated, $request, $user, $selectedCondominiumId) {
             $demand = Demand::query()->create([
                 'protocol' => $this->nextProtocol(),
                 'origin' => 'portal',
                 'client_portal_user_id' => $user->id,
                 'client_entity_id' => $user->client_entity_id,
-                'client_condominium_id' => $user->client_condominium_id,
+                'client_condominium_id' => $selectedCondominiumId ?: null,
                 'category_id' => $validated['category_id'],
                 'subject' => $validated['subject'],
                 'description' => $validated['description'],

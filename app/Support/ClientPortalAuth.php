@@ -32,6 +32,7 @@ class ClientPortalAuth
             'email' => $user->email,
             'client_entity_id' => $user->client_entity_id,
             'client_condominium_id' => $user->client_condominium_id,
+            'client_condominium_ids' => $user->accessibleCondominiumIds(),
             'must_change_password' => (bool) $user->must_change_password,
             'permissions' => [
                 'can_view_processes' => (bool) $user->can_view_processes,
