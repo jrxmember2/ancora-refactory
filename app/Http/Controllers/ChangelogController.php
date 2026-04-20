@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.30',
+            'version' => 'v1.31',
             'date' => '20/04/2026',
-            'label' => 'v1.30 - 20/04/2026',
+            'label' => 'v1.31 - 20/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix do layout do Portal do Cliente',
+                'items' => [
+                    'Layout do Portal do Cliente deixa de usar diretiva Blade inline no topo do arquivo, evitando erro de parse em producao.',
+                    'Menu do portal foi simplificado para uma montagem mais compativel com cache de views e PHP 8.3.',
+                ],
+            ],
+            [
+                'version' => 'v1.30',
+                'date' => '20/04/2026',
                 'title' => 'Portal com multiplos condominios por usuario',
                 'items' => [
                     'Usuarios do Portal do Cliente passam a poder ser vinculados a mais de um condominio.',
