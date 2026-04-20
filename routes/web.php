@@ -2,19 +2,59 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\ClientPortalUserController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ConfigController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DemandController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\Portal\ClientPortalAccountController;
+use App\Http\Controllers\Portal\ClientPortalAuthController;
+use App\Http\Controllers\Portal\ClientPortalCobrancaController;
+use App\Http\Controllers\Portal\ClientPortalDashboardController;
+use App\Http\Controllers\Portal\ClientPortalDemandController;
+use App\Http\Controllers\Portal\ClientPortalProcessController;
 use App\Http\Controllers\ProcessController;
 use App\Http\Controllers\ProcessNotificationController;
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalDocumentController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
+
+Route::domain(config('app.client_portal_domain'))->name('portal.')->group(function () {
+    Route::middleware('portal.guest')->group(function () {
+        Route::get('/login', [ClientPortalAuthController::class, 'loginForm'])->name('login');
+        Route::post('/login', [ClientPortalAuthController::class, 'login'])->name('login.store');
+        Route::get('/esqueci-minha-senha', [ClientPortalAuthController::class, 'forgotPassword'])->name('password.request');
+    });
+
+    Route::middleware('portal.auth')->group(function () {
+        Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::get('/dashboard', ClientPortalDashboardController::class);
+        Route::get('/trocar-senha', [ClientPortalAuthController::class, 'passwordEdit'])->name('password.edit');
+        Route::post('/trocar-senha', [ClientPortalAuthController::class, 'passwordUpdate'])->name('password.update');
+
+        Route::get('/processos', [ClientPortalProcessController::class, 'index'])->name('processes.index');
+        Route::get('/processos/{processo}', [ClientPortalProcessController::class, 'show'])->name('processes.show');
+
+        Route::get('/cobrancas', [ClientPortalCobrancaController::class, 'index'])->name('cobrancas.index');
+        Route::get('/cobrancas/{cobranca}', [ClientPortalCobrancaController::class, 'show'])->name('cobrancas.show');
+
+        Route::get('/solicitacoes', [ClientPortalDemandController::class, 'index'])->name('demands.index');
+        Route::get('/solicitacoes/nova', [ClientPortalDemandController::class, 'create'])->name('demands.create');
+        Route::post('/solicitacoes', [ClientPortalDemandController::class, 'store'])->name('demands.store');
+        Route::get('/solicitacoes/{demand}', [ClientPortalDemandController::class, 'show'])->name('demands.show');
+        Route::post('/solicitacoes/{demand}/responder', [ClientPortalDemandController::class, 'reply'])->name('demands.reply');
+        Route::get('/solicitacoes/{demand}/anexos/{attachment}/download', [ClientPortalDemandController::class, 'downloadAttachment'])->name('demands.attachments.download');
+
+        Route::get('/minha-conta', [ClientPortalAccountController::class, 'edit'])->name('account');
+        Route::post('/minha-conta/senha', [ClientPortalAccountController::class, 'updatePassword'])->name('account.password');
+        Route::post('/logout', [ClientPortalAuthController::class, 'logout'])->name('logout');
+    });
+});
 
 Route::middleware('ancora.guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -86,6 +126,14 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
 
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index')->middleware('ancora.route:logs.index');
 
+    Route::prefix('demandas')->group(function () {
+        Route::get('/', [DemandController::class, 'index'])->name('demandas.index')->middleware('ancora.route:demandas.index');
+        Route::get('/{demanda}', [DemandController::class, 'show'])->name('demandas.show')->middleware('ancora.route:demandas.show');
+        Route::match(['post', 'put'], '/{demanda}', [DemandController::class, 'update'])->name('demandas.update')->middleware('ancora.route:demandas.update');
+        Route::post('/{demanda}/responder', [DemandController::class, 'reply'])->name('demandas.reply')->middleware('ancora.route:demandas.reply');
+        Route::get('/{demanda}/anexos/{attachment}/download', [DemandController::class, 'downloadAttachment'])->name('demandas.attachments.download')->middleware('ancora.route:demandas.attachments.download');
+    });
+
     Route::prefix('processos')->group(function () {
         Route::post('/notificacoes/ciente', [ProcessNotificationController::class, 'acknowledge'])->name('processos.notifications.ack');
         Route::get('/dashboard', [ProcessController::class, 'dashboard'])->name('processos.dashboard')->middleware('ancora.route:processos.dashboard');
@@ -149,6 +197,11 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
         Route::match(['post', 'delete'], '/contatos/{contato}/excluir', [ClientsController::class, 'contatoDelete'])->name('clientes.contatos.delete')->middleware('ancora.route:clientes.contatos.delete');
 
         Route::get('/condominos', [ClientsController::class, 'condominos'])->name('clientes.condominos')->middleware('ancora.route:clientes.condominos');
+
+        Route::get('/portal/usuarios', [ClientPortalUserController::class, 'index'])->name('clientes.portal-users.index')->middleware('ancora.route:clientes.portal-users.index');
+        Route::post('/portal/usuarios', [ClientPortalUserController::class, 'store'])->name('clientes.portal-users.store')->middleware('ancora.route:clientes.portal-users.store');
+        Route::match(['post', 'put'], '/portal/usuarios/{portalUser}', [ClientPortalUserController::class, 'update'])->name('clientes.portal-users.update')->middleware('ancora.route:clientes.portal-users.update');
+        Route::match(['post', 'delete'], '/portal/usuarios/{portalUser}/excluir', [ClientPortalUserController::class, 'destroy'])->name('clientes.portal-users.delete')->middleware('ancora.route:clientes.portal-users.delete');
 
         Route::get('/condominios', [ClientsController::class, 'condominios'])->name('clientes.condominios')->middleware('ancora.route:clientes.condominios');
         Route::get('/condominios/novo', [ClientsController::class, 'condominioCreate'])->name('clientes.condominios.create')->middleware('ancora.route:clientes.condominios.create');

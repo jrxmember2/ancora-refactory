@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\AncoraAuth;
 use App\Support\AncoraMenu;
 use App\Support\AncoraSettings;
-use App\Support\AncoraAuth;
 use App\Support\ProcessMovementNotifier;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -38,9 +38,9 @@ class AppServiceProvider extends ServiceProvider
             $menuGroups = [];
             $processMovementNotification = null;
             $version = config('ancora_version.current', [
-                'version' => 'v1.28',
-                'date' => '19/04/2026',
-                'label' => 'v1.28 • 19/04/2026',
+                'version' => 'v1.29',
+                'date' => '20/04/2026',
+                'label' => 'v1.29 - 20/04/2026',
             ]);
 
             try {

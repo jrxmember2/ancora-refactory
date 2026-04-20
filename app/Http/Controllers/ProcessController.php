@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClientEntity;
+use App\Models\ClientCondominium;
 use App\Models\ProcessCase;
 use App\Models\ProcessCaseAttachment;
 use App\Models\ProcessCaseOption;
@@ -274,6 +275,7 @@ class ProcessController extends Controller
             'formData' => $this->formData(),
             'options' => $this->optionsForForms(),
             'entities' => $this->entitiesForLookup(),
+            'condominiums' => $this->condominiumsForLookup(),
         ]);
     }
 
@@ -304,6 +306,7 @@ class ProcessController extends Controller
             'actionTypeOption',
             'processTypeOption',
             'client',
+            'clientCondominium',
             'adverse',
             'clientPositionOption',
             'adversePositionOption',
@@ -335,6 +338,7 @@ class ProcessController extends Controller
             'formData' => $this->formData($processo),
             'options' => $this->optionsForForms(),
             'entities' => $this->entitiesForLookup(),
+            'condominiums' => $this->condominiumsForLookup(),
         ]);
     }
 
@@ -458,6 +462,7 @@ class ProcessController extends Controller
             'process_number' => ['nullable', 'string', 'max:80'],
             'datajud_court' => ['nullable', 'string', 'max:80'],
             'client_name' => ['nullable', 'string', 'max:190'],
+            'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'adverse_name' => ['nullable', 'string', 'max:190'],
             'client_lawyer' => ['nullable', 'string', 'max:160'],
             'adverse_lawyer' => ['nullable', 'string', 'max:160'],
@@ -484,6 +489,7 @@ class ProcessController extends Controller
             'action_type_option_id' => $this->optionId($request, 'action_type_option_id', 'action_type'),
             'process_type_option_id' => $this->optionId($request, 'process_type_option_id', 'process_type'),
             'client_entity_id' => $client?->id,
+            'client_condominium_id' => $validated['client_condominium_id'] ?? null,
             'client_name_snapshot' => $client?->display_name ?: ($validated['client_name'] ?? null),
             'adverse_entity_id' => $adverse?->id,
             'adverse_name' => $adverse?->display_name ?: ($validated['adverse_name'] ?? null),
@@ -523,6 +529,7 @@ class ProcessController extends Controller
             'action_type_option_id' => old('action_type_option_id', $case?->action_type_option_id),
             'process_type_option_id' => old('process_type_option_id', $case?->process_type_option_id),
             'client_name' => old('client_name', $case?->client_name_snapshot),
+            'client_condominium_id' => old('client_condominium_id', $case?->client_condominium_id),
             'adverse_name' => old('adverse_name', $case?->adverse_name),
             'client_position_option_id' => old('client_position_option_id', $case?->client_position_option_id),
             'adverse_position_option_id' => old('adverse_position_option_id', $case?->adverse_position_option_id),
@@ -563,6 +570,14 @@ class ProcessController extends Controller
             ->where('is_active', 1)
             ->orderBy('display_name')
             ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj']);
+    }
+
+    private function condominiumsForLookup()
+    {
+        return ClientCondominium::query()
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'cnpj']);
     }
 
     private function resolveEntity(string $name): ?ClientEntity

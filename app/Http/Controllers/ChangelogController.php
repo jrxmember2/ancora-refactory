@@ -9,16 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.28',
-            'date' => '19/04/2026',
-            'label' => 'v1.28 • 19/04/2026',
+            'version' => 'v1.29',
+            'date' => '20/04/2026',
+            'label' => 'v1.29 - 20/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Dashboard completo do módulo Processos',
+                'title' => 'Portal do Cliente e Demandas',
+                'items' => [
+                    'Nova area externa do Portal do Cliente com login proprio por subdominio, sessao separada e troca obrigatoria de senha no primeiro acesso.',
+                    'Portal ganha dashboard, processos, cobrancas, solicitacoes e Minha Conta, sempre respeitando o escopo do cliente ou condominio vinculado.',
+                    'Novo modulo interno de Demandas permite triar solicitacoes do portal, responder clientes, controlar status, prioridade, responsavel e anexos.',
+                    'Cadastro de usuarios do portal foi integrado ao modulo Clientes com permissoes por recurso e vinculo a condominio ou entidade cliente.',
+                ],
+            ],
+            [
+                'version' => 'v1.28',
+                'date' => '19/04/2026',
+                'title' => 'Dashboard completo do modulo Processos',
                 'items' => [
                     'Novo dashboard de Processos com indicadores gerais, processos ativos, encerrados, particulares e movimentos DataJud/manuais.',
                     'Tela traz graficos de evolucao mensal, distribuicao por status e panorama financeiro do acervo processual.',

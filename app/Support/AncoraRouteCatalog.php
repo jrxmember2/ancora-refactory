@@ -60,6 +60,10 @@ class AncoraRouteCatalog
                     'clientes.contatos.update' => 'Atualizar contato',
                     'clientes.contatos.delete' => 'Excluir contato',
                     'clientes.condominos' => 'Listar condôminos',
+                    'clientes.portal-users.index' => 'Listar usuários do portal',
+                    'clientes.portal-users.store' => 'Cadastrar usuário do portal',
+                    'clientes.portal-users.update' => 'Atualizar usuário do portal',
+                    'clientes.portal-users.delete' => 'Excluir usuário do portal',
                     'clientes.condominios' => 'Listar condomínios',
                     'clientes.condominios.create' => 'Novo condomínio',
                     'clientes.condominios.store' => 'Salvar condomínio',
@@ -125,6 +129,16 @@ class AncoraRouteCatalog
                     'processos.attachments.download' => 'Baixar anexo do processo',
                     'processos.attachments.delete' => 'Excluir anexo do processo',
                     'processos.datajud.sync' => 'Sincronizar processo com DataJud',
+                ],
+            ],
+            'demandas' => [
+                'label' => 'Demandas',
+                'routes' => [
+                    'demandas.index' => 'Listar demandas',
+                    'demandas.show' => 'Visualizar demanda',
+                    'demandas.update' => 'Atualizar demanda',
+                    'demandas.reply' => 'Responder demanda',
+                    'demandas.attachments.download' => 'Baixar anexo de demanda',
                 ],
             ],
             'propostas' => [

@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'client_portal_domain' => env('CLIENT_PORTAL_DOMAIN', 'cliente.serratech.tec.br'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

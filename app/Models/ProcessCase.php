@@ -38,6 +38,7 @@ class ProcessCase extends Model
     public function actionTypeOption(): BelongsTo { return $this->belongsTo(ProcessCaseOption::class, 'action_type_option_id'); }
     public function processTypeOption(): BelongsTo { return $this->belongsTo(ProcessCaseOption::class, 'process_type_option_id'); }
     public function client(): BelongsTo { return $this->belongsTo(ClientEntity::class, 'client_entity_id'); }
+    public function clientCondominium(): BelongsTo { return $this->belongsTo(ClientCondominium::class, 'client_condominium_id'); }
     public function adverse(): BelongsTo { return $this->belongsTo(ClientEntity::class, 'adverse_entity_id'); }
     public function clientPositionOption(): BelongsTo { return $this->belongsTo(ProcessCaseOption::class, 'client_position_option_id'); }
     public function adversePositionOption(): BelongsTo { return $this->belongsTo(ProcessCaseOption::class, 'adverse_position_option_id'); }

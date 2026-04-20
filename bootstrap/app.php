@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAncoraAuthenticated;
 use App\Http\Middleware\AuditUserAction;
+use App\Http\Middleware\EnsureClientPortalAuthenticated;
+use App\Http\Middleware\EnsureClientPortalGuest;
 use App\Http\Middleware\EnsureGuest;
 use App\Http\Middleware\EnsureRoutePermission;
 use App\Http\Middleware\EnsureSuperadmin;
@@ -22,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'ancora.superadmin' => EnsureSuperadmin::class,
             'ancora.route' => EnsureRoutePermission::class,
             'audit.activity' => AuditUserAction::class,
+            'portal.auth' => EnsureClientPortalAuthenticated::class,
+            'portal.guest' => EnsureClientPortalGuest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

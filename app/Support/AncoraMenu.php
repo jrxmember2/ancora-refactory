@@ -41,6 +41,7 @@ class AncoraMenu
                             ['label' => 'Avulsos', 'path' => route('clientes.avulsos')],
                             ['label' => 'Parceiros / fornecedores', 'path' => route('clientes.contatos')],
                             ['label' => 'Condôminos', 'path' => route('clientes.condominos')],
+                            ['label' => 'Portal do Cliente', 'path' => route('clientes.portal-users.index')],
                             ['label' => 'Condomínios', 'path' => route('clientes.condominios')],
                             ['label' => 'Unidades', 'path' => route('clientes.unidades')],
                         ],
@@ -55,6 +56,11 @@ class AncoraMenu
                             ['label' => 'Faturamento', 'path' => route('cobrancas.billing.report')],
                             ['label' => 'Importar inadimplência', 'path' => route('cobrancas.import.index')],
                         ],
+                    ] : null,
+                    $has('demandas') ? [
+                        'label' => 'Demandas',
+                        'path' => route('demandas.index'),
+                        'icon' => 'fa-solid fa-inbox',
                     ] : null,
                     $has('processos') ? [
                         'label' => 'Processos',
@@ -100,6 +106,7 @@ class AncoraMenu
                 'logs' => 'Rastreabilidade e auditoria do sistema.',
                 'clientes' => 'Cadastro central de clientes avulsos e área condominial.',
                 'cobrancas' => 'OS de cobrança, quotas, andamentos, GED e trilha para judicialização.',
+                'demandas' => 'Solicitações do Portal do Cliente com triagem e respostas do escritório.',
                 'processos' => 'Controle processual com fases, anexos e sincronização DataJud.',
             ];
 
@@ -115,6 +122,7 @@ class AncoraMenu
                     'logs' => route('logs.index'),
                     'clientes' => route('clientes.index'),
                     'cobrancas' => route('cobrancas.dashboard'),
+                    'demandas' => route('demandas.index'),
                     'processos' => route('processos.dashboard'),
                     default => '#',
                 },
@@ -124,6 +132,7 @@ class AncoraMenu
                     'propostas' => 'brand',
                     'clientes' => 'success',
                     'cobrancas' => 'warning',
+                    'demandas' => 'blue',
                     'processos' => 'brand',
                     'config' => 'warning',
                     'logs' => 'gray',
