@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Automation;
 
+use App\Models\AppSetting;
 use App\Models\AutomationSession;
 use App\Models\AutomationSessionMessage;
 use App\Models\AutomationValidationChallenge;
@@ -135,6 +136,34 @@ class WhatsAppAutomationTest extends TestCase
                 ->where('external_message_id', 'same-id')
                 ->count()
         );
+    }
+
+    public function test_it_accepts_internal_api_credentials_saved_in_app_settings(): void
+    {
+        $this->createScenario();
+
+        AppSetting::setValue('automation_internal_api_token', 'stored-token', 'Token salvo via configuracoes');
+        AppSetting::setValue('automation_internal_api_token_header', 'X-Automation-Key', 'Header salvo via configuracoes');
+        AppSetting::setValue('automation_internal_api_allowed_ips', '127.0.0.1', 'Allowlist salva via configuracoes');
+
+        $payload = [
+            'channel' => 'whatsapp',
+            'provider' => 'evolution',
+            'phone' => '5511944444444',
+            'external_message_id' => 'cfg-1',
+            'message_text' => 'Oi',
+            'timestamp' => now()->toIso8601String(),
+            'metadata' => [],
+        ];
+
+        $this->withHeaders(['X-Integration-Token' => 'test-token'])
+            ->postJson('/api/internal/automation/whatsapp/process-message', $payload)
+            ->assertUnauthorized();
+
+        $this->withHeaders(['X-Automation-Key' => 'stored-token'])
+            ->postJson('/api/internal/automation/whatsapp/process-message', $payload)
+            ->assertOk()
+            ->assertJsonPath('ok', true);
     }
 
     public function test_it_expires_the_session_after_inactivity_and_starts_a_new_one(): void

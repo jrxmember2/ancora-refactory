@@ -20,6 +20,8 @@ class AncoraRouteCatalog
                 'label' => 'Configurações',
                 'routes' => [
                     'config.index' => 'Acessar configurações',
+                    'config.automation.documentation' => 'Abrir documentacao da automacao WhatsApp',
+                    'config.automation.save' => 'Salvar configuracao da automacao WhatsApp',
                     'config.branding.save' => 'Salvar branding',
                     'config.favicon.save' => 'Salvar favicon',
                     'config.modules.save' => 'Salvar módulos',

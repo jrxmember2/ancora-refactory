@@ -100,6 +100,8 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::get('/changelog', [ChangelogController::class, 'index'])->name('changelog.index')->middleware('ancora.route:changelog.index');
 
     Route::get('/config', [ConfigController::class, 'index'])->name('config.index')->middleware(['ancora.superadmin', 'ancora.route:config.index']);
+    Route::get('/config/automacao/documentacao', [ConfigController::class, 'automationDocumentation'])->name('config.automation.documentation')->middleware(['ancora.superadmin', 'ancora.route:config.automation.documentation']);
+    Route::post('/config/automacao/save', [ConfigController::class, 'saveAutomation'])->name('config.automation.save')->middleware(['ancora.superadmin', 'ancora.route:config.automation.save']);
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);
     Route::post('/config/favicon/save', [ConfigController::class, 'saveFavicon'])->name('config.favicon.save')->middleware(['ancora.superadmin', 'ancora.route:config.favicon.save']);
     Route::post('/config/modules/save', [ConfigController::class, 'saveModules'])->name('config.modules.save')->middleware(['ancora.superadmin', 'ancora.route:config.modules.save']);

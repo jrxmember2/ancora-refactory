@@ -75,6 +75,7 @@ class ConfigController extends Controller
                 'favicon_path' => $faviconPath,
                 'favicon_url' => $this->brandingAssetUrl($faviconPath, '/favicon.svg'),
             ],
+            'automation' => $this->automationSettings(),
             'smtp' => AncoraSettings::smtp(),
         ]);
     }
@@ -175,6 +176,48 @@ class ConfigController extends Controller
         ]);
 
         return back()->with('success', 'SMTP atualizado com sucesso.');
+    }
+
+    public function saveAutomation(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'internal_api_token' => ['nullable', 'string', 'max:190'],
+            'internal_api_token_header' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9\\-]+$/'],
+            'internal_api_allowed_ips' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $defaultHeader = (string) config('automation.internal_api.token_header', 'X-Integration-Token');
+
+        $this->setMany([
+            'automation_internal_api_token' => [trim((string) ($validated['internal_api_token'] ?? '')), 'Token fixo da API interna de automacao'],
+            'automation_internal_api_token_header' => [
+                trim((string) ($validated['internal_api_token_header'] ?? '')) ?: $defaultHeader,
+                'Header alternativo aceito pela API interna de automacao',
+            ],
+            'automation_internal_api_allowed_ips' => [
+                $this->normalizeAllowedIps((string) ($validated['internal_api_allowed_ips'] ?? '')),
+                'Allowlist de IPs da API interna de automacao',
+            ],
+        ]);
+
+        return back()->with('success', 'Automacao WhatsApp atualizada com sucesso.');
+    }
+
+    public function automationDocumentation(): View
+    {
+        $path = base_path('docs/automation-whatsapp-integration.md');
+        $markdown = is_file($path)
+            ? (string) file_get_contents($path)
+            : "# Documentacao indisponivel\n\nO arquivo docs/automation-whatsapp-integration.md nao foi encontrado.";
+
+        return view('pages.admin.config-automation-documentation', [
+            'title' => 'Documentacao da Automacao WhatsApp',
+            'documentationPath' => 'docs/automation-whatsapp-integration.md',
+            'documentationHtml' => Str::markdown($markdown, [
+                'html_input' => 'strip',
+                'allow_unsafe_links' => false,
+            ]),
+        ]);
     }
 
     public function testSmtp(Request $request)
@@ -458,6 +501,21 @@ class ConfigController extends Controller
         return AncoraSettings::getJson('access_profiles_json', []);
     }
 
+    private function automationSettings(): array
+    {
+        $storedToken = trim((string) AppSetting::getValue('automation_internal_api_token', ''));
+        $storedHeader = trim((string) AppSetting::getValue('automation_internal_api_token_header', ''));
+        $defaultHeader = (string) config('automation.internal_api.token_header', 'X-Integration-Token');
+
+        return [
+            'internal_api_endpoint' => url('/api/internal/automation/whatsapp/process-message'),
+            'internal_api_token' => $storedToken,
+            'internal_api_token_header' => $storedHeader !== '' ? $storedHeader : $defaultHeader,
+            'internal_api_allowed_ips' => $this->formatAllowedIpsForTextarea((string) AppSetting::getValue('automation_internal_api_allowed_ips', '')),
+            'documentation_url' => route('config.automation.documentation'),
+            'has_token_override' => $storedToken !== '',
+        ];
+    }
 
     private function parseAccessMode(string $mode): array
     {
@@ -618,5 +676,31 @@ class ConfigController extends Controller
         foreach ($items as $key => [$value, $description]) {
             AppSetting::setValue($key, $value, $description);
         }
+    }
+
+    private function normalizeAllowedIps(string $value): string
+    {
+        $items = preg_split('/[\r\n,;]+/', $value) ?: [];
+        $normalized = [];
+
+        foreach ($items as $item) {
+            $ip = trim($item);
+            if ($ip === '') {
+                continue;
+            }
+
+            $normalized[$ip] = $ip;
+        }
+
+        return implode(PHP_EOL, array_values($normalized));
+    }
+
+    private function formatAllowedIpsForTextarea(string $value): string
+    {
+        if (trim($value) === '') {
+            return '';
+        }
+
+        return $this->normalizeAllowedIps($value);
     }
 }

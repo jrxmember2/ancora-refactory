@@ -150,6 +150,61 @@
                     <button class="{{ $buttonClass }} w-full">Salvar módulos</button>
                 </form>
             </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Automacao WhatsApp</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Documentacao da integracao interna e credenciais usadas pelo n8n/Evolution para chamar o backend do Ancora.</p>
+                    </div>
+                    <a href="{{ $automation['documentation_url'] }}" class="{{ $softButtonClass }} inline-flex items-center gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Ver documentacao</span>
+                    </a>
+                </div>
+
+                <div class="mt-5 rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-4 dark:border-brand-800 dark:bg-brand-500/5">
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">Endpoint interno</div>
+                    <code class="mt-2 block break-all rounded-xl bg-white px-3 py-2 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-100">{{ $automation['internal_api_endpoint'] }}</code>
+                    <p class="mt-2 text-xs text-gray-600 dark:text-gray-300">Se os campos abaixo ficarem vazios, a automacao continua usando os valores declarados no arquivo de ambiente/configuracao do servidor.</p>
+                </div>
+
+                <form method="post" action="{{ route('config.automation.save') }}" class="mt-5 space-y-4">
+                    @csrf
+
+                    <div class="relative" x-data="{ show:false }">
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Token da API interna</label>
+                        <input :type="show ? 'text' : 'password'" name="internal_api_token" value="{{ $automation['internal_api_token'] }}" class="{{ $inputClass }} pr-11" placeholder="Token fixo usado pelo n8n">
+                        <button type="button" @click="show = !show" class="absolute right-4 top-[43px] -translate-y-1/2 text-gray-500 dark:text-gray-400"><i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i></button>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Header alternativo do token</label>
+                        <input name="internal_api_token_header" value="{{ $automation['internal_api_token_header'] }}" class="{{ $inputClass }}" placeholder="X-Integration-Token">
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">IPs permitidos</label>
+                        <textarea name="internal_api_allowed_ips" rows="4" class="{{ $textareaClass }}" placeholder="Um IP por linha ou separados por virgula">{{ $automation['internal_api_allowed_ips'] }}</textarea>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Deixe em branco para nao restringir por IP. Esta allowlist e aplicada alem da validacao do token.</p>
+                    </div>
+
+                    @if($automation['has_token_override'])
+                        <div class="rounded-2xl border border-success-200 bg-success-50 px-4 py-3 text-xs text-success-700 dark:border-success-900/50 dark:bg-success-500/10 dark:text-success-200">
+                            A integracao interna esta usando o token salvo nesta tela.
+                        </div>
+                    @else
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-500/10 dark:text-amber-200">
+                            Nenhum token foi salvo nesta tela. O middleware continuara usando o token definido no ambiente do servidor.
+                        </div>
+                    @endif
+
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button class="{{ $buttonClass }} flex-1">Salvar automacao</button>
+                        <a href="{{ $automation['documentation_url'] }}" class="{{ $softButtonClass }} flex-1 text-center">Abrir documentacao</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 

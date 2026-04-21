@@ -84,6 +84,8 @@ class AuditLogPresenter
             'config.branding.save' => 'Atualizou identidade visual',
             'config.favicon.save' => 'Atualizou favicon',
             'config.modules.save' => 'Atualizou módulos',
+            'config.automation.documentation' => 'Abriu documentacao da automacao WhatsApp',
+            'config.automation.save' => 'Atualizou automacao WhatsApp',
             'config.smtp.save' => 'Atualizou SMTP',
             'config.access-profiles.save' => 'Atualizou perfis de acesso',
             'config.access-profiles.delete' => 'Excluiu perfil de acesso',

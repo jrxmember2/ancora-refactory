@@ -53,6 +53,14 @@ Arquivo:
 
 - `config/automation.php`
 
+Tela administrativa:
+
+- `Configuracoes > Automacao WhatsApp`
+- Campos salvos em `app_settings`:
+  - `automation_internal_api_token`
+  - `automation_internal_api_token_header`
+  - `automation_internal_api_allowed_ips`
+
 Pontos alteraveis:
 
 - mensagens do fluxo
