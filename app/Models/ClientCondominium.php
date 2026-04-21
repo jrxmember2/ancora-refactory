@@ -18,6 +18,8 @@ class ClientCondominium extends Model
             'has_blocks' => 'boolean',
             'is_active' => 'boolean',
             'address_json' => 'array',
+            'boleto_fee_amount' => 'decimal:2',
+            'boleto_cancellation_fee_amount' => 'decimal:2',
             'contract_end_date' => 'date',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -29,4 +31,5 @@ class ClientCondominium extends Model
     public function type(): BelongsTo { return $this->belongsTo(ClientType::class, 'condominium_type_id'); }
     public function blocks(): HasMany { return $this->hasMany(ClientBlock::class, 'condominium_id')->orderBy('sort_order')->orderBy('name'); }
     public function units(): HasMany { return $this->hasMany(ClientUnit::class, 'condominium_id'); }
+    public function automationSessions(): HasMany { return $this->hasMany(AutomationSession::class, 'condominium_id'); }
 }

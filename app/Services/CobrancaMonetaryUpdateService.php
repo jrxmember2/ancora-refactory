@@ -31,6 +31,7 @@ class CobrancaMonetaryUpdateService
             'interest_cents' => 0,
             'fine_cents' => 0,
             'items_total_cents' => 0,
+            'quota_count' => 0,
         ];
 
         foreach ($quotas as $quota) {
@@ -41,16 +42,25 @@ class CobrancaMonetaryUpdateService
             $totals['interest_cents'] += $item['interest_cents'];
             $totals['fine_cents'] += $item['fine_cents'];
             $totals['items_total_cents'] += $item['total_cents'];
+            $totals['quota_count']++;
         }
 
         $costsCorrectedCents = $this->correctCosts($settings);
         $debitTotalCents = max(0, $totals['items_total_cents'] + $costsCorrectedCents - $settings['abatement_cents']);
         $attorneyFeeCents = $this->attorneyFeeCents($debitTotalCents, $settings);
-        $grandTotalCents = $debitTotalCents + $attorneyFeeCents;
+        $boletoFeeCents = $settings['apply_boleto_fee']
+            ? ((int) $totals['quota_count'] * (int) $settings['boleto_fee_cents'])
+            : 0;
+        $boletoCancellationFeeCents = $settings['apply_boleto_cancellation_fee']
+            ? ((int) $totals['quota_count'] * (int) $settings['boleto_cancellation_fee_cents'])
+            : 0;
+        $grandTotalCents = $debitTotalCents + $attorneyFeeCents + $boletoFeeCents + $boletoCancellationFeeCents;
 
         $totals += [
             'costs_cents' => $settings['costs_cents'],
             'costs_corrected_cents' => $costsCorrectedCents,
+            'boleto_fee_cents' => $boletoFeeCents,
+            'boleto_cancellation_fee_cents' => $boletoCancellationFeeCents,
             'abatement_cents' => $settings['abatement_cents'],
             'debit_total_cents' => $debitTotalCents,
             'attorney_fee_cents' => $attorneyFeeCents,
@@ -92,6 +102,8 @@ class CobrancaMonetaryUpdateService
                 'interest' => $this->money($calculation['totals']['interest_cents']),
                 'fine' => $this->money($calculation['totals']['fine_cents']),
                 'costs_corrected' => $this->money($calculation['totals']['costs_corrected_cents']),
+                'boleto_fee' => $this->money($calculation['totals']['boleto_fee_cents']),
+                'boleto_cancellation_fee' => $this->money($calculation['totals']['boleto_cancellation_fee_cents']),
                 'abatement' => $this->money($calculation['totals']['abatement_cents']),
                 'debit_total' => $this->money($calculation['totals']['debit_total_cents']),
                 'attorney_fee' => $this->money($calculation['totals']['attorney_fee_cents']),
@@ -146,6 +158,10 @@ class CobrancaMonetaryUpdateService
             'attorney_fee_value' => $attorneyFeeValue,
             'costs_cents' => $this->moneyToCents($options['costs_amount'] ?? 0),
             'costs_date' => $this->date($options['costs_date'] ?? null),
+            'boleto_fee_cents' => $this->moneyToCents($options['boleto_fee_amount'] ?? 0),
+            'boleto_cancellation_fee_cents' => $this->moneyToCents($options['boleto_cancellation_fee_amount'] ?? 0),
+            'apply_boleto_fee' => filter_var($options['apply_boleto_fee'] ?? false, FILTER_VALIDATE_BOOL),
+            'apply_boleto_cancellation_fee' => filter_var($options['apply_boleto_cancellation_fee'] ?? false, FILTER_VALIDATE_BOOL),
             'abatement_cents' => $this->moneyToCents($options['abatement_amount'] ?? 0),
             'quota_ids' => collect((array) ($options['quota_ids'] ?? []))->map(fn ($id) => (int) $id)->filter()->values()->all(),
         ];
@@ -289,6 +305,8 @@ class CobrancaMonetaryUpdateService
         return [
             'debit_total' => $this->money($totals['debit_total_cents']),
             'attorney_fee' => $this->money($totals['attorney_fee_cents']),
+            'boleto_fee' => $this->money($totals['boleto_fee_cents']),
+            'boleto_cancellation_fee' => $this->money($totals['boleto_cancellation_fee_cents']),
             'grand_total' => $this->money($totals['grand_total_cents']),
             'final_date' => $settings['final_date']->format('d/m/Y'),
         ];

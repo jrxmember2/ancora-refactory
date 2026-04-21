@@ -24,7 +24,13 @@
                     @foreach($items as $item)
                         @php($address = $item->address_json ?? [])
                         <tr>
-                            <td class="px-6 py-4"><div class="font-medium text-gray-900 dark:text-white">{{ $item->name }}</div><div class="text-xs text-gray-500">{{ $item->cnpj ?: 'Sem CNPJ' }}</div></td>
+                            <td class="px-6 py-4">
+                                <div class="font-medium text-gray-900 dark:text-white">{{ $item->name }}</div>
+                                <div class="text-xs text-gray-500">{{ $item->cnpj ?: 'Sem CNPJ' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Boleto: R$ {{ number_format((float) ($item->boleto_fee_amount ?? 0), 2, ',', '.') }} · Cancelamento: R$ {{ number_format((float) ($item->boleto_cancellation_fee_amount ?? 0), 2, ',', '.') }}
+                                </div>
+                            </td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->type?->name ?: '—' }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->syndic?->display_name ?: '—' }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->has_blocks ? 'Sim' : 'Não' }}</td>
@@ -41,6 +47,8 @@
                                         <div><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Síndico</span><div class="mt-1 text-gray-900 dark:text-white">{{ $item->syndic?->display_name ?: '—' }}</div></div>
                                         <div><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Administradora</span><div class="mt-1 text-gray-900 dark:text-white">{{ $item->administradora?->display_name ?: '—' }}</div></div>
                                         <div><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Status</span><div class="mt-1 text-gray-900 dark:text-white">{{ $item->is_active ? 'Ativo' : 'Inativo' }}</div></div>
+                                        <div><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Valor do boleto</span><div class="mt-1 text-gray-900 dark:text-white">R$ {{ number_format((float) ($item->boleto_fee_amount ?? 0), 2, ',', '.') }}</div></div>
+                                        <div><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Cancelamento do boleto</span><div class="mt-1 text-gray-900 dark:text-white">R$ {{ number_format((float) ($item->boleto_cancellation_fee_amount ?? 0), 2, ',', '.') }}</div></div>
                                         <div class="md:col-span-2"><span class="block text-xs uppercase tracking-[0.16em] text-gray-500">Endereço</span><div class="mt-1 text-gray-900 dark:text-white">{{ collect([$address['street'] ?? null, $address['number'] ?? null, $address['neighborhood'] ?? null, $address['city'] ?? null, $address['state'] ?? null, $address['zip'] ?? null])->filter()->implode(', ') ?: '—' }}</div></div>
                                     </div>
                                 </dialog>

@@ -377,6 +377,22 @@ class ClientsController extends Controller
         return $this->normalizeLower($value);
     }
 
+    private function moneyFromInput(mixed $value): ?float
+    {
+        $raw = preg_replace('/[^\d,.-]/', '', (string) ($value ?? '')) ?: '';
+        if ($raw === '') {
+            return null;
+        }
+
+        if (str_contains($raw, ',') && str_contains($raw, '.')) {
+            $raw = str_replace('.', '', $raw);
+        }
+
+        $raw = str_replace(',', '.', $raw);
+
+        return is_numeric($raw) ? round(max(0, (float) $raw), 2) : null;
+    }
+
     private function normalizeAddress(array $address): array
     {
         return [
@@ -1507,6 +1523,8 @@ class ClientsController extends Controller
             'administradora_entity_id' => $request->integer('administradora_entity_id') ?: null,
             'bank_details' => ($value = $this->normalizeWhitespace($request->input('bank_details', ''))) !== '' ? $value : null,
             'characteristics' => ($value = $this->normalizeWhitespace($request->input('characteristics', ''))) !== '' ? $value : null,
+            'boleto_fee_amount' => $this->moneyFromInput($request->input('boleto_fee_amount')),
+            'boleto_cancellation_fee_amount' => $this->moneyFromInput($request->input('boleto_cancellation_fee_amount')),
             'is_active' => !$isInactive,
             'inactive_reason' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('inactive_reason', ''))) !== '' ? $value : null) : null,
             'contract_end_date' => $isInactive ? (($value = $this->normalizeWhitespace($request->input('contract_end_date', ''))) !== '' ? $value : null) : null,

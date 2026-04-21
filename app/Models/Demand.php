@@ -18,6 +18,7 @@ class Demand extends Model
             'last_external_message_at' => 'datetime',
             'last_internal_message_at' => 'datetime',
             'closed_at' => 'datetime',
+            'sla_due_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -28,6 +29,8 @@ class Demand extends Model
     public function condominium(): BelongsTo { return $this->belongsTo(ClientCondominium::class, 'client_condominium_id'); }
     public function processCase(): BelongsTo { return $this->belongsTo(ProcessCase::class, 'process_case_id'); }
     public function cobrancaCase(): BelongsTo { return $this->belongsTo(CobrancaCase::class, 'cobranca_case_id'); }
+    public function automationSession(): BelongsTo { return $this->belongsTo(AutomationSession::class, 'automation_session_id'); }
+    public function automationAgreementProposal(): BelongsTo { return $this->belongsTo(AutomationAgreementProposal::class, 'automation_agreement_proposal_id'); }
     public function category(): BelongsTo { return $this->belongsTo(DemandCategory::class, 'category_id'); }
     public function assignee(): BelongsTo { return $this->belongsTo(User::class, 'assigned_user_id'); }
     public function messages(): HasMany { return $this->hasMany(DemandMessage::class, 'demand_id')->orderBy('created_at')->orderBy('id'); }
@@ -47,6 +50,7 @@ class Demand extends Model
             'em_triagem' => 'Em triagem',
             'em_andamento' => 'Em andamento',
             'aguardando_cliente' => 'Aguardando cliente',
+            'aguardando_formalizacao_acordo' => 'Aguardando formalizacao do acordo',
             'concluida' => 'Concluida',
             'cancelada' => 'Cancelada',
         ];

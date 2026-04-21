@@ -23,6 +23,8 @@ class CobrancaMonetaryUpdate extends Model
             'costs_amount' => 'decimal:2',
             'costs_date' => 'date',
             'costs_corrected_amount' => 'decimal:2',
+            'boleto_fee_total' => 'decimal:2',
+            'boleto_cancellation_fee_total' => 'decimal:2',
             'abatement_amount' => 'decimal:2',
             'original_total' => 'decimal:2',
             'corrected_total' => 'decimal:2',

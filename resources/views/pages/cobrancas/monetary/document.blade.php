@@ -257,6 +257,12 @@
             @if((float) $update->costs_corrected_amount > 0)
                 <div class="total-row"><span>Custas/despesas corrigidas</span><strong>{{ $money($update->costs_corrected_amount) }}</strong></div>
             @endif
+            @if((float) $update->boleto_fee_total > 0)
+                <div class="total-row"><span>Taxa de boleto</span><strong>{{ $money($update->boleto_fee_total) }}</strong></div>
+            @endif
+            @if((float) $update->boleto_cancellation_fee_total > 0)
+                <div class="total-row"><span>Taxa de cancelamento de boleto</span><strong>{{ $money($update->boleto_cancellation_fee_total) }}</strong></div>
+            @endif
             @if((float) $update->abatement_amount > 0)
                 <div class="total-row"><span>Abatimento</span><strong>- {{ $money($update->abatement_amount) }}</strong></div>
             @endif

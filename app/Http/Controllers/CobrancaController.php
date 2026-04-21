@@ -1021,7 +1021,7 @@ class CobrancaController extends Controller
 
         try {
             $cobranca->load('quotas');
-            $calculation = $service->calculate($cobranca, $this->monetaryOptionsFromRequest($request));
+            $calculation = $service->calculate($cobranca->loadMissing('condominium'), $this->monetaryOptionsFromRequest($request, $cobranca));
 
             return response()->json($service->formatPreview($calculation));
         } catch (\Throwable $e) {
@@ -1040,7 +1040,7 @@ class CobrancaController extends Controller
 
         try {
             $cobranca->load('quotas');
-            $calculation = $service->calculate($cobranca, $this->monetaryOptionsFromRequest($request));
+            $calculation = $service->calculate($cobranca->loadMissing('condominium'), $this->monetaryOptionsFromRequest($request, $cobranca));
         } catch (\Throwable $e) {
             return back()->withInput()->with('error', 'Não foi possível calcular a atualização monetária: ' . $e->getMessage());
         }
@@ -1188,6 +1188,8 @@ class CobrancaController extends Controller
             'costs_amount' => $this->decimalFromCents((int) $settings['costs_cents']),
             'costs_date' => $settings['costs_date']?->toDateString(),
             'costs_corrected_amount' => $this->decimalFromCents((int) $totals['costs_corrected_cents']),
+            'boleto_fee_total' => $this->decimalFromCents((int) $totals['boleto_fee_cents']),
+            'boleto_cancellation_fee_total' => $this->decimalFromCents((int) $totals['boleto_cancellation_fee_cents']),
             'abatement_amount' => $this->decimalFromCents((int) $totals['abatement_cents']),
             'original_total' => $this->decimalFromCents((int) $totals['original_cents']),
             'corrected_total' => $this->decimalFromCents((int) $totals['corrected_cents']),
@@ -1267,6 +1269,10 @@ class CobrancaController extends Controller
                 'attorney_fee_value' => $settings['attorney_fee_value'],
                 'costs_cents' => $settings['costs_cents'],
                 'costs_date' => $settings['costs_date']?->toDateString(),
+                'boleto_fee_cents' => $settings['boleto_fee_cents'],
+                'boleto_cancellation_fee_cents' => $settings['boleto_cancellation_fee_cents'],
+                'apply_boleto_fee' => $settings['apply_boleto_fee'],
+                'apply_boleto_cancellation_fee' => $settings['apply_boleto_cancellation_fee'],
                 'abatement_cents' => $settings['abatement_cents'],
                 'quota_ids' => $settings['quota_ids'],
             ],
@@ -1275,8 +1281,10 @@ class CobrancaController extends Controller
         ];
     }
 
-    private function monetaryOptionsFromRequest(Request $request): array
+    private function monetaryOptionsFromRequest(Request $request, CobrancaCase $case): array
     {
+        $case->loadMissing('condominium');
+
         return [
             'final_date' => $request->input('final_date'),
             'index_code' => $request->input('index_code', 'ATM'),
@@ -1289,6 +1297,10 @@ class CobrancaController extends Controller
             'costs_amount' => $request->input('costs_amount'),
             'costs_date' => $request->input('costs_date'),
             'abatement_amount' => $request->input('abatement_amount'),
+            'boleto_fee_amount' => $case->condominium?->boleto_fee_amount,
+            'boleto_cancellation_fee_amount' => $case->condominium?->boleto_cancellation_fee_amount,
+            'apply_boleto_fee' => config('automation.collection.boleto_fees.enabled', true),
+            'apply_boleto_cancellation_fee' => config('automation.collection.boleto_fees.cancellation_enabled', true),
         ];
     }
 

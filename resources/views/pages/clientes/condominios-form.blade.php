@@ -117,6 +117,28 @@
                         <textarea name="blocks_text" rows="5" class="{{ $textareaClass }}" placeholder="Um bloco por linha">{{ $blocksText }}</textarea>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Caso o condomínio tenha múltiplos blocos, informe um por linha.</p>
                     </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor do boleto</label>
+                        <input
+                            name="boleto_fee_amount"
+                            value="{{ old('boleto_fee_amount', isset($item?->boleto_fee_amount) ? number_format((float) $item->boleto_fee_amount, 2, ',', '.') : '') }}"
+                            class="{{ $fieldClass }}"
+                            placeholder="0,00"
+                            inputmode="decimal"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor de cancelamento de boleto</label>
+                        <input
+                            name="boleto_cancellation_fee_amount"
+                            value="{{ old('boleto_cancellation_fee_amount', isset($item?->boleto_cancellation_fee_amount) ? number_format((float) $item->boleto_cancellation_fee_amount, 2, ',', '.') : '') }}"
+                            class="{{ $fieldClass }}"
+                            placeholder="0,00"
+                            inputmode="decimal"
+                        >
+                    </div>
                 </div>
             </div>
 
