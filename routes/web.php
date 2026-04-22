@@ -110,6 +110,7 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::post('/config/access-profiles/save', [ConfigController::class, 'saveAccessProfiles'])->name('config.access-profiles.save')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.save']);
     Route::match(['post', 'delete'], '/config/access-profiles/{slug}', [ConfigController::class, 'deleteAccessProfile'])->name('config.access-profiles.delete')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.delete']);
 
+    Route::post('/config/tjes-indices/store', [ConfigController::class, 'storeTjesIndexFactor'])->name('config.tjes-factors.store')->middleware(['ancora.superadmin', 'ancora.route:config.tjes-factors.store']);
     Route::post('/config/servicos/store', [ConfigController::class, 'storeServico'])->name('config.servicos.store')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.store']);
     Route::match(['post', 'put'], '/config/servicos/{servico}', [ConfigController::class, 'updateServico'])->name('config.servicos.update')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.update']);
     Route::match(['post', 'delete'], '/config/servicos/{servico}/excluir', [ConfigController::class, 'deleteServico'])->name('config.servicos.delete')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.delete']);

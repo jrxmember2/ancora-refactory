@@ -28,6 +28,7 @@ class AncoraRouteCatalog
                     'config.smtp.save' => 'Salvar SMTP do sistema',
                     'config.access-profiles.save' => 'Salvar perfil de acesso',
                     'config.access-profiles.delete' => 'Excluir perfil de acesso',
+                    'config.tjes-factors.store' => 'Salvar indice TJES',
                     'config.servicos.store' => 'Cadastrar serviço',
                     'config.servicos.update' => 'Editar serviço',
                     'config.servicos.delete' => 'Excluir serviço',

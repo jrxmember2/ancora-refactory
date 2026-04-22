@@ -1172,8 +1172,7 @@ class CobrancaController extends Controller
         $settings = $calculation['settings'];
         $totals = $calculation['totals'];
 
-        /** @var CobrancaMonetaryUpdate $update */
-        $update = CobrancaMonetaryUpdate::query()->create([
+        $payload = [
             'cobranca_case_id' => $case->id,
             'index_code' => $settings['index_code'],
             'calculation_date' => $settings['calculation_date'],
@@ -1188,8 +1187,6 @@ class CobrancaController extends Controller
             'costs_amount' => $this->decimalFromCents((int) $settings['costs_cents']),
             'costs_date' => $settings['costs_date']?->toDateString(),
             'costs_corrected_amount' => $this->decimalFromCents((int) $totals['costs_corrected_cents']),
-            'boleto_fee_total' => $this->decimalFromCents((int) $totals['boleto_fee_cents']),
-            'boleto_cancellation_fee_total' => $this->decimalFromCents((int) $totals['boleto_cancellation_fee_cents']),
             'abatement_amount' => $this->decimalFromCents((int) $totals['abatement_cents']),
             'original_total' => $this->decimalFromCents((int) $totals['original_cents']),
             'corrected_total' => $this->decimalFromCents((int) $totals['corrected_cents']),
@@ -1200,7 +1197,18 @@ class CobrancaController extends Controller
             'grand_total' => $this->decimalFromCents((int) $totals['grand_total_cents']),
             'payload_json' => $this->monetaryPayload($calculation),
             'generated_by' => $userId,
-        ]);
+        ];
+
+        if ($this->monetaryUpdateHasColumn('boleto_fee_total')) {
+            $payload['boleto_fee_total'] = $this->decimalFromCents((int) $totals['boleto_fee_cents']);
+        }
+
+        if ($this->monetaryUpdateHasColumn('boleto_cancellation_fee_total')) {
+            $payload['boleto_cancellation_fee_total'] = $this->decimalFromCents((int) $totals['boleto_cancellation_fee_cents']);
+        }
+
+        /** @var CobrancaMonetaryUpdate $update */
+        $update = CobrancaMonetaryUpdate::query()->create($payload);
 
         foreach ($calculation['items'] as $item) {
             CobrancaMonetaryUpdateItem::query()->create([
@@ -1222,6 +1230,21 @@ class CobrancaController extends Controller
         }
 
         return $update->load('items');
+    }
+
+    private function monetaryUpdateHasColumn(string $column): bool
+    {
+        static $cache = [];
+
+        if (array_key_exists($column, $cache)) {
+            return $cache[$column];
+        }
+
+        try {
+            return $cache[$column] = Schema::hasColumn('cobranca_monetary_updates', $column);
+        } catch (\Throwable) {
+            return $cache[$column] = false;
+        }
     }
 
     private function applyMonetaryUpdateToCase(CobrancaCase $case, CobrancaMonetaryUpdate $update, int $userId): void

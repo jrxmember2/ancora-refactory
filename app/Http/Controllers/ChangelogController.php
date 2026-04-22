@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.31',
-            'date' => '20/04/2026',
-            'label' => 'v1.31 - 20/04/2026',
+            'version' => 'v1.32',
+            'date' => '22/04/2026',
+            'label' => 'v1.32 - 22/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Indices TJES no Config e hotfix da memoria de calculo',
+                'items' => [
+                    'Configuracoes ganham o botao INDICES TJES com modal para consultar todas as competencias ATM cadastradas e inserir o proximo fator mensal.',
+                    'Cadastro manual de indice aceita virgula ou ponto no fator e atualiza a competencia existente quando mes/ano ja estiverem cadastrados.',
+                    'Persistencia da memoria de calculo TJES ficou retrocompativel com bancos que ainda nao receberam as colunas de taxas de boleto, evitando erro 500 ao salvar o calculo.',
+                    'PDF da memoria de calculo passa a buscar taxas de boleto tambem pelo payload salvo, preservando a visualizacao correta em ambientes antigos.',
+                ],
+            ],
+            [
+                'version' => 'v1.31',
+                'date' => '20/04/2026',
                 'title' => 'Hotfix do layout do Portal do Cliente',
                 'items' => [
                     'Layout do Portal do Cliente deixa de usar diretiva Blade inline no topo do arquivo, evitando erro de parse em producao.',

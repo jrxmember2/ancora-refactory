@@ -10,6 +10,10 @@
     $money = fn ($value) => 'R$ ' . number_format((float) $value, 2, ',', '.');
     $percent = fn ($value, $decimals = 2) => number_format((float) $value, $decimals, ',', '.') . '%';
     $date = fn ($value) => $value ? optional($value)->format('d/m/Y') : '-';
+    $payloadTotals = $update->payload_json['totals_cents'] ?? [];
+    $costsCorrectedAmount = (float) ($update->costs_corrected_amount ?? (((int) ($payloadTotals['costs_corrected_cents'] ?? 0)) / 100));
+    $boletoFeeTotal = (float) ($update->boleto_fee_total ?? (((int) ($payloadTotals['boleto_fee_cents'] ?? 0)) / 100));
+    $boletoCancellationFeeTotal = (float) ($update->boleto_cancellation_fee_total ?? (((int) ($payloadTotals['boleto_cancellation_fee_cents'] ?? 0)) / 100));
     $attorneyFeeLabel = match ($update->attorney_fee_type) {
         'fixed' => 'Honorários advocatícios fixos',
         'none' => 'Sem honorários advocatícios',
@@ -254,14 +258,14 @@
             <div class="total-row"><span>Principal corrigido</span><strong>{{ $money($update->corrected_total) }}</strong></div>
             <div class="total-row"><span>Juros moratórios</span><strong>{{ $money($update->interest_total) }}</strong></div>
             <div class="total-row"><span>Multa</span><strong>{{ $money($update->fine_total) }}</strong></div>
-            @if((float) $update->costs_corrected_amount > 0)
-                <div class="total-row"><span>Custas/despesas corrigidas</span><strong>{{ $money($update->costs_corrected_amount) }}</strong></div>
+            @if($costsCorrectedAmount > 0)
+                <div class="total-row"><span>Custas/despesas corrigidas</span><strong>{{ $money($costsCorrectedAmount) }}</strong></div>
             @endif
-            @if((float) $update->boleto_fee_total > 0)
-                <div class="total-row"><span>Taxa de boleto</span><strong>{{ $money($update->boleto_fee_total) }}</strong></div>
+            @if($boletoFeeTotal > 0)
+                <div class="total-row"><span>Taxa de boleto</span><strong>{{ $money($boletoFeeTotal) }}</strong></div>
             @endif
-            @if((float) $update->boleto_cancellation_fee_total > 0)
-                <div class="total-row"><span>Taxa de cancelamento de boleto</span><strong>{{ $money($update->boleto_cancellation_fee_total) }}</strong></div>
+            @if($boletoCancellationFeeTotal > 0)
+                <div class="total-row"><span>Taxa de cancelamento de boleto</span><strong>{{ $money($boletoCancellationFeeTotal) }}</strong></div>
             @endif
             @if((float) $update->abatement_amount > 0)
                 <div class="total-row"><span>Abatimento</span><strong>- {{ $money($update->abatement_amount) }}</strong></div>

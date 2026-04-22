@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
+use App\Models\CobrancaMonetaryIndexFactor;
 use App\Models\FormaEnvio;
 use App\Models\ProcessCaseOption;
 use App\Models\RoutePermission;
@@ -17,8 +18,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Exception;
 
@@ -29,6 +32,7 @@ class ConfigController extends Controller
         $this->ensureRoutePermissionsSynced();
         $routeCatalog = AncoraRouteCatalog::groups();
         $catalogRouteNames = array_keys(AncoraRouteCatalog::flat());
+        $tjesIndexStorageReady = $this->tjesIndexStorageReady();
         $logoLightPath = AppSetting::getValue('branding_logo_light_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $logoDarkPath = AppSetting::getValue('branding_logo_dark_path', '/imgs/logomarca.svg') ?: '/imgs/logomarca.svg';
         $faviconPath = AppSetting::getValue('branding_favicon_path', '/favicon.svg') ?: '/favicon.svg';
@@ -53,6 +57,8 @@ class ConfigController extends Controller
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
             'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
             'processOptionLabels' => $this->processOptionLabels(),
+            'tjesIndexStorageReady' => $tjesIndexStorageReady,
+            'tjesIndexFactors' => $this->tjesIndexFactors(),
             'users' => $users,
             'modules' => SystemModule::query()->orderBy('sort_order')->orderBy('name')->get(),
             'routePermissionGroups' => $routePermissions,
@@ -178,6 +184,40 @@ class ConfigController extends Controller
         return back()->with('success', 'SMTP atualizado com sucesso.');
     }
 
+    public function storeTjesIndexFactor(Request $request): RedirectResponse
+    {
+        if (!$this->tjesIndexStorageReady()) {
+            return back()
+                ->with('error', 'A tabela de indices TJES ainda nao existe. Rode as migrations antes de cadastrar novos fatores.')
+                ->with('open_tjes_indices', true);
+        }
+
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'min:1969', 'max:2100'],
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'factor' => ['required', 'string', 'max:30'],
+            'source_label' => ['nullable', 'string', 'max:180'],
+        ]);
+
+        $factor = $this->normalizeDecimalValue((string) $validated['factor'], 'factor', 10);
+
+        CobrancaMonetaryIndexFactor::query()->updateOrCreate(
+            [
+                'index_code' => 'ATM',
+                'year' => (int) $validated['year'],
+                'month' => (int) $validated['month'],
+            ],
+            [
+                'factor' => $factor,
+                'source_label' => trim((string) ($validated['source_label'] ?? '')) ?: 'Atualizado manualmente pela tela de configuracoes',
+            ]
+        );
+
+        return back()
+            ->with('success', sprintf('Indice TJES salvo para %02d/%04d.', (int) $validated['month'], (int) $validated['year']))
+            ->with('open_tjes_indices', true);
+    }
+
     public function saveAutomation(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -295,6 +335,8 @@ class ConfigController extends Controller
                 'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
                 'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
                 'processOptionLabels' => $this->processOptionLabels(),
+                'tjesIndexStorageReady' => $this->tjesIndexStorageReady(),
+                'tjesIndexFactors' => $this->tjesIndexFactors(),
             ]);
         }
         return back()->with('success', $message);
@@ -517,6 +559,27 @@ class ConfigController extends Controller
         ];
     }
 
+    private function tjesIndexStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('cobranca_monetary_index_factors');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function tjesIndexFactors()
+    {
+        if (!$this->tjesIndexStorageReady()) {
+            return collect();
+        }
+
+        return CobrancaMonetaryIndexFactor::query()
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get();
+    }
+
     private function parseAccessMode(string $mode): array
     {
         $value = trim($mode);
@@ -702,5 +765,42 @@ class ConfigController extends Controller
         }
 
         return $this->normalizeAllowedIps($value);
+    }
+
+    private function normalizeDecimalValue(string $value, string $field, int $scale = 10): string
+    {
+        $normalized = preg_replace('/\s+/', '', trim($value)) ?? '';
+        if ($normalized === '') {
+            throw ValidationException::withMessages([$field => 'Informe um valor numerico valido.']);
+        }
+
+        if (str_contains($normalized, ',') && str_contains($normalized, '.')) {
+            $normalized = str_replace('.', '', $normalized);
+        }
+
+        $normalized = str_replace(',', '.', $normalized);
+
+        if (str_starts_with($normalized, '.')) {
+            $normalized = '0' . $normalized;
+        }
+
+        if (!preg_match('/^\d+(\.\d{1,' . $scale . '})?$/', $normalized)) {
+            throw ValidationException::withMessages([$field => 'Informe um valor numerico valido.']);
+        }
+
+        [$integerPart, $decimalPart] = array_pad(explode('.', $normalized, 2), 2, '');
+        $integerPart = ltrim($integerPart, '0');
+        if ($integerPart === '') {
+            $integerPart = '0';
+        }
+
+        $decimalPart = substr(str_pad($decimalPart, $scale, '0'), 0, $scale);
+        $result = $integerPart . '.' . $decimalPart;
+
+        if ((float) $result <= 0) {
+            throw ValidationException::withMessages([$field => 'O valor precisa ser maior que zero.']);
+        }
+
+        return $result;
     }
 }

@@ -163,3 +163,155 @@
         @endforeach
     </div>
 </div>
+
+@php
+    $latestTjesFactor = ($tjesIndexFactors ?? collect())->first();
+    $openTjesModal = session('open_tjes_indices')
+        || $errors->has('year')
+        || $errors->has('month')
+        || $errors->has('factor')
+        || $errors->has('source_label');
+@endphp
+
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" x-data="{ tjesOpen: {{ $openTjesModal ? 'true' : 'false' }} }">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Atualizacao monetaria</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Gerencie os fatores mensais usados na memoria de calculo TJES das OS de cobranca.</p>
+        </div>
+        <button type="button" @click="tjesOpen = true" class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }}">
+            INDICES TJES
+        </button>
+    </div>
+
+    @if(!($tjesIndexStorageReady ?? false))
+        <div class="mt-4 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200">
+            Rode as migrations para habilitar o cadastro dos indices TJES nesta tela.
+        </div>
+    @else
+        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Competencias</div>
+                <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ ($tjesIndexFactors ?? collect())->count() }}</div>
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total de fatores cadastrados no banco.</div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Ultima competencia</div>
+                <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {{ $latestTjesFactor ? sprintf('%02d/%04d', (int) $latestTjesFactor->month, (int) $latestTjesFactor->year) : '--/----' }}
+                </div>
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use o modal para incluir os proximos meses.</div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Fonte atual</div>
+                <div class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ $latestTjesFactor?->source_label ?: 'Sem observacao cadastrada' }}</div>
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Duplicar uma competencia atualiza o fator ja existente.</div>
+            </div>
+        </div>
+    @endif
+
+    <div x-show="tjesOpen" class="fixed inset-0 z-[999999] flex items-center justify-center px-4 py-6" style="display: none;">
+        <div class="absolute inset-0 bg-gray-950/70" @click="tjesOpen = false"></div>
+        <div class="relative z-10 flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900" @click.away="tjesOpen = false">
+            <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5 dark:border-gray-800">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Indices TJES</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Cadastre a nova competencia e consulte todos os fatores ATM ja gravados no sistema.</p>
+                </div>
+                <button type="button" @click="tjesOpen = false" class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                    Fechar
+                </button>
+            </div>
+
+            <div class="grid flex-1 grid-cols-1 gap-0 lg:grid-cols-[340px_minmax(0,1fr)]">
+                <div class="border-b border-gray-200 p-6 dark:border-gray-800 lg:border-r lg:border-b-0">
+                    <div class="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-xs text-brand-700 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-200">
+                        O codigo usado na cobranca e o <strong>ATM</strong>. Se voce informar uma competencia ja existente, o sistema substitui o fator anterior por este novo valor.
+                    </div>
+
+                    @if($errors->has('year') || $errors->has('month') || $errors->has('factor') || $errors->has('source_label'))
+                        <div class="mt-4 rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-900/50 dark:bg-error-500/10 dark:text-error-200">
+                            @foreach(['year', 'month', 'factor', 'source_label'] as $field)
+                                @error($field)
+                                    <div>{{ $message }}</div>
+                                @enderror
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <form method="post" action="{{ route('config.tjes-factors.store') }}" class="mt-5 space-y-4">
+                        @csrf
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mes</label>
+                                <select name="month" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                                    @foreach(range(1, 12) as $month)
+                                        <option value="{{ $month }}" @selected((int) old('month', now()->month) === $month)>{{ sprintf('%02d', $month) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Ano</label>
+                                <input type="number" name="year" value="{{ old('year', now()->year) }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" min="1969" max="2100" required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fator</label>
+                            <input name="factor" value="{{ old('factor') }}" placeholder="Ex.: 0,9234567890" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" required>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Aceita ponto ou virgula como separador decimal.</p>
+                        </div>
+
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fonte / observacao</label>
+                            <input name="source_label" value="{{ old('source_label', 'Atualizado manualmente pela tela de configuracoes') }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                        </div>
+
+                        <button class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }} w-full">
+                            Salvar indice
+                        </button>
+                    </form>
+                </div>
+
+                <div class="flex min-h-0 flex-col">
+                    <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ ($tjesIndexFactors ?? collect())->count() }} competencia(s) cadastrada(s)</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Listagem em ordem decrescente de competencia.</div>
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-auto px-6 py-4">
+                        <div class="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
+                            <table class="min-w-full text-left text-sm">
+                                <thead class="sticky top-0 border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-[0.16em] text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
+                                    <tr>
+                                        <th class="px-4 py-3">Competencia</th>
+                                        <th class="px-4 py-3">Codigo</th>
+                                        <th class="px-4 py-3">Fator</th>
+                                        <th class="px-4 py-3">Fonte</th>
+                                        <th class="px-4 py-3">Atualizado em</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                    @forelse(($tjesIndexFactors ?? collect()) as $factor)
+                                        <tr>
+                                            <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ sprintf('%02d/%04d', (int) $factor->month, (int) $factor->year) }}</td>
+                                            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $factor->index_code }}</td>
+                                            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ number_format((float) $factor->factor, 10, ',', '.') }}</td>
+                                            <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ $factor->source_label ?: '-' }}</td>
+                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ optional($factor->updated_at)->format('d/m/Y H:i') ?: '-' }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-10">
+                                                <x-ancora.empty-state icon="fa-solid fa-scale-balanced" title="Sem indices cadastrados" subtitle="Cadastre a primeira competencia ATM para liberar a atualizacao TJES." />
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -89,6 +89,7 @@ class AuditLogPresenter
             'config.smtp.save' => 'Atualizou SMTP',
             'config.access-profiles.save' => 'Atualizou perfis de acesso',
             'config.access-profiles.delete' => 'Excluiu perfil de acesso',
+            'config.tjes-factors.store' => 'Salvou indice TJES',
             'config.servicos.store' => 'Criou serviço',
             'config.servicos.update' => 'Atualizou serviço',
             'config.servicos.delete' => 'Excluiu serviço',
@@ -242,6 +243,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'clientes.portal-users') => self::namedRecord('USUÁRIO DO PORTAL', self::inputOrRouteValue($request, ['name', 'login_key'], ['portalUser'], ['name', 'login_key'])),
             Str::startsWith($routeName, 'clientes.unidades') => self::unitRecord($request),
             Str::startsWith($routeName, 'config.users') => self::namedRecord('USUÁRIO', self::inputOrRouteValue($request, ['email'], ['user'], ['email'])),
+            Str::startsWith($routeName, 'config.tjes-factors') => self::namedRecord('INDICE TJES', self::competenceLabelFromRequest($request)),
             Str::startsWith($routeName, 'cobrancas') => self::namedRecord('OS DE COBRANÇA', self::inputOrRouteValue($request, ['os_number'], ['cobranca'], ['os_number'])),
             Str::startsWith($routeName, 'demandas') => self::namedRecord('DEMANDA', self::inputOrRouteValue($request, ['subject'], ['demanda'], ['protocol', 'subject'])),
             Str::startsWith($routeName, 'processos') => self::namedRecord('PROCESSO', self::inputOrRouteValue($request, ['process_number', 'client_name'], ['processo'], ['process_number', 'client_name_snapshot'])),
@@ -259,6 +261,7 @@ class AuditLogPresenter
             Str::startsWith($action, 'clientes.contatos') => 'PARCEIRO/FORNECEDOR',
             Str::startsWith($action, 'clientes.portal-users') => 'USUÁRIO DO PORTAL',
             Str::startsWith($action, 'config.users') => 'USUÁRIO',
+            Str::startsWith($action, 'config.tjes-factors') => 'INDICE TJES',
             Str::startsWith($action, 'cobrancas') && !Str::contains($action, '.import') => 'OS DE COBRANÇA',
             Str::startsWith($action, 'demandas') => 'DEMANDA',
             Str::startsWith($action, 'processos') => 'PROCESSO',
@@ -303,6 +306,18 @@ class AuditLogPresenter
         $name = trim((string) $name);
 
         return $name !== '' ? "{$type} " . self::upper($name) : $type;
+    }
+
+    private static function competenceLabelFromRequest(Request $request): string
+    {
+        $month = (int) $request->input('month', 0);
+        $year = (int) $request->input('year', 0);
+
+        if ($month < 1 || $month > 12 || $year <= 0) {
+            return '';
+        }
+
+        return sprintf('%02d/%04d', $month, $year);
     }
 
     private static function inputOrRouteValue(Request $request, array $inputKeys, array $routeKeys, array $modelFields): string
