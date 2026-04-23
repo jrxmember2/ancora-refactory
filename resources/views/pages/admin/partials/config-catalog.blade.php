@@ -166,6 +166,8 @@
 
 @php
     $latestTjesFactor = ($tjesIndexFactors ?? collect())->first();
+    $tjesYears = ($tjesIndexFactors ?? collect())->pluck('year')->unique()->sortDesc()->values();
+    $defaultTjesSource = 'Atualizado manualmente pela tela de configuracoes';
     $openTjesModal = session('open_tjes_indices')
         || $errors->has('year')
         || $errors->has('month')
@@ -173,7 +175,33 @@
         || $errors->has('source_label');
 @endphp
 
-<div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" x-data="{ tjesOpen: {{ $openTjesModal ? 'true' : 'false' }} }">
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"
+    x-data="{
+        tjesOpen: {{ $openTjesModal ? 'true' : 'false' }},
+        yearFilter: 'all',
+        tjesEditing: false,
+        editingLabel: '',
+        editTjesFromButton(button) {
+            this.tjesOpen = true;
+            this.tjesEditing = true;
+            this.editingLabel = String(button.dataset.month).padStart(2, '0') + '/' + button.dataset.year;
+            this.$nextTick(() => {
+                this.$refs.tjesMonth.value = button.dataset.month;
+                this.$refs.tjesYear.value = button.dataset.year;
+                this.$refs.tjesFactor.value = String(button.dataset.factor || '').replace('.', ',');
+                this.$refs.tjesSource.value = button.dataset.source || '{{ $defaultTjesSource }}';
+                this.$refs.tjesFactor?.focus();
+            });
+        },
+        resetTjes() {
+            this.tjesEditing = false;
+            this.editingLabel = '';
+            this.$refs.tjesMonth.value = '{{ now()->month }}';
+            this.$refs.tjesYear.value = '{{ now()->year }}';
+            this.$refs.tjesFactor.value = '';
+            this.$refs.tjesSource.value = '{{ $defaultTjesSource }}';
+        }
+    }">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Atualizacao monetaria</h3>
@@ -241,10 +269,13 @@
 
                     <form method="post" action="{{ route('config.tjes-factors.store') }}" class="mt-5 space-y-4">
                         @csrf
+                        <div x-show="tjesEditing" class="rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-xs text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200" style="display: none;">
+                            Editando competencia <strong x-text="editingLabel"></strong>. Ao salvar, o fator atual sera substituido.
+                        </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mes</label>
-                                <select name="month" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                                <select name="month" x-ref="tjesMonth" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
                                     @foreach(range(1, 12) as $month)
                                         <option value="{{ $month }}" @selected((int) old('month', now()->month) === $month)>{{ sprintf('%02d', $month) }}</option>
                                     @endforeach
@@ -252,33 +283,49 @@
                             </div>
                             <div>
                                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Ano</label>
-                                <input type="number" name="year" value="{{ old('year', now()->year) }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" min="1969" max="2100" required>
+                                <input type="number" name="year" x-ref="tjesYear" value="{{ old('year', now()->year) }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" min="1969" max="2100" required>
                             </div>
                         </div>
 
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fator</label>
-                            <input name="factor" value="{{ old('factor') }}" placeholder="Ex.: 0,9234567890" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" required>
+                            <input name="factor" x-ref="tjesFactor" value="{{ old('factor') }}" placeholder="Ex.: 0,9234567890" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}" required>
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Aceita ponto ou virgula como separador decimal.</p>
                         </div>
 
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fonte / observacao</label>
-                            <input name="source_label" value="{{ old('source_label', 'Atualizado manualmente pela tela de configuracoes') }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                            <input name="source_label" x-ref="tjesSource" value="{{ old('source_label', $defaultTjesSource) }}" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
                         </div>
 
-                        <button class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }} w-full">
-                            Salvar indice
-                        </button>
+                        <div class="flex flex-col gap-2 sm:flex-row">
+                            <button class="{{ $buttonClass ?? 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600' }} flex-1">
+                                <span x-text="tjesEditing ? 'Salvar alteracao' : 'Salvar indice'"></span>
+                            </button>
+                            <button type="button" @click="resetTjes()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.03]">
+                                Novo indice
+                            </button>
+                        </div>
                     </form>
                 </div>
 
                 <div class="flex min-h-0 flex-col">
-                    <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ ($tjesIndexFactors ?? collect())->count() }} competencia(s) cadastrada(s)</div>
-                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Listagem em ordem decrescente de competencia.</div>
+                    <div class="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-800 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ ($tjesIndexFactors ?? collect())->count() }} competencia(s) cadastrada(s)</div>
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Listagem em ordem decrescente de competencia.</div>
+                        </div>
+                        <div class="w-full md:w-44">
+                            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Filtrar ano</label>
+                            <select x-model="yearFilter" class="{{ $inputClass ?? 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90' }}">
+                                <option value="all">Todos</option>
+                                @foreach($tjesYears as $year)
+                                    <option value="{{ (int) $year }}">{{ (int) $year }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
-                    <div class="min-h-0 flex-1 overflow-auto px-6 py-4">
+                    <div class="max-h-[62vh] min-h-0 flex-1 overflow-y-auto px-6 py-4">
                         <div class="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
                             <table class="min-w-full text-left text-sm">
                                 <thead class="sticky top-0 border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-[0.16em] text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
@@ -288,20 +335,26 @@
                                         <th class="px-4 py-3">Fator</th>
                                         <th class="px-4 py-3">Fonte</th>
                                         <th class="px-4 py-3">Atualizado em</th>
+                                        <th class="px-4 py-3 text-right">Acoes</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                                     @forelse(($tjesIndexFactors ?? collect()) as $factor)
-                                        <tr>
+                                        <tr x-show="yearFilter === 'all' || yearFilter === '{{ (int) $factor->year }}'">
                                             <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ sprintf('%02d/%04d', (int) $factor->month, (int) $factor->year) }}</td>
                                             <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $factor->index_code }}</td>
                                             <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ number_format((float) $factor->factor, 10, ',', '.') }}</td>
                                             <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ $factor->source_label ?: '-' }}</td>
                                             <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ optional($factor->updated_at)->format('d/m/Y H:i') ?: '-' }}</td>
+                                            <td class="px-4 py-3 text-right">
+                                                <button type="button" @click="editTjesFromButton($event.currentTarget)" data-year="{{ (int) $factor->year }}" data-month="{{ (int) $factor->month }}" data-factor="{{ number_format((float) $factor->factor, 10, '.', '') }}" data-source="{{ e($factor->source_label ?: $defaultTjesSource) }}" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                                                    Editar
+                                                </button>
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="px-4 py-10">
+                                            <td colspan="6" class="px-4 py-10">
                                                 <x-ancora.empty-state icon="fa-solid fa-scale-balanced" title="Sem indices cadastrados" subtitle="Cadastre a primeira competencia ATM para liberar a atualizacao TJES." />
                                             </td>
                                         </tr>

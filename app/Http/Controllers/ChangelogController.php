@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.32',
-            'date' => '22/04/2026',
-            'label' => 'v1.32 - 22/04/2026',
+            'version' => 'v1.33',
+            'date' => '23/04/2026',
+            'label' => 'v1.33 - 23/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Edicao e filtros dos indices TJES',
+                'items' => [
+                    'Modal de indices TJES passa a ter botao Editar em cada competencia cadastrada.',
+                    'Formulario do indice e reaproveitado para alterar mes, ano, fator e fonte de competencias existentes.',
+                    'Lista de competencias ganha filtro por ano e rolagem vertical para facilitar consulta em bases historicas extensas.',
+                ],
+            ],
+            [
+                'version' => 'v1.32',
+                'date' => '22/04/2026',
                 'title' => 'Indices TJES no Config e hotfix da memoria de calculo',
                 'items' => [
                     'Configuracoes ganham o botao INDICES TJES com modal para consultar todas as competencias ATM cadastradas e inserir o proximo fator mensal.',
