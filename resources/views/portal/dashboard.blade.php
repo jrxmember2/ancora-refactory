@@ -106,7 +106,7 @@
                 <a href="{{ route('portal.demands.show', $item) }}" class="block rounded-2xl border border-gray-100 p-4 hover:border-[#941415]/30">
                     <div class="flex items-center justify-between gap-3">
                         <div class="font-semibold text-gray-950">{{ $item->protocol }}</div>
-                        <span class="rounded-full bg-[#f7f2ec] px-2.5 py-1 text-xs font-semibold text-[#941415]">{{ $demandStatusLabels[$item->status] ?? $item->status }}</span>
+                        <span class="rounded-full bg-[#f7f2ec] px-2.5 py-1 text-xs font-semibold text-[#941415]">{{ $item->publicStatusLabel() }}</span>
                     </div>
                     <div class="mt-1 text-sm text-gray-500">{{ $item->subject }}</div>
                 </a>

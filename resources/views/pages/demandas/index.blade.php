@@ -6,11 +6,13 @@
 
 @section('content')
 <x-ancora.section-header title="Demandas" subtitle="Solicitações abertas pelo Portal do Cliente e tratadas pelo escritório.">
+    <a href="{{ route('demandas.dashboard') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Dashboard</a>
+    <a href="{{ route('demandas.kanban') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Kanban</a>
     <a href="{{ route('clientes.portal-users.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Usuários do portal</a>
 </x-ancora.section-header>
 
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-    <form method="get" class="grid grid-cols-1 gap-4 xl:grid-cols-6">
+    <form method="get" class="grid grid-cols-1 gap-4 xl:grid-cols-7">
         <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Protocolo, assunto, cliente..." class="{{ $inputClass }} xl:col-span-2">
         <select name="status" class="{{ $inputClass }}">
             <option value="">Status</option>
@@ -22,6 +24,12 @@
             <option value="">Prioridade</option>
             @foreach($priorityLabels as $key => $label)
                 <option value="{{ $key }}" @selected(($filters['priority'] ?? '') === $key)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <select name="demand_tag_id" class="{{ $inputClass }}">
+            <option value="">Tag</option>
+            @foreach($demandTags as $tag)
+                <option value="{{ $tag->id }}" @selected((int) ($filters['demand_tag_id'] ?? 0) === (int) $tag->id)>{{ $tag->name }}</option>
             @endforeach
         </select>
         <select name="client_condominium_id" class="{{ $inputClass }}">
@@ -36,7 +44,7 @@
                 <option value="{{ $user->id }}" @selected((int) ($filters['assigned_user_id'] ?? 0) === (int) $user->id)>{{ $user->name }}</option>
             @endforeach
         </select>
-        <div class="xl:col-span-6 flex flex-wrap gap-3">
+        <div class="xl:col-span-7 flex flex-wrap gap-3">
             <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Filtrar</button>
             <a href="{{ route('demandas.index') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Limpar</a>
         </div>
@@ -50,7 +58,7 @@
                 <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
                     <th class="px-6 py-4">Demanda</th>
                     <th class="px-6 py-4">Cliente</th>
-                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4">Tag / SLA</th>
                     <th class="px-6 py-4">Responsável</th>
                     <th class="px-6 py-4">Atualização</th>
                     <th class="px-6 py-4 text-right">Ações</th>
@@ -65,7 +73,16 @@
                             <div class="mt-1 text-xs text-gray-500">{{ $item->category?->name ?: 'Sem categoria' }} · {{ $priorityLabels[$item->priority] ?? $item->priority }}</div>
                         </td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $item->clientName() }}</td>
-                        <td class="px-6 py-4 align-top"><span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">{{ $statusLabels[$item->status] ?? $item->status }}</span></td>
+                        <td class="px-6 py-4 align-top">
+                            @if($item->tag)
+                                <span class="rounded-full px-3 py-1 text-xs font-semibold text-white" style="background-color: {{ $item->tag->color_hex }}">{{ $item->tag->name }}</span>
+                            @else
+                                <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">{{ $statusLabels[$item->status] ?? $item->status }}</span>
+                            @endif
+                            <div class="mt-2 text-xs {{ $item->slaStatus() === 'overdue' ? 'text-error-600 dark:text-error-300' : ($item->slaStatus() === 'at_risk' ? 'text-warning-600 dark:text-warning-300' : 'text-gray-500') }}">
+                                {{ $item->slaStatusLabel() }}{{ $item->sla_due_at ? ' · '.$item->sla_due_at->format('d/m/Y H:i') : '' }}
+                            </div>
+                        </td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $item->assignee?->name ?: 'Não atribuído' }}</td>
                         <td class="px-6 py-4 align-top text-sm text-gray-500">{{ $item->updated_at?->format('d/m/Y H:i') }}</td>
                         <td class="px-6 py-4 align-top text-right"><a href="{{ route('demandas.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Abrir</a></td>

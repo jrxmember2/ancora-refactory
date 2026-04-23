@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
 use App\Models\CobrancaMonetaryIndexFactor;
+use App\Models\Demand;
+use App\Models\DemandTag;
 use App\Models\FormaEnvio;
 use App\Models\ProcessCaseOption;
 use App\Models\RoutePermission;
@@ -57,6 +59,9 @@ class ConfigController extends Controller
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
             'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
             'processOptionLabels' => $this->processOptionLabels(),
+            'demandTags' => DemandTag::query()->withCount('demands')->orderBy('sort_order')->orderBy('name')->get(),
+            'demandTagSlaOptions' => DemandTag::slaOptions(),
+            'demandStatusLabels' => Demand::statusLabels(),
             'tjesIndexStorageReady' => $tjesIndexStorageReady,
             'tjesIndexFactors' => $this->tjesIndexFactors(),
             'users' => $users,
@@ -216,6 +221,47 @@ class ConfigController extends Controller
         return back()
             ->with('success', sprintf('Indice TJES salvo para %02d/%04d.', (int) $validated['month'], (int) $validated['year']))
             ->with('open_tjes_indices', true);
+    }
+
+    public function storeDemandTag(Request $request): RedirectResponse
+    {
+        $payload = $this->demandTagPayload($request);
+
+        DB::transaction(function () use ($payload) {
+            if ($payload['is_default']) {
+                DemandTag::query()->update(['is_default' => false]);
+            }
+
+            DemandTag::query()->create($payload);
+        });
+
+        return back()->with('success', 'Tag de demanda cadastrada.');
+    }
+
+    public function updateDemandTag(Request $request, DemandTag $tag): RedirectResponse
+    {
+        $payload = $this->demandTagPayload($request, $tag);
+
+        DB::transaction(function () use ($tag, $payload) {
+            if ($payload['is_default']) {
+                DemandTag::query()->where('id', '!=', $tag->id)->update(['is_default' => false]);
+            }
+
+            $tag->update($payload);
+        });
+
+        return back()->with('success', 'Tag de demanda atualizada.');
+    }
+
+    public function deleteDemandTag(DemandTag $tag): RedirectResponse
+    {
+        if ($tag->demands()->exists()) {
+            return back()->with('error', 'Nao e possivel excluir tag com demandas vinculadas. Mova as demandas antes.');
+        }
+
+        $tag->delete();
+
+        return back()->with('success', 'Tag de demanda excluida.');
     }
 
     public function saveAutomation(Request $request): RedirectResponse
@@ -698,6 +744,55 @@ class ConfigController extends Controller
         $data['sort_order'] = (int) $request->integer('sort_order');
 
         return $data;
+    }
+
+    private function demandTagPayload(Request $request, ?DemandTag $current = null): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => ['nullable', 'string', 'max:140'],
+            'color_hex' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'status_key' => ['required', Rule::in(array_keys(Demand::statusLabels()))],
+            'portal_label' => ['nullable', 'string', 'max:120'],
+            'show_on_portal' => ['nullable'],
+            'sla_hours' => ['nullable', Rule::in(array_keys(DemandTag::slaOptions()))],
+            'is_default' => ['nullable'],
+            'is_closing' => ['nullable'],
+            'is_active' => ['nullable'],
+            'sort_order' => ['nullable', 'integer', 'min:-1000', 'max:10000'],
+        ]);
+
+        $slug = DemandTag::normalizeSlug($data['name'], $data['slug'] ?? null);
+        $slugExists = DemandTag::query()
+            ->where('slug', $slug)
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->exists();
+
+        if ($slugExists) {
+            throw ValidationException::withMessages(['slug' => 'Ja existe uma tag com este identificador.']);
+        }
+
+        $slaHours = trim((string) ($data['sla_hours'] ?? ''));
+
+        $payload = [
+            'name' => trim((string) $data['name']),
+            'slug' => $slug,
+            'color_hex' => strtoupper((string) $data['color_hex']),
+            'status_key' => (string) $data['status_key'],
+            'portal_label' => trim((string) ($data['portal_label'] ?? '')) ?: null,
+            'show_on_portal' => $request->boolean('show_on_portal'),
+            'sla_hours' => $slaHours !== '' ? (int) $slaHours : null,
+            'is_default' => $request->boolean('is_default'),
+            'is_closing' => $request->boolean('is_closing'),
+            'is_active' => $request->boolean('is_active'),
+            'sort_order' => (int) $request->integer('sort_order'),
+        ];
+
+        if (!$payload['is_active']) {
+            $payload['is_default'] = false;
+        }
+
+        return $payload;
     }
 
     private function processOptionLabels(): array

@@ -8,6 +8,7 @@ use App\Models\AutomationSession;
 use App\Models\Demand;
 use App\Models\DemandCategory;
 use App\Models\DemandMessage;
+use App\Models\DemandTag;
 use App\Support\Automation\AutomationText;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,9 @@ class AutomationDemandService
         return DB::transaction(function () use ($session, $proposal, $snapshot) {
             $category = $this->resolveCategory();
             $description = $this->buildDescription($session, $proposal, $snapshot);
+            $status = (string) config('automation.demand.default_status', 'aguardando_formalizacao_acordo');
+            $tag = DemandTag::defaultForStatus($status) ?: DemandTag::default();
+            $slaStartedAt = $tag?->sla_hours ? now() : null;
             $demand = Demand::query()->create([
                 'protocol' => $this->nextProtocol(),
                 'origin' => (string) config('automation.demand.origin', 'automation_whatsapp'),
@@ -37,9 +41,13 @@ class AutomationDemandService
                 'subject' => $this->buildSubject($session),
                 'description' => $description,
                 'priority' => (string) config('automation.demand.priority', 'normal'),
-                'status' => (string) config('automation.demand.default_status', 'aguardando_formalizacao_acordo'),
+                'status' => $tag?->status_key ?: $status,
+                'demand_tag_id' => $tag?->id,
                 'last_external_message_at' => now(),
-                'sla_due_at' => $this->addBusinessHours(now(), (int) config('automation.demand.sla_business_hours', 24)),
+                'sla_started_at' => $slaStartedAt,
+                'sla_due_at' => $slaStartedAt
+                    ? $slaStartedAt->copy()->addHours((int) $tag->sla_hours)
+                    : $this->addBusinessHours(now(), (int) config('automation.demand.sla_business_hours', 24)),
             ]);
 
             DemandMessage::query()->create([

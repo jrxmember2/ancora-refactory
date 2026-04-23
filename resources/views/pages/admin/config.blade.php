@@ -210,6 +210,8 @@
 
     @include('pages.admin.partials.config-catalog')
 
+    @include('pages.admin.partials.config-demandas')
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3" id="smtp-section">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-2">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Usuários, módulos e permissões por rota</h3>

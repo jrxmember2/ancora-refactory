@@ -29,6 +29,9 @@ class AncoraRouteCatalog
                     'config.access-profiles.save' => 'Salvar perfil de acesso',
                     'config.access-profiles.delete' => 'Excluir perfil de acesso',
                     'config.tjes-factors.store' => 'Salvar indice TJES',
+                    'config.demand-tags.store' => 'Cadastrar tag de demanda',
+                    'config.demand-tags.update' => 'Editar tag de demanda',
+                    'config.demand-tags.delete' => 'Excluir tag de demanda',
                     'config.servicos.store' => 'Cadastrar serviço',
                     'config.servicos.update' => 'Editar serviço',
                     'config.servicos.delete' => 'Excluir serviço',
@@ -137,9 +140,12 @@ class AncoraRouteCatalog
             'demandas' => [
                 'label' => 'Demandas',
                 'routes' => [
+                    'demandas.dashboard' => 'Acessar dashboard de demandas',
+                    'demandas.kanban' => 'Acessar kanban de demandas',
                     'demandas.index' => 'Listar demandas',
                     'demandas.show' => 'Visualizar demanda',
                     'demandas.update' => 'Atualizar demanda',
+                    'demandas.tag.update' => 'Mover demanda no kanban',
                     'demandas.reply' => 'Responder demanda',
                     'demandas.attachments.download' => 'Baixar anexo de demanda',
                 ],

@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.34',
+            'version' => 'v1.35',
             'date' => '23/04/2026',
-            'label' => 'v1.34 - 23/04/2026',
+            'label' => 'v1.35 - 23/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Kanban e SLA de demandas',
+                'items' => [
+                    'Modulo Demandas ganha dashboard proprio com panorama por tag, alertas de SLA vencido e demandas a vencer com menos de 10% do prazo restante.',
+                    'Novo Kanban permite mover demandas por tags coloridas, recalculando automaticamente status, prazo de SLA e historico interno.',
+                    'Configuracoes ganham card de Demandas para criar, editar e excluir tags com cor, SLA, status interno e visibilidade no Portal do Cliente.',
+                    'Portal do Cliente passa a exibir o rotulo publico da tag quando autorizado, preservando tags internas e informacoes estrategicas do escritorio.',
+                ],
+            ],
+            [
+                'version' => 'v1.34',
+                'date' => '23/04/2026',
                 'title' => 'Portal do Cliente com contexto por condominio',
                 'items' => [
                     'Portal do Cliente ganha seletor persistente de condominio no topo, com opcao Todos para visao macro de usuarios com multiplos vinculos.',

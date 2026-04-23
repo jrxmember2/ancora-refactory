@@ -7,8 +7,10 @@ use App\Models\Demand;
 use App\Models\DemandAttachment;
 use App\Models\DemandCategory;
 use App\Models\DemandMessage;
+use App\Models\DemandTag;
 use App\Models\User;
 use App\Support\AncoraAuth;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -19,9 +21,90 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DemandController extends Controller
 {
+    public function dashboard(Request $request): View
+    {
+        $demands = Demand::query()
+            ->with(['tag', 'category', 'condominium', 'entity', 'portalUser', 'assignee'])
+            ->latest('updated_at')
+            ->get();
+
+        $openDemands = $demands->reject(fn (Demand $demand) => in_array($demand->status, ['concluida', 'cancelada'], true));
+        $overdue = $openDemands->filter(fn (Demand $demand) => $demand->slaStatus() === 'overdue')->values();
+        $atRisk = $openDemands->filter(fn (Demand $demand) => $demand->slaStatus() === 'at_risk')->values();
+        $tags = DemandTag::query()->active()->get();
+
+        $tagDistribution = $tags->map(function (DemandTag $tag) use ($demands) {
+            return [
+                'tag' => $tag,
+                'total' => $demands->where('demand_tag_id', $tag->id)->count(),
+                'open' => $demands->where('demand_tag_id', $tag->id)->reject(fn (Demand $demand) => in_array($demand->status, ['concluida', 'cancelada'], true))->count(),
+            ];
+        });
+
+        return view('pages.demandas.dashboard', [
+            'title' => 'Dashboard de Demandas',
+            'summary' => [
+                'total' => $demands->count(),
+                'open' => $openDemands->count(),
+                'overdue' => $overdue->count(),
+                'at_risk' => $atRisk->count(),
+                'waiting_client' => $openDemands->where('status', 'aguardando_cliente')->count(),
+                'closed_month' => $demands
+                    ->filter(fn (Demand $demand) => $demand->closed_at && $demand->closed_at->isSameMonth(now()))
+                    ->count(),
+            ],
+            'tagDistribution' => $tagDistribution,
+            'slaAttention' => $overdue->merge($atRisk)->sortBy(fn (Demand $demand) => $demand->sla_due_at?->timestamp ?? PHP_INT_MAX)->take(10),
+            'latestDemands' => $demands->take(8),
+        ]);
+    }
+
+    public function kanban(Request $request): View
+    {
+        $filters = [
+            'q' => trim((string) $request->input('q', '')),
+            'client_condominium_id' => (int) $request->integer('client_condominium_id') ?: null,
+            'assigned_user_id' => (int) $request->integer('assigned_user_id') ?: null,
+        ];
+
+        $tags = DemandTag::query()->active()->get();
+        $query = Demand::query()
+            ->with(['tag', 'category', 'condominium', 'entity', 'portalUser', 'assignee'])
+            ->latest('updated_at');
+
+        if ($filters['client_condominium_id']) {
+            $query->where('client_condominium_id', $filters['client_condominium_id']);
+        }
+        if ($filters['assigned_user_id']) {
+            $query->where('assigned_user_id', $filters['assigned_user_id']);
+        }
+        if ($filters['q'] !== '') {
+            $term = $filters['q'];
+            $query->where(function ($inner) use ($term) {
+                $inner->where('protocol', 'like', "%{$term}%")
+                    ->orWhere('subject', 'like', "%{$term}%")
+                    ->orWhereHas('condominium', fn ($condo) => $condo->where('name', 'like', "%{$term}%"))
+                    ->orWhereHas('entity', fn ($entity) => $entity->where('display_name', 'like', "%{$term}%"));
+            });
+        }
+
+        $demands = $query->get();
+        $defaultTag = DemandTag::default();
+
+        return view('pages.demandas.kanban', [
+            'title' => 'Kanban de Demandas',
+            'tags' => $tags,
+            'itemsByTag' => $demands->groupBy(fn (Demand $demand) => (int) ($demand->demand_tag_id ?: $defaultTag?->id)),
+            'filters' => $filters,
+            'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
+            'users' => User::query()->active()->orderBy('name')->get(),
+            'statusLabels' => Demand::statusLabels(),
+        ]);
+    }
+
     public function index(Request $request): View
     {
-        $query = Demand::query()->with(['category', 'condominium', 'entity', 'portalUser', 'assignee']);
+        $query = Demand::query()->with(['tag', 'category', 'condominium', 'entity', 'portalUser', 'assignee']);
 
         if ($status = trim((string) $request->input('status', ''))) {
             $query->where('status', $status);
@@ -29,6 +112,10 @@ class DemandController extends Controller
 
         if ($priority = trim((string) $request->input('priority', ''))) {
             $query->where('priority', $priority);
+        }
+
+        if ($tagId = (int) $request->integer('demand_tag_id')) {
+            $query->where('demand_tag_id', $tagId);
         }
 
         if ($condominiumId = (int) $request->integer('client_condominium_id')) {
@@ -54,6 +141,7 @@ class DemandController extends Controller
             'filters' => $request->all(),
             'statusLabels' => Demand::statusLabels(),
             'priorityLabels' => Demand::priorityLabels(),
+            'demandTags' => DemandTag::query()->active()->get(),
             'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
             'users' => User::query()->active()->orderBy('name')->get(),
         ]);
@@ -62,6 +150,7 @@ class DemandController extends Controller
     public function show(Demand $demanda): View
     {
         $demanda->load([
+            'tag',
             'category',
             'condominium',
             'entity',
@@ -81,28 +170,84 @@ class DemandController extends Controller
             'statusLabels' => Demand::statusLabels(),
             'priorityLabels' => Demand::priorityLabels(),
             'categories' => DemandCategory::query()->active()->get(),
+            'demandTags' => DemandTag::query()->active()->get(),
             'users' => User::query()->active()->orderBy('name')->get(),
         ]);
     }
 
     public function update(Request $request, Demand $demanda): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
         $validated = $request->validate([
             'status' => ['required', 'string', 'max:40'],
             'priority' => ['required', 'string', 'max:30'],
             'category_id' => ['nullable', 'integer', 'exists:demand_categories,id'],
+            'demand_tag_id' => ['nullable', 'integer', 'exists:demand_tags,id'],
             'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        $demanda->update([
-            'status' => $validated['status'],
+        $updates = [
             'priority' => $validated['priority'],
             'category_id' => $validated['category_id'] ?? null,
             'assigned_user_id' => $validated['assigned_user_id'] ?? null,
-            'closed_at' => in_array($validated['status'], ['concluida', 'cancelada'], true) ? ($demanda->closed_at ?: now()) : null,
-        ]);
+        ];
+
+        $tag = !empty($validated['demand_tag_id'])
+            ? DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->first()
+            : null;
+
+        DB::transaction(function () use ($demanda, $updates, $validated, $tag, $user) {
+            $demanda->update($updates);
+
+            if ($tag) {
+                $this->applyTag($demanda->fresh(['tag']), $tag, $user, true);
+                return;
+            }
+
+            $demanda->update([
+                'status' => $validated['status'],
+                'closed_at' => in_array($validated['status'], ['concluida', 'cancelada'], true) ? ($demanda->closed_at ?: now()) : null,
+            ]);
+        });
 
         return back()->with('success', 'Demanda atualizada.');
+    }
+
+    public function updateTag(Request $request, Demand $demanda): JsonResponse|RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'demand_tag_id' => ['required', 'integer', 'exists:demand_tags,id'],
+        ]);
+
+        $tag = DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->firstOrFail();
+
+        DB::transaction(function () use ($demanda, $tag, $user) {
+            $this->applyTag($demanda->fresh(['tag']), $tag, $user, true);
+        });
+
+        $demanda->refresh()->load(['tag']);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Demanda movida para ' . $tag->name . '.',
+                'tag' => [
+                    'id' => $tag->id,
+                    'name' => $tag->name,
+                    'color' => $tag->color_hex,
+                ],
+                'sla' => [
+                    'status' => $demanda->slaStatus(),
+                    'label' => $demanda->slaStatusLabel(),
+                    'due_at' => $demanda->sla_due_at?->format('d/m/Y H:i'),
+                ],
+            ]);
+        }
+
+        return back()->with('success', 'Demanda movida para ' . $tag->name . '.');
     }
 
     public function reply(Request $request, Demand $demanda): RedirectResponse
@@ -143,6 +288,13 @@ class DemandController extends Controller
                 $updates['closed_at'] = $demanda->closed_at ?: now();
             }
 
+            if (isset($updates['status'])) {
+                $tag = DemandTag::defaultForStatus((string) $updates['status']);
+                if ($tag) {
+                    $updates = array_merge($updates, $this->tagUpdatePayload($demanda, $tag));
+                }
+            }
+
             $demanda->update($updates);
         });
 
@@ -156,6 +308,56 @@ class DemandController extends Controller
         abort_unless(is_file($path), 404);
 
         return response()->download($path, $attachment->original_name);
+    }
+
+    private function applyTag(Demand $demand, DemandTag $tag, ?User $user, bool $writeHistory): void
+    {
+        $previousTag = $demand->tag?->name ?: (Demand::statusLabels()[$demand->status] ?? $demand->status);
+        if ((int) ($demand->demand_tag_id ?? 0) === (int) $tag->id) {
+            return;
+        }
+
+        $payload = $this->tagUpdatePayload($demand, $tag);
+
+        $demand->update($payload);
+
+        if (!$writeHistory || $previousTag === $tag->name) {
+            return;
+        }
+
+        $slaLine = $tag->sla_hours
+            ? 'SLA recalculado para ' . $tag->sla_hours . 'h, vencendo em ' . $demand->fresh()->sla_due_at?->format('d/m/Y H:i') . '.'
+            : 'Tag sem SLA ativo.';
+
+        DemandMessage::query()->create([
+            'demand_id' => $demand->id,
+            'sender_type' => 'internal',
+            'user_id' => $user?->id,
+            'message' => 'Demanda movida de "' . $previousTag . '" para "' . $tag->name . '" por ' . ($user?->name ?: 'Sistema') . ' em ' . now()->format('d/m/Y H:i') . ".\n" . $slaLine,
+            'is_internal' => true,
+        ]);
+    }
+
+    private function tagUpdatePayload(Demand $demand, DemandTag $tag): array
+    {
+        $payload = [
+            'demand_tag_id' => $tag->id,
+            'status' => $tag->status_key,
+            'closed_at' => ($tag->is_closing || in_array($tag->status_key, ['concluida', 'cancelada'], true))
+                ? ($demand->closed_at ?: now())
+                : null,
+        ];
+
+        if ($tag->sla_hours && !$payload['closed_at']) {
+            $startedAt = now();
+            $payload['sla_started_at'] = $startedAt;
+            $payload['sla_due_at'] = $startedAt->copy()->addHours((int) $tag->sla_hours);
+        } else {
+            $payload['sla_started_at'] = null;
+            $payload['sla_due_at'] = null;
+        }
+
+        return $payload;
     }
 
     private function storeAttachments(Request $request, Demand $demand, ?DemandMessage $message, string $uploadedByType, ?int $portalUserId, ?int $userId, bool $internal): int

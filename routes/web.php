@@ -115,6 +115,9 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::match(['post', 'delete'], '/config/access-profiles/{slug}', [ConfigController::class, 'deleteAccessProfile'])->name('config.access-profiles.delete')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.delete']);
 
     Route::post('/config/tjes-indices/store', [ConfigController::class, 'storeTjesIndexFactor'])->name('config.tjes-factors.store')->middleware(['ancora.superadmin', 'ancora.route:config.tjes-factors.store']);
+    Route::post('/config/demandas/tags/store', [ConfigController::class, 'storeDemandTag'])->name('config.demand-tags.store')->middleware(['ancora.superadmin', 'ancora.route:config.demand-tags.store']);
+    Route::match(['post', 'put'], '/config/demandas/tags/{tag}', [ConfigController::class, 'updateDemandTag'])->name('config.demand-tags.update')->middleware(['ancora.superadmin', 'ancora.route:config.demand-tags.update']);
+    Route::match(['post', 'delete'], '/config/demandas/tags/{tag}/excluir', [ConfigController::class, 'deleteDemandTag'])->name('config.demand-tags.delete')->middleware(['ancora.superadmin', 'ancora.route:config.demand-tags.delete']);
     Route::post('/config/servicos/store', [ConfigController::class, 'storeServico'])->name('config.servicos.store')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.store']);
     Route::match(['post', 'put'], '/config/servicos/{servico}', [ConfigController::class, 'updateServico'])->name('config.servicos.update')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.update']);
     Route::match(['post', 'delete'], '/config/servicos/{servico}/excluir', [ConfigController::class, 'deleteServico'])->name('config.servicos.delete')->middleware(['ancora.superadmin', 'ancora.route:config.servicos.delete']);
@@ -134,9 +137,12 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index')->middleware('ancora.route:logs.index');
 
     Route::prefix('demandas')->group(function () {
+        Route::get('/dashboard', [DemandController::class, 'dashboard'])->name('demandas.dashboard')->middleware('ancora.route:demandas.dashboard');
+        Route::get('/kanban', [DemandController::class, 'kanban'])->name('demandas.kanban')->middleware('ancora.route:demandas.kanban');
         Route::get('/', [DemandController::class, 'index'])->name('demandas.index')->middleware('ancora.route:demandas.index');
         Route::get('/{demanda}', [DemandController::class, 'show'])->name('demandas.show')->middleware('ancora.route:demandas.show');
         Route::match(['post', 'put'], '/{demanda}', [DemandController::class, 'update'])->name('demandas.update')->middleware('ancora.route:demandas.update');
+        Route::post('/{demanda}/tag', [DemandController::class, 'updateTag'])->name('demandas.tag.update')->middleware('ancora.route:demandas.tag.update');
         Route::post('/{demanda}/responder', [DemandController::class, 'reply'])->name('demandas.reply')->middleware('ancora.route:demandas.reply');
         Route::get('/{demanda}/anexos/{attachment}/download', [DemandController::class, 'downloadAttachment'])->name('demandas.attachments.download')->middleware('ancora.route:demandas.attachments.download');
     });

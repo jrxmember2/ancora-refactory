@@ -37,7 +37,7 @@
                     <div class="mt-1 text-lg font-semibold text-gray-950">{{ $item->subject }}</div>
                     <div class="mt-2 text-sm text-gray-500">{{ $item->category?->name ?: 'Sem categoria' }} · Atualizada em {{ $item->updated_at?->format('d/m/Y H:i') }}</div>
                 </div>
-                <span class="w-fit rounded-full bg-[#f7f2ec] px-3 py-1 text-xs font-semibold text-[#941415]">{{ $statusLabels[$item->status] ?? $item->status }}</span>
+                <span class="w-fit rounded-full bg-[#f7f2ec] px-3 py-1 text-xs font-semibold text-[#941415]">{{ $item->publicStatusLabel() }}</span>
             </div>
         </a>
     @empty

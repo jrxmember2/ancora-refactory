@@ -66,6 +66,7 @@ class AuditLogPresenter
             'processos.datajud.sync' => 'Sincronizou processo com DataJud',
 
             'demandas.update' => 'Atualizou demanda',
+            'demandas.tag.update' => 'Moveu demanda no kanban',
             'demandas.reply' => 'Respondeu demanda',
             'demandas.attachments.download' => 'Baixou anexo de demanda',
 
@@ -90,6 +91,9 @@ class AuditLogPresenter
             'config.access-profiles.save' => 'Atualizou perfis de acesso',
             'config.access-profiles.delete' => 'Excluiu perfil de acesso',
             'config.tjes-factors.store' => 'Salvou indice TJES',
+            'config.demand-tags.store' => 'Criou tag de demanda',
+            'config.demand-tags.update' => 'Atualizou tag de demanda',
+            'config.demand-tags.delete' => 'Excluiu tag de demanda',
             'config.servicos.store' => 'Criou serviço',
             'config.servicos.update' => 'Atualizou serviço',
             'config.servicos.delete' => 'Excluiu serviço',
@@ -244,6 +248,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'clientes.unidades') => self::unitRecord($request),
             Str::startsWith($routeName, 'config.users') => self::namedRecord('USUÁRIO', self::inputOrRouteValue($request, ['email'], ['user'], ['email'])),
             Str::startsWith($routeName, 'config.tjes-factors') => self::namedRecord('INDICE TJES', self::competenceLabelFromRequest($request)),
+            Str::startsWith($routeName, 'config.demand-tags') => self::namedRecord('TAG DE DEMANDA', self::inputOrRouteValue($request, ['name'], ['tag'], ['name'])),
             Str::startsWith($routeName, 'cobrancas') => self::namedRecord('OS DE COBRANÇA', self::inputOrRouteValue($request, ['os_number'], ['cobranca'], ['os_number'])),
             Str::startsWith($routeName, 'demandas') => self::namedRecord('DEMANDA', self::inputOrRouteValue($request, ['subject'], ['demanda'], ['protocol', 'subject'])),
             Str::startsWith($routeName, 'processos') => self::namedRecord('PROCESSO', self::inputOrRouteValue($request, ['process_number', 'client_name'], ['processo'], ['process_number', 'client_name_snapshot'])),
@@ -262,6 +267,7 @@ class AuditLogPresenter
             Str::startsWith($action, 'clientes.portal-users') => 'USUÁRIO DO PORTAL',
             Str::startsWith($action, 'config.users') => 'USUÁRIO',
             Str::startsWith($action, 'config.tjes-factors') => 'INDICE TJES',
+            Str::startsWith($action, 'config.demand-tags') => 'TAG DE DEMANDA',
             Str::startsWith($action, 'cobrancas') && !Str::contains($action, '.import') => 'OS DE COBRANÇA',
             Str::startsWith($action, 'demandas') => 'DEMANDA',
             Str::startsWith($action, 'processos') => 'PROCESSO',

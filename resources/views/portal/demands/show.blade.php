@@ -13,7 +13,7 @@
         <p class="mt-2 text-sm text-gray-500">{{ $demand->protocol }} · {{ $demand->category?->name ?: 'Sem categoria' }}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-        <span class="w-fit rounded-full bg-[#f7f2ec] px-4 py-2 text-sm font-semibold text-[#941415]">{{ $statusLabels[$demand->status] ?? $demand->status }}</span>
+        <span class="w-fit rounded-full bg-[#f7f2ec] px-4 py-2 text-sm font-semibold text-[#941415]">{{ $demand->publicStatusLabel() }}</span>
         @if($canManageDemand)
             <button type="button" @click="editOpen = true" class="rounded-2xl border border-[#eadfd5] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-[#941415] hover:text-[#941415]">Editar</button>
             <button type="button" @click="cancelOpen = true" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Cancelar</button>

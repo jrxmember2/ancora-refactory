@@ -59,8 +59,12 @@ class AncoraMenu
                     ] : null,
                     $has('demandas') ? [
                         'label' => 'Demandas',
-                        'path' => route('demandas.index'),
                         'icon' => 'fa-solid fa-inbox',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('demandas.dashboard')],
+                            ['label' => 'Kanban', 'path' => route('demandas.kanban')],
+                            ['label' => 'Lista', 'path' => route('demandas.index')],
+                        ],
                     ] : null,
                     $has('processos') ? [
                         'label' => 'Processos',
@@ -122,7 +126,7 @@ class AncoraMenu
                     'logs' => route('logs.index'),
                     'clientes' => route('clientes.index'),
                     'cobrancas' => route('cobrancas.dashboard'),
-                    'demandas' => route('demandas.index'),
+                    'demandas' => route('demandas.dashboard'),
                     'processos' => route('processos.dashboard'),
                     default => '#',
                 },

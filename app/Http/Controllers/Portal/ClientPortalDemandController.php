@@ -8,6 +8,7 @@ use App\Models\Demand;
 use App\Models\DemandAttachment;
 use App\Models\DemandCategory;
 use App\Models\DemandMessage;
+use App\Models\DemandTag;
 use App\Support\ClientPortalAccess;
 use App\Support\ClientPortalAuth;
 use App\Support\ClientPortalContext;
@@ -29,7 +30,7 @@ class ClientPortalDemandController extends Controller
 
         $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
 
-        $query = $access->scopeDemands(Demand::query(), $user, $selectedCondominiumId)->with(['category']);
+        $query = $access->scopeDemands(Demand::query(), $user, $selectedCondominiumId)->with(['category', 'tag']);
         if (!$user->can_view_demands) {
             $query->where('client_portal_user_id', $user->id);
         }
@@ -95,6 +96,9 @@ class ClientPortalDemandController extends Controller
         }
 
         $demand = DB::transaction(function () use ($validated, $request, $user, $selectedCondominiumId) {
+            $tag = DemandTag::defaultForStatus('aberta') ?: DemandTag::default();
+            $slaStartedAt = $tag?->sla_hours ? now() : null;
+
             $demand = Demand::query()->create([
                 'protocol' => $this->nextProtocol(),
                 'origin' => 'portal',
@@ -105,8 +109,11 @@ class ClientPortalDemandController extends Controller
                 'subject' => $validated['subject'],
                 'description' => $validated['description'],
                 'priority' => 'normal',
-                'status' => 'aberta',
+                'status' => $tag?->status_key ?: 'aberta',
+                'demand_tag_id' => $tag?->id,
                 'last_external_message_at' => now(),
+                'sla_started_at' => $slaStartedAt,
+                'sla_due_at' => $slaStartedAt ? $slaStartedAt->copy()->addHours((int) $tag->sla_hours) : null,
             ]);
 
             $message = DemandMessage::query()->create([
@@ -131,6 +138,7 @@ class ClientPortalDemandController extends Controller
         abort_unless($user && $access->canSeeDemand($user, $demand), 404);
 
         $demand->load([
+            'tag',
             'category',
             'publicMessages.portalUser',
             'publicMessages.user',
@@ -218,9 +226,14 @@ class ClientPortalDemandController extends Controller
                 'is_internal' => false,
             ]);
 
+            $cancelTag = DemandTag::defaultForStatus('cancelada');
+
             $demand->update([
-                'status' => 'cancelada',
+                'status' => $cancelTag?->status_key ?: 'cancelada',
+                'demand_tag_id' => $cancelTag?->id ?: $demand->demand_tag_id,
                 'closed_at' => now(),
+                'sla_started_at' => null,
+                'sla_due_at' => null,
                 'last_external_message_at' => now(),
             ]);
         });
@@ -251,8 +264,15 @@ class ClientPortalDemandController extends Controller
 
             $this->storeAttachments($request, $demand, $message, 'client', $user->id, null, false);
 
+            $nextStatus = $demand->status === 'aguardando_cliente' ? 'em_andamento' : $demand->status;
+            $nextTag = $nextStatus !== $demand->status ? DemandTag::defaultForStatus($nextStatus) : null;
+            $slaStartedAt = $nextTag?->sla_hours ? now() : null;
+
             $demand->update([
-                'status' => $demand->status === 'aguardando_cliente' ? 'em_andamento' : $demand->status,
+                'status' => $nextTag?->status_key ?: $nextStatus,
+                'demand_tag_id' => $nextTag?->id ?: $demand->demand_tag_id,
+                'sla_started_at' => $slaStartedAt ?: $demand->sla_started_at,
+                'sla_due_at' => $slaStartedAt ? $slaStartedAt->copy()->addHours((int) $nextTag->sla_hours) : $demand->sla_due_at,
                 'last_external_message_at' => now(),
             ]);
         });

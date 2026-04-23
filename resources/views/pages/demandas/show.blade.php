@@ -64,6 +64,16 @@
                 @csrf
                 @method('PUT')
                 <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tag / Kanban</label>
+                    <select name="demand_tag_id" class="{{ $inputClass }}">
+                        <option value="">Sem tag</option>
+                        @foreach($demandTags as $tag)
+                            <option value="{{ $tag->id }}" @selected((int) $demand->demand_tag_id === (int) $tag->id)>{{ $tag->name }}{{ $tag->sla_hours ? ' · '.$tag->sla_hours.'h' : '' }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Ao alterar a tag, o status e o SLA sao recalculados automaticamente.</p>
+                </div>
+                <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                     <select name="status" class="{{ $inputClass }}">
                         @foreach($statusLabels as $key => $label)
@@ -108,6 +118,19 @@
                 <div><span class="text-gray-500">Usuário portal:</span> {{ $demand->portalUser?->name ?: 'Não informado' }}</div>
                 <div><span class="text-gray-500">Origem:</span> {{ ucfirst($demand->origin) }}</div>
                 <div><span class="text-gray-500">Aberta em:</span> {{ $demand->created_at?->format('d/m/Y H:i') }}</div>
+                <div><span class="text-gray-500">Status no portal:</span> {{ $demand->publicStatusLabel() }}</div>
+                <div>
+                    <span class="text-gray-500">SLA:</span>
+                    <span @class([
+                        'font-semibold',
+                        'text-error-600 dark:text-error-300' => $demand->slaStatus() === 'overdue',
+                        'text-warning-600 dark:text-warning-300' => $demand->slaStatus() === 'at_risk',
+                        'text-success-600 dark:text-success-300' => $demand->slaStatus() === 'ok',
+                        'text-gray-600 dark:text-gray-300' => $demand->slaStatus() === 'none',
+                    ])>
+                        {{ $demand->slaStatusLabel() }}{{ $demand->sla_due_at ? ' · '.$demand->sla_due_at->format('d/m/Y H:i') : '' }}
+                    </span>
+                </div>
             </div>
         </div>
     </aside>

@@ -34,7 +34,7 @@ class ClientPortalDashboardController extends Controller
             : collect();
 
         $latestDemands = $user->can_view_demands
-            ? (clone $demandQuery)->with(['category'])->latest('updated_at')->limit(5)->get()
+            ? (clone $demandQuery)->with(['category', 'tag'])->latest('updated_at')->limit(5)->get()
             : collect();
 
         return view('portal.dashboard', [
