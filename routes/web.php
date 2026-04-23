@@ -13,6 +13,7 @@ use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\Portal\ClientPortalAccountController;
 use App\Http\Controllers\Portal\ClientPortalAuthController;
+use App\Http\Controllers\Portal\ClientPortalContextController;
 use App\Http\Controllers\Portal\ClientPortalCobrancaController;
 use App\Http\Controllers\Portal\ClientPortalDashboardController;
 use App\Http\Controllers\Portal\ClientPortalDemandController;
@@ -34,6 +35,7 @@ Route::domain(config('app.client_portal_domain'))->name('portal.')->group(functi
     Route::middleware('portal.auth')->group(function () {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
         Route::get('/dashboard', ClientPortalDashboardController::class);
+        Route::post('/contexto-condominio', [ClientPortalContextController::class, 'update'])->name('context.update');
         Route::get('/trocar-senha', [ClientPortalAuthController::class, 'passwordEdit'])->name('password.edit');
         Route::post('/trocar-senha', [ClientPortalAuthController::class, 'passwordUpdate'])->name('password.update');
 
@@ -47,6 +49,8 @@ Route::domain(config('app.client_portal_domain'))->name('portal.')->group(functi
         Route::get('/solicitacoes/nova', [ClientPortalDemandController::class, 'create'])->name('demands.create');
         Route::post('/solicitacoes', [ClientPortalDemandController::class, 'store'])->name('demands.store');
         Route::get('/solicitacoes/{demand}', [ClientPortalDemandController::class, 'show'])->name('demands.show');
+        Route::post('/solicitacoes/{demand}/editar', [ClientPortalDemandController::class, 'update'])->name('demands.update');
+        Route::post('/solicitacoes/{demand}/cancelar', [ClientPortalDemandController::class, 'cancel'])->name('demands.cancel');
         Route::post('/solicitacoes/{demand}/responder', [ClientPortalDemandController::class, 'reply'])->name('demands.reply');
         Route::get('/solicitacoes/{demand}/anexos/{attachment}/download', [ClientPortalDemandController::class, 'downloadAttachment'])->name('demands.attachments.download');
 

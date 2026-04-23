@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -308,6 +309,7 @@ class ProcessController extends Controller
             'client',
             'clientCondominium',
             'adverse',
+            'adverseCondominium',
             'clientPositionOption',
             'adversePositionOption',
             'natureOption',
@@ -464,6 +466,7 @@ class ProcessController extends Controller
             'client_name' => ['nullable', 'string', 'max:190'],
             'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'adverse_name' => ['nullable', 'string', 'max:190'],
+            'adverse_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'client_lawyer' => ['nullable', 'string', 'max:160'],
             'adverse_lawyer' => ['nullable', 'string', 'max:160'],
             'notes' => ['nullable', 'string'],
@@ -479,8 +482,16 @@ class ProcessController extends Controller
 
         $client = $this->resolveEntity((string) $request->input('client_name', ''));
         $adverse = $this->resolveEntity((string) $request->input('adverse_name', ''));
+        $clientCondominium = $this->resolveCondominium((string) $request->input('client_name', ''));
+        $adverseCondominium = $this->resolveCondominium((string) $request->input('adverse_name', ''));
+        $clientCondominiumId = (int) ($validated['client_condominium_id'] ?? 0) ?: (int) ($clientCondominium?->id ?? 0);
+        $adverseCondominiumId = (int) ($validated['adverse_condominium_id'] ?? 0) ?: (int) ($adverseCondominium?->id ?? 0);
+        $selectedClientCondominium = $clientCondominiumId ? ClientCondominium::query()->find($clientCondominiumId) : null;
+        $selectedAdverseCondominium = $adverseCondominiumId ? ClientCondominium::query()->find($adverseCondominiumId) : null;
+        $clientNameInput = trim((string) ($validated['client_name'] ?? ''));
+        $adverseNameInput = trim((string) ($validated['adverse_name'] ?? ''));
 
-        return [
+        $payload = [
             'responsible_lawyer' => $validated['responsible_lawyer'] ?? null,
             'opened_at' => $validated['opened_at'] ?? null,
             'process_number' => $this->formatProcessNumber((string) ($validated['process_number'] ?? '')),
@@ -489,10 +500,10 @@ class ProcessController extends Controller
             'action_type_option_id' => $this->optionId($request, 'action_type_option_id', 'action_type'),
             'process_type_option_id' => $this->optionId($request, 'process_type_option_id', 'process_type'),
             'client_entity_id' => $client?->id,
-            'client_condominium_id' => $validated['client_condominium_id'] ?? null,
-            'client_name_snapshot' => $client?->display_name ?: ($validated['client_name'] ?? null),
+            'client_condominium_id' => $clientCondominiumId ?: null,
+            'client_name_snapshot' => $client?->display_name ?: ($clientCondominium?->name ?: ($clientNameInput !== '' ? $clientNameInput : $selectedClientCondominium?->name)),
             'adverse_entity_id' => $adverse?->id,
-            'adverse_name' => $adverse?->display_name ?: ($validated['adverse_name'] ?? null),
+            'adverse_name' => $adverse?->display_name ?: ($adverseCondominium?->name ?: ($adverseNameInput !== '' ? $adverseNameInput : $selectedAdverseCondominium?->name)),
             'client_position_option_id' => $this->optionId($request, 'client_position_option_id', 'client_position'),
             'adverse_position_option_id' => $this->optionId($request, 'adverse_position_option_id', 'adverse_position'),
             'client_lawyer' => $validated['client_lawyer'] ?? null,
@@ -516,6 +527,12 @@ class ProcessController extends Controller
             'closure_type_option_id' => $this->optionId($request, 'closure_type_option_id', 'closure_type'),
             'closure_notes' => $validated['closure_notes'] ?? null,
         ];
+
+        if ($this->processHasAdverseCondominiumColumn()) {
+            $payload['adverse_condominium_id'] = $adverseCondominiumId ?: null;
+        }
+
+        return $payload;
     }
 
     private function formData(?ProcessCase $case = null): array
@@ -531,6 +548,7 @@ class ProcessController extends Controller
             'client_name' => old('client_name', $case?->client_name_snapshot),
             'client_condominium_id' => old('client_condominium_id', $case?->client_condominium_id),
             'adverse_name' => old('adverse_name', $case?->adverse_name),
+            'adverse_condominium_id' => old('adverse_condominium_id', $case?->adverse_condominium_id),
             'client_position_option_id' => old('client_position_option_id', $case?->client_position_option_id),
             'adverse_position_option_id' => old('adverse_position_option_id', $case?->adverse_position_option_id),
             'client_lawyer' => old('client_lawyer', $case?->client_lawyer),
@@ -566,10 +584,30 @@ class ProcessController extends Controller
 
     private function entitiesForLookup()
     {
-        return ClientEntity::query()
+        $entities = ClientEntity::query()
             ->where('is_active', 1)
             ->orderBy('display_name')
-            ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj']);
+            ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj'])
+            ->map(fn (ClientEntity $entity) => (object) [
+                'display_name' => $entity->display_name,
+                'legal_name' => $entity->legal_name,
+                'cpf_cnpj' => $entity->cpf_cnpj,
+            ]);
+
+        $condominiums = ClientCondominium::query()
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'cnpj'])
+            ->map(fn (ClientCondominium $condominium) => (object) [
+                'display_name' => $condominium->name,
+                'legal_name' => 'Condominio',
+                'cpf_cnpj' => $condominium->cnpj,
+            ]);
+
+        return $entities
+            ->merge($condominiums)
+            ->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
     }
 
     private function condominiumsForLookup()
@@ -599,6 +637,41 @@ class ProcessController extends Controller
             })
             ->orderBy('display_name')
             ->first();
+    }
+
+    private function resolveCondominium(string $name): ?ClientCondominium
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $name);
+
+        return ClientCondominium::query()
+            ->where(function ($query) use ($name, $digits) {
+                $query->where('name', $name);
+                if ($digits !== '') {
+                    $query->orWhereRaw("REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '-', ''), '/', '') = ?", [$digits]);
+                }
+            })
+            ->orderBy('name')
+            ->first();
+    }
+
+    private function processHasAdverseCondominiumColumn(): bool
+    {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        try {
+            return $hasColumn = Schema::hasColumn('process_cases', 'adverse_condominium_id');
+        } catch (\Throwable) {
+            return $hasColumn = false;
+        }
     }
 
     private function optionId(Request $request, string $field, string $group): ?int

@@ -38,9 +38,9 @@ class AppServiceProvider extends ServiceProvider
             $menuGroups = [];
             $processMovementNotification = null;
             $version = config('ancora_version.current', [
-                'version' => 'v1.33',
+                'version' => 'v1.34',
                 'date' => '23/04/2026',
-                'label' => 'v1.33 - 23/04/2026',
+                'label' => 'v1.34 - 23/04/2026',
             ]);
 
             try {

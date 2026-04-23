@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CobrancaCase;
 use App\Support\ClientPortalAccess;
 use App\Support\ClientPortalAuth;
+use App\Support\ClientPortalContext;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -16,7 +17,9 @@ class ClientPortalCobrancaController extends Controller
         $user = ClientPortalAuth::user($request);
         abort_unless($user && $user->can_view_cobrancas, 403);
 
-        $query = $access->scopeCobrancas(CobrancaCase::query(), $user)
+        $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
+
+        $query = $access->scopeCobrancas(CobrancaCase::query(), $user, $selectedCondominiumId)
             ->with(['condominium', 'block', 'unit'])
             ->withCount(['quotas', 'installments']);
 
@@ -32,7 +35,7 @@ class ClientPortalCobrancaController extends Controller
             $query->where('workflow_stage', $stage);
         }
 
-        $base = $access->scopeCobrancas(CobrancaCase::query(), $user);
+        $base = $access->scopeCobrancas(CobrancaCase::query(), $user, $selectedCondominiumId);
 
         return view('portal.cobrancas.index', [
             'title' => 'Cobranças',

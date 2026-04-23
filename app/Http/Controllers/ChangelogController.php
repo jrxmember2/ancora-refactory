@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.33',
+            'version' => 'v1.34',
             'date' => '23/04/2026',
-            'label' => 'v1.33 - 23/04/2026',
+            'label' => 'v1.34 - 23/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Portal do Cliente com contexto por condominio',
+                'items' => [
+                    'Portal do Cliente ganha seletor persistente de condominio no topo, com opcao Todos para visao macro de usuarios com multiplos vinculos.',
+                    'Dashboard, processos, cobrancas e solicitacoes passam a respeitar o condominio selecionado no portal.',
+                    'Modulo Processos passa a localizar condominios na busca de cliente/adverso e permite vincular condominio tambem no polo adverso.',
+                    'Solicitacoes do portal podem ser editadas ou canceladas pelo usuario que abriu a demanda, sempre registrando a acao no historico.',
+                ],
+            ],
+            [
+                'version' => 'v1.33',
+                'date' => '23/04/2026',
                 'title' => 'Edicao e filtros dos indices TJES',
                 'items' => [
                     'Modal de indices TJES passa a ter botao Editar em cada competencia cadastrada.',

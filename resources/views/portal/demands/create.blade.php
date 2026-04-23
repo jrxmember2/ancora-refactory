@@ -23,7 +23,7 @@
                     <select name="client_condominium_id" required class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]">
                         <option value="">Selecione</option>
                         @foreach($condominiums as $condominium)
-                            <option value="{{ $condominium->id }}" @selected((int) old('client_condominium_id') === (int) $condominium->id)>{{ $condominium->name }}</option>
+                            <option value="{{ $condominium->id }}" @selected((int) old('client_condominium_id', $selectedCondominiumId ?? 0) === (int) $condominium->id)>{{ $condominium->name }}</option>
                         @endforeach
                     </select>
                 </div>

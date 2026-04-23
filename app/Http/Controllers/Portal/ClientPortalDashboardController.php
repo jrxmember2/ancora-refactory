@@ -8,6 +8,7 @@ use App\Models\Demand;
 use App\Models\ProcessCase;
 use App\Support\ClientPortalAccess;
 use App\Support\ClientPortalAuth;
+use App\Support\ClientPortalContext;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,9 +19,11 @@ class ClientPortalDashboardController extends Controller
         $user = ClientPortalAuth::user($request);
         abort_unless($user, 401);
 
-        $processQuery = $access->scopeProcesses(ProcessCase::query(), $user)->where('is_private', false);
-        $cobrancaQuery = $access->scopeCobrancas(CobrancaCase::query(), $user);
-        $demandQuery = $access->scopeDemands(Demand::query(), $user);
+        $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
+
+        $processQuery = $access->scopeProcesses(ProcessCase::query(), $user, $selectedCondominiumId)->where('is_private', false);
+        $cobrancaQuery = $access->scopeCobrancas(CobrancaCase::query(), $user, $selectedCondominiumId);
+        $demandQuery = $access->scopeDemands(Demand::query(), $user, $selectedCondominiumId);
 
         $latestProcesses = $user->can_view_processes
             ? (clone $processQuery)->with(['statusOption', 'processTypeOption', 'phases' => fn ($query) => $query->where('is_private', false)->limit(1)])->latest('updated_at')->limit(4)->get()

@@ -119,6 +119,16 @@
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Adverso</label>
                 <input name="adverse_name" list="process-entities" value="{{ $formData['adverse_name'] }}" class="{{ $inputClass }}" placeholder="Pesquise ou digite um nome livre">
             </div>
+            <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vinculo do adverso com condominio no portal</label>
+                <select name="adverse_condominium_id" class="{{ $inputClass }}">
+                    <option value="">Nao vincular adverso a condominio</option>
+                    @foreach($condominiums as $condominium)
+                        <option value="{{ $condominium->id }}" @selected((int) ($formData['adverse_condominium_id'] ?? 0) === (int) $condominium->id)>{{ $condominium->name }}{{ $condominium->cnpj ? ' - '.$condominium->cnpj : '' }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use este campo quando o condominio estiver no polo adverso, mas ainda precisar visualizar o processo no Portal do Cliente.</p>
+            </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Posicao do cliente</label>
                 <select name="client_position_option_id" class="{{ $inputClass }}">

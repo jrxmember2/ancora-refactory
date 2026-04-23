@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientPortalUser;
 use App\Models\Demand;
 use App\Models\DemandAttachment;
 use App\Models\DemandCategory;
 use App\Models\DemandMessage;
 use App\Support\ClientPortalAccess;
 use App\Support\ClientPortalAuth;
+use App\Support\ClientPortalContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -24,7 +27,9 @@ class ClientPortalDemandController extends Controller
         $user = ClientPortalAuth::user($request);
         abort_unless($user && ($user->can_view_demands || $user->can_open_demands), 403);
 
-        $query = $access->scopeDemands(Demand::query(), $user)->with(['category']);
+        $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
+
+        $query = $access->scopeDemands(Demand::query(), $user, $selectedCondominiumId)->with(['category']);
         if (!$user->can_view_demands) {
             $query->where('client_portal_user_id', $user->id);
         }
@@ -52,11 +57,13 @@ class ClientPortalDemandController extends Controller
     {
         $user = ClientPortalAuth::user($request);
         abort_unless($user && $user->can_open_demands, 403);
+        $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
 
         return view('portal.demands.create', [
             'title' => 'Nova solicitação',
             'categories' => DemandCategory::query()->active()->get(),
             'condominiums' => $user->accessibleCondominiums(),
+            'selectedCondominiumId' => $selectedCondominiumId,
         ]);
     }
 
@@ -135,7 +142,90 @@ class ClientPortalDemandController extends Controller
             'title' => $demand->protocol,
             'demand' => $demand,
             'statusLabels' => Demand::statusLabels(),
+            'categories' => DemandCategory::query()->active()->get(),
+            'condominiums' => $user->accessibleCondominiums(),
+            'canManageDemand' => $this->canManageDemand($user, $demand),
         ]);
+    }
+
+    public function update(Request $request, Demand $demand, ClientPortalAccess $access): RedirectResponse
+    {
+        $user = ClientPortalAuth::user($request);
+        abort_unless($user && $access->canSeeDemand($user, $demand), 404);
+        abort_unless($this->canManageDemand($user, $demand), 403);
+
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:demand_categories,id'],
+            'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
+            'subject' => ['required', 'string', 'max:180'],
+            'description' => ['required', 'string', 'max:12000'],
+        ]);
+
+        $condominiums = $user->accessibleCondominiums();
+        $selectedCondominiumId = $this->resolveDemandCondominiumId($condominiums, $validated['client_condominium_id'] ?? null);
+        if ($selectedCondominiumId === false) {
+            return back()->withErrors(['client_condominium_id' => 'Selecione o condominio relacionado a solicitacao.'])->withInput();
+        }
+
+        $demand->load(['category', 'condominium']);
+        $newCategory = DemandCategory::query()->find($validated['category_id']);
+        $newCondominium = $selectedCondominiumId ? $condominiums->firstWhere('id', (int) $selectedCondominiumId) : null;
+        $changes = $this->demandChangeSummary($demand, $validated, $newCategory?->name, $newCondominium?->name, $selectedCondominiumId ?: null);
+
+        DB::transaction(function () use ($demand, $user, $validated, $selectedCondominiumId, $changes) {
+            $demand->update([
+                'category_id' => $validated['category_id'],
+                'client_condominium_id' => $selectedCondominiumId ?: null,
+                'subject' => $validated['subject'],
+                'description' => $validated['description'],
+                'last_external_message_at' => now(),
+            ]);
+
+            DemandMessage::query()->create([
+                'demand_id' => $demand->id,
+                'sender_type' => 'client',
+                'client_portal_user_id' => $user->id,
+                'message' => "Solicitacao editada por {$user->name} em " . now()->format('d/m/Y H:i') . ".\n" . ($changes !== [] ? 'Alteracoes: ' . implode('; ', $changes) . '.' : 'Edicao registrada sem alteracao de conteudo.'),
+                'is_internal' => false,
+            ]);
+        });
+
+        return back()->with('success', 'Solicitacao atualizada.');
+    }
+
+    public function cancel(Request $request, Demand $demand, ClientPortalAccess $access): RedirectResponse
+    {
+        $user = ClientPortalAuth::user($request);
+        abort_unless($user && $access->canSeeDemand($user, $demand), 404);
+        abort_unless($this->canManageDemand($user, $demand), 403);
+
+        $validated = $request->validate([
+            'cancel_reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($demand, $user, $validated) {
+            $reason = trim((string) ($validated['cancel_reason'] ?? ''));
+            $message = "Solicitacao cancelada por {$user->name} em " . now()->format('d/m/Y H:i') . '.';
+            if ($reason !== '') {
+                $message .= "\nMotivo: {$reason}";
+            }
+
+            DemandMessage::query()->create([
+                'demand_id' => $demand->id,
+                'sender_type' => 'client',
+                'client_portal_user_id' => $user->id,
+                'message' => $message,
+                'is_internal' => false,
+            ]);
+
+            $demand->update([
+                'status' => 'cancelada',
+                'closed_at' => now(),
+                'last_external_message_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('portal.demands.show', $demand)->with('success', 'Solicitacao cancelada.');
     }
 
     public function reply(Request $request, Demand $demand, ClientPortalAccess $access): RedirectResponse
@@ -248,5 +338,60 @@ class ClientPortalDemandController extends Controller
         }
 
         return [];
+    }
+
+    private function canManageDemand(ClientPortalUser $user, Demand $demand): bool
+    {
+        return $user->can_open_demands
+            && (int) $demand->client_portal_user_id === (int) $user->id
+            && !in_array($demand->status, ['concluida', 'cancelada'], true);
+    }
+
+    private function resolveDemandCondominiumId(Collection $condominiums, mixed $input): int|false
+    {
+        $condominiumIds = $condominiums
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $selectedCondominiumId = (int) ($input ?? 0);
+
+        if (count($condominiumIds) === 1) {
+            return $condominiumIds[0];
+        }
+
+        if (count($condominiumIds) > 1 && !$selectedCondominiumId) {
+            return false;
+        }
+
+        if ($selectedCondominiumId && !in_array($selectedCondominiumId, $condominiumIds, true)) {
+            abort(403);
+        }
+
+        return $selectedCondominiumId;
+    }
+
+    private function demandChangeSummary(Demand $demand, array $validated, ?string $newCategoryName, ?string $newCondominiumName, ?int $selectedCondominiumId): array
+    {
+        $changes = [];
+
+        if ((int) $demand->category_id !== (int) $validated['category_id']) {
+            $changes[] = 'categoria de "' . ($demand->category?->name ?: 'sem categoria') . '" para "' . ($newCategoryName ?: 'sem categoria') . '"';
+        }
+
+        if ((int) ($demand->client_condominium_id ?? 0) !== (int) ($selectedCondominiumId ?? 0)) {
+            $changes[] = 'condominio de "' . ($demand->condominium?->name ?: 'sem condominio') . '" para "' . ($newCondominiumName ?: 'sem condominio') . '"';
+        }
+
+        if ((string) $demand->subject !== (string) $validated['subject']) {
+            $changes[] = 'assunto de "' . Str::limit((string) $demand->subject, 80) . '" para "' . Str::limit((string) $validated['subject'], 80) . '"';
+        }
+
+        if ((string) $demand->description !== (string) $validated['description']) {
+            $changes[] = 'descricao atualizada';
+        }
+
+        return $changes;
     }
 }

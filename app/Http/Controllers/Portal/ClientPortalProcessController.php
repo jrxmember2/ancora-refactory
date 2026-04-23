@@ -7,6 +7,7 @@ use App\Models\ProcessCase;
 use App\Models\ProcessCaseOption;
 use App\Support\ClientPortalAccess;
 use App\Support\ClientPortalAuth;
+use App\Support\ClientPortalContext;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -17,7 +18,9 @@ class ClientPortalProcessController extends Controller
         $user = ClientPortalAuth::user($request);
         abort_unless($user && $user->can_view_processes, 403);
 
-        $query = $access->scopeProcesses(ProcessCase::query(), $user)
+        $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
+
+        $query = $access->scopeProcesses(ProcessCase::query(), $user, $selectedCondominiumId)
             ->where('is_private', false)
             ->with(['statusOption', 'processTypeOption', 'actionTypeOption', 'phases' => fn ($phase) => $phase->where('is_private', false)->limit(1)])
             ->withMax(['phases as last_public_phase_at' => fn ($phase) => $phase->where('is_private', false)], 'phase_date');

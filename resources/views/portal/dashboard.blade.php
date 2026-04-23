@@ -2,6 +2,9 @@
 
 @php
     $cardClass = 'rounded-3xl border border-[#eadfd5] bg-white p-6 shadow-sm';
+    $portalContextLabel = isset($clientPortalSelectedCondominium) && $clientPortalSelectedCondominium
+        ? $clientPortalSelectedCondominium->name
+        : $portalUser->displayClientName();
 @endphp
 
 @section('content')
@@ -10,7 +13,7 @@
         <div>
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Bem-vindo(a)</p>
             <h1 class="mt-3 text-3xl font-semibold">{{ $portalUser->name }}</h1>
-            <p class="mt-2 max-w-2xl text-white/80">Você está visualizando a área segura de {{ $portalUser->displayClientName() }}.</p>
+            <p class="mt-2 max-w-2xl text-white/80">Voce esta visualizando a area segura de {{ $portalContextLabel }}.</p>
         </div>
         @if($portalUser->can_open_demands)
             <a href="{{ route('portal.demands.create') }}" class="inline-flex rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#941415]">Abrir solicitação</a>
