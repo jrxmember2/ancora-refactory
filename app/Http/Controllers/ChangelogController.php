@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.35',
+            'version' => 'v1.36',
             'date' => '23/04/2026',
-            'label' => 'v1.35 - 23/04/2026',
+            'label' => 'v1.36 - 23/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Configuracoes por abas',
+                'items' => [
+                    'Tela de Configuracoes passa a ser organizada por abas internas, mantendo tudo centralizado no mesmo modulo.',
+                    'Agora e possivel alternar entre Geral, Catalogos, Demandas e Usuarios/Acesso para reduzir poluicao visual e acelerar manutencoes.',
+                    'Links diretos com hash, como os vindos do dashboard de demandas, abrem automaticamente a aba correta dentro de Configuracoes.',
+                ],
+            ],
+            [
+                'version' => 'v1.35',
+                'date' => '23/04/2026',
                 'title' => 'Kanban e SLA de demandas',
                 'items' => [
                     'Modulo Demandas ganha dashboard proprio com panorama por tag, alertas de SLA vencido e demandas a vencer com menos de 10% do prazo restante.',

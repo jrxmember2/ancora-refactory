@@ -11,6 +11,34 @@
 <div class="space-y-8" x-data="configPage()">
     <x-ancora.section-header title="Configurações" subtitle="Branding, módulos, catálogos auxiliares, usuários, perfis de acesso e SMTP do sistema." />
 
+    @php
+        $configTabs = [
+            ['key' => 'general', 'label' => 'Geral', 'icon' => 'fa-solid fa-sliders', 'description' => 'Branding, modulos e automacao'],
+            ['key' => 'catalogs', 'label' => 'Catalogos', 'icon' => 'fa-solid fa-list-check', 'description' => 'Servicos, status, processos e TJES'],
+            ['key' => 'demands', 'label' => 'Demandas', 'icon' => 'fa-solid fa-table-columns', 'description' => 'Tags, cores e SLA'],
+            ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
+        ];
+    @endphp
+
+    <div class="rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+            @foreach($configTabs as $tab)
+                <button type="button" @click="openSection('{{ $tab['key'] }}')" :class="activeSection === '{{ $tab['key'] }}' ? 'border-brand-300 bg-brand-50 text-brand-700 shadow-sm dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200' : 'border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 dark:text-gray-300 dark:hover:border-gray-800 dark:hover:bg-white/[0.03]'" class="rounded-2xl border px-4 py-3 text-left transition">
+                    <span class="flex items-center gap-3">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base shadow-theme-xs dark:bg-gray-900">
+                            <i class="{{ $tab['icon'] }}"></i>
+                        </span>
+                        <span>
+                            <span class="block text-sm font-semibold">{{ $tab['label'] }}</span>
+                            <span class="mt-0.5 block text-xs opacity-75">{{ $tab['description'] }}</span>
+                        </span>
+                    </span>
+                </button>
+            @endforeach
+        </div>
+    </div>
+
+    <section x-show="activeSection === 'general'" x-transition.opacity.duration.150ms>
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3" id="branding-section">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-2">
             <div class="flex items-center justify-between gap-3">
@@ -207,11 +235,17 @@
             </div>
         </div>
     </div>
+    </section>
 
+    <section x-show="activeSection === 'catalogs'" x-transition.opacity.duration.150ms>
     @include('pages.admin.partials.config-catalog')
+    </section>
 
+    <section x-show="activeSection === 'demands'" x-transition.opacity.duration.150ms>
     @include('pages.admin.partials.config-demandas')
+    </section>
 
+    <section x-show="activeSection === 'users'" x-transition.opacity.duration.150ms>
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3" id="smtp-section">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-2">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Usuários, módulos e permissões por rota</h3>
@@ -418,6 +452,7 @@
             </div>
         </div>
     </div>
+    </section>
 </div>
 @endsection
 
@@ -448,7 +483,62 @@ async function testSmtp(btn) {
 }
 
 function configPage() {
-    return { toast() {} }
+    return {
+        activeSection: 'general',
+        init() {
+            const storedSection = window.sessionStorage?.getItem('ancora_config_section');
+            if (storedSection && this.isValidSection(storedSection)) {
+                this.activeSection = storedSection;
+            }
+            this.syncSectionFromHash(window.location.hash);
+            window.addEventListener('hashchange', () => this.syncSectionFromHash(window.location.hash));
+        },
+        openSection(section) {
+            this.activeSection = section;
+            window.sessionStorage?.setItem('ancora_config_section', section);
+            const hash = this.defaultHashForSection(section);
+            const targetUrl = `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ''}`;
+            window.history.replaceState({}, '', targetUrl);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        syncSectionFromHash(hash) {
+            const cleanHash = String(hash || '').replace(/^#/, '');
+            const mappedSection = this.sectionByHash(cleanHash);
+            if (!mappedSection) {
+                return;
+            }
+
+            this.activeSection = mappedSection;
+            window.sessionStorage?.setItem('ancora_config_section', mappedSection);
+            this.$nextTick(() => {
+                const target = document.getElementById(cleanHash);
+                if (target) {
+                    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                }
+            });
+        },
+        isValidSection(section) {
+            return ['general', 'catalogs', 'demands', 'users'].includes(section);
+        },
+        sectionByHash(hash) {
+            return {
+                'branding-section': 'general',
+                'modules-section': 'general',
+                'catalog-section': 'catalogs',
+                'process-catalog-section': 'catalogs',
+                'demand-catalog-section': 'demands',
+                'smtp-section': 'users',
+            }[hash] || null;
+        },
+        defaultHashForSection(section) {
+            return {
+                general: 'branding-section',
+                catalogs: 'catalog-section',
+                demands: 'demand-catalog-section',
+                users: 'smtp-section',
+            }[section] || '';
+        },
+    }
 }
 function iconPreview(defaultIcon, defaultColor) {
     return { icon: defaultIcon, color: defaultColor }
