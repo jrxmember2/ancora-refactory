@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureClientPortalGuest;
 use App\Http\Middleware\EnsureGuest;
 use App\Http\Middleware\EnsureRoutePermission;
 use App\Http\Middleware\EnsureSuperadmin;
+use App\Http\Middleware\TrackAncoraSessionActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'ancora.auth' => EnsureAncoraAuthenticated::class,
+            'ancora.activity' => TrackAncoraSessionActivity::class,
             'ancora.guest' => EnsureGuest::class,
             'ancora.superadmin' => EnsureSuperadmin::class,
             'ancora.route' => EnsureRoutePermission::class,

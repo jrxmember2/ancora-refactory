@@ -78,11 +78,33 @@
                         </ul>
                     </div>
                 @endif
+                @include('layouts.partials.system-alert')
                 @include('layouts.partials.process-movement-notification')
                 @yield('content')
             </main>
         </div>
     </div>
     @stack('scripts')
+    <script>
+        window.addEventListener('ancora-theme-save', async (event) => {
+            const theme = event.detail?.theme;
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (!theme || !token) return;
+
+            try {
+                await fetch(@json(route('profile.theme')), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                    },
+                    body: JSON.stringify({ theme_preference: theme }),
+                });
+            } catch (error) {
+                // Preferimos manter a troca visual mesmo se a persistência falhar.
+            }
+        });
+    </script>
 </body>
 </html>

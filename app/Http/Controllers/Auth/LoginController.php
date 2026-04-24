@@ -22,6 +22,7 @@ class LoginController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember_for_12h' => ['nullable'],
         ]);
 
         $user = User::query()->active()->where('email', $credentials['email'])->first();
@@ -29,8 +30,17 @@ class LoginController extends Controller
             return back()->withInput()->with('error', 'E-mail ou senha inválidos.');
         }
 
-        AncoraAuth::cacheSessionUser($request, $user);
-        $user->forceFill(['last_login_at' => now()])->save();
+        $request->session()->regenerate();
+        $sessionMinutes = $request->boolean('remember_for_12h')
+            ? AncoraAuth::rememberedSessionMinutes()
+            : AncoraAuth::standardSessionMinutes();
+
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_seen_at' => now(),
+        ])->save();
+
+        AncoraAuth::cacheSessionUser($request, $user, $sessionMinutes);
 
         AuditLog::query()->create([
             'user_id' => $user->id,
@@ -50,9 +60,12 @@ class LoginController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         $auth = $request->session()->get('auth_user');
-        $request->session()->forget('auth_user');
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+
+        if (!empty($auth['id'])) {
+            User::query()->whereKey((int) $auth['id'])->update(['last_seen_at' => null]);
+        }
+
+        AncoraAuth::clearSession($request);
 
         if ($auth) {
             AuditLog::query()->create([

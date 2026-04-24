@@ -22,21 +22,61 @@
             </form>
 
             <div class="flex items-center gap-3">
-                <button @click="$store.theme.toggle()" class="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-                    <i class="fa-solid fa-moon hidden dark:block"></i>
-                    <i class="fa-solid fa-sun dark:hidden"></i>
-                </button>
-                <div class="hidden sm:block text-right">
-                    <p class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ $ancoraAuthUser?->name }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $ancoraAuthUser?->email }}</p>
+                <div class="inline-flex items-center gap-2 rounded-full border border-success-200 bg-success-50 px-3 py-2 text-xs font-semibold text-success-700 dark:border-success-900/50 dark:bg-success-500/10 dark:text-success-300">
+                    <i class="fa-solid fa-signal"></i>
+                    <span>{{ $ancoraOnlineUsersCount ?? 0 }} online</span>
                 </div>
-                <form action="{{ route('logout') }}" method="post">
-                    @csrf
-                    <button class="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-medium text-white shadow-theme-sm transition hover:bg-brand-600">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                        <span class="hidden sm:inline">Sair</span>
+
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left shadow-theme-xs transition hover:border-brand-200 hover:bg-brand-50/50 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-brand-900/70 dark:hover:bg-brand-500/10">
+                        @if($ancoraAuthUser?->avatar_url)
+                            <img src="{{ $ancoraAuthUser->avatar_url }}" alt="{{ $ancoraAuthUser->name }}" class="h-11 w-11 rounded-2xl object-cover">
+                        @else
+                            <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 text-sm font-semibold text-white">{{ $ancoraAuthUser?->initials }}</span>
+                        @endif
+
+                        <span class="hidden min-w-0 sm:block">
+                            <span class="block truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $ancoraAuthUser?->name }}</span>
+                            <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $ancoraAuthUser?->email }}</span>
+                        </span>
+
+                        <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
                     </button>
-                </form>
+
+                    <div x-show="open" x-transition.opacity.duration.120ms @click.outside="open = false" class="absolute right-0 z-50 mt-3 w-72 rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+                        <div class="border-b border-gray-100 px-2 pb-3 dark:border-gray-800">
+                            <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $ancoraAuthUser?->name }}</div>
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $ancoraAuthUser?->email }}</div>
+                        </div>
+
+                        <div class="mt-2 space-y-1">
+                            <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]">
+                                <i class="fa-solid fa-id-card w-4 text-center text-gray-400"></i>
+                                <span>Meus dados</span>
+                            </a>
+
+                            <button type="button" @click="open = false; $store.theme.toggle(); window.dispatchEvent(new CustomEvent('ancora-theme-save', { detail: { theme: $store.theme.theme } }));" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]">
+                                <i class="fa-solid fa-circle-half-stroke w-4 text-center text-gray-400"></i>
+                                <span x-text="$store.theme.theme === 'dark' ? 'Tema claro' : 'Tema escuro'"></span>
+                            </button>
+
+                            <a href="{{ route('changelog.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]">
+                                <i class="fa-solid fa-bolt w-4 text-center text-gray-400"></i>
+                                <span>Novidades</span>
+                            </a>
+                        </div>
+
+                        <div class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+                            <form action="{{ route('logout') }}" method="post">
+                                @csrf
+                                <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-error-600 hover:bg-error-50 dark:text-error-300 dark:hover:bg-error-500/10">
+                                    <i class="fa-solid fa-right-from-bracket w-4 text-center"></i>
+                                    <span>Sair</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

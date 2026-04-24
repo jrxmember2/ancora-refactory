@@ -9,6 +9,7 @@ use App\Models\ClientEntity;
 use App\Models\ClientTimeline;
 use App\Models\ClientType;
 use App\Models\ClientUnit;
+use App\Models\ClientUnitPartyHistory;
 use App\Models\CobrancaCase;
 use App\Models\AuditLog;
 use App\Support\AncoraAuth;
@@ -822,7 +823,10 @@ class ClientsController extends Controller
                 if ($existing) {
                     $payload['created_by'] = $existing->created_by;
                     $existing->update($payload);
-                    return $existing->fresh();
+                    $entity = $existing->fresh();
+                    $this->touchCurrentUnitHistoriesForEntity($entity);
+
+                    return $entity;
                 }
 
                 return ClientEntity::query()->create($payload);
@@ -1135,6 +1139,14 @@ class ClientsController extends Controller
             'partnerRoles' => $this->partnerRolesForSelect(),
             'attachments' => ClientAttachment::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
+            'unitPartyHistory' => $isCondomino
+                ? ClientUnitPartyHistory::query()
+                    ->with(['unit.condominium', 'unit.block'])
+                    ->where('entity_id', $contato->id)
+                    ->orderByDesc('started_at')
+                    ->orderByDesc('id')
+                    ->get()
+                : collect(),
         ], $this->commonViewData()));
     }
 
@@ -1302,11 +1314,15 @@ class ClientsController extends Controller
         $sortState = SortableQuery::apply($query, $request, [
             'condominium' => 'unit_condominium_sort.name',
             'block' => 'unit_block_sort.name',
-            'unit' => 'client_units.unit_number',
+            'unit' => function ($query, string $direction) {
+                $query->orderByRaw("CASE WHEN TRIM(client_units.unit_number) REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC");
+                $query->orderByRaw("CASE WHEN TRIM(client_units.unit_number) REGEXP '^[0-9]+$' THEN CAST(TRIM(client_units.unit_number) AS UNSIGNED) END {$direction}");
+                $query->orderBy('client_units.unit_number', $direction);
+            },
             'owner' => 'unit_owner_sort.display_name',
             'tenant' => 'unit_tenant_sort.display_name',
             'created_at' => 'client_units.created_at',
-        ], 'created_at', 'desc');
+        ], 'unit', 'desc');
 
         $importPreviewToken = (string) $request->session()->get('unit_import_preview_token', '');
         $importPreview = $importPreviewToken !== ''
@@ -1331,6 +1347,7 @@ class ClientsController extends Controller
             'mode' => 'create',
             'attachments' => collect(),
             'timeline' => collect(),
+            'partyHistory' => collect(),
         ], $this->commonViewData()));
     }
 
@@ -1354,7 +1371,10 @@ class ClientsController extends Controller
                 $payload['owner_entity_id'] = $ownerId;
                 $payload['tenant_entity_id'] = $tenantId;
 
-                return ClientUnit::query()->create($payload);
+                $unit = ClientUnit::query()->create($payload);
+                $this->syncUnitPartyHistories($unit, $ownerId, $tenantId, AncoraAuth::user($request)?->id);
+
+                return $unit;
             });
 
             $this->uploadAttachments('unit', (int) $unit->id, $request);
@@ -1375,6 +1395,12 @@ class ClientsController extends Controller
             'mode' => 'edit',
             'attachments' => ClientAttachment::query()->where('related_type', 'unit')->where('related_id', $unidade->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'unit')->where('related_id', $unidade->id)->latest('id')->get(),
+            'partyHistory' => ClientUnitPartyHistory::query()
+                ->with(['entity', 'changedBy'])
+                ->where('unit_id', $unidade->id)
+                ->orderByDesc('started_at')
+                ->orderByDesc('id')
+                ->get(),
         ], $this->commonViewData()));
     }
 
@@ -1400,6 +1426,7 @@ class ClientsController extends Controller
                 $payload['tenant_entity_id'] = $tenantId;
 
                 $unidade->update($payload);
+                $this->syncUnitPartyHistories($unidade, $ownerId, $tenantId, AncoraAuth::user($request)?->id);
             });
 
             $this->uploadAttachments('unit', (int) $unidade->id, $request);
@@ -1636,6 +1663,84 @@ class ClientsController extends Controller
         }
 
         return $errors;
+    }
+
+    private function syncUnitPartyHistories(ClientUnit $unit, ?int $ownerId, ?int $tenantId, ?int $changedBy): void
+    {
+        $this->syncUnitPartyHistoryForType($unit, 'owner', $ownerId, $changedBy);
+        $this->syncUnitPartyHistoryForType($unit, 'tenant', $tenantId, $changedBy);
+    }
+
+    private function syncUnitPartyHistoryForType(ClientUnit $unit, string $partyType, ?int $entityId, ?int $changedBy): void
+    {
+        $openHistory = ClientUnitPartyHistory::query()
+            ->where('unit_id', $unit->id)
+            ->where('party_type', $partyType)
+            ->whereNull('ended_at')
+            ->latest('id')
+            ->first();
+
+        $entity = $entityId ? ClientEntity::query()->find($entityId) : null;
+        $snapshot = $this->unitPartySnapshot($entity);
+
+        if ($openHistory && (int) ($openHistory->entity_id ?? 0) === (int) ($entityId ?? 0)) {
+            $openHistory->update([
+                'display_name_snapshot' => $snapshot['display_name'],
+                'document_snapshot' => $snapshot['document'],
+                'changed_by' => $changedBy,
+            ]);
+
+            return;
+        }
+
+        if ($openHistory) {
+            $openHistory->update([
+                'ended_at' => now(),
+                'changed_by' => $changedBy,
+            ]);
+        }
+
+        if (!$entityId) {
+            return;
+        }
+
+        ClientUnitPartyHistory::query()->create([
+            'unit_id' => $unit->id,
+            'party_type' => $partyType,
+            'entity_id' => $entityId,
+            'display_name_snapshot' => $snapshot['display_name'],
+            'document_snapshot' => $snapshot['document'],
+            'started_at' => now(),
+            'ended_at' => null,
+            'changed_by' => $changedBy,
+        ]);
+    }
+
+    private function touchCurrentUnitHistoriesForEntity(ClientEntity $entity): void
+    {
+        ClientUnitPartyHistory::query()
+            ->where('entity_id', $entity->id)
+            ->whereNull('ended_at')
+            ->update([
+                'display_name_snapshot' => $entity->display_name ?: $entity->legal_name,
+                'document_snapshot' => $entity->cpf_cnpj,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function unitPartySnapshot(?ClientEntity $entity): array
+    {
+        if (!$entity) {
+            return [
+                'display_name' => null,
+                'document' => null,
+            ];
+        }
+
+        return [
+            'display_name' => $entity->display_name ?: $entity->legal_name,
+            'document' => $entity->cpf_cnpj,
+        ];
     }
 
     private function normalizeCsvHeader(string $value): string
@@ -1981,7 +2086,7 @@ class ClientsController extends Controller
                         'emails' => [$row['tenant_email'] ?? ''],
                     ], 'locatario', $userId);
 
-                    ClientUnit::query()->create([
+                    $unit = ClientUnit::query()->create([
                         'condominium_id' => $condominium->id,
                         'block_id' => $blockId,
                         'unit_type_id' => $this->resolveUnitTypeId($row['unit_type_name'] ?? ''),
@@ -1993,6 +2098,8 @@ class ClientsController extends Controller
                         'created_by' => $userId ?: null,
                         'updated_by' => $userId ?: null,
                     ]);
+
+                    $this->syncUnitPartyHistories($unit, $ownerId, $tenantId, $userId ?: null);
 
                     $created++;
                 }
@@ -2169,10 +2276,12 @@ class ClientsController extends Controller
                 if ($existing) {
                     $payload['created_by'] = $existing->created_by;
                     $existing->update($payload);
+                    $this->syncUnitPartyHistories($existing, $ownerId, $tenantId, $userId ?: null);
                     $updated++;
                 } else {
                     $payload['created_by'] = $userId ?: null;
-                    ClientUnit::query()->create($payload);
+                    $unit = ClientUnit::query()->create($payload);
+                    $this->syncUnitPartyHistories($unit, $ownerId, $tenantId, $userId ?: null);
                     $created++;
                 }
             }

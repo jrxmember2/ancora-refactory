@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class User extends Model
 {
@@ -12,16 +13,7 @@ class User extends Model
 
     protected $table = 'users';
 
-    protected $fillable = [
-        'name',
-        'email',
-        'password_hash',
-        'role',
-        'theme_preference',
-        'is_active',
-        'is_protected',
-        'last_login_at',
-    ];
+    protected $guarded = [];
 
     protected $hidden = ['password_hash'];
 
@@ -31,6 +23,7 @@ class User extends Model
             'is_active' => 'boolean',
             'is_protected' => 'boolean',
             'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -54,6 +47,36 @@ class User extends Model
         return $this->role === 'superadmin';
     }
 
+    public function getAvatarUrlAttribute(): ?string
+    {
+        $path = trim((string) $this->avatar_path);
+        if ($path === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        $relative = '/' . ltrim($path, '/');
+        $absolute = public_path(ltrim($relative, '/'));
+
+        return is_file($absolute) ? asset(ltrim($relative, '/')) : null;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $parts = Str::of((string) $this->name)
+            ->squish()
+            ->explode(' ')
+            ->filter()
+            ->take(2)
+            ->map(fn (string $part) => Str::upper(Str::substr($part, 0, 1)))
+            ->implode('');
+
+        return $parts !== '' ? $parts : 'U';
+    }
+
     public function accessibleModuleSlugs(): array
     {
         if ($this->isSuperadmin()) {
@@ -72,4 +95,3 @@ class User extends Model
         return $this->routePermissions()->pluck('route_name')->all();
     }
 }
-

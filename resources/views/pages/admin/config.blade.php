@@ -13,7 +13,7 @@
 
     @php
         $configTabs = [
-            ['key' => 'general', 'label' => 'Geral', 'icon' => 'fa-solid fa-sliders', 'description' => 'Branding, modulos e automacao'],
+            ['key' => 'general', 'label' => 'Geral', 'icon' => 'fa-solid fa-sliders', 'description' => 'Branding, alertas, modulos e automacao'],
             ['key' => 'catalogs', 'label' => 'Catalogos', 'icon' => 'fa-solid fa-list-check', 'description' => 'Servicos, status, processos e TJES'],
             ['key' => 'demands', 'label' => 'Demandas', 'icon' => 'fa-solid fa-table-columns', 'description' => 'Tags, cores e SLA'],
             ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
@@ -176,6 +176,57 @@
                         @endforeach
                     </div>
                     <button class="{{ $buttonClass }} w-full">Salvar módulos</button>
+                </form>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="system-alert-section">
+                @php
+                    $systemAlertLevels = [
+                        'info' => 'Informativo',
+                        'warning' => 'Atenção',
+                        'error' => 'Urgente',
+                        'success' => 'Comunicado positivo',
+                    ];
+                @endphp
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Alerta global aos usuários</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Envie um comunicado interno para todos os usuários logados, como manutenção programada, indisponibilidade ou orientação operacional.</p>
+                <form method="post" action="{{ route('config.system-alert.save') }}" class="mt-5 space-y-4">
+                    @csrf
+
+                    <label class="flex items-start gap-3 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                        <input type="checkbox" name="system_alert_enabled" value="1" class="mt-1 rounded border-gray-300 text-brand-500 focus:ring-brand-500" @checked(request()->session()->hasOldInput() ? old('system_alert_enabled') : ($systemAlert['is_active'] ?? false))>
+                        <span>
+                            <span class="block font-medium">Exibir alerta global</span>
+                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Quando ativo, o comunicado aparece no topo do sistema para os usuários internos.</span>
+                        </span>
+                    </label>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Nível visual</label>
+                        <select name="system_alert_level" class="{{ $inputClass }}">
+                            @foreach($systemAlertLevels as $levelKey => $levelLabel)
+                                <option value="{{ $levelKey }}" @selected(old('system_alert_level', $systemAlert['level'] ?? 'warning') === $levelKey)>{{ $levelLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Título</label>
+                        <input name="system_alert_title" value="{{ old('system_alert_title', $systemAlert['title'] ?? '') }}" class="{{ $inputClass }}" placeholder="Ex.: Manutenção programada hoje à noite">
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mensagem</label>
+                        <textarea name="system_alert_message" rows="5" class="{{ $textareaClass }}" placeholder="Descreva o aviso que deve aparecer para a equipe.">{{ old('system_alert_message', $systemAlert['message'] ?? '') }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Exibir até</label>
+                        <input type="datetime-local" name="system_alert_visible_until" value="{{ old('system_alert_visible_until', $systemAlert['visible_until_input'] ?? '') }}" class="{{ $inputClass }}">
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Se preencher, o alerta deixa de aparecer automaticamente após essa data e hora.</p>
+                    </div>
+
+                    <button class="{{ $buttonClass }} w-full">Salvar alerta global</button>
                 </form>
             </div>
 
@@ -524,6 +575,7 @@ function configPage() {
             return {
                 'branding-section': 'general',
                 'modules-section': 'general',
+                'system-alert-section': 'general',
                 'catalog-section': 'catalogs',
                 'process-catalog-section': 'catalogs',
                 'demand-catalog-section': 'demands',

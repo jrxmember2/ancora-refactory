@@ -25,6 +25,7 @@ class AncoraRouteCatalog
                     'config.branding.save' => 'Salvar branding',
                     'config.favicon.save' => 'Salvar favicon',
                     'config.modules.save' => 'Salvar módulos',
+                    'config.system-alert.save' => 'Salvar alerta global interno',
                     'config.smtp.save' => 'Salvar SMTP do sistema',
                     'config.access-profiles.save' => 'Salvar perfil de acesso',
                     'config.access-profiles.delete' => 'Excluir perfil de acesso',

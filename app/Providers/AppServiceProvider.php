@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Support\AncoraAuth;
 use App\Support\AncoraMenu;
 use App\Support\AncoraSettings;
@@ -37,19 +38,35 @@ class AppServiceProvider extends ServiceProvider
             ];
             $menuGroups = [];
             $processMovementNotification = null;
+            $onlineUsersCount = 0;
+            $systemAlert = [
+                'is_active' => false,
+                'title' => '',
+                'message' => '',
+                'level' => 'warning',
+                'visible_until' => null,
+            ];
             $version = config('ancora_version.current', [
-                'version' => 'v1.36',
-                'date' => '23/04/2026',
-                'label' => 'v1.36 - 23/04/2026',
+                'version' => 'v1.37',
+                'date' => '24/04/2026',
+                'label' => 'v1.37 - 24/04/2026',
             ]);
 
             try {
                 $user = $request ? AncoraAuth::user($request) : null;
                 $brand = AncoraSettings::brand();
                 $menuGroups = AncoraMenu::sidebar($user);
+                $systemAlert = AncoraSettings::systemAlert();
                 $routePermissions = ($request && method_exists($request, 'hasSession') && $request->hasSession())
                     ? $request->session()->get('auth_user.route_permissions', [])
                     : [];
+                if ($user) {
+                    $onlineUsersCount = User::query()
+                        ->active()
+                        ->whereNotNull('last_seen_at')
+                        ->where('last_seen_at', '>=', now()->subMinutes(5))
+                        ->count();
+                }
                 $canSeeProcessNotifications = $user?->isSuperadmin() || in_array('processos.show', $routePermissions, true);
                 if ($user && $request && $canSeeProcessNotifications && AncoraAuth::hasModule($request, 'processos')) {
                     $processMovementNotification = app(ProcessMovementNotifier::class)->forUser($user);
@@ -62,6 +79,8 @@ class AppServiceProvider extends ServiceProvider
                 ->with('ancoraAuthUser', $user)
                 ->with('ancoraMenuGroups', $menuGroups)
                 ->with('processMovementNotification', $processMovementNotification)
+                ->with('ancoraOnlineUsersCount', $onlineUsersCount)
+                ->with('globalSystemAlert', $systemAlert)
                 ->with('ancoraVersion', $version);
         });
     }

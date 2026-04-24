@@ -41,4 +41,9 @@ class ClientEntity extends Model
     {
         return $this->hasMany(ClientUnit::class, 'tenant_entity_id');
     }
+
+    public function unitPartyHistories(): HasMany
+    {
+        return $this->hasMany(ClientUnitPartyHistory::class, 'entity_id');
+    }
 }

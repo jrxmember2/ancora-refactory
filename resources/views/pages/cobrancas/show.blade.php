@@ -294,13 +294,33 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center justify-between gap-3">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Payload n8n</h3>
-                <button type="button" id="copy-n8n-payload" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Copiar JSON</button>
+                <button type="button" id="open-n8n-payload-modal" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Carregar Payload</button>
             </div>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Use este payload como base para o gatilho do fluxo de notificação no n8n.</p>
-            <pre id="n8n-payload" class="mt-4 overflow-x-auto rounded-2xl bg-gray-950/95 p-4 text-xs text-emerald-200">{{ json_encode($n8nPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+            <pre id="n8n-payload" class="hidden mt-4 overflow-x-auto rounded-2xl bg-gray-950/95 p-4 text-xs text-emerald-200">{{ json_encode($n8nPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
         </div>
     </div>
 </div>
+
+<dialog id="n8n-payload-modal" class="fixed inset-0 m-auto h-[82vh] w-[96vw] max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <div class="flex h-full flex-col">
+        <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Payload n8n</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Base pronta para o gatilho do fluxo operacional da OS.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="copy-n8n-payload" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Copiar JSON</button>
+                    <button type="button" id="close-n8n-payload-modal" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+                </div>
+            </div>
+        </div>
+        <div class="min-h-0 flex-1 overflow-auto p-6">
+            <pre id="n8n-payload-modal-content" class="overflow-x-auto rounded-2xl bg-gray-950/95 p-4 text-xs text-emerald-200">{{ json_encode($n8nPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+        </div>
+    </div>
+</dialog>
 
 @if(($monetaryStorageReady ?? false) && $case->quotas->isNotEmpty())
 <dialog id="monetary-update-modal" class="fixed inset-0 m-auto h-[92vh] w-[96vw] max-w-6xl overflow-hidden rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
@@ -377,7 +397,7 @@
                     </div>
                     <div>
                         <label id="monetary-attorney-fee-label" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Honorários (%)</label>
-                        <input type="text" name="attorney_fee_value" value="15,00" data-monetary-percent class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="0,00">
+                        <input type="text" name="attorney_fee_value" value="10,00" data-monetary-percent class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="0,00">
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Custas/despesas (R$)</label>
@@ -457,8 +477,15 @@
 @push('scripts')
 <script>
 (() => {
+    const openButton = document.getElementById('open-n8n-payload-modal');
+    const closeButton = document.getElementById('close-n8n-payload-modal');
+    const modal = document.getElementById('n8n-payload-modal');
     const button = document.getElementById('copy-n8n-payload');
-    const source = document.getElementById('n8n-payload');
+    const source = document.getElementById('n8n-payload-modal-content');
+
+    openButton?.addEventListener('click', () => modal?.showModal());
+    closeButton?.addEventListener('click', () => modal?.close());
+
     if (!button || !source || !navigator.clipboard) return;
     button.addEventListener('click', async () => {
         try {
@@ -545,7 +572,7 @@
         attorneyFeeLabel.textContent = 'Honorários (%)';
         attorneyFeeInput.disabled = false;
         attorneyFeeInput.placeholder = '0,00';
-        if (!attorneyFeeInput.value) attorneyFeeInput.value = '15,00';
+        if (!attorneyFeeInput.value) attorneyFeeInput.value = '10,00';
     }
 
     function escapeHtml(value) {

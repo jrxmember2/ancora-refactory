@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\AppSetting;
+use Illuminate\Support\Carbon;
 
 class AncoraSettings
 {
@@ -84,6 +85,36 @@ class AncoraSettings
             'encryption' => self::get('smtp_encryption', 'tls') ?: 'tls',
             'from_address' => self::get('smtp_from_address', self::get('company_email', '')), 
             'from_name' => self::get('smtp_from_name', self::get('app_name', 'Âncora')),
+        ];
+    }
+
+    public static function systemAlert(): array
+    {
+        $title = trim((string) self::get('system_alert_title', ''));
+        $message = trim((string) self::get('system_alert_message', ''));
+        $level = trim((string) self::get('system_alert_level', 'warning'));
+        $visibleUntilRaw = trim((string) self::get('system_alert_visible_until', ''));
+        $visibleUntil = null;
+
+        if ($visibleUntilRaw !== '') {
+            try {
+                $visibleUntil = Carbon::parse($visibleUntilRaw);
+            } catch (\Throwable) {
+                $visibleUntil = null;
+            }
+        }
+
+        $enabled = self::get('system_alert_enabled', '0') === '1'
+            && ($title !== '' || $message !== '')
+            && (!$visibleUntil || $visibleUntil->isFuture());
+
+        return [
+            'is_active' => $enabled,
+            'title' => $title,
+            'message' => $message,
+            'level' => in_array($level, ['info', 'warning', 'error', 'success'], true) ? $level : 'warning',
+            'visible_until' => $visibleUntil,
+            'visible_until_input' => $visibleUntil?->format('Y-m-d\TH:i'),
         ];
     }
 }

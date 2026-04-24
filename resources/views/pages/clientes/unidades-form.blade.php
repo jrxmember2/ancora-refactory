@@ -221,6 +221,41 @@
                 <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">Dica: baixe o CSV modelo na tela de listagem, preencha as colunas e exporte novamente em CSV.</div>
             </div>
 
+            @if($mode === 'edit')
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Histórico de proprietário e locatário</h3>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $partyHistory->count() }} registro(s)</span>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                        @forelse($partyHistory as $history)
+                            <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">{{ $history->party_type === 'owner' ? 'Proprietário' : 'Locatário' }}</span>
+                                            @if(!$history->ended_at)
+                                                <span class="rounded-full bg-success-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-success-700 dark:bg-success-500/10 dark:text-success-300">Atual</span>
+                                            @endif
+                                        </div>
+                                        <div class="mt-3 font-medium text-gray-900 dark:text-white">{{ $history->display_name_snapshot ?: 'Cadastro não identificado' }}</div>
+                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $history->document_snapshot ?: 'Documento não informado' }}</div>
+                                    </div>
+                                    <div class="text-right text-xs text-gray-500 dark:text-gray-400">
+                                        <div>Início: {{ optional($history->started_at)->format('d/m/Y H:i') ?: '—' }}</div>
+                                        <div class="mt-1">Fim: {{ optional($history->ended_at)->format('d/m/Y H:i') ?: 'Atual' }}</div>
+                                        <div class="mt-1">Alterado por: {{ $history->changedBy?->name ?: 'Sistema' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhuma troca de proprietário ou locatário foi registrada para esta unidade até o momento.</div>
+                        @endforelse
+                    </div>
+                </div>
+            @endif
+
             @if($attachments->count())
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">Anexos cadastrados</h3>

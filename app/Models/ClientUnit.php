@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClientUnit extends Model
 {
@@ -24,4 +25,5 @@ class ClientUnit extends Model
     public function type(): BelongsTo { return $this->belongsTo(ClientType::class, 'unit_type_id'); }
     public function owner(): BelongsTo { return $this->belongsTo(ClientEntity::class, 'owner_entity_id'); }
     public function tenant(): BelongsTo { return $this->belongsTo(ClientEntity::class, 'tenant_entity_id'); }
+    public function partyHistories(): HasMany { return $this->hasMany(ClientUnitPartyHistory::class, 'unit_id'); }
 }

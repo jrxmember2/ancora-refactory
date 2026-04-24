@@ -23,6 +23,7 @@ use App\Http\Controllers\ProcessNotificationController;
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\ProposalDocumentController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::domain(config('app.client_portal_domain'))->name('portal.')->group(function () {
@@ -70,7 +71,7 @@ Route::middleware('ancora.guest')->group(function () {
     Route::post('/resetar-senha', [PasswordResetController::class, 'reset'])->name('password.reset.update');
 });
 
-Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
+Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(function () {
     Route::get('/', [HubController::class, 'index'])->name('hub');
     Route::get('/hub', [HubController::class, 'index']);
     Route::get('/desktop', [HubController::class, 'index']);
@@ -103,12 +104,17 @@ Route::middleware(['ancora.auth', 'audit.activity'])->group(function () {
 
     Route::get('/changelog', [ChangelogController::class, 'index'])->name('changelog.index')->middleware('ancora.route:changelog.index');
 
+    Route::get('/meus-dados', [UserProfileController::class, 'edit'])->name('profile.edit');
+    Route::post('/meus-dados', [UserProfileController::class, 'update'])->name('profile.update');
+    Route::post('/meus-dados/tema', [UserProfileController::class, 'updateTheme'])->name('profile.theme');
+
     Route::get('/config', [ConfigController::class, 'index'])->name('config.index')->middleware(['ancora.superadmin', 'ancora.route:config.index']);
     Route::get('/config/automacao/documentacao', [ConfigController::class, 'automationDocumentation'])->name('config.automation.documentation')->middleware(['ancora.superadmin', 'ancora.route:config.automation.documentation']);
     Route::post('/config/automacao/save', [ConfigController::class, 'saveAutomation'])->name('config.automation.save')->middleware(['ancora.superadmin', 'ancora.route:config.automation.save']);
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);
     Route::post('/config/favicon/save', [ConfigController::class, 'saveFavicon'])->name('config.favicon.save')->middleware(['ancora.superadmin', 'ancora.route:config.favicon.save']);
     Route::post('/config/modules/save', [ConfigController::class, 'saveModules'])->name('config.modules.save')->middleware(['ancora.superadmin', 'ancora.route:config.modules.save']);
+    Route::post('/config/alerta-global/save', [ConfigController::class, 'saveSystemAlert'])->name('config.system-alert.save')->middleware(['ancora.superadmin', 'ancora.route:config.system-alert.save']);
     Route::post('/config/smtp/save', [ConfigController::class, 'saveSmtp'])->name('config.smtp.save')->middleware(['ancora.superadmin', 'ancora.route:config.smtp.save']);
     Route::post('/config/smtp/test', [ConfigController::class, 'testSmtp'])->name('config.smtp.test')->middleware(['ancora.superadmin']);
     Route::post('/config/access-profiles/save', [ConfigController::class, 'saveAccessProfiles'])->name('config.access-profiles.save')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.save']);

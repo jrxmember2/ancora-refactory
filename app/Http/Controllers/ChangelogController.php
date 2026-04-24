@@ -9,15 +9,29 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.36',
-            'date' => '23/04/2026',
-            'label' => 'v1.36 - 23/04/2026',
+            'version' => 'v1.37',
+            'date' => '24/04/2026',
+            'label' => 'v1.37 - 24/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Perfil, alertas e historico de unidades',
+                'items' => [
+                    'Listagem de unidades passa a usar ordenacao natural descendente para numeros puros, evitando que a unidade 1001 apareca antes da 801 por ordem alfabetica.',
+                    'Atualizacao monetaria TJES agora abre com honorarios padrao de 10 por cento e o PDF da memoria exibe o valor total tambem por extenso.',
+                    'OS de cobranca ganha modal para carregar o payload n8n sob demanda, deixando a tela principal mais limpa.',
+                    'Cadastro de unidades e condominos passa a registrar historico de proprietarios e locatarios vinculados a cada unidade.',
+                    'Header ganha menu de perfil com Meus dados, upload de foto, troca de tema, link para novidades e contador de usuarios online.',
+                    'Login passa a oferecer opcao de manter conectado por 12 horas, enquanto sessoes comuns expiram por inatividade curta.',
+                    'Configuracoes ganham alerta global interno para avisos como manutencao programada, exibido no topo do sistema para a equipe.',
+                ],
+            ],
+            [
+                'version' => 'v1.36',
+                'date' => '23/04/2026',
                 'title' => 'Configuracoes por abas',
                 'items' => [
                     'Tela de Configuracoes passa a ser organizada por abas internas, mantendo tudo centralizado no mesmo modulo.',
@@ -30,7 +44,7 @@ class ChangelogController extends Controller
                 'date' => '23/04/2026',
                 'title' => 'Kanban e SLA de demandas',
                 'items' => [
-                    'Modulo Demandas ganha dashboard proprio com panorama por tag, alertas de SLA vencido e demandas a vencer com menos de 10% do prazo restante.',
+                    'Modulo Demandas ganha dashboard proprio com panorama por tag, alertas de SLA vencido e demandas a vencer com menos de 10 por cento do prazo restante.',
                     'Novo Kanban permite mover demandas por tags coloridas, recalculando automaticamente status, prazo de SLA e historico interno.',
                     'Configuracoes ganham card de Demandas para criar, editar e excluir tags com cor, SLA, status interno e visibilidade no Portal do Cliente.',
                     'Portal do Cliente passa a exibir o rotulo publico da tag quando autorizado, preservando tags internas e informacoes estrategicas do escritorio.',

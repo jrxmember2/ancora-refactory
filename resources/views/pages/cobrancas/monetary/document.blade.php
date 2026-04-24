@@ -14,6 +14,7 @@
     $costsCorrectedAmount = (float) ($update->costs_corrected_amount ?? (((int) ($payloadTotals['costs_corrected_cents'] ?? 0)) / 100));
     $boletoFeeTotal = (float) ($update->boleto_fee_total ?? (((int) ($payloadTotals['boleto_fee_cents'] ?? 0)) / 100));
     $boletoCancellationFeeTotal = (float) ($update->boleto_cancellation_fee_total ?? (((int) ($payloadTotals['boleto_cancellation_fee_cents'] ?? 0)) / 100));
+    $grandTotalInWords = \App\Support\BrazilianCurrencyFormatter::toWords((float) $update->grand_total);
     $attorneyFeeLabel = match ($update->attorney_fee_type) {
         'fixed' => 'Honorários advocatícios fixos',
         'none' => 'Sem honorários advocatícios',
@@ -273,6 +274,7 @@
             <div class="total-row"><span>Total 1 - débito atualizado</span><strong>{{ $money($update->debit_total) }}</strong></div>
             <div class="total-row"><span>Total 2 - honorários</span><strong>{{ $money($update->attorney_fee_amount) }}</strong></div>
             <div class="total-row grand"><span>Total geral</span><span>{{ $money($update->grand_total) }}</span></div>
+            <div class="muted" style="padding-top: 6px; text-align: right;">{{ ucfirst($grandTotalInWords) }}.</div>
         </section>
 
         <section class="notes">

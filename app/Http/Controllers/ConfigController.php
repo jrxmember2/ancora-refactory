@@ -18,6 +18,7 @@ use App\Support\AncoraRouteCatalog;
 use App\Support\AncoraSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -87,6 +88,7 @@ class ConfigController extends Controller
                 'favicon_url' => $this->brandingAssetUrl($faviconPath, '/favicon.svg'),
             ],
             'automation' => $this->automationSettings(),
+            'systemAlert' => AncoraSettings::systemAlert(),
             'smtp' => AncoraSettings::smtp(),
         ]);
     }
@@ -187,6 +189,32 @@ class ConfigController extends Controller
         ]);
 
         return back()->with('success', 'SMTP atualizado com sucesso.');
+    }
+
+    public function saveSystemAlert(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'system_alert_enabled' => ['nullable'],
+            'system_alert_level' => ['required', Rule::in(['info', 'warning', 'error', 'success'])],
+            'system_alert_title' => ['nullable', 'string', 'max:160'],
+            'system_alert_message' => ['nullable', 'string', 'max:3000'],
+            'system_alert_visible_until' => ['nullable', 'date'],
+        ]);
+
+        $visibleUntil = trim((string) ($validated['system_alert_visible_until'] ?? ''));
+        if ($visibleUntil !== '') {
+            $visibleUntil = Carbon::parse($visibleUntil)->format('Y-m-d H:i:s');
+        }
+
+        $this->setMany([
+            'system_alert_enabled' => [$request->boolean('system_alert_enabled') ? '1' : '0', 'Indica se o alerta global interno deve ser exibido aos usuarios'],
+            'system_alert_level' => [(string) $validated['system_alert_level'], 'Nivel visual do alerta global interno'],
+            'system_alert_title' => [trim((string) ($validated['system_alert_title'] ?? '')), 'Titulo do alerta global interno'],
+            'system_alert_message' => [trim((string) ($validated['system_alert_message'] ?? '')), 'Mensagem do alerta global interno'],
+            'system_alert_visible_until' => [$visibleUntil, 'Data limite de exibicao do alerta global interno'],
+        ]);
+
+        return back()->with('success', 'Alerta global atualizado com sucesso.');
     }
 
     public function storeTjesIndexFactor(Request $request): RedirectResponse

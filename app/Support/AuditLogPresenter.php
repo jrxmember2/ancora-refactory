@@ -87,6 +87,7 @@ class AuditLogPresenter
             'config.modules.save' => 'Atualizou módulos',
             'config.automation.documentation' => 'Abriu documentacao da automacao WhatsApp',
             'config.automation.save' => 'Atualizou automacao WhatsApp',
+            'config.system-alert.save' => 'Atualizou alerta global',
             'config.smtp.save' => 'Atualizou SMTP',
             'config.access-profiles.save' => 'Atualizou perfis de acesso',
             'config.access-profiles.delete' => 'Excluiu perfil de acesso',
@@ -107,6 +108,8 @@ class AuditLogPresenter
             'config.users.update' => 'Atualizou usuário',
             'config.users.delete' => 'Excluiu usuário',
 
+            'profile.update' => 'Atualizou meus dados',
+            'profile.theme' => 'Alterou tema do sistema',
             'password.reset.update' => 'Redefiniu senha',
         ];
 
@@ -165,6 +168,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'demandas') => 'demands',
             Str::startsWith($routeName, 'processos') => 'process_cases',
             Str::startsWith($routeName, 'propostas') => 'propostas',
+            Str::startsWith($routeName, 'profile') => 'users',
             Str::startsWith($routeName, 'config.users') => 'users',
             Str::startsWith($routeName, 'config') => 'config',
             Str::startsWith($routeName, 'password') => 'password',
@@ -247,6 +251,7 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'clientes.portal-users') => self::namedRecord('USUÁRIO DO PORTAL', self::inputOrRouteValue($request, ['name', 'login_key'], ['portalUser'], ['name', 'login_key'])),
             Str::startsWith($routeName, 'clientes.unidades') => self::unitRecord($request),
             Str::startsWith($routeName, 'config.users') => self::namedRecord('USUÁRIO', self::inputOrRouteValue($request, ['email'], ['user'], ['email'])),
+            Str::startsWith($routeName, 'config.system-alert') => self::namedRecord('ALERTA DO SISTEMA', self::inputOrRouteValue($request, ['system_alert_title'], [], [])),
             Str::startsWith($routeName, 'config.tjes-factors') => self::namedRecord('INDICE TJES', self::competenceLabelFromRequest($request)),
             Str::startsWith($routeName, 'config.demand-tags') => self::namedRecord('TAG DE DEMANDA', self::inputOrRouteValue($request, ['name'], ['tag'], ['name'])),
             Str::startsWith($routeName, 'cobrancas') => self::namedRecord('OS DE COBRANÇA', self::inputOrRouteValue($request, ['os_number'], ['cobranca'], ['os_number'])),
@@ -266,6 +271,7 @@ class AuditLogPresenter
             Str::startsWith($action, 'clientes.contatos') => 'PARCEIRO/FORNECEDOR',
             Str::startsWith($action, 'clientes.portal-users') => 'USUÁRIO DO PORTAL',
             Str::startsWith($action, 'config.users') => 'USUÁRIO',
+            Str::startsWith($action, 'config.system-alert') => 'ALERTA DO SISTEMA',
             Str::startsWith($action, 'config.tjes-factors') => 'INDICE TJES',
             Str::startsWith($action, 'config.demand-tags') => 'TAG DE DEMANDA',
             Str::startsWith($action, 'cobrancas') && !Str::contains($action, '.import') => 'OS DE COBRANÇA',

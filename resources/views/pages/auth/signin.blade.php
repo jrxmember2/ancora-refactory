@@ -32,6 +32,14 @@
                         </div>
                     </div>
 
+                    <label class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-300">
+                        <input type="checkbox" name="remember_for_12h" value="1" @checked(old('remember_for_12h')) class="mt-0.5 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                        <span>
+                            <span class="block font-medium text-gray-800 dark:text-white/90">Manter conectado por 12 horas</span>
+                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Sem marcar, a sessão expira após um período curto de inatividade.</span>
+                        </span>
+                    </label>
+
                     <button class="flex w-full items-center justify-center rounded-lg bg-brand-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-brand-600">Entrar</button>
                 </form>
             </div>
@@ -42,7 +50,7 @@
                         <span>Powered by Serratech</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                     </a>
-                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.36 - 23/04/2026' }}</div>
+                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.37 - 24/04/2026' }}</div>
                 </div>
             </div>
         </div>
