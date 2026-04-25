@@ -26,6 +26,44 @@
                     <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="sr-only" data-file-input>
                 </label>
                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>Nenhum arquivo selecionado</div>
+
+                <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.03]" data-avatar-frame>
+                    <div class="flex items-center gap-4">
+                        @if($user->avatar_url)
+                            <img
+                                src="{{ $user->avatar_url }}"
+                                alt="{{ $user->name }}"
+                                class="h-20 w-20 rounded-3xl object-cover"
+                                data-avatar-image
+                                data-original-src="{{ $user->avatar_url }}"
+                            >
+                            <div class="hidden h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-2xl font-semibold text-white" data-avatar-fallback>
+                                {{ $user->initials }}
+                            </div>
+                        @else
+                            <img
+                                src=""
+                                alt="{{ $user->name }}"
+                                class="hidden h-20 w-20 rounded-3xl object-cover"
+                                data-avatar-image
+                                data-original-src=""
+                            >
+                            <div class="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-2xl font-semibold text-white" data-avatar-fallback>
+                                {{ $user->initials }}
+                            </div>
+                        @endif
+
+                        <div>
+                            <div class="text-sm font-semibold text-gray-900 dark:text-white">Pré-visualização</div>
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400" data-avatar-status>
+                                {{ $user->avatar_url ? 'Foto atual' : 'Sem foto cadastrada' }}
+                            </div>
+                            <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Após escolher e recortar a imagem, a prévia aparece aqui antes de salvar.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -60,11 +98,31 @@
     <div class="space-y-6">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center gap-4">
-                @if($user->avatar_url)
-                    <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="h-20 w-20 rounded-3xl object-cover">
-                @else
-                    <div class="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-2xl font-semibold text-white">{{ $user->initials }}</div>
-                @endif
+                <div data-avatar-frame>
+                    @if($user->avatar_url)
+                        <img
+                            src="{{ $user->avatar_url }}"
+                            alt="{{ $user->name }}"
+                            class="h-20 w-20 rounded-3xl object-cover"
+                            data-avatar-image
+                            data-original-src="{{ $user->avatar_url }}"
+                        >
+                        <div class="hidden h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-2xl font-semibold text-white" data-avatar-fallback>
+                            {{ $user->initials }}
+                        </div>
+                    @else
+                        <img
+                            src=""
+                            alt="{{ $user->name }}"
+                            class="hidden h-20 w-20 rounded-3xl object-cover"
+                            data-avatar-image
+                            data-original-src=""
+                        >
+                        <div class="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500 text-2xl font-semibold text-white" data-avatar-fallback>
+                            {{ $user->initials }}
+                        </div>
+                    @endif
+                </div>
 
                 <div>
                     <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ $user->name }}</div>
@@ -98,13 +156,63 @@
 
 @push('scripts')
 <script>
+    function updateAvatarFrames(previewSrc = '') {
+        const frames = document.querySelectorAll('[data-avatar-frame]');
+
+        frames.forEach((frame) => {
+            const image = frame.querySelector('[data-avatar-image]');
+            const fallback = frame.querySelector('[data-avatar-fallback]');
+            const status = frame.querySelector('[data-avatar-status]');
+            const originalSrc = image?.dataset.originalSrc || '';
+
+            const finalSrc = previewSrc || originalSrc;
+            if (image) {
+                if (finalSrc) {
+                    image.src = finalSrc;
+                    image.classList.remove('hidden');
+                    fallback?.classList.add('hidden');
+                    fallback?.classList.remove('flex');
+                } else {
+                    image.removeAttribute('src');
+                    image.classList.add('hidden');
+                    fallback?.classList.remove('hidden');
+                    fallback?.classList.add('flex');
+                }
+            }
+
+            if (status) {
+                if (previewSrc) {
+                    status.textContent = 'Pré-visualização da nova foto';
+                } else {
+                    status.textContent = originalSrc ? 'Foto atual' : 'Sem foto cadastrada';
+                }
+            }
+        });
+    }
+
     document.addEventListener('change', (event) => {
         if (!event.target.matches('[data-file-input]')) return;
         const wrapper = event.target.closest('[data-file-preview]');
         const label = wrapper?.querySelector('[data-file-name]');
-        if (!label) return;
         const files = Array.from(event.target.files || []);
-        label.textContent = files.length ? files.map((file) => file.name).join(', ') : 'Nenhum arquivo selecionado';
+        if (label) {
+            label.textContent = files.length ? files.map((file) => file.name).join(', ') : 'Nenhum arquivo selecionado';
+        }
+
+        if (event.target.name !== 'avatar') return;
+
+        const file = files[0];
+        if (!file) {
+            updateAvatarFrames('');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (loadEvent) => {
+            const result = typeof loadEvent.target?.result === 'string' ? loadEvent.target.result : '';
+            updateAvatarFrames(result);
+        };
+        reader.readAsDataURL(file);
     });
 </script>
 @endpush

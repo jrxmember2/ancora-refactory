@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.46',
+            'version' => 'v1.47',
             'date' => '25/04/2026',
-            'label' => 'v1.46 - 25/04/2026',
+            'label' => 'v1.47 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Preview da foto em Meus dados',
+                'items' => [
+                    'Tela de Meus dados passa a exibir pre-visualizacao imediata da foto escolhida no proprio formulario antes de salvar.',
+                    'Card lateral do perfil tambem se atualiza na hora com a nova imagem selecionada, mantendo o usuario seguro sobre o resultado do upload.',
+                    'Quando nao houver foto escolhida, a tela volta para a foto atual ou para as iniciais do usuario automaticamente.',
+                ],
+            ],
+            [
+                'version' => 'v1.46',
+                'date' => '25/04/2026',
                 'title' => 'Solicitacao de boleto detalhada cota a cota',
                 'items' => [
                     'Corpo do e-mail passa a listar cada cota atualizada em sua propria linha, com vencimento, total individual e composicao resumida de original, atualizacao, juros e multa.',
