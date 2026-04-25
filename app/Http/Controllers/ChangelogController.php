@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.49',
+            'version' => 'v1.50',
             'date' => '25/04/2026',
-            'label' => 'v1.49 - 25/04/2026',
+            'label' => 'v1.50 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Exportacao completa do modulo Clientes',
+                'items' => [
+                    'Clientes avulsos, parceiros, condominios, unidades e condominos passam a ter exportacao em CSV, XLS e PDF a partir dos filtros ja usados em cada listagem.',
+                    'PDFs ganham cabecalho com branding, resumo executivo e fichas detalhadas por registro para facilitar conferencia cadastral e compartilhamento.',
+                    'Exportacao em XLS foi preparada para abrir diretamente no Excel e a nova permissao clientes.export centraliza o controle de acesso a esses relatorios.',
+                ],
+            ],
+            [
+                'version' => 'v1.49',
+                'date' => '25/04/2026',
                 'title' => 'Persistencia da foto de perfil entre deploys',
                 'items' => [
                     'Upload da foto de perfil deixa de gravar no caminho efemero public/assets/uploads/users e passa a usar o disco publico do Laravel em storage/app/public.',

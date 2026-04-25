@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\ClientExportController;
 use App\Http\Controllers\ClientPortalUserController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ChangelogController;
@@ -209,6 +210,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
 
     Route::prefix('clientes')->group(function () {
         Route::get('/', [ClientsController::class, 'index'])->name('clientes.index')->middleware('ancora.route:clientes.index');
+        Route::get('/exportar/{scope}/{format}', [ClientExportController::class, 'export'])->name('clientes.export')->middleware('ancora.route:clientes.export');
         Route::get('/avulsos', [ClientsController::class, 'avulsos'])->name('clientes.avulsos')->middleware('ancora.route:clientes.avulsos');
         Route::get('/avulsos/novo', [ClientsController::class, 'avulsoCreate'])->name('clientes.avulsos.create')->middleware('ancora.route:clientes.avulsos.create');
         Route::post('/avulsos/store', [ClientsController::class, 'avulsoStore'])->name('clientes.avulsos.store')->middleware('ancora.route:clientes.avulsos.store');

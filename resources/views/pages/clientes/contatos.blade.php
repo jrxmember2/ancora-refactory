@@ -2,7 +2,10 @@
 
 @section('content')
 <x-ancora.section-header title="Parceiros e fornecedores" subtitle="Somente síndicos, administradoras e imobiliária/corretor. Proprietários e locatários ficam em Condôminos.">
-    <a href="{{ route('clientes.contatos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cadastro</a>
+    <div class="flex flex-wrap gap-3">
+        @include('pages.clientes.partials.export-actions', ['scope' => 'contatos'])
+        <a href="{{ route('clientes.contatos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cadastro</a>
+    </div>
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 

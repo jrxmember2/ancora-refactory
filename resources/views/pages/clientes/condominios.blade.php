@@ -6,6 +6,10 @@
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 
+<div class="mt-4 flex justify-end">
+    @include('pages.clientes.partials.export-actions', ['scope' => 'condominios'])
+</div>
+
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar condomínio..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">

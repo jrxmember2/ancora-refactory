@@ -56,6 +56,7 @@ class AncoraRouteCatalog
                 'label' => 'Clientes',
                 'routes' => [
                     'clientes.index' => 'Acessar módulo clientes',
+                    'clientes.export' => 'Exportar relatorios do modulo clientes',
                     'clientes.avulsos' => 'Listar avulsos',
                     'clientes.avulsos.create' => 'Novo avulso',
                     'clientes.avulsos.store' => 'Salvar avulso',

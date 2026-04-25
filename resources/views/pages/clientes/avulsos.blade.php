@@ -2,7 +2,10 @@
 
 @section('content')
 <x-ancora.section-header title="Clientes avulsos" subtitle="Cadastros PF e PJ do escritório, fora da estrutura condominial.">
-    <a href="{{ route('clientes.avulsos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cliente avulso</a>
+    <div class="flex flex-wrap gap-3">
+        @include('pages.clientes.partials.export-actions', ['scope' => 'avulsos'])
+        <a href="{{ route('clientes.avulsos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo cliente avulso</a>
+    </div>
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 

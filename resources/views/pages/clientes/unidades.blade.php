@@ -11,6 +11,10 @@
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 
+<div class="mb-4 flex justify-end">
+    @include('pages.clientes.partials.export-actions', ['scope' => 'unidades'])
+</div>
+
 <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr,1.35fr]">
     <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-600 shadow-theme-xs dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300">
         <strong class="text-gray-900 dark:text-white">Importação em massa por CSV</strong>
