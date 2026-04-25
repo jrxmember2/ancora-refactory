@@ -4,6 +4,7 @@
 @php
     $monetaryUpdates = ($monetaryStorageReady ?? false) ? $case->monetaryUpdates : collect();
     $defaultMonetaryFinalDate = now()->endOfMonth()->format('Y-m-d');
+    $boletoEmailHistories = $case->relationLoaded('emailHistories') ? $case->emailHistories : collect();
 @endphp
 <x-ancora.section-header :title="'OS '.$case->os_number" subtitle="Acompanhe o histórico completo da cobrança, GED, quotas, parcelas e payload operacional.">
     <div class="flex flex-wrap gap-3">
@@ -17,6 +18,11 @@
             <span title="{{ $agreementPaymentError }}" class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Gerar termo de acordo</span>
         @else
             <a href="{{ route('cobrancas.agreement.edit', $case) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar termo de acordo</a>
+        @endif
+        @if($boletoRequestError ?? null)
+            <span title="{{ $boletoRequestError }}" class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Solicitar Boleto</span>
+        @else
+            <button type="button" id="open-boleto-request-modal" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 hover:bg-success-100 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Solicitar Boleto</button>
         @endif
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
@@ -293,6 +299,71 @@
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center justify-between gap-3">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Histórico de e-mails</h3>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $boletoEmailHistories->count() }} envio(s)</span>
+            </div>
+            <div class="mt-5 space-y-3">
+                @forelse($boletoEmailHistories as $history)
+                    @php
+                        $sendStatusClasses = match ($history->send_status) {
+                            'sent' => 'border-success-200 bg-success-50 text-success-700 dark:border-success-800/70 dark:bg-success-500/10 dark:text-success-300',
+                            'failed' => 'border-error-200 bg-error-50 text-error-700 dark:border-error-800/70 dark:bg-error-500/10 dark:text-error-300',
+                            default => 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800/70 dark:bg-warning-500/10 dark:text-warning-200',
+                        };
+                        $imapStatusClasses = match ($history->imap_status) {
+                            'mirrored' => 'border-success-200 bg-success-50 text-success-700 dark:border-success-800/70 dark:bg-success-500/10 dark:text-success-300',
+                            'failed' => 'border-error-200 bg-error-50 text-error-700 dark:border-error-800/70 dark:bg-error-500/10 dark:text-error-300',
+                            'unavailable' => 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800/70 dark:bg-warning-500/10 dark:text-warning-200',
+                            'not_configured' => 'border-gray-200 bg-gray-100 text-gray-600 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300',
+                            default => 'border-gray-200 bg-gray-100 text-gray-600 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300',
+                        };
+                    @endphp
+                    <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                        <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                            <div class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] {{ $sendStatusClasses }}">
+                                        {{ $history->send_status === 'sent' ? 'Enviado' : ($history->send_status === 'failed' ? 'Falhou' : 'Pendente') }}
+                                    </span>
+                                    <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] {{ $imapStatusClasses }}">
+                                        IMAP {{ match ($history->imap_status) {
+                                            'mirrored' => 'espelhado',
+                                            'failed' => 'falhou',
+                                            'unavailable' => 'indisponível',
+                                            'not_configured' => 'não configurado',
+                                            'pending' => 'pendente',
+                                            default => 'não tentado',
+                                        } }}
+                                    </span>
+                                </div>
+                                <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $history->subject }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ collect($history->recipients_json ?? [])->implode(', ') ?: 'Sem destinatários' }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ optional($history->created_at)->format('d/m/Y H:i') ?: 'Sem data' }} · {{ $history->sender?->email ?: 'Sistema' }}
+                                </div>
+                                @if($history->transport_message)
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $history->transport_message }}</div>
+                                @endif
+                                @if($history->imap_message)
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $history->imap_message }}</div>
+                                @endif
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ route('cobrancas.email-history.show', [$case, $history]) }}" target="_blank" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.03]">Ver espelho</a>
+                                @if($history->attachment_relative_path)
+                                    <a href="{{ route('cobrancas.email-history.download', [$case, $history]) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white">Baixar memória TJES</a>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <x-ancora.empty-state icon="fa-solid fa-envelope-open-text" title="Sem envios registrados" subtitle="Os disparos de solicitação de boleto aparecerão aqui para auditoria da OS." />
+                @endforelse
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="flex items-center justify-between gap-3">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Payload n8n</h3>
                 <button type="button" id="open-n8n-payload-modal" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Carregar Payload</button>
             </div>
@@ -301,6 +372,67 @@
         </div>
     </div>
 </div>
+
+<dialog id="boleto-request-modal" class="fixed inset-0 m-auto w-[96vw] max-w-3xl overflow-hidden rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <form method="post" action="{{ route('cobrancas.boleto.request', $case) }}" class="flex flex-col">
+        @csrf
+        <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Solicitar Boleto</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Este envio usará o SMTP de cobrança e ficará registrado no histórico desta OS.</p>
+                </div>
+                <button type="button" id="close-boleto-request-modal" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+            </div>
+        </div>
+
+        <div class="space-y-5 px-6 py-6">
+            <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Destinatários da administradora</div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @foreach($billingAdminEmails as $email)
+                        <span class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">{{ $email }}</span>
+                    @endforeach
+                </div>
+            </div>
+
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Assunto</label>
+                <div class="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">{{ $boletoMailSubject }}</div>
+            </div>
+
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Memória de cálculo TJES em anexo</label>
+                @if($monetaryUpdates->count() > 1)
+                    <select name="monetary_update_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                        @foreach($monetaryUpdates as $update)
+                            <option value="{{ $update->id }}" @selected((int) old('monetary_update_id', $preferredBoletoUpdateId) === (int) $update->id)>
+                                Base {{ optional($update->final_date)->format('d/m/Y') }} · Total {{ 'R$ ' . number_format((float) $update->grand_total, 2, ',', '.') }}{{ $update->applied_to_case ? ' · aplicado na OS' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                @else
+                    @php($selectedUpdate = $monetaryUpdates->first())
+                    @if($selectedUpdate)
+                        <input type="hidden" name="monetary_update_id" value="{{ $selectedUpdate->id }}">
+                        <div class="rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                            Base {{ optional($selectedUpdate->final_date)->format('d/m/Y') }} · Total {{ 'R$ ' . number_format((float) $selectedUpdate->grand_total, 2, ',', '.') }}
+                        </div>
+                    @endif
+                @endif
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">O sistema vai anexar uma cópia em PDF da memória TJES escolhida e guardar o espelho do e-mail na OS.</p>
+                @error('monetary_update_id')
+                    <p class="mt-2 text-xs text-error-600 dark:text-error-300">{{ $message }}</p>
+                @enderror
+            </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+            <button type="button" id="cancel-boleto-request-modal" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
+            <button type="submit" class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white hover:bg-success-700">Enviar solicitação</button>
+        </div>
+    </form>
+</dialog>
 
 <dialog id="n8n-payload-modal" class="fixed inset-0 m-auto h-[82vh] w-[96vw] max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
     <div class="flex h-full flex-col">
@@ -476,6 +608,24 @@
 
 @push('scripts')
 <script>
+(() => {
+    const modal = document.getElementById('boleto-request-modal');
+    if (!modal) return;
+
+    const openButton = document.getElementById('open-boleto-request-modal');
+    const closeButtons = [
+        document.getElementById('close-boleto-request-modal'),
+        document.getElementById('cancel-boleto-request-modal'),
+    ].filter(Boolean);
+
+    openButton?.addEventListener('click', () => modal.showModal());
+    closeButtons.forEach((button) => button.addEventListener('click', () => modal.close()));
+
+    if (@json(session('open_boleto_request_modal') || $errors->has('monetary_update_id'))) {
+        modal.showModal();
+    }
+})();
+
 (() => {
     const openButton = document.getElementById('open-n8n-payload-modal');
     const closeButton = document.getElementById('close-n8n-payload-modal');

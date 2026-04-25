@@ -47,9 +47,9 @@ class AppServiceProvider extends ServiceProvider
                 'visible_until' => null,
             ];
             $version = config('ancora_version.current', [
-                'version' => 'v1.38',
+                'version' => 'v1.39',
                 'date' => '24/04/2026',
-                'label' => 'v1.38 - 24/04/2026',
+                'label' => 'v1.39 - 24/04/2026',
             ]);
 
             try {

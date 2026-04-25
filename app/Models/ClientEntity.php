@@ -24,6 +24,7 @@ class ClientEntity extends Model
             'billing_address_json' => 'array',
             'phones_json' => 'array',
             'emails_json' => 'array',
+            'cobranca_emails_json' => 'array',
             'shareholders_json' => 'array',
             'birth_date' => 'date',
             'contract_end_date' => 'date',

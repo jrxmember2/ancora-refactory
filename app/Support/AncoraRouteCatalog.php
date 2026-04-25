@@ -27,6 +27,8 @@ class AncoraRouteCatalog
                     'config.modules.save' => 'Salvar módulos',
                     'config.system-alert.save' => 'Salvar alerta global interno',
                     'config.smtp.save' => 'Salvar SMTP do sistema',
+                    'config.billing-smtp.save' => 'Salvar SMTP de cobrança',
+                    'config.billing-imap.save' => 'Salvar IMAP de cobrança',
                     'config.access-profiles.save' => 'Salvar perfil de acesso',
                     'config.access-profiles.delete' => 'Excluir perfil de acesso',
                     'config.tjes-factors.store' => 'Salvar indice TJES',
@@ -118,6 +120,9 @@ class AncoraRouteCatalog
                     'cobrancas.attachments.upload' => 'Enviar anexo no GED da cobrança',
                     'cobrancas.attachments.download' => 'Baixar anexo do GED da cobrança',
                     'cobrancas.attachments.delete' => 'Excluir anexo do GED da cobrança',
+                    'cobrancas.boleto.request' => 'Solicitar boletos para a administradora',
+                    'cobrancas.email-history.show' => 'Visualizar espelho de e-mail da OS',
+                    'cobrancas.email-history.download' => 'Baixar anexo do e-mail da OS',
                 ],
             ],
             'processos' => [

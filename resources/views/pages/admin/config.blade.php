@@ -230,7 +230,7 @@
                 </form>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="automation-section">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Automacao WhatsApp</h3>
@@ -282,6 +282,66 @@
                         <button class="{{ $buttonClass }} flex-1">Salvar automacao</button>
                         <a href="{{ $automation['documentation_url'] }}" class="{{ $softButtonClass }} flex-1 text-center">Abrir documentacao</a>
                     </div>
+                </form>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="billing-smtp-section">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">SMTP de cobrança</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Usado no botão de solicitação de boleto dentro da OS. Pode apontar para uma caixa distinta da conta padrão do sistema.</p>
+                <form method="post" action="{{ route('config.billing-smtp.save') }}" class="mt-5 space-y-3">
+                    @csrf
+                    <input name="billing_smtp_host" value="{{ $billingSmtp['host'] }}" placeholder="Host SMTP" class="{{ $inputClass }}">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <input type="number" name="billing_smtp_port" value="{{ $billingSmtp['port'] }}" placeholder="Porta" class="{{ $inputClass }}">
+                        <select name="billing_smtp_encryption" class="{{ $inputClass }}">
+                            <option value="tls" @selected(($billingSmtp['encryption'] ?? '') === 'tls')>TLS</option>
+                            <option value="ssl" @selected(($billingSmtp['encryption'] ?? '') === 'ssl')>SSL</option>
+                            <option value="" @selected(($billingSmtp['encryption'] ?? '') === '')>Sem criptografia</option>
+                        </select>
+                    </div>
+                    <input name="billing_smtp_username" value="{{ $billingSmtp['username'] }}" placeholder="Usuário SMTP" class="{{ $inputClass }}">
+                    <div class="relative" x-data="{ show:false }">
+                        <input :type="show ? 'text' : 'password'" name="billing_smtp_password" value="{{ $billingSmtp['password'] }}" placeholder="Senha SMTP" class="{{ $inputClass }} pr-11">
+                        <button type="button" @click="show = !show" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"><i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i></button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <input type="email" name="billing_smtp_from_address" value="{{ $billingSmtp['from_address'] }}" placeholder="Remetente" class="{{ $inputClass }}">
+                        <input name="billing_smtp_from_name" value="{{ $billingSmtp['from_name'] }}" placeholder="Nome do remetente" class="{{ $inputClass }}">
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button type="submit" class="{{ $buttonClass }} flex-1">Salvar SMTP de cobrança</button>
+                        <button type="button" data-test-url="{{ route('config.billing-smtp.test') }}" onclick="testSmtp(this)" class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.03]">Testar conexão</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="billing-imap-section">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">IMAP de cobrança</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Opcional. Quando configurado e com a extensão IMAP disponível no servidor, o sistema tenta espelhar o envio na pasta de itens enviados da caixa de cobrança.</p>
+                <form method="post" action="{{ route('config.billing-imap.save') }}" class="mt-5 space-y-3">
+                    @csrf
+                    <input name="billing_imap_host" value="{{ $billingImap['host'] }}" placeholder="Host IMAP" class="{{ $inputClass }}">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <input type="number" name="billing_imap_port" value="{{ $billingImap['port'] }}" placeholder="Porta" class="{{ $inputClass }}">
+                        <select name="billing_imap_encryption" class="{{ $inputClass }}">
+                            <option value="ssl" @selected(($billingImap['encryption'] ?? '') === 'ssl')>SSL</option>
+                            <option value="tls" @selected(($billingImap['encryption'] ?? '') === 'tls')>TLS</option>
+                            <option value="" @selected(($billingImap['encryption'] ?? '') === '')>Sem criptografia</option>
+                        </select>
+                    </div>
+                    <input name="billing_imap_username" value="{{ $billingImap['username'] }}" placeholder="Usuário IMAP" class="{{ $inputClass }}">
+                    <div class="relative" x-data="{ show:false }">
+                        <input :type="show ? 'text' : 'password'" name="billing_imap_password" value="{{ $billingImap['password'] }}" placeholder="Senha IMAP" class="{{ $inputClass }} pr-11">
+                        <button type="button" @click="show = !show" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"><i class="fa-solid" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i></button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr,auto]">
+                        <input name="billing_imap_sent_folder" value="{{ $billingImap['sent_folder'] }}" placeholder="Pasta de itens enviados" class="{{ $inputClass }}">
+                        <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-300">
+                            <input type="checkbox" name="billing_imap_validate_cert" value="1" @checked($billingImap['validate_cert'] ?? false)>
+                            Validar certificado
+                        </label>
+                    </div>
+                    <button type="submit" class="{{ $buttonClass }} w-full">Salvar IMAP de cobrança</button>
                 </form>
             </div>
         </div>
@@ -511,10 +571,11 @@
 <script>
 async function testSmtp(btn) {
     const form = btn.closest('form');
+    const url = btn.dataset.testUrl || "{{ route('config.smtp.test') }}";
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Testando...';
     try {
-        const res = await fetch("{{ route('config.smtp.test') }}", {
+        const res = await fetch(url, {
             method: 'POST',
             body: new FormData(form),
             headers: {'X-Requested-With': 'XMLHttpRequest'}
@@ -576,6 +637,9 @@ function configPage() {
                 'branding-section': 'general',
                 'modules-section': 'general',
                 'system-alert-section': 'general',
+                'automation-section': 'general',
+                'billing-smtp-section': 'general',
+                'billing-imap-section': 'general',
                 'catalog-section': 'catalogs',
                 'process-catalog-section': 'catalogs',
                 'demand-catalog-section': 'demands',

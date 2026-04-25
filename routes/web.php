@@ -117,6 +117,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
     Route::post('/config/alerta-global/save', [ConfigController::class, 'saveSystemAlert'])->name('config.system-alert.save')->middleware(['ancora.superadmin', 'ancora.route:config.system-alert.save']);
     Route::post('/config/smtp/save', [ConfigController::class, 'saveSmtp'])->name('config.smtp.save')->middleware(['ancora.superadmin', 'ancora.route:config.smtp.save']);
     Route::post('/config/smtp/test', [ConfigController::class, 'testSmtp'])->name('config.smtp.test')->middleware(['ancora.superadmin']);
+    Route::post('/config/cobranca/smtp/save', [ConfigController::class, 'saveBillingSmtp'])->name('config.billing-smtp.save')->middleware(['ancora.superadmin', 'ancora.route:config.billing-smtp.save']);
+    Route::post('/config/cobranca/smtp/test', [ConfigController::class, 'testBillingSmtp'])->name('config.billing-smtp.test')->middleware(['ancora.superadmin']);
+    Route::post('/config/cobranca/imap/save', [ConfigController::class, 'saveBillingImap'])->name('config.billing-imap.save')->middleware(['ancora.superadmin', 'ancora.route:config.billing-imap.save']);
     Route::post('/config/access-profiles/save', [ConfigController::class, 'saveAccessProfiles'])->name('config.access-profiles.save')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.save']);
     Route::match(['post', 'delete'], '/config/access-profiles/{slug}', [ConfigController::class, 'deleteAccessProfile'])->name('config.access-profiles.delete')->middleware(['ancora.superadmin', 'ancora.route:config.access-profiles.delete']);
 
@@ -193,6 +196,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/{cobranca}/editar', [CobrancaController::class, 'edit'])->name('cobrancas.edit')->middleware('ancora.route:cobrancas.edit');
         Route::match(['post', 'put'], '/{cobranca}', [CobrancaController::class, 'update'])->name('cobrancas.update')->middleware('ancora.route:cobrancas.update');
         Route::match(['post', 'delete'], '/{cobranca}/excluir', [CobrancaController::class, 'destroy'])->name('cobrancas.delete')->middleware('ancora.route:cobrancas.delete');
+        Route::post('/{cobranca}/solicitar-boleto', [CobrancaController::class, 'requestBoleto'])->name('cobrancas.boleto.request')->middleware('ancora.route:cobrancas.boleto.request');
+        Route::get('/{cobranca}/emails/{history}', [CobrancaController::class, 'showEmailHistory'])->name('cobrancas.email-history.show')->middleware('ancora.route:cobrancas.email-history.show');
+        Route::get('/{cobranca}/emails/{history}/anexo', [CobrancaController::class, 'downloadEmailHistoryAttachment'])->name('cobrancas.email-history.download')->middleware('ancora.route:cobrancas.email-history.download');
         Route::post('/{cobranca}/andamentos', [CobrancaController::class, 'addTimeline'])->name('cobrancas.timeline.store')->middleware('ancora.route:cobrancas.timeline.store');
         Route::post('/{cobranca}/anexos/upload', [CobrancaController::class, 'uploadAttachment'])->name('cobrancas.attachments.upload')->middleware('ancora.route:cobrancas.attachments.upload');
         Route::get('/{cobranca}/anexos/{attachment}/download', [CobrancaController::class, 'downloadAttachment'])->name('cobrancas.attachments.download')->middleware('ancora.route:cobrancas.attachments.download');

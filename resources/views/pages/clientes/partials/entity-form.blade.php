@@ -33,6 +33,18 @@
         $emailsRows = [['email' => '']];
     }
 
+    $cobrancaEmailsRows = old('cobranca_emails');
+    if (!is_array($cobrancaEmailsRows)) {
+        $cobrancaEmailsRows = collect($entity?->cobranca_emails_json ?? [])
+            ->map(fn ($row) => ['email' => trim((string) ($row['email'] ?? ''))])
+            ->filter(fn ($row) => $row['email'] !== '')
+            ->values()
+            ->all();
+    }
+    if ($cobrancaEmailsRows === []) {
+        $cobrancaEmailsRows = [['email' => '']];
+    }
+
     $shareholderRows = old('shareholders');
     if (!is_array($shareholderRows)) {
         $shareholderRows = collect($entity?->shareholders_json ?? [])
@@ -61,8 +73,10 @@
         entityType: '{{ $selectedEntityType }}',
         inactive: {{ $selectedInactive ? 'true' : 'false' }},
         sameBilling: {{ $selectedSameBilling ? 'true' : 'false' }},
+        roleTag: @js(old('role_tag', $entity?->role_tag ?? $roleTag ?? '')),
         phones: @js(array_values($phonesRows)),
         emails: @js(array_values($emailsRows)),
+        cobrancaEmails: @js(array_values($cobrancaEmailsRows)),
         shareholders: @js(array_values($shareholderRows)),
     })"
     x-init="init()"
@@ -80,7 +94,7 @@
                 </div>
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Perfil / papel</label>
-                    <select name="role_tag" class="{{ $selectClass }}" required>
+                    <select name="role_tag" x-model="roleTag" class="{{ $selectClass }}" required>
                         <option value="">Selecione</option>
                         @foreach($roleOptions as $role)
                             <option value="{{ $role->name }}" @selected(old('role_tag', $entity?->role_tag ?? $roleTag) === $role->name)>{{ $role->name }}</option>
@@ -168,6 +182,31 @@
                                     <input :name="`emails[${index}][email]`" x-model="email.email" class="{{ $fieldClass }}" placeholder="email@dominio.com" inputmode="email" autocomplete="off">
                                 </div>
                                 <button type="button" class="{{ $secondaryButtonClass }}" @click="removeEmail(index)" x-show="emails.length > 1" x-cloak>
+                                    Remover
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2" x-show="showCobrancaEmails" x-cloak>
+                    <div class="mb-1.5 flex items-center justify-between gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mails do setor de cobrança</label>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Usados na solicitação de boletos para a administradora.</p>
+                        </div>
+                        <button type="button" class="{{ $secondaryButtonClass }}" @click="addCobrancaEmail()">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Adicionar</span>
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <template x-for="(email, index) in cobrancaEmails" :key="`cobranca-email-${index}`">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr,auto] sm:items-end">
+                                <div>
+                                    <input :name="`cobranca_emails[${index}][email]`" x-model="email.email" class="{{ $fieldClass }}" placeholder="cobranca@administradora.com" inputmode="email" autocomplete="off">
+                                </div>
+                                <button type="button" class="{{ $secondaryButtonClass }}" @click="removeCobrancaEmail(index)" x-show="cobrancaEmails.length > 1" x-cloak>
                                     Remover
                                 </button>
                             </div>
@@ -329,11 +368,23 @@
                     entityType: initialState.entityType || 'pf',
                     inactive: !!initialState.inactive,
                     sameBilling: !!initialState.sameBilling,
+                    roleTag: initialState.roleTag || '',
                     phones: Array.isArray(initialState.phones) && initialState.phones.length ? initialState.phones : [{ number: '' }],
                     emails: Array.isArray(initialState.emails) && initialState.emails.length ? initialState.emails : [{ email: '' }],
+                    cobrancaEmails: Array.isArray(initialState.cobrancaEmails) && initialState.cobrancaEmails.length ? initialState.cobrancaEmails : [{ email: '' }],
                     shareholders: Array.isArray(initialState.shareholders) && initialState.shareholders.length ? initialState.shareholders : [{ name: '', document: '', role: '' }],
                     get isPf() { return this.entityType === 'pf'; },
                     get isPj() { return this.entityType === 'pj'; },
+                    get normalizedRoleTag() {
+                        return String(this.roleTag || '')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .toLowerCase()
+                            .trim();
+                    },
+                    get showCobrancaEmails() {
+                        return this.normalizedRoleTag.includes('administradora');
+                    },
                     init() {
                         this.maskDocument();
                         this.phones.forEach((_, index) => this.maskPhone(index));
@@ -358,6 +409,16 @@
                             return;
                         }
                         this.emails.splice(index, 1);
+                    },
+                    addCobrancaEmail() {
+                        this.cobrancaEmails.push({ email: '' });
+                    },
+                    removeCobrancaEmail(index) {
+                        if (this.cobrancaEmails.length === 1) {
+                            this.cobrancaEmails[0].email = '';
+                            return;
+                        }
+                        this.cobrancaEmails.splice(index, 1);
                     },
                     addShareholder() {
                         if (this.isPf) return;

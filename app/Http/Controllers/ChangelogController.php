@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.38',
+            'version' => 'v1.39',
             'date' => '24/04/2026',
-            'label' => 'v1.38 - 24/04/2026',
+            'label' => 'v1.39 - 24/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Solicitacao de boleto por e-mail na OS de cobranca',
+                'items' => [
+                    'OS de cobranca ganha o botao Solicitar Boleto, com validacoes para exigir plano de pagamento fechado, administradora vinculada, e-mails de cobranca e memoria TJES salva.',
+                    'Cadastro de administradora passa a aceitar uma lista propria de e-mails do setor de cobranca, separada dos e-mails gerais do parceiro.',
+                    'Configuracoes ganham SMTP de cobranca e IMAP de cobranca para envio dedicado e preparo do espelhamento em Itens enviados.',
+                    'Cada solicitacao enviada passa a registrar espelho do HTML, destinatarios, status SMTP/IMAP e anexo da memoria TJES dentro da propria OS para auditoria.',
+                ],
+            ],
+            [
+                'version' => 'v1.38',
+                'date' => '24/04/2026',
                 'title' => 'Hotfix da migration do historico de unidades',
                 'items' => [
                     'Migration do historico de proprietarios e locatarios passa a se adaptar ao schema legado do banco, usando INT assinado para client_units e client_entities.',

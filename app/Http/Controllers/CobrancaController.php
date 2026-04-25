@@ -6,10 +6,12 @@ use App\Models\AuditLog;
 use App\Models\ClientBlock;
 use App\Models\ClientAttachment;
 use App\Models\ClientCondominium;
+use App\Models\ClientEntity;
 use App\Models\ClientUnit;
 use App\Models\CobrancaCase;
 use App\Models\CobrancaCaseAttachment;
 use App\Models\CobrancaCaseContact;
+use App\Models\CobrancaCaseEmailHistory;
 use App\Models\CobrancaCaseInstallment;
 use App\Models\CobrancaCaseQuota;
 use App\Models\CobrancaCaseTimeline;
@@ -21,10 +23,14 @@ use App\Models\CobrancaMonetaryUpdateItem;
 use App\Services\CobrancaAgreementTermService;
 use App\Services\CobrancaMonetaryUpdateService;
 use App\Support\AncoraAuth;
+use App\Support\AncoraBillingMail;
+use App\Support\AncoraSettings;
+use App\Support\BrazilianCurrencyFormatter;
 use App\Support\SortableQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -526,9 +532,21 @@ class CobrancaController extends Controller
 
     public function show(CobrancaCase $cobranca): View
     {
+        $boletoRequestStorageReady = $this->boletoRequestStorageReady();
         $cobranca->load([
-            'condominium', 'block', 'unit.owner', 'unit.tenant', 'contacts', 'quotas', 'installments', 'timeline', 'attachments',
+            'condominium.administradora',
+            'block',
+            'unit.owner',
+            'unit.tenant',
+            'contacts',
+            'quotas',
+            'installments',
+            'timeline',
+            'attachments',
         ]);
+        if ($boletoRequestStorageReady) {
+            $cobranca->load(['emailHistories.sender', 'emailHistories.monetaryUpdate']);
+        }
         $monetaryStorageReady = $this->monetaryUpdateStorageReady();
         if ($monetaryStorageReady) {
             $cobranca->load(['monetaryUpdates.items']);
@@ -544,6 +562,10 @@ class CobrancaController extends Controller
             'billingLabels' => $this->billingStatusLabels(),
             'entryStatusLabels' => $this->entryStatusLabels(),
             'agreementPaymentError' => $this->agreementPaymentPlanError($cobranca),
+            'boletoRequestError' => $this->boletoRequestError($cobranca, $monetaryStorageReady, $boletoRequestStorageReady),
+            'billingAdminEmails' => $this->billingAdminEmails($cobranca->condominium?->administradora),
+            'preferredBoletoUpdateId' => $this->preferredMonetaryUpdate($cobranca)?->id,
+            'boletoMailSubject' => $this->boletoMailSubject($cobranca),
         ]);
     }
 
@@ -949,6 +971,286 @@ class CobrancaController extends Controller
         return 'unsupported';
     }
 
+    private function boletoRequestStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('cobranca_case_email_histories');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function billingAdminEmails(?ClientEntity $entity): array
+    {
+        return collect((array) ($entity?->cobranca_emails_json ?? []))
+            ->map(function ($row) {
+                if (is_array($row)) {
+                    return trim((string) ($row['email'] ?? ''));
+                }
+
+                return trim((string) $row);
+            })
+            ->filter(fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function boletoRequestError(CobrancaCase $case, bool $monetaryStorageReady, ?bool $storageReady = null): ?string
+    {
+        if (!($storageReady ?? $this->boletoRequestStorageReady())) {
+            return 'Rode a migration do histórico de e-mails da OS antes de solicitar boletos.';
+        }
+
+        if ($paymentError = $this->agreementPaymentPlanError($case)) {
+            return $paymentError;
+        }
+
+        if (!$monetaryStorageReady) {
+            return 'A estrutura da memória de cálculo TJES ainda não existe no banco. Rode as migrations antes de solicitar boletos.';
+        }
+
+        if (!$case->condominium?->administradora) {
+            return 'Vincule a administradora do condomínio antes de solicitar boletos.';
+        }
+
+        if ($this->billingAdminEmails($case->condominium->administradora) === []) {
+            return 'Cadastre ao menos um e-mail do setor de cobrança na administradora vinculada ao condomínio.';
+        }
+
+        if (!$this->preferredMonetaryUpdate($case)) {
+            return 'Salve ao menos uma memória de cálculo TJES antes de solicitar boletos.';
+        }
+
+        if (!AncoraBillingMail::isSmtpConfigured()) {
+            return 'Configure o SMTP de cobrança em Configurações antes de solicitar boletos.';
+        }
+
+        return null;
+    }
+
+    private function preferredMonetaryUpdate(CobrancaCase $case): ?CobrancaMonetaryUpdate
+    {
+        if (!$this->monetaryUpdateStorageReady()) {
+            return null;
+        }
+
+        $updates = $case->relationLoaded('monetaryUpdates')
+            ? $case->monetaryUpdates
+            : $case->monetaryUpdates()->with('items')->get();
+
+        if (!$updates->count()) {
+            return null;
+        }
+
+        return $updates->firstWhere('applied_to_case', true) ?: $updates->first();
+    }
+
+    private function boletoMailSubject(CobrancaCase $case): string
+    {
+        $condominium = trim((string) ($case->condominium?->name ?? 'Condomínio não vinculado'));
+        $unit = trim((string) ($case->unit?->unit_number ?: ($case->unit?->unit_label ?: 'Sem unidade')));
+        $subject = 'ACORDO - ' . $condominium . ' - UNIDADE ' . $unit;
+
+        return function_exists('mb_strtoupper')
+            ? mb_strtoupper($subject, 'UTF-8')
+            : strtoupper($subject);
+    }
+
+    private function boletoGreeting(): string
+    {
+        $hour = (int) now()->hour;
+
+        return match (true) {
+            $hour < 12 => 'Bom dia',
+            $hour < 18 => 'Boa tarde',
+            default => 'Boa noite',
+        };
+    }
+
+    private function boletoMailData(CobrancaCase $case, CobrancaMonetaryUpdate $update): array
+    {
+        $brand = AncoraSettings::brand();
+        $smtp = AncoraBillingMail::smtp();
+
+        $brand['logo_light_url'] = $this->absoluteMailAssetUrl(
+            (string) ($brand['logo_light'] ?? '/imgs/logomarca.svg'),
+            (string) ($brand['base_url'] ?? config('app.url'))
+        );
+
+        $data = [
+            'brand' => $brand,
+            'subject' => $this->boletoMailSubject($case),
+            'greeting' => $this->boletoGreeting(),
+            'condominiumName' => (string) ($case->condominium?->name ?? 'Condomínio não vinculado'),
+            'unitLabel' => (string) ($case->unit?->unit_number ?: ($case->unit?->unit_label ?: 'Sem unidade')),
+            'debtorName' => (string) ($case->debtor_name_snapshot ?: 'Não informado'),
+            'agreementTotal' => $this->centsToMoney($this->moneyToCents($case->agreement_total ?? 0)),
+            'agreementTotalWords' => ucfirst(BrazilianCurrencyFormatter::toWords((float) ($case->agreement_total ?? 0))),
+            'paymentLines' => $this->boletoPaymentLines($case),
+            'officeEmail' => (string) ($brand['company_email'] ?? ''),
+            'officePhone' => (string) ($brand['company_phone'] ?? ''),
+            'selectedUpdate' => $update,
+            'from_address' => (string) ($smtp['from_address'] ?? ''),
+            'from_name' => (string) ($smtp['from_name'] ?? 'Âncora Cobrança'),
+        ];
+
+        $data['html'] = view('emails.cobrancas.boleto-request', $data)->render();
+
+        return $data;
+    }
+
+    private function boletoPaymentLines(CobrancaCase $case): array
+    {
+        $lines = collect();
+
+        if ($this->moneyToCents($case->entry_amount ?? 0) > 0 && $case->entry_due_date) {
+            $lines->push([
+                'sort_key' => optional($case->entry_due_date)->format('Y-m-d') . '|00',
+                'type' => 'entrada',
+                'label' => 'Entrada',
+                'due_date' => $case->entry_due_date,
+                'amount' => (float) $case->entry_amount,
+            ]);
+        }
+
+        foreach ($case->installments as $installment) {
+            if ($this->moneyToCents($installment->amount ?? 0) <= 0 || !$installment->due_date) {
+                continue;
+            }
+
+            $lines->push([
+                'sort_key' => optional($installment->due_date)->format('Y-m-d') . '|' . str_pad((string) ($installment->installment_number ?? 0), 4, '0', STR_PAD_LEFT),
+                'type' => (string) ($installment->installment_type ?? 'parcela'),
+                'label' => trim((string) ($installment->label ?: '')),
+                'due_date' => $installment->due_date,
+                'amount' => (float) $installment->amount,
+            ]);
+        }
+
+        $lines = $lines->sortBy('sort_key')->values();
+        $singlePayment = $lines->count() === 1;
+
+        return $lines
+            ->map(function (array $line) use ($singlePayment) {
+                $displayLabel = null;
+
+                if ($singlePayment) {
+                    $displayLabel = 'PARCELA ÚNICA';
+                } elseif ($line['type'] === 'entrada') {
+                    $displayLabel = 'Entrada';
+                }
+
+                return [
+                    'due_date' => optional($line['due_date'])->format('d/m/Y'),
+                    'amount' => $this->centsToMoney($this->moneyToCents($line['amount'] ?? 0)),
+                    'display_label' => $displayLabel,
+                ];
+            })
+            ->all();
+    }
+
+    private function createMonetaryEmailAttachmentSnapshot(CobrancaCase $case, CobrancaMonetaryUpdate $update): ?array
+    {
+        $htmlPath = null;
+        $pdfPath = null;
+
+        try {
+            $case->loadMissing(['condominium', 'block', 'unit.owner', 'debtor']);
+            $update->loadMissing(['items', 'generator']);
+
+            $dir = storage_path('app/generated/cobranca-boleto-emails');
+            File::ensureDirectoryExists($dir);
+
+            $baseName = Str::slug(($case->os_number ?: 'os') . '-boleto-' . $update->id)
+                . '-' . now()->format('YmdHis')
+                . '-' . Str::random(6);
+
+            $htmlPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.html';
+            $pdfPath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
+
+            File::put($htmlPath, view('pages.cobrancas.monetary.document', [
+                'case' => $case,
+                'update' => $update,
+                'autoPrint' => false,
+                'pdfMode' => true,
+            ])->render());
+
+            $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
+                || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath);
+
+            File::delete($htmlPath);
+
+            if (!$generated || !is_file($pdfPath)) {
+                File::delete($pdfPath);
+
+                return null;
+            }
+
+            return [
+                'absolute_path' => $pdfPath,
+                'relative_path' => 'app/generated/cobranca-boleto-emails/' . basename($pdfPath),
+                'original_name' => ($case->os_number ?: 'os') . '-memoria-calculo-tjes.pdf',
+                'stored_name' => basename($pdfPath),
+                'mime_type' => 'application/pdf',
+                'file_size' => (int) (@filesize($pdfPath) ?: 0),
+            ];
+        } catch (\Throwable) {
+            if ($htmlPath) {
+                File::delete($htmlPath);
+            }
+            if ($pdfPath) {
+                File::delete($pdfPath);
+            }
+
+            return null;
+        }
+    }
+
+    private function resolveStoredAttachmentPath(string $relativePath): ?string
+    {
+        $relativePath = ltrim(trim($relativePath), '/\\');
+        if ($relativePath === '') {
+            return null;
+        }
+
+        $storagePath = storage_path($relativePath);
+        if (is_file($storagePath)) {
+            return $storagePath;
+        }
+
+        $storageAppPath = storage_path('app/' . $relativePath);
+        if (is_file($storageAppPath)) {
+            return $storageAppPath;
+        }
+
+        $publicPath = public_path($relativePath);
+        if (is_file($publicPath)) {
+            return $publicPath;
+        }
+
+        return null;
+    }
+
+    private function absoluteMailAssetUrl(string $path, string $baseUrl): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        return rtrim($baseUrl !== '' ? $baseUrl : (string) config('app.url'), '/') . '/' . ltrim($path, '/');
+    }
+
+    private function formatEmailList(array $emails): string
+    {
+        return implode(', ', array_values(array_filter(array_map('trim', $emails), fn ($email) => $email !== '')));
+    }
+
     private function agreementTermStorageReady(): bool
     {
         try {
@@ -1115,6 +1417,188 @@ class CobrancaController extends Controller
         }
 
         return view('pages.cobrancas.monetary.document', $viewData);
+    }
+
+    public function requestBoleto(Request $request, CobrancaCase $cobranca): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $monetaryStorageReady = $this->monetaryUpdateStorageReady();
+        $boletoRequestStorageReady = $this->boletoRequestStorageReady();
+        $cobranca->load([
+            'condominium.administradora',
+            'block',
+            'unit.owner',
+            'unit.tenant',
+            'contacts',
+            'quotas',
+            'installments',
+        ]);
+
+        if ($monetaryStorageReady) {
+            $cobranca->load(['monetaryUpdates.items', 'monetaryUpdates.generator']);
+        }
+
+        if ($error = $this->boletoRequestError($cobranca, $monetaryStorageReady, $boletoRequestStorageReady)) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->with('error', $error)
+                ->with('open_boleto_request_modal', true);
+        }
+
+        $selectedUpdateId = (int) $request->integer(
+            'monetary_update_id',
+            (int) ($this->preferredMonetaryUpdate($cobranca)?->id ?? 0)
+        );
+
+        if ($selectedUpdateId <= 0) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->with('error', 'Selecione a memória de cálculo TJES que será anexada ao e-mail.')
+                ->with('open_boleto_request_modal', true);
+        }
+
+        /** @var CobrancaMonetaryUpdate $monetaryUpdate */
+        $monetaryUpdate = CobrancaMonetaryUpdate::query()
+            ->with(['items', 'generator'])
+            ->findOrFail($selectedUpdateId);
+
+        abort_if((int) $monetaryUpdate->cobranca_case_id !== (int) $cobranca->id, 404);
+
+        $recipients = $this->billingAdminEmails($cobranca->condominium?->administradora);
+        if ($recipients === []) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->with('error', 'Cadastre ao menos um e-mail do setor de cobrança na administradora vinculada ao condomínio.')
+                ->with('open_boleto_request_modal', true);
+        }
+
+        $attachment = $this->createMonetaryEmailAttachmentSnapshot($cobranca, $monetaryUpdate);
+        if (!$attachment) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->with('error', 'Não foi possível gerar o PDF da memória de cálculo TJES para anexar ao e-mail.')
+                ->with('open_boleto_request_modal', true);
+        }
+
+        $mailData = $this->boletoMailData($cobranca, $monetaryUpdate);
+        $history = CobrancaCaseEmailHistory::query()->create([
+            'cobranca_case_id' => $cobranca->id,
+            'cobranca_monetary_update_id' => $monetaryUpdate->id,
+            'sent_by' => $user->id,
+            'from_address' => $mailData['from_address'],
+            'from_name' => $mailData['from_name'],
+            'subject' => $mailData['subject'],
+            'recipients_json' => $recipients,
+            'body_html' => $mailData['html'],
+            'attachment_original_name' => $attachment['original_name'],
+            'attachment_stored_name' => $attachment['stored_name'],
+            'attachment_relative_path' => $attachment['relative_path'],
+            'attachment_mime_type' => $attachment['mime_type'],
+            'attachment_file_size' => $attachment['file_size'],
+            'send_status' => 'pending',
+            'transport_message' => 'Envio iniciado pelo usuário ' . ($user->email ?? 'desconhecido') . '.',
+            'imap_status' => 'pending',
+            'imap_message' => 'Aguardando envio pelo SMTP de cobrança.',
+        ]);
+
+        $result = AncoraBillingMail::sendHtml([
+            'subject' => $mailData['subject'],
+            'html' => $mailData['html'],
+            'to' => $recipients,
+            'attachment_path' => $attachment['absolute_path'],
+            'attachment_name' => $attachment['original_name'],
+            'attachment_mime' => $attachment['mime_type'],
+        ]);
+
+        $sendStatus = (string) ($result['send_status'] ?? 'failed');
+
+        DB::transaction(function () use ($history, $result, $sendStatus, $cobranca, $request, $user, $recipients, $monetaryUpdate) {
+            $history->update([
+                'send_status' => $sendStatus,
+                'transport_message' => Str::limit((string) ($result['transport_message'] ?? ''), 65535, ''),
+                'imap_status' => (string) ($result['imap_status'] ?? 'not_attempted'),
+                'imap_message' => Str::limit((string) ($result['imap_message'] ?? ''), 65535, ''),
+            ]);
+
+            if ($sendStatus !== 'sent') {
+                return;
+            }
+
+            $entryStatus = (string) ($cobranca->entry_status ?? '');
+            if ($this->moneyToCents($cobranca->entry_amount ?? 0) > 0 && !in_array($entryStatus, ['pago', 'boleto_enviado'], true)) {
+                $cobranca->forceFill([
+                    'entry_status' => 'boleto_solicitado',
+                    'updated_by' => $user->id,
+                ])->save();
+            }
+
+            CobrancaCaseInstallment::query()
+                ->where('cobranca_case_id', $cobranca->id)
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', '')
+                        ->orWhere('status', 'pendente')
+                        ->orWhere('status', 'boleto_solicitado');
+                })
+                ->update(['status' => 'boleto_solicitado']);
+
+            $timelineDescription = 'Solicitação de boletos enviada à administradora '
+                . ($cobranca->condominium?->administradora?->display_name ?: 'vinculada ao condomínio')
+                . ' (' . $this->formatEmailList($recipients) . ')'
+                . '. Memória TJES anexada com base em '
+                . (optional($monetaryUpdate->final_date)->format('d/m/Y') ?: 'data não informada') . '.';
+
+            $this->recordTimeline($cobranca, 'boleto', $timelineDescription, $request, now());
+        });
+
+        if ($sendStatus !== 'sent') {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->with('error', 'Não foi possível enviar a solicitação de boleto: ' . ($result['transport_message'] ?? 'falha desconhecida') . '.')
+                ->with('open_boleto_request_modal', true);
+        }
+
+        $details = 'Solicitação de boletos enviada à administradora '
+            . ($cobranca->condominium?->administradora?->display_name ?: 'não informada')
+            . ' para ' . $this->formatEmailList($recipients)
+            . ' com anexo da memória TJES #' . $monetaryUpdate->id . '.';
+
+        $this->logAction($request, 'request_cobranca_boleto', $cobranca->id, $details);
+
+        $successMessage = 'Solicitação de boleto enviada para ' . count($recipients) . ' destinatário(s).';
+        if (($result['imap_status'] ?? '') !== 'mirrored') {
+            $successMessage .= ' Espelhamento IMAP: ' . ($result['imap_message'] ?? 'não informado') . '.';
+        }
+
+        return redirect()->route('cobrancas.show', $cobranca)->with('success', $successMessage);
+    }
+
+    public function showEmailHistory(CobrancaCase $cobranca, CobrancaCaseEmailHistory $history): Response
+    {
+        abort_if((int) $history->cobranca_case_id !== (int) $cobranca->id, 404);
+
+        $html = trim((string) $history->body_html);
+        if ($html === '') {
+            $html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Espelho de e-mail</title></head><body><p>Este registro não possui conteúdo HTML salvo.</p></body></html>';
+        }
+
+        return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    public function downloadEmailHistoryAttachment(CobrancaCase $cobranca, CobrancaCaseEmailHistory $history): BinaryFileResponse
+    {
+        abort_if((int) $history->cobranca_case_id !== (int) $cobranca->id, 404);
+
+        $path = $this->resolveStoredAttachmentPath((string) $history->attachment_relative_path);
+        abort_unless($path && is_file($path), 404);
+
+        return response()->download(
+            $path,
+            $history->attachment_original_name ?: basename($path),
+            ['Content-Type' => $history->attachment_mime_type ?: 'application/octet-stream']
+        );
     }
 
     private function monetaryPdfResponse(array $viewData): ?BinaryFileResponse

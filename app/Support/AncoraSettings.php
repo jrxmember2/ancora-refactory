@@ -88,6 +88,32 @@ class AncoraSettings
         ];
     }
 
+    public static function billingSmtp(): array
+    {
+        return [
+            'host' => self::get('billing_smtp_host', ''),
+            'port' => self::get('billing_smtp_port', '587'),
+            'username' => self::get('billing_smtp_username', ''),
+            'password' => self::get('billing_smtp_password', ''),
+            'encryption' => self::get('billing_smtp_encryption', 'tls') ?: 'tls',
+            'from_address' => self::get('billing_smtp_from_address', self::get('company_email', '')),
+            'from_name' => self::get('billing_smtp_from_name', 'Ã‚ncora CobranÃ§a'),
+        ];
+    }
+
+    public static function billingImap(): array
+    {
+        return [
+            'host' => self::get('billing_imap_host', ''),
+            'port' => self::get('billing_imap_port', '993'),
+            'username' => self::get('billing_imap_username', ''),
+            'password' => self::get('billing_imap_password', ''),
+            'encryption' => self::get('billing_imap_encryption', 'ssl') ?: 'ssl',
+            'sent_folder' => self::get('billing_imap_sent_folder', 'Sent'),
+            'validate_cert' => self::get('billing_imap_validate_cert', '0') === '1',
+        ];
+    }
+
     public static function systemAlert(): array
     {
         $title = trim((string) self::get('system_alert_title', ''));

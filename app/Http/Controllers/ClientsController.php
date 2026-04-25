@@ -249,6 +249,18 @@ class ClientsController extends Controller
             ->all();
     }
 
+    private function parseCobrancaEmailRows(array $rows): array
+    {
+        return collect($this->parseRepeaterRows($rows, ['email']))
+            ->map(fn ($row, $index) => [
+                'label' => 'Cobrança ' . ($index + 1),
+                'email' => $this->normalizeEmail($row['email']),
+            ])
+            ->filter(fn ($row) => $row['email'] !== '')
+            ->values()
+            ->all();
+    }
+
     private function parseShareholderRows(array $rows): array
     {
         return collect($this->parseRepeaterRows($rows, ['name', 'document', 'role']))
@@ -508,6 +520,7 @@ class ClientsController extends Controller
             'legal_representative' => ($value = $this->normalizeTitleCase($request->input('legal_representative', ''))) !== '' ? $value : null,
             'phones_json' => $this->parsePhoneRows((array) $request->input('phones', [])),
             'emails_json' => $this->parseEmailRows((array) $request->input('emails', [])),
+            'cobranca_emails_json' => $this->parseCobrancaEmailRows((array) $request->input('cobranca_emails', [])),
             'primary_address_json' => $this->addressFromRequest($request, 'primary_address'),
             'billing_address_json' => $request->boolean('billing_same_as_primary')
                 ? $this->addressFromRequest($request, 'primary_address')
@@ -568,6 +581,10 @@ class ClientsController extends Controller
         if (empty($data['is_active']) && empty($data['inactive_reason'])) {
             $errors[] = 'Informe o motivo da inativação.';
         }
+        if (collect($data['cobranca_emails_json'] ?? [])->pluck('email')->filter(fn ($email) => $email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))->isNotEmpty()) {
+            $errors[] = 'Revise os e-mails do setor de cobranÃ§a.';
+        }
+
         return $errors;
     }
 

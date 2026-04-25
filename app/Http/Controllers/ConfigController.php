@@ -90,6 +90,8 @@ class ConfigController extends Controller
             'automation' => $this->automationSettings(),
             'systemAlert' => AncoraSettings::systemAlert(),
             'smtp' => AncoraSettings::smtp(),
+            'billingSmtp' => AncoraSettings::billingSmtp(),
+            'billingImap' => AncoraSettings::billingImap(),
         ]);
     }
 
@@ -168,27 +170,50 @@ class ConfigController extends Controller
 
     public function saveSmtp(Request $request): RedirectResponse
     {
+        $validated = $request->validate($this->smtpValidationRules('smtp'));
+
+        $this->persistSmtpSettings($validated, 'smtp', 'sistema', $validated['smtp_from_name'] ?? 'Âncora');
+
+        return back()->with('success', 'SMTP atualizado com sucesso.');
+    }
+
+    public function saveBillingSmtp(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->smtpValidationRules('billing_smtp'));
+
+        $this->persistSmtpSettings(
+            $validated,
+            'billing_smtp',
+            'cobrança',
+            $validated['billing_smtp_from_name'] ?? 'Âncora Cobrança'
+        );
+
+        return back()->with('success', 'SMTP de cobrança atualizado com sucesso.');
+    }
+
+    public function saveBillingImap(Request $request): RedirectResponse
+    {
         $validated = $request->validate([
-            'smtp_host' => ['nullable', 'string', 'max:190'],
-            'smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
-            'smtp_username' => ['nullable', 'string', 'max:190'],
-            'smtp_password' => ['nullable', 'string', 'max:190'],
-            'smtp_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
-            'smtp_from_address' => ['nullable', 'email', 'max:190'],
-            'smtp_from_name' => ['nullable', 'string', 'max:190'],
+            'billing_imap_host' => ['nullable', 'string', 'max:190'],
+            'billing_imap_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'billing_imap_username' => ['nullable', 'string', 'max:190'],
+            'billing_imap_password' => ['nullable', 'string', 'max:190'],
+            'billing_imap_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
+            'billing_imap_sent_folder' => ['nullable', 'string', 'max:190'],
+            'billing_imap_validate_cert' => ['nullable'],
         ]);
 
         $this->setMany([
-            'smtp_host' => [$validated['smtp_host'] ?? '', 'Host SMTP do sistema'],
-            'smtp_port' => [(string) ($validated['smtp_port'] ?? 587), 'Porta SMTP do sistema'],
-            'smtp_username' => [$validated['smtp_username'] ?? '', 'Usuário SMTP do sistema'],
-            'smtp_password' => [$validated['smtp_password'] ?? '', 'Senha SMTP do sistema'],
-            'smtp_encryption' => [$validated['smtp_encryption'] ?? 'tls', 'Criptografia SMTP do sistema'],
-            'smtp_from_address' => [$validated['smtp_from_address'] ?? '', 'E-mail remetente do sistema'],
-            'smtp_from_name' => [$validated['smtp_from_name'] ?? 'Âncora', 'Nome remetente do sistema'],
+            'billing_imap_host' => [$validated['billing_imap_host'] ?? '', 'Host IMAP da caixa de cobrança'],
+            'billing_imap_port' => [(string) ($validated['billing_imap_port'] ?? 993), 'Porta IMAP da caixa de cobrança'],
+            'billing_imap_username' => [$validated['billing_imap_username'] ?? '', 'Usuário IMAP da caixa de cobrança'],
+            'billing_imap_password' => [$validated['billing_imap_password'] ?? '', 'Senha IMAP da caixa de cobrança'],
+            'billing_imap_encryption' => [$validated['billing_imap_encryption'] ?? 'ssl', 'Criptografia IMAP da caixa de cobrança'],
+            'billing_imap_sent_folder' => [$validated['billing_imap_sent_folder'] ?? 'Sent', 'Pasta de itens enviados da caixa de cobrança'],
+            'billing_imap_validate_cert' => [$request->boolean('billing_imap_validate_cert') ? '1' : '0', 'Indica se o certificado IMAP da caixa de cobrança deve ser validado'],
         ]);
 
-        return back()->with('success', 'SMTP atualizado com sucesso.');
+        return back()->with('success', 'IMAP de cobrança atualizado com sucesso.');
     }
 
     public function saveSystemAlert(Request $request): RedirectResponse
@@ -362,6 +387,85 @@ class ConfigController extends Controller
             });
 
             return response()->json(['success' => true, 'message' => 'E-mail de teste enviado com sucesso para ' . AncoraAuth::user($request)->email]);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Falha na conexão: ' . $e->getMessage()], 422);
+        }
+    }
+
+    public function testBillingSmtp(Request $request)
+    {
+        $validated = $request->validate($this->smtpRequiredValidationRules('billing_smtp'));
+
+        return $this->testSmtpConnection(
+            $validated,
+            $request,
+            'billing_smtp',
+            'Teste de configuração SMTP da cobrança concluído com sucesso.',
+            $validated['billing_smtp_from_name'] ?? 'Âncora Cobrança',
+            'Teste de Conexão SMTP - Cobrança'
+        );
+    }
+
+    private function smtpValidationRules(string $prefix): array
+    {
+        return [
+            $prefix . '_host' => ['nullable', 'string', 'max:190'],
+            $prefix . '_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            $prefix . '_username' => ['nullable', 'string', 'max:190'],
+            $prefix . '_password' => ['nullable', 'string', 'max:190'],
+            $prefix . '_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
+            $prefix . '_from_address' => ['nullable', 'email', 'max:190'],
+            $prefix . '_from_name' => ['nullable', 'string', 'max:190'],
+        ];
+    }
+
+    private function smtpRequiredValidationRules(string $prefix): array
+    {
+        return [
+            $prefix . '_host' => ['required', 'string', 'max:190'],
+            $prefix . '_port' => ['required', 'integer', 'min:1', 'max:65535'],
+            $prefix . '_username' => ['nullable', 'string', 'max:190'],
+            $prefix . '_password' => ['nullable', 'string', 'max:190'],
+            $prefix . '_encryption' => ['nullable', Rule::in(['tls', 'ssl', ''])],
+            $prefix . '_from_address' => ['required', 'email', 'max:190'],
+            $prefix . '_from_name' => ['nullable', 'string', 'max:190'],
+        ];
+    }
+
+    private function persistSmtpSettings(array $validated, string $prefix, string $label, string $defaultFromName): void
+    {
+        $this->setMany([
+            $prefix . '_host' => [$validated[$prefix . '_host'] ?? '', 'Host SMTP do ' . $label],
+            $prefix . '_port' => [(string) ($validated[$prefix . '_port'] ?? 587), 'Porta SMTP do ' . $label],
+            $prefix . '_username' => [$validated[$prefix . '_username'] ?? '', 'Usuário SMTP do ' . $label],
+            $prefix . '_password' => [$validated[$prefix . '_password'] ?? '', 'Senha SMTP do ' . $label],
+            $prefix . '_encryption' => [$validated[$prefix . '_encryption'] ?? 'tls', 'Criptografia SMTP do ' . $label],
+            $prefix . '_from_address' => [$validated[$prefix . '_from_address'] ?? '', 'E-mail remetente do ' . $label],
+            $prefix . '_from_name' => [$validated[$prefix . '_from_name'] ?? $defaultFromName, 'Nome remetente do ' . $label],
+        ]);
+    }
+
+    private function testSmtpConnection(array $validated, Request $request, string $prefix, string $body, string $defaultFromName, string $subject)
+    {
+        try {
+            $mailer = app()->makeWith('mailer', ['name' => 'test_' . $prefix]);
+            $transport = \Symfony\Component\Mailer\Transport::fromDsn(
+                ($validated[$prefix . '_encryption'] === 'ssl' ? 'smtps' : 'smtp') . '://' .
+                rawurlencode((string) ($validated[$prefix . '_username'] ?? '')) . ':' . rawurlencode((string) ($validated[$prefix . '_password'] ?? '')) . '@' .
+                $validated[$prefix . '_host'] . ':' . $validated[$prefix . '_port']
+            );
+            $mailer->setSymfonyTransport($transport);
+
+            $mailer->raw($body, function ($message) use ($validated, $prefix, $request, $defaultFromName, $subject) {
+                $message->from($validated[$prefix . '_from_address'], $validated[$prefix . '_from_name'] ?? $defaultFromName);
+                $message->to(AncoraAuth::user($request)->email);
+                $message->subject($subject);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'E-mail de teste enviado com sucesso para ' . AncoraAuth::user($request)->email,
+            ]);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => 'Falha na conexão: ' . $e->getMessage()], 422);
         }

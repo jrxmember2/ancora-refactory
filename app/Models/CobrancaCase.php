@@ -37,6 +37,7 @@ class CobrancaCase extends Model
     public function installments(): HasMany { return $this->hasMany(CobrancaCaseInstallment::class, 'cobranca_case_id')->orderBy('due_date'); }
     public function timeline(): HasMany { return $this->hasMany(CobrancaCaseTimeline::class, 'cobranca_case_id')->orderByDesc('created_at'); }
     public function attachments(): HasMany { return $this->hasMany(CobrancaCaseAttachment::class, 'cobranca_case_id')->orderByDesc('created_at'); }
+    public function emailHistories(): HasMany { return $this->hasMany(CobrancaCaseEmailHistory::class, 'cobranca_case_id')->orderByDesc('created_at'); }
     public function agreementTerm(): HasOne { return $this->hasOne(CobrancaAgreementTerm::class, 'cobranca_case_id'); }
     public function monetaryUpdates(): HasMany { return $this->hasMany(CobrancaMonetaryUpdate::class, 'cobranca_case_id')->latest('created_at'); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
