@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.48',
+            'version' => 'v1.49',
             'date' => '25/04/2026',
-            'label' => 'v1.48 - 25/04/2026',
+            'label' => 'v1.49 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Persistencia da foto de perfil entre deploys',
+                'items' => [
+                    'Upload da foto de perfil deixa de gravar no caminho efemero public/assets/uploads/users e passa a usar o disco publico do Laravel em storage/app/public.',
+                    'Docker passa a preparar o atalho public/storage para servir a foto corretamente no ambiente Linux do deploy.',
+                    'Compatibilidade com fotos antigas foi mantida, mas novos uploads passam a usar o caminho persistivel preparado para EasyPanel.',
+                ],
+            ],
+            [
+                'version' => 'v1.48',
+                'date' => '25/04/2026',
                 'title' => 'Criacao interna de demandas no backoffice',
                 'items' => [
                     'Modulo Demandas ganha o fluxo de Nova demanda, permitindo abertura manual diretamente pelo backoffice sem depender do Portal do Cliente.',

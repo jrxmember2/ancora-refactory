@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class User extends Model
@@ -56,6 +57,12 @@ class User extends Model
 
         if (preg_match('#^https?://#i', $path)) {
             return $path;
+        }
+
+        if (!str_starts_with($path, '/')) {
+            return Storage::disk('public')->exists($path)
+                ? Storage::disk('public')->url($path)
+                : null;
         }
 
         $relative = '/' . ltrim($path, '/');

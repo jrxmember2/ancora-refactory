@@ -56,6 +56,7 @@ COPY --from=assets /app/public/build ./public/build
 
 RUN touch .env \
     && mkdir -p \
+        storage/app/public/avatars/users \
         storage/framework/cache \
         storage/framework/sessions \
         storage/framework/views \
@@ -65,6 +66,7 @@ RUN touch .env \
         public/assets/uploads \
         public/branding \
         public/build \
+    && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage \
     && php artisan package:discover --ansi \
     && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding public/build
 

@@ -7,7 +7,9 @@ use App\Support\AncoraAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -86,16 +88,17 @@ class UserProfileController extends Controller
         return back()->with('success', 'Tema atualizado com sucesso.');
     }
 
-    private function storeAvatar($file, string $currentPath): string
+    private function storeAvatar(UploadedFile $file, string $currentPath): string
     {
-        $dir = public_path('assets/uploads/users');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         $extension = strtolower((string) ($file->getClientOriginalExtension() ?: 'bin'));
         $name = 'avatar-' . now()->format('Ymd-His') . '-' . Str::random(8) . '.' . $extension;
-        $file->move($dir, $name);
+        $path = 'avatars/users/' . $name;
+
+        Storage::disk('public')->putFileAs('avatars/users', $file, $name);
+
+        if ($currentPath !== '' && !str_starts_with($currentPath, '/')) {
+            Storage::disk('public')->delete($currentPath);
+        }
 
         if (str_starts_with($currentPath, '/assets/uploads/users/')) {
             $old = public_path(ltrim($currentPath, '/'));
@@ -104,6 +107,6 @@ class UserProfileController extends Controller
             }
         }
 
-        return '/assets/uploads/users/' . $name;
+        return $path;
     }
 }
