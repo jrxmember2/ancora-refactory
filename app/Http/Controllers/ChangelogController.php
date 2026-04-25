@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.40',
+            'version' => 'v1.41',
             'date' => '25/04/2026',
-            'label' => 'v1.40 - 25/04/2026',
+            'label' => 'v1.41 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix do build IMAP no EasyPanel',
+                'items' => [
+                    'Build Docker do ambiente EasyPanel passa a usar o pacote libc-client2007e-dev, compatível com Debian Trixie, no lugar do pacote legado libc-client-dev.',
+                    'Extensao IMAP continua preparada para compilacao com SSL/Kerberos, agora sem quebrar o deploy por nome de pacote inexistente na imagem atual.',
+                ],
+            ],
+            [
+                'version' => 'v1.40',
+                'date' => '25/04/2026',
                 'title' => 'Hotfix do espelhamento IMAP e layout do e-mail de boleto',
                 'items' => [
                     'Dockerfile do ambiente passa a instalar a extensao IMAP do PHP com suporte a SSL/Kerberos, permitindo espelhar os e-mails de solicitacao de boleto em Itens enviados.',
