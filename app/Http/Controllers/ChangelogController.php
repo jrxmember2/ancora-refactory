@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.44',
+            'version' => 'v1.45',
             'date' => '25/04/2026',
-            'label' => 'v1.44 - 25/04/2026',
+            'label' => 'v1.45 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'E-mail de boleto com detalhamento completo da cobrança',
+                'items' => [
+                    'Corpo do e-mail da solicitacao de boleto passa a trazer resumo da memoria TJES e composicao detalhada da cobranca para facilitar a conferencia da administradora.',
+                    'Bloco de composicao destaca principal, atualizacao monetaria, juros, multa, custas, taxas de boleto, abatimento, subtotal do debito, honorarios e total geral quando houver.',
+                    'Layout foi mantido em estrutura segura para Outlook e webmails, preservando leitura rapida sem depender exclusivamente do PDF anexo.',
+                ],
+            ],
+            [
+                'version' => 'v1.44',
+                'date' => '25/04/2026',
                 'title' => 'Template de e-mail compatível com Outlook',
                 'items' => [
                     'Solicitacao de boleto por e-mail foi reconstruida em estrutura classica de tabelas, com fallbacks mais seguros para Outlook desktop.',

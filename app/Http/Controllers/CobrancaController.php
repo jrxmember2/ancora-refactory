@@ -1088,6 +1088,8 @@ class CobrancaController extends Controller
             'agreementTotal' => $this->centsToMoney($this->moneyToCents($case->agreement_total ?? 0)),
             'agreementTotalWords' => ucfirst(BrazilianCurrencyFormatter::toWords((float) ($case->agreement_total ?? 0))),
             'paymentLines' => $this->boletoPaymentLines($case),
+            'billingOverview' => $this->boletoBillingOverview($update),
+            'billingBreakdown' => $this->boletoBillingBreakdown($update),
             'officeEmail' => (string) ($brand['company_email'] ?? ''),
             'officePhone' => (string) ($brand['company_phone'] ?? ''),
             'selectedUpdate' => $update,
@@ -1205,6 +1207,190 @@ class CobrancaController extends Controller
 
             return null;
         }
+    }
+
+    private function boletoBillingOverview(CobrancaMonetaryUpdate $update): array
+    {
+        $payload = (array) ($update->payload_json ?? []);
+        $settings = (array) data_get($payload, 'settings', []);
+        $totals = (array) data_get($payload, 'totals_cents', []);
+
+        $quotaCount = (int) data_get($totals, 'quota_count', $update->items()->count());
+        $indexLabel = (string) data_get($settings, 'index_label', $update->index_code ?: 'Indice do TJES');
+        $interestType = (string) data_get($settings, 'interest_type', $update->interest_type ?: 'legal');
+        $interestRate = (float) data_get($settings, 'interest_rate_monthly', $update->interest_rate_monthly ?: 0);
+        $finePercent = (float) data_get($settings, 'fine_percent', $update->fine_percent ?: 0);
+
+        return [
+            [
+                'label' => 'Memoria TJES',
+                'value' => 'Base em ' . (optional($update->final_date)->format('d/m/Y') ?: 'nao informada'),
+            ],
+            [
+                'label' => 'Indice',
+                'value' => $indexLabel,
+            ],
+            [
+                'label' => 'Cotas atualizadas',
+                'value' => $quotaCount . ' cota(s)',
+            ],
+            [
+                'label' => 'Juros e multa',
+                'value' => $this->boletoInterestAndFineLabel($interestType, $interestRate, $finePercent),
+            ],
+        ];
+    }
+
+    private function boletoBillingBreakdown(CobrancaMonetaryUpdate $update): array
+    {
+        $payload = (array) ($update->payload_json ?? []);
+        $settings = (array) data_get($payload, 'settings', []);
+
+        $originalCents = $this->boletoUpdateCents($update, 'original_total', 'totals_cents.original_cents');
+        $correctedCents = $this->boletoUpdateCents($update, 'corrected_total', 'totals_cents.corrected_cents');
+        $interestCents = $this->boletoUpdateCents($update, 'interest_total', 'totals_cents.interest_cents');
+        $fineCents = $this->boletoUpdateCents($update, 'fine_total', 'totals_cents.fine_cents');
+        $costsOriginalCents = (int) data_get($payload, 'settings.costs_cents', $this->moneyToCents($update->costs_amount ?? 0));
+        $costsCorrectedCents = $this->boletoUpdateCents($update, 'costs_corrected_amount', 'totals_cents.costs_corrected_cents');
+        $boletoFeeCents = $this->boletoUpdateCents($update, 'boleto_fee_total', 'totals_cents.boleto_fee_cents');
+        $boletoCancellationFeeCents = $this->boletoUpdateCents($update, 'boleto_cancellation_fee_total', 'totals_cents.boleto_cancellation_fee_cents');
+        $abatementCents = $this->boletoUpdateCents($update, 'abatement_amount', 'totals_cents.abatement_cents');
+        $debitTotalCents = $this->boletoUpdateCents($update, 'debit_total', 'totals_cents.debit_total_cents');
+        $attorneyFeeCents = $this->boletoUpdateCents($update, 'attorney_fee_amount', 'totals_cents.attorney_fee_cents');
+        $grandTotalCents = $this->boletoUpdateCents($update, 'grand_total', 'totals_cents.grand_total_cents');
+
+        $correctionGainCents = max(0, $correctedCents - $originalCents);
+        $rows = [
+            [
+                'label' => 'Principal das cotas',
+                'amount' => $this->centsToMoney($originalCents),
+                'tone' => 'default',
+            ],
+            [
+                'label' => 'Atualizacao monetaria',
+                'amount' => $this->centsToMoney($correctionGainCents),
+                'tone' => 'default',
+                'note' => $correctedCents > 0 ? 'Total corrigido das cotas: ' . $this->centsToMoney($correctedCents) : null,
+            ],
+            [
+                'label' => 'Juros de mora',
+                'amount' => $this->centsToMoney($interestCents),
+                'tone' => 'default',
+            ],
+            [
+                'label' => 'Multa',
+                'amount' => $this->centsToMoney($fineCents),
+                'tone' => 'default',
+                'note' => ((float) ($update->fine_percent ?? data_get($settings, 'fine_percent', 0))) > 0
+                    ? number_format((float) ($update->fine_percent ?? data_get($settings, 'fine_percent', 0)), 2, ',', '.') . '% aplicado'
+                    : null,
+            ],
+        ];
+
+        if ($costsCorrectedCents > 0) {
+            $note = null;
+            if ($costsOriginalCents > 0 && $costsOriginalCents !== $costsCorrectedCents) {
+                $note = 'Valor base ' . $this->centsToMoney($costsOriginalCents);
+                if ($update->costs_date) {
+                    $note .= ' em ' . $update->costs_date->format('d/m/Y');
+                }
+            } elseif ($update->costs_date) {
+                $note = 'Lancadas em ' . $update->costs_date->format('d/m/Y');
+            }
+
+            $rows[] = [
+                'label' => 'Custas processuais',
+                'amount' => $this->centsToMoney($costsCorrectedCents),
+                'tone' => 'default',
+                'note' => $note,
+            ];
+        }
+
+        if ($boletoFeeCents > 0) {
+            $rows[] = [
+                'label' => 'Taxa de boleto',
+                'amount' => $this->centsToMoney($boletoFeeCents),
+                'tone' => 'default',
+            ];
+        }
+
+        if ($boletoCancellationFeeCents > 0) {
+            $rows[] = [
+                'label' => 'Taxa de cancelamento de boleto',
+                'amount' => $this->centsToMoney($boletoCancellationFeeCents),
+                'tone' => 'default',
+            ];
+        }
+
+        if ($abatementCents > 0) {
+            $rows[] = [
+                'label' => 'Abatimento',
+                'amount' => '- ' . $this->centsToMoney($abatementCents),
+                'tone' => 'deduction',
+            ];
+        }
+
+        $rows[] = [
+            'label' => 'Subtotal do debito',
+            'amount' => $this->centsToMoney($debitTotalCents),
+            'tone' => 'summary',
+        ];
+
+        if ($attorneyFeeCents > 0) {
+            $rows[] = [
+                'label' => $this->boletoAttorneyFeeLabel($update, $settings),
+                'amount' => $this->centsToMoney($attorneyFeeCents),
+                'tone' => 'default',
+            ];
+        }
+
+        $rows[] = [
+            'label' => 'Total geral do acordo',
+            'amount' => $this->centsToMoney($grandTotalCents),
+            'tone' => 'total',
+        ];
+
+        return $rows;
+    }
+
+    private function boletoUpdateCents(CobrancaMonetaryUpdate $update, string $attribute, string $payloadPath): int
+    {
+        $attributeValue = $update->{$attribute} ?? null;
+        if ($attributeValue !== null && $attributeValue !== '') {
+            return $this->moneyToCents($attributeValue);
+        }
+
+        return (int) data_get((array) ($update->payload_json ?? []), $payloadPath, 0);
+    }
+
+    private function boletoInterestAndFineLabel(string $interestType, float $interestRate, float $finePercent): string
+    {
+        $interestLabel = match ($interestType) {
+            'contractual' => 'Juros contratuais de ' . number_format($interestRate, 2, ',', '.') . '% ao mes',
+            'none' => 'Sem juros de mora',
+            default => 'Juros legais',
+        };
+
+        if ($finePercent <= 0) {
+            return $interestLabel;
+        }
+
+        return $interestLabel . ' + multa de ' . number_format($finePercent, 2, ',', '.') . '%';
+    }
+
+    private function boletoAttorneyFeeLabel(CobrancaMonetaryUpdate $update, array $settings): string
+    {
+        $type = (string) ($update->attorney_fee_type ?: data_get($settings, 'attorney_fee_type', 'percent'));
+        $value = $update->attorney_fee_value;
+        if ($value === null || $value === '') {
+            $value = data_get($settings, 'attorney_fee_value', 0);
+        }
+
+        return match ($type) {
+            'fixed' => 'Honorarios advocaticios fixos',
+            'percent' => 'Honorarios advocaticios (' . number_format((float) $value, 2, ',', '.') . '%)',
+            default => 'Honorarios advocaticios',
+        };
     }
 
     private function resolveStoredAttachmentPath(string $relativePath): ?string

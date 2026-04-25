@@ -111,6 +111,68 @@
                             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; margin-top:24px;">
                                 <tr>
                                     <td style="padding:0 0 12px 0; font-size:13px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif;">
+                                        Resumo da atualização
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; border:1px solid #e5e7eb;">
+                                @foreach($billingOverview as $overview)
+                                    <tr>
+                                        <td width="32%" bgcolor="#f9fafb" style="padding:14px 18px; background-color:#f9fafb; font-size:12px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            {{ $overview['label'] }}
+                                        </td>
+                                        <td style="padding:14px 18px; font-size:14px; line-height:22px; color:#111827; font-family:Arial, Helvetica, sans-serif; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            {{ $overview['value'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; margin-top:24px;">
+                                <tr>
+                                    <td style="padding:0 0 12px 0; font-size:13px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif;">
+                                        Composição da cobrança
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; border:1px solid #e5e7eb;">
+                                @foreach($billingBreakdown as $row)
+                                    @php
+                                        $tone = $row['tone'] ?? 'default';
+                                        $labelColor = $tone === 'total'
+                                            ? '#941415'
+                                            : ($tone === 'deduction' ? '#047857' : '#111827');
+                                        $amountColor = $tone === 'total'
+                                            ? '#941415'
+                                            : ($tone === 'deduction' ? '#047857' : '#111827');
+                                        $backgroundColor = $tone === 'total'
+                                            ? '#fef2f2'
+                                            : ($tone === 'summary' ? '#f9fafb' : '#ffffff');
+                                        $fontWeight = in_array($tone, ['summary', 'total'], true) ? '700' : '400';
+                                    @endphp
+                                    <tr>
+                                        <td bgcolor="{{ $backgroundColor }}" style="padding:14px 18px; background-color:{{ $backgroundColor }}; font-family:Arial, Helvetica, sans-serif; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            <p style="margin:0; font-size:14px; line-height:20px; font-weight:{{ $fontWeight }}; color:{{ $labelColor }};">
+                                                {{ $row['label'] }}
+                                            </p>
+                                            @if(!empty($row['note']))
+                                                <p style="margin:4px 0 0 0; font-size:12px; line-height:18px; color:#6b7280;">
+                                                    {{ $row['note'] }}
+                                                </p>
+                                            @endif
+                                        </td>
+                                        <td width="180" align="right" bgcolor="{{ $backgroundColor }}" style="padding:14px 18px; background-color:{{ $backgroundColor }}; font-size:14px; line-height:20px; font-weight:700; color:{{ $amountColor }}; font-family:Arial, Helvetica, sans-serif; white-space:nowrap; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            {{ $row['amount'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; margin-top:24px;">
+                                <tr>
+                                    <td style="padding:0 0 12px 0; font-size:13px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif;">
                                         Vencimentos
                                     </td>
                                 </tr>
