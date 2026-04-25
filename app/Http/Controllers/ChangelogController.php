@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.43',
+            'version' => 'v1.44',
             'date' => '25/04/2026',
-            'label' => 'v1.43 - 25/04/2026',
+            'label' => 'v1.44 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Template de e-mail compatível com Outlook',
+                'items' => [
+                    'Solicitacao de boleto por e-mail foi reconstruida em estrutura classica de tabelas, com fallbacks mais seguros para Outlook desktop.',
+                    'Cabecalho, blocos de dados, vencimentos e rodape deixam de depender de divs, gradientes e estilos modernos que costumam quebrar no Outlook.',
+                    'Layout permanece consistente nos webmails e ganha renderizacao mais previsivel no Outlook e clientes baseados em Word.',
+                ],
+            ],
+            [
+                'version' => 'v1.43',
+                'date' => '25/04/2026',
                 'title' => 'Autoajuste de namespace IMAP para Itens enviados',
                 'items' => [
                     'Espelhamento IMAP agora tenta automaticamente variacoes como INBOX.Sent e INBOX/Sent quando o servidor exigir prefixo de namespace para a pasta de enviados.',
