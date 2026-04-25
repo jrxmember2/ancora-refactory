@@ -35,9 +35,9 @@ class AncoraBillingMail
         if (!static::isSmtpConfigured()) {
             return [
                 'send_status' => 'failed',
-                'transport_message' => 'SMTP de cobrança não configurado em Configurações.',
+                'transport_message' => 'SMTP de cobranca nao configurado em Configuracoes.',
                 'imap_status' => 'not_configured',
-                'imap_message' => 'Espelhamento IMAP não configurado.',
+                'imap_message' => 'Espelhamento IMAP nao configurado.',
             ];
         }
 
@@ -45,9 +45,9 @@ class AncoraBillingMail
             $email = (new Email())
                 ->from(new Address(
                     (string) ($smtp['from_address'] ?? ''),
-                    (string) ($smtp['from_name'] ?? 'Âncora Cobrança')
+                    (string) ($smtp['from_name'] ?? 'Ancora Cobranca')
                 ))
-                ->subject((string) ($payload['subject'] ?? 'Solicitação de boleto'))
+                ->subject((string) ($payload['subject'] ?? 'Solicitacao de boleto'))
                 ->html((string) ($payload['html'] ?? ''));
 
             foreach ((array) ($payload['to'] ?? []) as $recipient) {
@@ -74,7 +74,7 @@ class AncoraBillingMail
 
             return [
                 'send_status' => 'sent',
-                'transport_message' => 'E-mail enviado com sucesso pelo SMTP de cobrança.',
+                'transport_message' => 'E-mail enviado com sucesso pelo SMTP de cobranca.',
                 'imap_status' => $imapResult['status'],
                 'imap_message' => $imapResult['message'],
             ];
@@ -83,14 +83,14 @@ class AncoraBillingMail
                 'send_status' => 'failed',
                 'transport_message' => $e->getMessage(),
                 'imap_status' => 'not_attempted',
-                'imap_message' => 'O espelhamento IMAP não foi tentado porque o envio SMTP falhou.',
+                'imap_message' => 'O espelhamento IMAP nao foi tentado porque o envio SMTP falhou.',
             ];
         } catch (\Throwable $e) {
             return [
                 'send_status' => 'failed',
                 'transport_message' => $e->getMessage(),
                 'imap_status' => 'not_attempted',
-                'imap_message' => 'O espelhamento IMAP não foi tentado porque o envio SMTP falhou.',
+                'imap_message' => 'O espelhamento IMAP nao foi tentado porque o envio SMTP falhou.',
             ];
         }
     }
@@ -118,50 +118,35 @@ class AncoraBillingMail
         if (!static::isImapConfigured($imap)) {
             return [
                 'status' => 'not_configured',
-                'message' => 'Espelhamento IMAP não configurado.',
+                'message' => 'Espelhamento IMAP nao configurado.',
             ];
         }
-
-        if (!function_exists('imap_open') || !defined('OP_HALFOPEN')) {
-            return [
-                'status' => 'unavailable',
-                'message' => 'Extensão IMAP indisponível no servidor.',
-            ];
-        }
-
-        $mailbox = static::imapMailbox($imap);
-        $username = (string) ($imap['username'] ?? '');
-        $password = (string) ($imap['password'] ?? '');
 
         $stream = null;
-        $previousErrors = imap_errors() ?: [];
-        if ($previousErrors !== []) {
-            // Limpa o buffer interno da extensão.
-        }
+        $sequence = 1;
 
         try {
-            $stream = @imap_open($mailbox, $username, $password, OP_HALFOPEN, 1, [
-                'DISABLE_AUTHENTICATOR' => 'GSSAPI',
-            ]);
+            $stream = static::imapConnect($imap);
 
-            if (!$stream) {
-                $error = static::imapErrorMessage();
-
-                return [
-                    'status' => 'failed',
-                    'message' => $error ?: 'Não foi possível abrir a caixa IMAP para espelhamento.',
-                ];
+            if (($imap['encryption'] ?? '') === 'tls') {
+                static::imapStartTls($stream, $sequence);
             }
 
-            $appended = @imap_append($stream, $mailbox, $email->toString(), '\\Seen');
-            if (!$appended) {
-                $error = static::imapErrorMessage();
+            static::imapLogin(
+                $stream,
+                $sequence,
+                (string) ($imap['username'] ?? ''),
+                (string) ($imap['password'] ?? '')
+            );
 
-                return [
-                    'status' => 'failed',
-                    'message' => $error ?: 'Não foi possível anexar a mensagem em Itens enviados.',
-                ];
-            }
+            static::imapAppend(
+                $stream,
+                $sequence,
+                (string) ($imap['sent_folder'] ?? 'Sent'),
+                $email->toString()
+            );
+
+            static::imapLogout($stream, $sequence);
 
             return [
                 'status' => 'mirrored',
@@ -174,7 +159,7 @@ class AncoraBillingMail
             ];
         } finally {
             if (is_resource($stream)) {
-                @imap_close($stream);
+                @fclose($stream);
             }
         }
     }
@@ -187,34 +172,223 @@ class AncoraBillingMail
             && trim((string) ($imap['sent_folder'] ?? '')) !== '';
     }
 
-    private static function imapMailbox(array $imap): string
+    private static function imapConnect(array $imap)
     {
         $host = trim((string) ($imap['host'] ?? ''));
         $port = (int) ($imap['port'] ?? 993);
         $encryption = trim((string) ($imap['encryption'] ?? 'ssl'));
-        $sentFolder = trim((string) ($imap['sent_folder'] ?? 'Sent'));
         $validateCert = (bool) ($imap['validate_cert'] ?? false);
 
-        $flags = ['imap'];
-        if ($encryption === 'ssl') {
-            $flags[] = 'ssl';
-        } elseif ($encryption === 'tls') {
-            $flags[] = 'tls';
-        }
-        if (!$validateCert) {
-            $flags[] = 'novalidate-cert';
+        $transport = $encryption === 'ssl' ? 'ssl' : 'tcp';
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => $validateCert,
+                'verify_peer_name' => $validateCert,
+                'allow_self_signed' => !$validateCert,
+                'peer_name' => $host,
+                'SNI_enabled' => true,
+            ],
+        ]);
+
+        $stream = @stream_socket_client(
+            sprintf('%s://%s:%d', $transport, $host, $port),
+            $errorNumber,
+            $errorMessage,
+            20,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if (!is_resource($stream)) {
+            $detail = trim((string) ($errorMessage ?: 'erro desconhecido'));
+
+            throw new \RuntimeException('Nao foi possivel conectar ao servidor IMAP: ' . $detail . '.');
         }
 
-        return sprintf('{%s:%d/%s}%s', $host, $port, implode('/', $flags), $sentFolder);
+        stream_set_timeout($stream, 20);
+
+        $greeting = static::imapReadLine($stream);
+        if ($greeting === null || !preg_match('/^\* (OK|PREAUTH)\b/i', $greeting)) {
+            throw new \RuntimeException('O servidor IMAP nao retornou uma saudacao valida.');
+        }
+
+        return $stream;
     }
 
-    private static function imapErrorMessage(): ?string
+    private static function imapStartTls($stream, int &$sequence): void
     {
-        $errors = imap_errors() ?: [];
-        if ($errors === []) {
+        $response = static::imapSendCommand($stream, $sequence, 'STARTTLS');
+        if (($response['status'] ?? '') !== 'OK') {
+            throw new \RuntimeException(static::imapResponseMessage(
+                $response,
+                'O servidor IMAP recusou o comando STARTTLS.'
+            ));
+        }
+
+        $cryptoMethod = defined('STREAM_CRYPTO_METHOD_TLS_CLIENT')
+            ? STREAM_CRYPTO_METHOD_TLS_CLIENT
+            : STREAM_CRYPTO_METHOD_SSLv23_CLIENT;
+
+        if (@stream_socket_enable_crypto($stream, true, $cryptoMethod) !== true) {
+            throw new \RuntimeException('Nao foi possivel ativar a criptografia TLS na conexao IMAP.');
+        }
+    }
+
+    private static function imapLogin($stream, int &$sequence, string $username, string $password): void
+    {
+        $response = static::imapSendCommand(
+            $stream,
+            $sequence,
+            'LOGIN ' . static::imapQuotedString($username) . ' ' . static::imapQuotedString($password)
+        );
+
+        if (($response['status'] ?? '') !== 'OK') {
+            throw new \RuntimeException(static::imapResponseMessage(
+                $response,
+                'Nao foi possivel autenticar na caixa IMAP de cobranca.'
+            ));
+        }
+    }
+
+    private static function imapAppend($stream, int &$sequence, string $mailbox, string $message): void
+    {
+        $tag = static::imapNextTag($sequence);
+        $message = static::normalizeImapMessage($message);
+
+        static::imapWrite(
+            $stream,
+            sprintf(
+                "%s APPEND %s (\\Seen) {%d}\r\n",
+                $tag,
+                static::imapQuotedString($mailbox),
+                strlen($message)
+            )
+        );
+
+        static::imapAwaitContinuation($stream, $tag);
+        static::imapWrite($stream, $message . "\r\n");
+
+        $response = static::imapReadTaggedResponse($stream, $tag);
+        if (($response['status'] ?? '') !== 'OK') {
+            throw new \RuntimeException(static::imapResponseMessage(
+                $response,
+                'Nao foi possivel anexar a mensagem na pasta de enviados.'
+            ));
+        }
+    }
+
+    private static function imapLogout($stream, int &$sequence): void
+    {
+        static::imapSendCommand($stream, $sequence, 'LOGOUT');
+    }
+
+    private static function imapSendCommand($stream, int &$sequence, string $command): array
+    {
+        $tag = static::imapNextTag($sequence);
+        static::imapWrite($stream, $tag . ' ' . $command . "\r\n");
+
+        return static::imapReadTaggedResponse($stream, $tag);
+    }
+
+    private static function imapReadTaggedResponse($stream, string $tag): array
+    {
+        $lines = [];
+
+        while (($line = static::imapReadLine($stream)) !== null) {
+            $lines[] = $line;
+
+            if (preg_match('/^' . preg_quote($tag, '/') . ' (OK|NO|BAD)\b/i', $line, $matches)) {
+                return [
+                    'status' => strtoupper((string) ($matches[1] ?? '')),
+                    'lines' => $lines,
+                ];
+            }
+        }
+
+        throw new \RuntimeException('A conexao IMAP foi encerrada antes da resposta final do servidor.');
+    }
+
+    private static function imapAwaitContinuation($stream, string $tag): void
+    {
+        while (($line = static::imapReadLine($stream)) !== null) {
+            if (str_starts_with($line, '+')) {
+                return;
+            }
+
+            if (preg_match('/^' . preg_quote($tag, '/') . ' (OK|NO|BAD)\b/i', $line)) {
+                throw new \RuntimeException(static::imapResponseMessage(
+                    ['lines' => [$line]],
+                    'O servidor IMAP recusou o recebimento da mensagem.'
+                ));
+            }
+        }
+
+        throw new \RuntimeException('A conexao IMAP foi encerrada antes da confirmacao do APPEND.');
+    }
+
+    private static function imapReadLine($stream): ?string
+    {
+        $line = fgets($stream);
+        if ($line === false) {
+            $meta = stream_get_meta_data($stream);
+            if (($meta['timed_out'] ?? false) === true) {
+                throw new \RuntimeException('Tempo esgotado na comunicacao com o servidor IMAP.');
+            }
+
             return null;
         }
 
-        return trim((string) end($errors)) ?: null;
+        return rtrim($line, "\r\n");
+    }
+
+    private static function imapWrite($stream, string $payload): void
+    {
+        $written = 0;
+        $length = strlen($payload);
+
+        while ($written < $length) {
+            $result = fwrite($stream, substr($payload, $written));
+            if ($result === false || $result === 0) {
+                throw new \RuntimeException('Nao foi possivel enviar dados para o servidor IMAP.');
+            }
+
+            $written += $result;
+        }
+    }
+
+    private static function imapNextTag(int &$sequence): string
+    {
+        $tag = sprintf('A%04d', $sequence);
+        $sequence++;
+
+        return $tag;
+    }
+
+    private static function imapQuotedString(string $value): string
+    {
+        $normalized = str_replace(["\\", '"', "\r", "\n"], ["\\\\", '\\"', ' ', ' '], $value);
+
+        return '"' . $normalized . '"';
+    }
+
+    private static function normalizeImapMessage(string $message): string
+    {
+        $normalized = str_replace(["\r\n", "\r"], "\n", $message);
+
+        return str_replace("\n", "\r\n", $normalized);
+    }
+
+    private static function imapResponseMessage(array $response, string $fallback): string
+    {
+        $lines = $response['lines'] ?? [];
+        $lastLine = trim((string) end($lines));
+        if ($lastLine === '') {
+            return $fallback;
+        }
+
+        $cleanLine = preg_replace('/^A\d+\s+(OK|NO|BAD)\s*/i', '', $lastLine) ?? '';
+        $cleanLine = trim($cleanLine);
+
+        return $cleanLine !== '' ? $cleanLine : $fallback;
     }
 }

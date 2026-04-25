@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.41',
+            'version' => 'v1.42',
             'date' => '25/04/2026',
-            'label' => 'v1.41 - 25/04/2026',
+            'label' => 'v1.42 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Espelhamento IMAP sem dependencia nativa do servidor',
+                'items' => [
+                    'Espelhamento de e-mails enviados para Itens enviados passa a usar conexao IMAP direta via socket no proprio PHP, sem depender da extensao nativa imap do servidor.',
+                    'Dockerfile volta ao build estavel do EasyPanel, removendo a tentativa de compilar bibliotecas IMAP indisponiveis na imagem Debian atual.',
+                    'Fluxo de solicitacao de boleto continua com auditoria por OS e o deploy deixa de ficar preso a pacotes nativos do container.',
+                ],
+            ],
+            [
+                'version' => 'v1.41',
+                'date' => '25/04/2026',
                 'title' => 'Hotfix do build IMAP no EasyPanel',
                 'items' => [
                     'Build Docker do ambiente EasyPanel passa a usar o pacote libc-client2007e-dev, compatível com Debian Trixie, no lugar do pacote legado libc-client-dev.',
