@@ -139,7 +139,7 @@ class AncoraBillingMail
                 (string) ($imap['password'] ?? '')
             );
 
-            static::imapAppend(
+            $usedMailbox = static::imapAppendWithFallbacks(
                 $stream,
                 $sequence,
                 (string) ($imap['sent_folder'] ?? 'Sent'),
@@ -150,7 +150,7 @@ class AncoraBillingMail
 
             return [
                 'status' => 'mirrored',
-                'message' => 'Mensagem espelhada na pasta de enviados via IMAP.',
+                'message' => 'Mensagem espelhada na pasta de enviados via IMAP (' . $usedMailbox . ').',
             ];
         } catch (\Throwable $e) {
             return [
@@ -277,6 +277,28 @@ class AncoraBillingMail
         }
     }
 
+    private static function imapAppendWithFallbacks($stream, int &$sequence, string $mailbox, string $message): string
+    {
+        $candidates = static::imapMailboxCandidates($mailbox);
+        $lastException = null;
+
+        foreach ($candidates as $candidate) {
+            try {
+                static::imapAppend($stream, $sequence, $candidate, $message);
+
+                return $candidate;
+            } catch (\RuntimeException $e) {
+                $lastException = $e;
+
+                if (!static::shouldRetryMailboxName($e->getMessage())) {
+                    throw $e;
+                }
+            }
+        }
+
+        throw $lastException ?? new \RuntimeException('Nao foi possivel anexar a mensagem na pasta de enviados.');
+    }
+
     private static function imapLogout($stream, int &$sequence): void
     {
         static::imapSendCommand($stream, $sequence, 'LOGOUT');
@@ -362,6 +384,31 @@ class AncoraBillingMail
         $sequence++;
 
         return $tag;
+    }
+
+    private static function imapMailboxCandidates(string $mailbox): array
+    {
+        $mailbox = trim($mailbox);
+        $baseMailbox = preg_replace('/^INBOX[\.\/]/i', '', $mailbox) ?? $mailbox;
+
+        $candidates = [$mailbox];
+
+        if ($baseMailbox !== '' && !preg_match('/^INBOX[\.\/]/i', $mailbox)) {
+            $candidates[] = 'INBOX.' . $baseMailbox;
+            $candidates[] = 'INBOX/' . $baseMailbox;
+        }
+
+        return array_values(array_unique(array_filter($candidates, fn ($value) => trim((string) $value) !== '')));
+    }
+
+    private static function shouldRetryMailboxName(string $message): bool
+    {
+        $normalized = strtolower($message);
+
+        return str_contains($normalized, 'nonexistent namespace')
+            || str_contains($normalized, 'prefixed with: inbox')
+            || str_contains($normalized, '[trycreate]')
+            || str_contains($normalized, 'does not exist');
     }
 
     private static function imapQuotedString(string $value): string

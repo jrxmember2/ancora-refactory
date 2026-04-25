@@ -317,7 +317,7 @@
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="billing-imap-section">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">IMAP de cobrança</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Opcional. Quando configurado e com a extensão IMAP disponível no servidor, o sistema tenta espelhar o envio na pasta de itens enviados da caixa de cobrança.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Opcional. Quando configurado, o sistema tenta espelhar o envio na pasta de itens enviados da caixa de cobranca. Exemplos comuns: <span class="font-medium">Sent</span>, <span class="font-medium">INBOX.Sent</span> ou <span class="font-medium">[Gmail]/Sent Mail</span>.</p>
                 <form method="post" action="{{ route('config.billing-imap.save') }}" class="mt-5 space-y-3">
                     @csrf
                     <input name="billing_imap_host" value="{{ $billingImap['host'] }}" placeholder="Host IMAP" class="{{ $inputClass }}">

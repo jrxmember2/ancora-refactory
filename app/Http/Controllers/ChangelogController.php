@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.42',
+            'version' => 'v1.43',
             'date' => '25/04/2026',
-            'label' => 'v1.42 - 25/04/2026',
+            'label' => 'v1.43 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Autoajuste de namespace IMAP para Itens enviados',
+                'items' => [
+                    'Espelhamento IMAP agora tenta automaticamente variacoes como INBOX.Sent e INBOX/Sent quando o servidor exigir prefixo de namespace para a pasta de enviados.',
+                    'Mensagens de sucesso passam a informar qual pasta foi aceita pelo servidor IMAP, facilitando auditoria e configuracao fina da conta.',
+                    'Tela de configuracao do IMAP de cobranca ganhou orientacao mais clara com exemplos de pasta de enviados para servidores comuns.',
+                ],
+            ],
+            [
+                'version' => 'v1.42',
+                'date' => '25/04/2026',
                 'title' => 'Espelhamento IMAP sem dependencia nativa do servidor',
                 'items' => [
                     'Espelhamento de e-mails enviados para Itens enviados passa a usar conexao IMAP direta via socket no proprio PHP, sem depender da extensao nativa imap do servidor.',
