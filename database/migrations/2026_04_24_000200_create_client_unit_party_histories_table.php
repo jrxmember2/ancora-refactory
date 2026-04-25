@@ -12,9 +12,9 @@ return new class extends Migration
         if (!Schema::hasTable('client_unit_party_histories')) {
             Schema::create('client_unit_party_histories', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedInteger('unit_id');
+                $table->integer('unit_id');
                 $table->string('party_type', 20);
-                $table->unsignedInteger('entity_id')->nullable();
+                $table->integer('entity_id')->nullable();
                 $table->string('display_name_snapshot', 180)->nullable();
                 $table->string('document_snapshot', 32)->nullable();
                 $table->dateTime('started_at')->nullable();
@@ -24,16 +24,10 @@ return new class extends Migration
 
                 $table->index(['unit_id', 'party_type', 'ended_at'], 'idx_client_unit_party_histories_open');
                 $table->index(['entity_id', 'party_type'], 'idx_client_unit_party_histories_entity');
-
-                $table->foreign('unit_id', 'fk_client_unit_party_histories_unit')
-                    ->references('id')->on('client_units')->cascadeOnDelete();
-                $table->foreign('entity_id', 'fk_client_unit_party_histories_entity')
-                    ->references('id')->on('client_entities')->nullOnDelete();
-                $table->foreign('changed_by', 'fk_client_unit_party_histories_user')
-                    ->references('id')->on('users')->nullOnDelete();
             });
         }
 
+        $this->repairForeignKeys();
         $this->seedCurrentLinks();
     }
 
@@ -110,5 +104,65 @@ return new class extends Migration
                     DB::table('client_unit_party_histories')->insert($rows);
                 }
             });
+    }
+
+    private function repairForeignKeys(): void
+    {
+        if (!Schema::hasTable('client_unit_party_histories')) {
+            return;
+        }
+
+        $this->dropForeignIfExists('client_unit_party_histories', 'fk_client_unit_party_histories_unit');
+        $this->dropForeignIfExists('client_unit_party_histories', 'fk_client_unit_party_histories_entity');
+        $this->dropForeignIfExists('client_unit_party_histories', 'fk_client_unit_party_histories_user');
+
+        if (Schema::hasColumn('client_unit_party_histories', 'unit_id')) {
+            DB::statement('ALTER TABLE client_unit_party_histories MODIFY unit_id INT NOT NULL');
+        }
+
+        if (Schema::hasColumn('client_unit_party_histories', 'entity_id')) {
+            DB::statement('ALTER TABLE client_unit_party_histories MODIFY entity_id INT NULL');
+        }
+
+        if (Schema::hasColumn('client_unit_party_histories', 'changed_by')) {
+            DB::statement('ALTER TABLE client_unit_party_histories MODIFY changed_by BIGINT UNSIGNED NULL');
+        }
+
+        if (Schema::hasTable('client_units')
+            && Schema::hasColumn('client_unit_party_histories', 'unit_id')
+            && !$this->foreignKeyExists('client_unit_party_histories', 'fk_client_unit_party_histories_unit')) {
+            DB::statement('ALTER TABLE client_unit_party_histories ADD CONSTRAINT fk_client_unit_party_histories_unit FOREIGN KEY (unit_id) REFERENCES client_units(id) ON DELETE CASCADE');
+        }
+
+        if (Schema::hasTable('client_entities')
+            && Schema::hasColumn('client_unit_party_histories', 'entity_id')
+            && !$this->foreignKeyExists('client_unit_party_histories', 'fk_client_unit_party_histories_entity')) {
+            DB::statement('ALTER TABLE client_unit_party_histories ADD CONSTRAINT fk_client_unit_party_histories_entity FOREIGN KEY (entity_id) REFERENCES client_entities(id) ON DELETE SET NULL');
+        }
+
+        if (Schema::hasTable('users')
+            && Schema::hasColumn('client_unit_party_histories', 'changed_by')
+            && !$this->foreignKeyExists('client_unit_party_histories', 'fk_client_unit_party_histories_user')) {
+            DB::statement('ALTER TABLE client_unit_party_histories ADD CONSTRAINT fk_client_unit_party_histories_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL');
+        }
+    }
+
+    private function dropForeignIfExists(string $table, string $constraint): void
+    {
+        if ($this->foreignKeyExists($table, $constraint)) {
+            DB::statement("ALTER TABLE {$table} DROP FOREIGN KEY {$constraint}");
+        }
+    }
+
+    private function foreignKeyExists(string $table, string $constraint): bool
+    {
+        $database = DB::getDatabaseName();
+
+        return DB::table('information_schema.TABLE_CONSTRAINTS')
+            ->where('CONSTRAINT_SCHEMA', $database)
+            ->where('TABLE_NAME', $table)
+            ->where('CONSTRAINT_NAME', $constraint)
+            ->where('CONSTRAINT_TYPE', 'FOREIGN KEY')
+            ->exists();
     }
 };

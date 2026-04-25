@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.37',
+            'version' => 'v1.38',
             'date' => '24/04/2026',
-            'label' => 'v1.37 - 24/04/2026',
+            'label' => 'v1.38 - 24/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix da migration do historico de unidades',
+                'items' => [
+                    'Migration do historico de proprietarios e locatarios passa a se adaptar ao schema legado do banco, usando INT assinado para client_units e client_entities.',
+                    'A mesma migration agora repara automaticamente tabelas parcialmente criadas apos tentativa que falhou no deploy, recriando foreign keys e ajustando tipos de coluna.',
+                ],
+            ],
+            [
+                'version' => 'v1.37',
+                'date' => '24/04/2026',
                 'title' => 'Perfil, alertas e historico de unidades',
                 'items' => [
                     'Listagem de unidades passa a usar ordenacao natural descendente para numeros puros, evitando que a unidade 1001 apareca antes da 801 por ordem alfabetica.',
