@@ -1089,7 +1089,8 @@ class CobrancaController extends Controller
             'agreementTotalWords' => ucfirst(BrazilianCurrencyFormatter::toWords((float) ($case->agreement_total ?? 0))),
             'paymentLines' => $this->boletoPaymentLines($case),
             'billingOverview' => $this->boletoBillingOverview($update),
-            'billingBreakdown' => $this->boletoBillingBreakdown($update),
+            'quotaDetails' => $this->boletoQuotaDetails($update),
+            'additionalCharges' => $this->boletoAdditionalCharges($update),
             'officeEmail' => (string) ($brand['company_email'] ?? ''),
             'officePhone' => (string) ($brand['company_phone'] ?? ''),
             'selectedUpdate' => $update,
@@ -1241,51 +1242,64 @@ class CobrancaController extends Controller
         ];
     }
 
-    private function boletoBillingBreakdown(CobrancaMonetaryUpdate $update): array
+    private function boletoQuotaDetails(CobrancaMonetaryUpdate $update): array
+    {
+        $update->loadMissing('items');
+
+        return $update->items
+            ->map(function (CobrancaMonetaryUpdateItem $item) {
+                $referenceLabel = trim((string) ($item->reference_label ?: ''));
+                if ($referenceLabel === '') {
+                    $referenceLabel = 'Cota ' . (optional($item->due_date)->format('m/Y') ?: 'sem referencia');
+                }
+
+                $originalCents = $this->moneyToCents($item->original_amount ?? 0);
+                $correctedCents = $this->moneyToCents($item->corrected_amount ?? 0);
+                $interestCents = $this->moneyToCents($item->interest_amount ?? 0);
+                $fineCents = $this->moneyToCents($item->fine_amount ?? 0);
+                $totalCents = $this->moneyToCents($item->total_amount ?? 0);
+                $correctionGainCents = max(0, $correctedCents - $originalCents);
+
+                $notes = array_filter([
+                    'Original ' . $this->centsToMoney($originalCents),
+                    $correctionGainCents > 0 ? 'Atualizacao ' . $this->centsToMoney($correctionGainCents) : null,
+                    $interestCents > 0 ? 'Juros ' . $this->centsToMoney($interestCents) : null,
+                    $fineCents > 0 ? 'Multa ' . $this->centsToMoney($fineCents) : null,
+                ]);
+
+                return [
+                    'label' => $referenceLabel,
+                    'due_date' => optional($item->due_date)->format('d/m/Y'),
+                    'amount' => $this->centsToMoney($totalCents),
+                    'note' => implode(' · ', $notes),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function boletoAdditionalCharges(CobrancaMonetaryUpdate $update): array
     {
         $payload = (array) ($update->payload_json ?? []);
         $settings = (array) data_get($payload, 'settings', []);
 
-        $originalCents = $this->boletoUpdateCents($update, 'original_total', 'totals_cents.original_cents');
-        $correctedCents = $this->boletoUpdateCents($update, 'corrected_total', 'totals_cents.corrected_cents');
-        $interestCents = $this->boletoUpdateCents($update, 'interest_total', 'totals_cents.interest_cents');
-        $fineCents = $this->boletoUpdateCents($update, 'fine_total', 'totals_cents.fine_cents');
         $costsOriginalCents = (int) data_get($payload, 'settings.costs_cents', $this->moneyToCents($update->costs_amount ?? 0));
         $costsCorrectedCents = $this->boletoUpdateCents($update, 'costs_corrected_amount', 'totals_cents.costs_corrected_cents');
         $boletoFeeCents = $this->boletoUpdateCents($update, 'boleto_fee_total', 'totals_cents.boleto_fee_cents');
         $boletoCancellationFeeCents = $this->boletoUpdateCents($update, 'boleto_cancellation_fee_total', 'totals_cents.boleto_cancellation_fee_cents');
         $abatementCents = $this->boletoUpdateCents($update, 'abatement_amount', 'totals_cents.abatement_cents');
-        $debitTotalCents = $this->boletoUpdateCents($update, 'debit_total', 'totals_cents.debit_total_cents');
         $attorneyFeeCents = $this->boletoUpdateCents($update, 'attorney_fee_amount', 'totals_cents.attorney_fee_cents');
         $grandTotalCents = $this->boletoUpdateCents($update, 'grand_total', 'totals_cents.grand_total_cents');
 
-        $correctionGainCents = max(0, $correctedCents - $originalCents);
-        $rows = [
-            [
-                'label' => 'Principal das cotas',
-                'amount' => $this->centsToMoney($originalCents),
+        $rows = [];
+
+        if ($attorneyFeeCents > 0) {
+            $rows[] = [
+                'label' => $this->boletoAttorneyFeeLabel($update, $settings),
+                'amount' => $this->centsToMoney($attorneyFeeCents),
                 'tone' => 'default',
-            ],
-            [
-                'label' => 'Atualizacao monetaria',
-                'amount' => $this->centsToMoney($correctionGainCents),
-                'tone' => 'default',
-                'note' => $correctedCents > 0 ? 'Total corrigido das cotas: ' . $this->centsToMoney($correctedCents) : null,
-            ],
-            [
-                'label' => 'Juros de mora',
-                'amount' => $this->centsToMoney($interestCents),
-                'tone' => 'default',
-            ],
-            [
-                'label' => 'Multa',
-                'amount' => $this->centsToMoney($fineCents),
-                'tone' => 'default',
-                'note' => ((float) ($update->fine_percent ?? data_get($settings, 'fine_percent', 0))) > 0
-                    ? number_format((float) ($update->fine_percent ?? data_get($settings, 'fine_percent', 0)), 2, ',', '.') . '% aplicado'
-                    : null,
-            ],
-        ];
+            ];
+        }
 
         if ($costsCorrectedCents > 0) {
             $note = null;
@@ -1327,20 +1341,6 @@ class CobrancaController extends Controller
                 'label' => 'Abatimento',
                 'amount' => '- ' . $this->centsToMoney($abatementCents),
                 'tone' => 'deduction',
-            ];
-        }
-
-        $rows[] = [
-            'label' => 'Subtotal do debito',
-            'amount' => $this->centsToMoney($debitTotalCents),
-            'tone' => 'summary',
-        ];
-
-        if ($attorneyFeeCents > 0) {
-            $rows[] = [
-                'label' => $this->boletoAttorneyFeeLabel($update, $settings),
-                'amount' => $this->centsToMoney($attorneyFeeCents),
-                'tone' => 'default',
             ];
         }
 

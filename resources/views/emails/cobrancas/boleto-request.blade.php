@@ -132,13 +132,44 @@
                             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; margin-top:24px;">
                                 <tr>
                                     <td style="padding:0 0 12px 0; font-size:13px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif;">
-                                        Composição da cobrança
+                                        Cotas atualizadas
                                     </td>
                                 </tr>
                             </table>
 
                             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; border:1px solid #e5e7eb;">
-                                @foreach($billingBreakdown as $row)
+                                @foreach($quotaDetails as $row)
+                                    <tr>
+                                        <td style="padding:14px 18px; background-color:#ffffff; font-family:Arial, Helvetica, sans-serif; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            <p style="margin:0; font-size:14px; line-height:20px; font-weight:700; color:#111827;">
+                                                {{ $row['label'] }}
+                                                @if(!empty($row['due_date']))
+                                                    <span style="font-weight:400; color:#6b7280;"> - venc. {{ $row['due_date'] }}</span>
+                                                @endif
+                                            </p>
+                                            @if(!empty($row['note']))
+                                                <p style="margin:4px 0 0 0; font-size:12px; line-height:18px; color:#6b7280;">
+                                                    {{ $row['note'] }}
+                                                </p>
+                                            @endif
+                                        </td>
+                                        <td width="180" align="right" style="padding:14px 18px; background-color:#ffffff; font-size:14px; line-height:20px; font-weight:700; color:#111827; font-family:Arial, Helvetica, sans-serif; white-space:nowrap; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                            {{ $row['amount'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; margin-top:24px;">
+                                <tr>
+                                    <td style="padding:0 0 12px 0; font-size:13px; line-height:18px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:1px; font-family:Arial, Helvetica, sans-serif;">
+                                        Honorários, custas e taxas
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; border:1px solid #e5e7eb;">
+                                @foreach($additionalCharges as $row)
                                     @php
                                         $tone = $row['tone'] ?? 'default';
                                         $labelColor = $tone === 'total'
@@ -147,14 +178,11 @@
                                         $amountColor = $tone === 'total'
                                             ? '#941415'
                                             : ($tone === 'deduction' ? '#047857' : '#111827');
-                                        $backgroundColor = $tone === 'total'
-                                            ? '#fef2f2'
-                                            : ($tone === 'summary' ? '#f9fafb' : '#ffffff');
-                                        $fontWeight = in_array($tone, ['summary', 'total'], true) ? '700' : '400';
+                                        $backgroundColor = $tone === 'total' ? '#fef2f2' : '#ffffff';
                                     @endphp
                                     <tr>
                                         <td bgcolor="{{ $backgroundColor }}" style="padding:14px 18px; background-color:{{ $backgroundColor }}; font-family:Arial, Helvetica, sans-serif; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
-                                            <p style="margin:0; font-size:14px; line-height:20px; font-weight:{{ $fontWeight }}; color:{{ $labelColor }};">
+                                            <p style="margin:0; font-size:14px; line-height:20px; font-weight:700; color:{{ $labelColor }};">
                                                 {{ $row['label'] }}
                                             </p>
                                             @if(!empty($row['note']))

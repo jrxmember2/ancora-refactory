@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.45',
+            'version' => 'v1.46',
             'date' => '25/04/2026',
-            'label' => 'v1.45 - 25/04/2026',
+            'label' => 'v1.46 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Solicitacao de boleto detalhada cota a cota',
+                'items' => [
+                    'Corpo do e-mail passa a listar cada cota atualizada em sua propria linha, com vencimento, total individual e composicao resumida de original, atualizacao, juros e multa.',
+                    'Honorarios, custas processuais e taxas de boleto deixam de aparecer agregados junto das cotas e passam para um bloco separado de fechamento.',
+                    'Leitura fica mais fiel a conferencia operacional da administradora, sem repetir totais globais das cotas quando o objetivo e enxergar cada debito separadamente.',
+                ],
+            ],
+            [
+                'version' => 'v1.45',
+                'date' => '25/04/2026',
                 'title' => 'E-mail de boleto com detalhamento completo da cobrança',
                 'items' => [
                     'Corpo do e-mail da solicitacao de boleto passa a trazer resumo da memoria TJES e composicao detalhada da cobranca para facilitar a conferencia da administradora.',
