@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.39',
-            'date' => '24/04/2026',
-            'label' => 'v1.39 - 24/04/2026',
+            'version' => 'v1.40',
+            'date' => '25/04/2026',
+            'label' => 'v1.40 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix do espelhamento IMAP e layout do e-mail de boleto',
+                'items' => [
+                    'Dockerfile do ambiente passa a instalar a extensao IMAP do PHP com suporte a SSL/Kerberos, permitindo espelhar os e-mails de solicitacao de boleto em Itens enviados.',
+                    'Template HTML da solicitacao de boleto deixa de usar flex nas linhas de vencimento e passa a renderizar em tabela, corrigindo o problema de data e valor aparecerem colados no Gmail.',
+                    'Linhas de vencimento agora saem sempre no formato data - descricao opcional - valor, com separacao visual mais estavel entre clientes de e-mail.',
+                ],
+            ],
+            [
+                'version' => 'v1.39',
+                'date' => '24/04/2026',
                 'title' => 'Solicitacao de boleto por e-mail na OS de cobranca',
                 'items' => [
                     'OS de cobranca ganha o botao Solicitar Boleto, com validacoes para exigir plano de pagamento fechado, administradora vinculada, e-mails de cobranca e memoria TJES salva.',

@@ -56,17 +56,25 @@
                 <div style="margin-top:24px;">
                     <div style="font-size:13px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Vencimentos</div>
                     <div style="margin-top:12px; border:1px solid #e5e7eb; border-radius:20px; overflow:hidden;">
-                        @foreach($paymentLines as $line)
-                            <div style="display:flex; justify-content:space-between; gap:16px; padding:14px 18px; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
-                                <div style="font-size:14px; color:#111827;">
-                                    {{ $line['due_date'] }}
-                                    @if(!empty($line['display_label']))
-                                        <span style="font-weight:700; color:#941415;"> - {{ $line['display_label'] }}</span>
-                                    @endif
-                                </div>
-                                <div style="font-size:14px; font-weight:700; color:#111827;">{{ $line['amount'] }}</div>
-                            </div>
-                        @endforeach
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            @foreach($paymentLines as $line)
+                                <tr>
+                                    <td style="padding:14px 18px; font-size:14px; color:#111827; white-space:nowrap; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                        {{ $line['due_date'] }}
+                                    </td>
+                                    <td style="padding:14px 4px; width:1%; text-align:center; font-size:14px; font-weight:700; color:#941415; white-space:nowrap; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                        -
+                                    </td>
+                                    <td style="padding:14px 6px 14px 0; font-size:14px; color:#111827; {{ !$loop->last ? 'border-bottom:1px solid #e5e7eb;' : '' }}">
+                                        @if(!empty($line['display_label']))
+                                            <span style="font-weight:700; color:#941415;">{{ $line['display_label'] }}</span>
+                                            <span style="color:#9ca3af;">&nbsp;-&nbsp;</span>
+                                        @endif
+                                        <span style="font-weight:700; color:#111827; white-space:nowrap;">{{ $line['amount'] }}</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </table>
                     </div>
                 </div>
 
