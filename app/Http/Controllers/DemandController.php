@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClientCondominium;
+use App\Models\ClientEntity;
+use App\Models\ClientPortalUser;
 use App\Models\Demand;
 use App\Models\DemandAttachment;
 use App\Models\DemandCategory;
@@ -145,6 +147,124 @@ class DemandController extends Controller
             'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
             'users' => User::query()->active()->orderBy('name')->get(),
         ]);
+    }
+
+    public function create(Request $request): View
+    {
+        $currentUser = AncoraAuth::user($request);
+
+        return view('pages.demandas.create', [
+            'title' => 'Nova demanda',
+            'categories' => DemandCategory::query()->active()->get(),
+            'demandTags' => DemandTag::query()->active()->get(),
+            'priorityLabels' => Demand::priorityLabels(),
+            'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
+            'entities' => ClientEntity::query()->active()->get(),
+            'portalUsers' => ClientPortalUser::query()
+                ->active()
+                ->with(['entity', 'condominium', 'condominiums'])
+                ->orderBy('name')
+                ->get(),
+            'users' => User::query()->active()->orderBy('name')->get(),
+            'defaultTagId' => DemandTag::defaultForStatus('aberta')?->id ?: DemandTag::default()?->id,
+            'defaultAssignedUserId' => $currentUser?->id,
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:demand_categories,id'],
+            'demand_tag_id' => ['nullable', 'integer', 'exists:demand_tags,id'],
+            'priority' => ['required', 'string', 'in:' . implode(',', array_keys(Demand::priorityLabels()))],
+            'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
+            'client_entity_id' => ['nullable', 'integer', 'exists:client_entities,id'],
+            'client_portal_user_id' => ['nullable', 'integer', 'exists:client_portal_users,id'],
+            'subject' => ['required', 'string', 'max:180'],
+            'description' => ['required', 'string', 'max:12000'],
+            'publish_to_portal' => ['nullable', 'boolean'],
+            'files.*' => ['nullable', 'file', 'max:20480'],
+        ]);
+
+        $portalUser = !empty($validated['client_portal_user_id'])
+            ? ClientPortalUser::query()
+                ->active()
+                ->with(['entity', 'condominium', 'condominiums'])
+                ->find($validated['client_portal_user_id'])
+            : null;
+
+        $selectedEntityId = !empty($validated['client_entity_id']) ? (int) $validated['client_entity_id'] : null;
+        $selectedCondominiumId = !empty($validated['client_condominium_id']) ? (int) $validated['client_condominium_id'] : null;
+
+        if ($portalUser) {
+            if (!$selectedEntityId && $portalUser->client_entity_id) {
+                $selectedEntityId = (int) $portalUser->client_entity_id;
+            }
+
+            if (!$selectedCondominiumId) {
+                $portalCondominiumIds = $portalUser->accessibleCondominiumIds();
+                if (count($portalCondominiumIds) === 1) {
+                    $selectedCondominiumId = (int) $portalCondominiumIds[0];
+                }
+            }
+        }
+
+        $tag = !empty($validated['demand_tag_id'])
+            ? DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->first()
+            : (DemandTag::defaultForStatus('aberta') ?: DemandTag::default());
+
+        $publishToPortal = $request->boolean('publish_to_portal');
+
+        $demand = DB::transaction(function () use (
+            $request,
+            $user,
+            $validated,
+            $portalUser,
+            $selectedEntityId,
+            $selectedCondominiumId,
+            $tag,
+            $publishToPortal
+        ) {
+            $state = $this->initialStatePayload($tag);
+
+            $demand = Demand::query()->create([
+                'protocol' => $this->nextProtocol(),
+                'origin' => 'internal',
+                'client_portal_user_id' => $portalUser?->id,
+                'client_entity_id' => $selectedEntityId,
+                'client_condominium_id' => $selectedCondominiumId,
+                'category_id' => (int) $validated['category_id'],
+                'subject' => $validated['subject'],
+                'description' => $validated['description'],
+                'priority' => $validated['priority'],
+                'assigned_user_id' => !empty($validated['assigned_user_id']) ? (int) $validated['assigned_user_id'] : $user->id,
+                'last_external_message_at' => $publishToPortal ? now() : null,
+                'last_internal_message_at' => $publishToPortal ? null : now(),
+                'status' => $state['status'],
+                'demand_tag_id' => $state['demand_tag_id'],
+                'closed_at' => $state['closed_at'],
+                'sla_started_at' => $state['sla_started_at'],
+                'sla_due_at' => $state['sla_due_at'],
+            ]);
+
+            $message = DemandMessage::query()->create([
+                'demand_id' => $demand->id,
+                'sender_type' => 'internal',
+                'user_id' => $user->id,
+                'message' => $validated['description'],
+                'is_internal' => !$publishToPortal,
+            ]);
+
+            $this->storeAttachments($request, $demand, $message, 'internal', null, $user->id, !$publishToPortal);
+
+            return $demand;
+        });
+
+        return redirect()->route('demandas.show', $demand)->with('success', 'Demanda criada com sucesso.');
     }
 
     public function show(Demand $demanda): View
@@ -336,6 +456,40 @@ class DemandController extends Controller
             'message' => 'Demanda movida de "' . $previousTag . '" para "' . $tag->name . '" por ' . ($user?->name ?: 'Sistema') . ' em ' . now()->format('d/m/Y H:i') . ".\n" . $slaLine,
             'is_internal' => true,
         ]);
+    }
+
+    private function initialStatePayload(?DemandTag $tag): array
+    {
+        if (!$tag) {
+            return [
+                'status' => 'aberta',
+                'demand_tag_id' => null,
+                'closed_at' => null,
+                'sla_started_at' => null,
+                'sla_due_at' => null,
+            ];
+        }
+
+        $closedAt = ($tag->is_closing || in_array($tag->status_key, ['concluida', 'cancelada'], true))
+            ? now()
+            : null;
+        $slaStartedAt = $tag->sla_hours && !$closedAt ? now() : null;
+
+        return [
+            'status' => $tag->status_key,
+            'demand_tag_id' => $tag->id,
+            'closed_at' => $closedAt,
+            'sla_started_at' => $slaStartedAt,
+            'sla_due_at' => $slaStartedAt ? $slaStartedAt->copy()->addHours((int) $tag->sla_hours) : null,
+        ];
+    }
+
+    private function nextProtocol(): string
+    {
+        $year = now()->year;
+        $seq = (int) Demand::query()->whereYear('created_at', $year)->lockForUpdate()->count() + 1;
+
+        return sprintf('DEM-%d-%05d', $year, $seq);
     }
 
     private function tagUpdatePayload(Demand $demand, DemandTag $tag): array

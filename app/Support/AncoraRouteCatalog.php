@@ -149,6 +149,8 @@ class AncoraRouteCatalog
                     'demandas.dashboard' => 'Acessar dashboard de demandas',
                     'demandas.kanban' => 'Acessar kanban de demandas',
                     'demandas.index' => 'Listar demandas',
+                    'demandas.create' => 'Nova demanda',
+                    'demandas.store' => 'Salvar demanda',
                     'demandas.show' => 'Visualizar demanda',
                     'demandas.update' => 'Atualizar demanda',
                     'demandas.tag.update' => 'Mover demanda no kanban',

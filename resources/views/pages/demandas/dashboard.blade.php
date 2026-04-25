@@ -6,6 +6,7 @@
 
 @section('content')
 <x-ancora.section-header title="Dashboard de Demandas" subtitle="Panorama operacional das demandas, tags e SLAs.">
+    <a href="{{ route('demandas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova demanda</a>
     <a href="{{ route('demandas.kanban') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Abrir kanban</a>
     <a href="{{ route('demandas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Lista</a>
 </x-ancora.section-header>
@@ -48,7 +49,7 @@
                             <span class="h-3 w-3 rounded-full" style="background-color: {{ $tag->color_hex }}"></span>
                             {{ $tag->name }}
                         </div>
-                        <div class="text-gray-500 dark:text-gray-400">{{ $row['open'] }} aberta(s) · {{ $row['total'] }} total</div>
+                        <div class="text-gray-500 dark:text-gray-400">{{ $row['open'] }} aberta(s) - {{ $row['total'] }} total</div>
                     </div>
                     <div class="h-3 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                         <div class="h-full rounded-full" style="width: {{ $percent }}%; background-color: {{ $tag->color_hex }}"></div>
@@ -103,7 +104,7 @@
             </a>
         @empty
             <div class="md:col-span-2 xl:col-span-4">
-                <x-ancora.empty-state icon="fa-solid fa-inbox" title="Sem demandas" subtitle="As solicitacoes abertas pelo portal aparecerao aqui." />
+                <x-ancora.empty-state icon="fa-solid fa-inbox" title="Sem demandas" subtitle="As demandas do portal e as cadastradas internamente aparecerao aqui." />
             </div>
         @endforelse
     </div>

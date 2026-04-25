@@ -149,6 +149,8 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/dashboard', [DemandController::class, 'dashboard'])->name('demandas.dashboard')->middleware('ancora.route:demandas.dashboard');
         Route::get('/kanban', [DemandController::class, 'kanban'])->name('demandas.kanban')->middleware('ancora.route:demandas.kanban');
         Route::get('/', [DemandController::class, 'index'])->name('demandas.index')->middleware('ancora.route:demandas.index');
+        Route::get('/nova', [DemandController::class, 'create'])->name('demandas.create')->middleware('ancora.route:demandas.create');
+        Route::post('/store', [DemandController::class, 'store'])->name('demandas.store')->middleware('ancora.route:demandas.store');
         Route::get('/{demanda}', [DemandController::class, 'show'])->name('demandas.show')->middleware('ancora.route:demandas.show');
         Route::match(['post', 'put'], '/{demanda}', [DemandController::class, 'update'])->name('demandas.update')->middleware('ancora.route:demandas.update');
         Route::post('/{demanda}/tag', [DemandController::class, 'updateTag'])->name('demandas.tag.update')->middleware('ancora.route:demandas.tag.update');

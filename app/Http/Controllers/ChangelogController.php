@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.47',
+            'version' => 'v1.48',
             'date' => '25/04/2026',
-            'label' => 'v1.47 - 25/04/2026',
+            'label' => 'v1.48 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Criacao interna de demandas no backoffice',
+                'items' => [
+                    'Modulo Demandas ganha o fluxo de Nova demanda, permitindo abertura manual diretamente pelo backoffice sem depender do Portal do Cliente.',
+                    'Formulario interno permite vincular categoria, tag inicial, responsavel, prioridade, condominio, entidade cliente, usuario do portal e anexos ja na abertura.',
+                    'Mensagem inicial pode nascer interna ou visivel no portal, preservando o uso do mesmo modulo tanto para demandas operacionais quanto para interacoes com clientes.',
+                ],
+            ],
+            [
+                'version' => 'v1.47',
+                'date' => '25/04/2026',
                 'title' => 'Preview da foto em Meus dados',
                 'items' => [
                     'Tela de Meus dados passa a exibir pre-visualizacao imediata da foto escolhida no proprio formulario antes de salvar.',

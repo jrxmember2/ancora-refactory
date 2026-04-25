@@ -6,6 +6,7 @@
 
 @section('content')
 <x-ancora.section-header title="Kanban de Demandas" subtitle="Arraste uma demanda para outra tag para atualizar o fluxo, status publico e SLA.">
+    <a href="{{ route('demandas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova demanda</a>
     <a href="{{ route('demandas.dashboard') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Dashboard</a>
     <a href="{{ route('demandas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Lista</a>
 </x-ancora.section-header>
