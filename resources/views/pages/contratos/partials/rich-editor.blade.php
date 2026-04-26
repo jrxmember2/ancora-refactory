@@ -27,14 +27,19 @@
             <div class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Variáveis disponíveis</div>
             <div class="flex flex-wrap gap-2">
                 @foreach($variableDefinitions as $variable)
+                    @php
+                        $variableKey = is_array($variable) ? ($variable['key'] ?? '') : ($variable->key ?? '');
+                        $variableDescription = is_array($variable) ? ($variable['description'] ?? '') : ($variable->description ?? '');
+                        $variableToken = '{{' . $variableKey . '}}';
+                    @endphp
                     <button
                         type="button"
                         class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200"
-                        data-editor-variable="{{ '{{' . $variable['key'] . '}}' }}"
+                        data-editor-variable="{{ $variableToken }}"
                         data-editor-target="{{ $editorId }}"
-                        title="{{ $variable['description'] ?? '' }}"
+                        title="{{ $variableDescription }}"
                     >
-                        {{ '{{' . $variable['key'] . '}}' }}
+                        {{ $variableToken }}
                     </button>
                 @endforeach
             </div>

@@ -5,13 +5,14 @@
 
 <div class="space-y-4">
     @foreach($items as $item)
+        @php($variableToken = '{{' . $item->key . '}}')
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <form method="post" action="{{ route('contratos.variables.update', $item) }}" class="grid grid-cols-1 gap-4 xl:grid-cols-[220px,1fr,220px,120px,120px]">
                 @csrf
                 @method('PUT')
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Chave</label>
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-brand-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-brand-200">{{ '{{' . $item->key . '}}' }}</div>
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-brand-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-brand-200">{{ $variableToken }}</div>
                 </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Rótulo</label>

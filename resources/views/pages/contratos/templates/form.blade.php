@@ -70,10 +70,11 @@
                 <div class="mt-4 space-y-3">
                     @php($selectedVariables = old('available_variables', $item?->available_variables_json ?? []))
                     @foreach($variableDefinitions as $variable)
+                        @php($variableToken = '{{' . ($variable['key'] ?? '') . '}}')
                         <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
                             <input type="checkbox" name="available_variables[]" value="{{ $variable['key'] }}" @checked(in_array($variable['key'], $selectedVariables, true))>
                             <span>
-                                <span class="block font-semibold">{{ '{{' . $variable['key'] . '}}' }}</span>
+                                <span class="block font-semibold">{{ $variableToken }}</span>
                                 <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $variable['description'] }}</span>
                             </span>
                         </label>

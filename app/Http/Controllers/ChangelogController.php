@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.52',
+            'version' => 'v1.53',
             'date' => '26/04/2026',
-            'label' => 'v1.52 - 26/04/2026',
+            'label' => 'v1.53 - 26/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix no editor de contratos',
+                'items' => [
+                    'Tela de Novo contrato volta a abrir normalmente apos a remocao de expressoes Blade com chaves aninhadas no editor rico do modulo Contratos.',
+                    'Seletores de variaveis do editor passaram a montar os tokens em PHP antes da renderizacao, evitando erros de compilacao em producao.',
+                    'As telas de Templates e Variaveis do modulo tambem receberam o mesmo ajuste preventivo para evitar falhas semelhantes ao exibir placeholders dinamicos.',
+                ],
+            ],
+            [
+                'version' => 'v1.52',
+                'date' => '26/04/2026',
                 'title' => 'Novo modulo Contratos integrado ao ecossistema Âncora',
                 'items' => [
                     'Sistema ganha o modulo Contratos com dashboard, CRUD completo, templates, categorias, variaveis, configuracoes e relatorios proprios no mesmo padrao visual do restante da plataforma.',
