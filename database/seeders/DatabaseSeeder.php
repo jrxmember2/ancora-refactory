@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             ContractModuleSeeder::class,
+            Financeiro360ModuleSeeder::class,
         ]);
     }
 }

@@ -16,6 +16,9 @@ use App\Http\Controllers\ContractVariableController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemandController;
+use App\Http\Controllers\FinancialController;
+use App\Http\Controllers\FinancialExportController;
+use App\Http\Controllers\FinancialImportController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\Portal\ClientPortalAccountController;
@@ -219,6 +222,101 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/{contrato}/anexos/upload', [ContractController::class, 'uploadAttachment'])->name('contratos.attachments.upload')->middleware('ancora.route:contratos.attachments.upload');
         Route::get('/{contrato}/anexos/{attachment}/download', [ContractController::class, 'downloadAttachment'])->name('contratos.attachments.download')->middleware('ancora.route:contratos.attachments.download');
         Route::match(['post', 'delete'], '/{contrato}/anexos/{attachment}', [ContractController::class, 'deleteAttachment'])->name('contratos.attachments.delete')->middleware('ancora.route:contratos.attachments.delete');
+    });
+
+    Route::prefix('financeiro')->group(function () {
+        Route::get('/dashboard', [FinancialController::class, 'dashboard'])->name('financeiro.dashboard')->middleware('ancora.route:financeiro.dashboard');
+        Route::match(['get', 'post'], '/fluxo-caixa', [FinancialController::class, 'cashFlowIndex'])->name('financeiro.cash-flow.index')->middleware('ancora.route:financeiro.cash-flow.index');
+        Route::post('/fluxo-caixa/store', [FinancialController::class, 'cashFlowStore'])->name('financeiro.cash-flow.store')->middleware('ancora.route:financeiro.cash-flow.store');
+
+        Route::get('/contas-receber', [FinancialController::class, 'receivablesIndex'])->name('financeiro.receivables.index')->middleware('ancora.route:financeiro.receivables.index');
+        Route::get('/contas-receber/nova', [FinancialController::class, 'receivablesCreate'])->name('financeiro.receivables.create')->middleware('ancora.route:financeiro.receivables.create');
+        Route::post('/contas-receber/store', [FinancialController::class, 'receivablesStore'])->name('financeiro.receivables.store')->middleware('ancora.route:financeiro.receivables.store');
+        Route::get('/contas-receber/{receivable}', [FinancialController::class, 'receivablesShow'])->name('financeiro.receivables.show')->middleware('ancora.route:financeiro.receivables.show');
+        Route::get('/contas-receber/{receivable}/editar', [FinancialController::class, 'receivablesEdit'])->name('financeiro.receivables.edit')->middleware('ancora.route:financeiro.receivables.edit');
+        Route::match(['post', 'put'], '/contas-receber/{receivable}', [FinancialController::class, 'receivablesUpdate'])->name('financeiro.receivables.update')->middleware('ancora.route:financeiro.receivables.update');
+        Route::match(['post', 'delete'], '/contas-receber/{receivable}/excluir', [FinancialController::class, 'receivablesDestroy'])->name('financeiro.receivables.delete')->middleware('ancora.route:financeiro.receivables.delete');
+        Route::post('/contas-receber/{receivable}/duplicar', [FinancialController::class, 'receivablesDuplicate'])->name('financeiro.receivables.duplicate')->middleware('ancora.route:financeiro.receivables.duplicate');
+        Route::post('/contas-receber/{receivable}/baixa', [FinancialController::class, 'receivablesSettle'])->name('financeiro.receivables.settle')->middleware('ancora.route:financeiro.receivables.settle');
+        Route::post('/contas-receber/{receivable}/parcelar', [FinancialController::class, 'receivablesParcel'])->name('financeiro.receivables.parcel')->middleware('ancora.route:financeiro.receivables.parcel');
+        Route::post('/contas-receber/{receivable}/renegociar', [FinancialController::class, 'receivablesRenegotiate'])->name('financeiro.receivables.renegotiate')->middleware('ancora.route:financeiro.receivables.renegotiate');
+        Route::get('/contas-receber/{receivable}/recibo', [FinancialController::class, 'receivablesReceipt'])->name('financeiro.receivables.receipt')->middleware('ancora.route:financeiro.receivables.receipt');
+        Route::get('/contas-receber/{receivable}/pdf', [FinancialController::class, 'receivablesPdf'])->name('financeiro.receivables.pdf')->middleware('ancora.route:financeiro.receivables.pdf');
+        Route::post('/contas-receber/{receivable}/anexos/upload', [FinancialController::class, 'receivablesUploadAttachment'])->name('financeiro.receivables.attachments.upload')->middleware('ancora.route:financeiro.receivables.attachments.upload');
+        Route::get('/contas-receber/{receivable}/anexos/{attachment}/download', [FinancialController::class, 'receivablesDownloadAttachment'])->name('financeiro.receivables.attachments.download')->middleware('ancora.route:financeiro.receivables.attachments.download');
+        Route::match(['post', 'delete'], '/contas-receber/{receivable}/anexos/{attachment}', [FinancialController::class, 'receivablesDeleteAttachment'])->name('financeiro.receivables.attachments.delete')->middleware('ancora.route:financeiro.receivables.attachments.delete');
+
+        Route::get('/contas-pagar', [FinancialController::class, 'payablesIndex'])->name('financeiro.payables.index')->middleware('ancora.route:financeiro.payables.index');
+        Route::get('/contas-pagar/nova', [FinancialController::class, 'payablesCreate'])->name('financeiro.payables.create')->middleware('ancora.route:financeiro.payables.create');
+        Route::post('/contas-pagar/store', [FinancialController::class, 'payablesStore'])->name('financeiro.payables.store')->middleware('ancora.route:financeiro.payables.store');
+        Route::get('/contas-pagar/{payable}', [FinancialController::class, 'payablesShow'])->name('financeiro.payables.show')->middleware('ancora.route:financeiro.payables.show');
+        Route::get('/contas-pagar/{payable}/editar', [FinancialController::class, 'payablesEdit'])->name('financeiro.payables.edit')->middleware('ancora.route:financeiro.payables.edit');
+        Route::match(['post', 'put'], '/contas-pagar/{payable}', [FinancialController::class, 'payablesUpdate'])->name('financeiro.payables.update')->middleware('ancora.route:financeiro.payables.update');
+        Route::match(['post', 'delete'], '/contas-pagar/{payable}/excluir', [FinancialController::class, 'payablesDestroy'])->name('financeiro.payables.delete')->middleware('ancora.route:financeiro.payables.delete');
+        Route::post('/contas-pagar/{payable}/duplicar', [FinancialController::class, 'payablesDuplicate'])->name('financeiro.payables.duplicate')->middleware('ancora.route:financeiro.payables.duplicate');
+        Route::post('/contas-pagar/{payable}/baixa', [FinancialController::class, 'payablesSettle'])->name('financeiro.payables.settle')->middleware('ancora.route:financeiro.payables.settle');
+        Route::post('/contas-pagar/{payable}/anexos/upload', [FinancialController::class, 'payablesUploadAttachment'])->name('financeiro.payables.attachments.upload')->middleware('ancora.route:financeiro.payables.attachments.upload');
+        Route::get('/contas-pagar/{payable}/anexos/{attachment}/download', [FinancialController::class, 'payablesDownloadAttachment'])->name('financeiro.payables.attachments.download')->middleware('ancora.route:financeiro.payables.attachments.download');
+        Route::match(['post', 'delete'], '/contas-pagar/{payable}/anexos/{attachment}', [FinancialController::class, 'payablesDeleteAttachment'])->name('financeiro.payables.attachments.delete')->middleware('ancora.route:financeiro.payables.attachments.delete');
+
+        Route::get('/faturamento', [FinancialController::class, 'billingIndex'])->name('financeiro.billing.index')->middleware('ancora.route:financeiro.billing.index');
+        Route::post('/faturamento/contrato/{contract}', [FinancialController::class, 'billingGenerateContract'])->name('financeiro.billing.generate-contract')->middleware('ancora.route:financeiro.billing.generate-contract');
+
+        Route::get('/bancos-contas', [FinancialController::class, 'accountsIndex'])->name('financeiro.accounts.index')->middleware('ancora.route:financeiro.accounts.index');
+        Route::post('/bancos-contas/store', [FinancialController::class, 'accountsStore'])->name('financeiro.accounts.store')->middleware('ancora.route:financeiro.accounts.store');
+        Route::match(['post', 'put'], '/bancos-contas/{account}', [FinancialController::class, 'accountsUpdate'])->name('financeiro.accounts.update')->middleware('ancora.route:financeiro.accounts.update');
+        Route::match(['post', 'delete'], '/bancos-contas/{account}/excluir', [FinancialController::class, 'accountsDestroy'])->name('financeiro.accounts.delete')->middleware('ancora.route:financeiro.accounts.delete');
+
+        Route::get('/conciliacao-bancaria', [FinancialController::class, 'reconciliationIndex'])->name('financeiro.reconciliation.index')->middleware('ancora.route:financeiro.reconciliation.index');
+        Route::post('/conciliacao-bancaria/upload', [FinancialController::class, 'reconciliationUpload'])->name('financeiro.reconciliation.upload')->middleware('ancora.route:financeiro.reconciliation.upload');
+        Route::post('/conciliacao-bancaria/{statement}/conciliar', [FinancialController::class, 'reconciliationConciliate'])->name('financeiro.reconciliation.conciliate')->middleware('ancora.route:financeiro.reconciliation.conciliate');
+
+        Route::get('/cobrancas', [FinancialController::class, 'collectionIndex'])->name('financeiro.collection.index')->middleware('ancora.route:financeiro.collection.index');
+        Route::get('/inadimplencia', [FinancialController::class, 'delinquencyIndex'])->name('financeiro.delinquency.index')->middleware('ancora.route:financeiro.delinquency.index');
+
+        Route::get('/centros-custo', [FinancialController::class, 'costCentersIndex'])->name('financeiro.cost-centers.index')->middleware('ancora.route:financeiro.cost-centers.index');
+        Route::post('/centros-custo/store', [FinancialController::class, 'costCentersStore'])->name('financeiro.cost-centers.store')->middleware('ancora.route:financeiro.cost-centers.store');
+        Route::match(['post', 'put'], '/centros-custo/{costCenter}', [FinancialController::class, 'costCentersUpdate'])->name('financeiro.cost-centers.update')->middleware('ancora.route:financeiro.cost-centers.update');
+        Route::match(['post', 'delete'], '/centros-custo/{costCenter}/excluir', [FinancialController::class, 'costCentersDestroy'])->name('financeiro.cost-centers.delete')->middleware('ancora.route:financeiro.cost-centers.delete');
+
+        Route::get('/categorias-financeiras', [FinancialController::class, 'categoriesIndex'])->name('financeiro.categories.index')->middleware('ancora.route:financeiro.categories.index');
+        Route::post('/categorias-financeiras/store', [FinancialController::class, 'categoriesStore'])->name('financeiro.categories.store')->middleware('ancora.route:financeiro.categories.store');
+        Route::match(['post', 'put'], '/categorias-financeiras/{category}', [FinancialController::class, 'categoriesUpdate'])->name('financeiro.categories.update')->middleware('ancora.route:financeiro.categories.update');
+        Route::match(['post', 'delete'], '/categorias-financeiras/{category}/excluir', [FinancialController::class, 'categoriesDestroy'])->name('financeiro.categories.delete')->middleware('ancora.route:financeiro.categories.delete');
+
+        Route::get('/parcelamentos', [FinancialController::class, 'installmentsIndex'])->name('financeiro.installments.index')->middleware('ancora.route:financeiro.installments.index');
+        Route::get('/parcelamentos/{installment}', [FinancialController::class, 'installmentsShow'])->name('financeiro.installments.show')->middleware('ancora.route:financeiro.installments.show');
+        Route::post('/parcelamentos/store', [FinancialController::class, 'installmentsStore'])->name('financeiro.installments.store')->middleware('ancora.route:financeiro.installments.store');
+        Route::match(['post', 'delete'], '/parcelamentos/{installment}/excluir', [FinancialController::class, 'installmentsDestroy'])->name('financeiro.installments.delete')->middleware('ancora.route:financeiro.installments.delete');
+
+        Route::get('/reembolsos', [FinancialController::class, 'reimbursementsIndex'])->name('financeiro.reimbursements.index')->middleware('ancora.route:financeiro.reimbursements.index');
+        Route::get('/reembolsos/novo', [FinancialController::class, 'reimbursementsCreate'])->name('financeiro.reimbursements.create')->middleware('ancora.route:financeiro.reimbursements.create');
+        Route::post('/reembolsos/store', [FinancialController::class, 'reimbursementsStore'])->name('financeiro.reimbursements.store')->middleware('ancora.route:financeiro.reimbursements.store');
+        Route::get('/reembolsos/{reimbursement}/editar', [FinancialController::class, 'reimbursementsEdit'])->name('financeiro.reimbursements.edit')->middleware('ancora.route:financeiro.reimbursements.edit');
+        Route::match(['post', 'put'], '/reembolsos/{reimbursement}', [FinancialController::class, 'reimbursementsUpdate'])->name('financeiro.reimbursements.update')->middleware('ancora.route:financeiro.reimbursements.update');
+        Route::match(['post', 'delete'], '/reembolsos/{reimbursement}/excluir', [FinancialController::class, 'reimbursementsDestroy'])->name('financeiro.reimbursements.delete')->middleware('ancora.route:financeiro.reimbursements.delete');
+
+        Route::get('/custas-processuais', [FinancialController::class, 'processCostsIndex'])->name('financeiro.process-costs.index')->middleware('ancora.route:financeiro.process-costs.index');
+        Route::get('/custas-processuais/nova', [FinancialController::class, 'processCostsCreate'])->name('financeiro.process-costs.create')->middleware('ancora.route:financeiro.process-costs.create');
+        Route::post('/custas-processuais/store', [FinancialController::class, 'processCostsStore'])->name('financeiro.process-costs.store')->middleware('ancora.route:financeiro.process-costs.store');
+        Route::get('/custas-processuais/{processCost}/editar', [FinancialController::class, 'processCostsEdit'])->name('financeiro.process-costs.edit')->middleware('ancora.route:financeiro.process-costs.edit');
+        Route::match(['post', 'put'], '/custas-processuais/{processCost}', [FinancialController::class, 'processCostsUpdate'])->name('financeiro.process-costs.update')->middleware('ancora.route:financeiro.process-costs.update');
+        Route::match(['post', 'delete'], '/custas-processuais/{processCost}/excluir', [FinancialController::class, 'processCostsDestroy'])->name('financeiro.process-costs.delete')->middleware('ancora.route:financeiro.process-costs.delete');
+
+        Route::get('/prestacao-contas', [FinancialController::class, 'accountabilityIndex'])->name('financeiro.accountability.index')->middleware('ancora.route:financeiro.accountability.index');
+        Route::get('/prestacao-contas/pdf', [FinancialController::class, 'accountabilityPdf'])->name('financeiro.accountability.pdf')->middleware('ancora.route:financeiro.accountability.pdf');
+        Route::get('/dre', [FinancialController::class, 'dreIndex'])->name('financeiro.dre.index')->middleware('ancora.route:financeiro.dre.index');
+        Route::get('/dre/pdf', [FinancialController::class, 'drePdf'])->name('financeiro.dre.pdf')->middleware('ancora.route:financeiro.dre.pdf');
+        Route::get('/relatorios', [FinancialController::class, 'reportsIndex'])->name('financeiro.reports.index')->middleware('ancora.route:financeiro.reports.index');
+
+        Route::get('/exportar/{scope}/{format}', [FinancialExportController::class, 'export'])->name('financeiro.export')->middleware('ancora.route:financeiro.export');
+        Route::get('/importacao/{scope}/modelo', [FinancialImportController::class, 'template'])->name('financeiro.import.template')->middleware('ancora.route:financeiro.import.template');
+        Route::post('/importacao/{scope}/preview', [FinancialImportController::class, 'preview'])->name('financeiro.import.preview')->middleware('ancora.route:financeiro.import.preview');
+        Route::get('/importacao/lote/{import}', [FinancialImportController::class, 'show'])->name('financeiro.import.show')->middleware('ancora.route:financeiro.import.show');
+        Route::post('/importacao/lote/{import}/processar', [FinancialImportController::class, 'process'])->name('financeiro.import.process')->middleware('ancora.route:financeiro.import.process');
+
+        Route::get('/configuracoes', [FinancialController::class, 'settingsIndex'])->name('financeiro.settings.index')->middleware('ancora.route:financeiro.settings.index');
+        Route::post('/configuracoes/save', [FinancialController::class, 'settingsSave'])->name('financeiro.settings.save')->middleware('ancora.route:financeiro.settings.save');
     });
 
     Route::prefix('cobrancas')->group(function () {

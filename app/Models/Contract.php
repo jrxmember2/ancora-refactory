@@ -94,4 +94,9 @@ class Contract extends Model
     {
         return $this->hasMany(ContractAttachment::class, 'contract_id')->orderByDesc('created_at');
     }
+
+    public function receivables(): HasMany
+    {
+        return $this->hasMany(FinancialReceivable::class, 'contract_id')->orderByDesc('due_date');
+    }
 }
