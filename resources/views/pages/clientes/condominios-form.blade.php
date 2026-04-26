@@ -124,8 +124,10 @@
                             name="boleto_fee_amount"
                             value="{{ old('boleto_fee_amount', isset($item?->boleto_fee_amount) ? number_format((float) $item->boleto_fee_amount, 2, ',', '.') : '') }}"
                             class="{{ $fieldClass }}"
-                            placeholder="0,00"
+                            placeholder="R$ 0,00"
                             inputmode="decimal"
+                            x-ref="boletoFeeAmount"
+                            @input="maskMoney('boletoFeeAmount')"
                         >
                     </div>
 
@@ -135,8 +137,10 @@
                             name="boleto_cancellation_fee_amount"
                             value="{{ old('boleto_cancellation_fee_amount', isset($item?->boleto_cancellation_fee_amount) ? number_format((float) $item->boleto_cancellation_fee_amount, 2, ',', '.') : '') }}"
                             class="{{ $fieldClass }}"
-                            placeholder="0,00"
+                            placeholder="R$ 0,00"
                             inputmode="decimal"
+                            x-ref="boletoCancellationFeeAmount"
+                            @input="maskMoney('boletoCancellationFeeAmount')"
                         >
                     </div>
                 </div>
@@ -350,9 +354,26 @@ function condominiumForm(initialState) {
         inactive: !!initialState.inactive,
         init() {
             this.maskCnpj();
+            this.maskMoney('boletoFeeAmount');
+            this.maskMoney('boletoCancellationFeeAmount');
         },
         onlyDigits(value) {
             return String(value || '').replace(/\D/g, '');
+        },
+        formatMoneyValue(value) {
+            const digits = this.onlyDigits(value);
+            if (!digits) return '';
+
+            const amount = Number(digits) / 100;
+            return `R$ ${amount.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            })}`;
+        },
+        maskMoney(refName) {
+            const input = this.$refs[refName];
+            if (!input) return;
+            input.value = this.formatMoneyValue(input.value);
         },
         isValidCnpj(digits) {
             if (!/^\d{14}$/.test(digits) || /(\d)\1{13}/.test(digits)) return false;

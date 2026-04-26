@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.50',
+            'version' => 'v1.51',
             'date' => '25/04/2026',
-            'label' => 'v1.50 - 25/04/2026',
+            'label' => 'v1.51 - 25/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Campos monetarios no cadastro de condominios',
+                'items' => [
+                    'Valor do boleto e valor de cancelamento de boleto passam a usar mascara de moeda brasileira no formulario de cadastro e edicao de condominios.',
+                    'Os dois campos agora exibem o prefixo R$ e formatacao automatica em tempo real para reduzir erro de digitacao e melhorar a leitura.',
+                    'Compatibilidade com a gravacao existente foi preservada para que o backend continue convertendo os valores normalmente sem alterar as regras de negocio.',
+                ],
+            ],
+            [
+                'version' => 'v1.50',
+                'date' => '25/04/2026',
                 'title' => 'Exportacao completa do modulo Clientes',
                 'items' => [
                     'Clientes avulsos, parceiros, condominios, unidades e condominos passam a ter exportacao em CSV, XLS e PDF a partir dos filtros ja usados em cada listagem.',
