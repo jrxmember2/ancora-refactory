@@ -59,6 +59,42 @@
     </div>
 @endif
 
+@if(isset($relatedContracts))
+    <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+        <div class="flex items-center justify-between gap-3">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contratos relacionados</h3>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $relatedContracts->count() }} contrato(s)</span>
+        </div>
+        <div class="mt-4 space-y-3">
+            @forelse($relatedContracts as $contract)
+                <a href="{{ route('contratos.show', $contract) }}" class="block rounded-xl border border-gray-200 p-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">{{ $contract->code ?: ('Contrato #' . $contract->id) }}</div>
+                            <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $contract->title }}</div>
+                            <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                {{ $contract->type }}
+                                @if($contract->condominium?->name)
+                                    · {{ $contract->condominium->name }}
+                                @endif
+                                @if($contract->unit?->unit_number)
+                                    · {{ $contract->unit->block?->name ? $contract->unit->block->name.' · ' : '' }}Unidade {{ $contract->unit->unit_number }}
+                                @endif
+                            </div>
+                        </div>
+                        <div class="text-right text-xs text-gray-500 dark:text-gray-400">
+                            <div>{{ \App\Support\Contracts\ContractCatalog::statuses()[$contract->status] ?? $contract->status }}</div>
+                            <div class="mt-1">R$ {{ number_format((float) ($contract->contract_value ?? $contract->monthly_value ?? $contract->total_value ?? 0), 2, ',', '.') }}</div>
+                        </div>
+                    </div>
+                </a>
+            @empty
+                <div class="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nao ha contratos vinculados a este cadastro ate o momento.</div>
+            @endforelse
+        </div>
+    </div>
+@endif
+
 @if(isset($timeline) && $timeline->count())
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Timeline</h3>

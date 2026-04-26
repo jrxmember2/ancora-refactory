@@ -10,6 +10,7 @@ use App\Models\ClientTimeline;
 use App\Models\ClientType;
 use App\Models\ClientUnit;
 use App\Models\ClientUnitPartyHistory;
+use App\Models\Contract;
 use App\Models\CobrancaCase;
 use App\Models\AuditLog;
 use App\Support\AncoraAuth;
@@ -18,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -147,6 +149,48 @@ class ClientsController extends Controller
             'owner' => ClientUnit::query()->where('owner_entity_id', $entity->id)->count(),
             'tenant' => ClientUnit::query()->where('tenant_entity_id', $entity->id)->count(),
         ];
+    }
+
+    private function relatedContractsForEntity(int $entityId)
+    {
+        if (!Schema::hasTable('contracts')) {
+            return collect();
+        }
+
+        return Contract::query()
+            ->with(['condominium', 'unit.block'])
+            ->where('client_id', $entityId)
+            ->orderByDesc('id')
+            ->limit(12)
+            ->get();
+    }
+
+    private function relatedContractsForCondominium(int $condominiumId)
+    {
+        if (!Schema::hasTable('contracts')) {
+            return collect();
+        }
+
+        return Contract::query()
+            ->with(['client', 'unit.block'])
+            ->where('condominium_id', $condominiumId)
+            ->orderByDesc('id')
+            ->limit(12)
+            ->get();
+    }
+
+    private function relatedContractsForUnit(int $unitId)
+    {
+        if (!Schema::hasTable('contracts')) {
+            return collect();
+        }
+
+        return Contract::query()
+            ->with(['client', 'condominium', 'responsible'])
+            ->where('unit_id', $unitId)
+            ->orderByDesc('id')
+            ->limit(12)
+            ->get();
     }
 
     private function isCondominoEntity(ClientEntity $entity): bool
@@ -994,6 +1038,7 @@ class ClientsController extends Controller
             'roleTag' => $avulso->role_tag,
             'attachments' => ClientAttachment::query()->where('related_type', 'entity')->where('related_id', $avulso->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'entity')->where('related_id', $avulso->id)->latest('id')->get(),
+            'relatedContracts' => $this->relatedContractsForEntity((int) $avulso->id),
         ], $this->commonViewData()));
     }
 
@@ -1156,6 +1201,7 @@ class ClientsController extends Controller
             'partnerRoles' => $this->partnerRolesForSelect(),
             'attachments' => ClientAttachment::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'entity')->where('related_id', $contato->id)->latest('id')->get(),
+            'relatedContracts' => $this->relatedContractsForEntity((int) $contato->id),
             'unitPartyHistory' => $isCondomino
                 ? ClientUnitPartyHistory::query()
                     ->with(['unit.condominium', 'unit.block'])
@@ -1270,6 +1316,7 @@ class ClientsController extends Controller
             'mode' => 'edit',
             'attachments' => ClientAttachment::query()->where('related_type', 'condominium')->where('related_id', $condominio->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'condominium')->where('related_id', $condominio->id)->latest('id')->get(),
+            'relatedContracts' => $this->relatedContractsForCondominium((int) $condominio->id),
             'blocksText' => $condominio->blocks->pluck('name')->implode(PHP_EOL),
         ], $this->commonViewData()));
     }
@@ -1412,6 +1459,7 @@ class ClientsController extends Controller
             'mode' => 'edit',
             'attachments' => ClientAttachment::query()->where('related_type', 'unit')->where('related_id', $unidade->id)->latest('id')->get(),
             'timeline' => ClientTimeline::query()->where('related_type', 'unit')->where('related_id', $unidade->id)->latest('id')->get(),
+            'relatedContracts' => $this->relatedContractsForUnit((int) $unidade->id),
             'partyHistory' => ClientUnitPartyHistory::query()
                 ->with(['entity', 'changedBy'])
                 ->where('unit_id', $unidade->id)

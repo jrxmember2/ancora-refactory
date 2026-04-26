@@ -75,6 +75,20 @@ class AncoraMenu
                             ['label' => 'Novo processo', 'path' => route('processos.create')],
                         ],
                     ] : null,
+                    $has('contratos') ? [
+                        'label' => 'Contratos',
+                        'icon' => 'fa-solid fa-file-contract',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('contratos.dashboard')],
+                            ['label' => 'Contratos', 'path' => route('contratos.index')],
+                            ['label' => 'Novo contrato', 'path' => route('contratos.create')],
+                            ['label' => 'Templates', 'path' => route('contratos.templates.index')],
+                            ['label' => 'Categorias', 'path' => route('contratos.categories.index')],
+                            ['label' => 'Variáveis', 'path' => route('contratos.variables.index')],
+                            ['label' => 'Relatórios', 'path' => route('contratos.reports.index')],
+                            ['label' => 'Configurações', 'path' => route('contratos.settings.index')],
+                        ],
+                    ] : null,
                 ])),
             ],
             [
@@ -112,6 +126,7 @@ class AncoraMenu
                 'cobrancas' => 'OS de cobrança, quotas, andamentos, GED e trilha para judicialização.',
                 'demandas' => 'Solicitações do Portal do Cliente com triagem e respostas do escritório.',
                 'processos' => 'Controle processual com fases, anexos e sincronização DataJud.',
+                'contratos' => 'Templates, contratos, versionamento em PDF e histórico documental do escritório.',
             ];
 
             return [
@@ -128,6 +143,7 @@ class AncoraMenu
                     'cobrancas' => route('cobrancas.dashboard'),
                     'demandas' => route('demandas.dashboard'),
                     'processos' => route('processos.dashboard'),
+                    'contratos' => route('contratos.dashboard'),
                     default => '#',
                 },
                 'description' => $descriptions[$module->slug] ?? 'Módulo em evolução no novo core Laravel.',
@@ -138,6 +154,7 @@ class AncoraMenu
                     'cobrancas' => 'warning',
                     'demandas' => 'blue',
                     'processos' => 'brand',
+                    'contratos' => 'blue',
                     'config' => 'warning',
                     'logs' => 'gray',
                     default => 'blue',

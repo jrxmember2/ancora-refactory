@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.51',
-            'date' => '25/04/2026',
-            'label' => 'v1.51 - 25/04/2026',
+            'version' => 'v1.52',
+            'date' => '26/04/2026',
+            'label' => 'v1.52 - 26/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Novo modulo Contratos integrado ao ecossistema Âncora',
+                'items' => [
+                    'Sistema ganha o modulo Contratos com dashboard, CRUD completo, templates, categorias, variaveis, configuracoes e relatorios proprios no mesmo padrao visual do restante da plataforma.',
+                    'Fluxo de criacao passa a permitir escolher template, substituir variaveis automaticamente, editar o preview do documento e gerar PDF versionado sem sobrescrever historico anterior.',
+                    'Contratos agora aceitam vinculo com clientes, condominios, unidades, propostas e processos, alem de anexos dedicados e campos preparados para futura integracao financeira.',
+                    'Cadastros de clientes, condominos, condominios e unidades passam a exibir os contratos relacionados quando existirem, facilitando navegacao cruzada entre os modulos.',
+                    'Seeders idempotentes foram adicionados para popular o modulo com categorias, configuracoes, variaveis, templates iniciais, item de menu e permissoes de rota.',
+                ],
+            ],
+            [
+                'version' => 'v1.51',
+                'date' => '25/04/2026',
                 'title' => 'Campos monetarios no cadastro de condominios',
                 'items' => [
                     'Valor do boleto e valor de cancelamento de boleto passam a usar mascara de moeda brasileira no formulario de cadastro e edicao de condominios.',

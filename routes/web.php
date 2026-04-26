@@ -7,6 +7,12 @@ use App\Http\Controllers\ClientPortalUserController;
 use App\Http\Controllers\ClientsController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ConfigController;
+use App\Http\Controllers\ContractCategoryController;
+use App\Http\Controllers\ContractController;
+use App\Http\Controllers\ContractReportController;
+use App\Http\Controllers\ContractSettingsController;
+use App\Http\Controllers\ContractTemplateController;
+use App\Http\Controllers\ContractVariableController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemandController;
@@ -174,6 +180,45 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/{processo}/anexos/{attachment}/download', [ProcessController::class, 'downloadAttachment'])->name('processos.attachments.download')->middleware('ancora.route:processos.attachments.download');
         Route::match(['post', 'delete'], '/{processo}/anexos/{attachment}', [ProcessController::class, 'deleteAttachment'])->name('processos.attachments.delete')->middleware('ancora.route:processos.attachments.delete');
         Route::post('/{processo}/datajud/sincronizar', [ProcessController::class, 'syncDataJud'])->name('processos.datajud.sync')->middleware('ancora.route:processos.datajud.sync');
+    });
+
+    Route::prefix('contratos')->group(function () {
+        Route::get('/dashboard', [ContractController::class, 'dashboard'])->name('contratos.dashboard')->middleware('ancora.route:contratos.dashboard');
+        Route::get('/', [ContractController::class, 'index'])->name('contratos.index')->middleware('ancora.route:contratos.index');
+        Route::get('/novo', [ContractController::class, 'create'])->name('contratos.create')->middleware('ancora.route:contratos.create');
+        Route::post('/store', [ContractController::class, 'store'])->name('contratos.store')->middleware('ancora.route:contratos.store');
+        Route::post('/preview-template', [ContractController::class, 'resolvePreview'])->name('contratos.preview.resolve')->middleware('ancora.route:contratos.preview.resolve');
+        Route::get('/templates', [ContractTemplateController::class, 'index'])->name('contratos.templates.index')->middleware('ancora.route:contratos.templates.index');
+        Route::get('/templates/novo', [ContractTemplateController::class, 'create'])->name('contratos.templates.create')->middleware('ancora.route:contratos.templates.create');
+        Route::post('/templates/store', [ContractTemplateController::class, 'store'])->name('contratos.templates.store')->middleware('ancora.route:contratos.templates.store');
+        Route::get('/templates/{template}/editar', [ContractTemplateController::class, 'edit'])->name('contratos.templates.edit')->middleware('ancora.route:contratos.templates.edit');
+        Route::match(['post', 'put'], '/templates/{template}', [ContractTemplateController::class, 'update'])->name('contratos.templates.update')->middleware('ancora.route:contratos.templates.update');
+        Route::match(['post', 'delete'], '/templates/{template}/excluir', [ContractTemplateController::class, 'destroy'])->name('contratos.templates.delete')->middleware('ancora.route:contratos.templates.delete');
+        Route::get('/categorias', [ContractCategoryController::class, 'index'])->name('contratos.categories.index')->middleware('ancora.route:contratos.categories.index');
+        Route::post('/categorias/store', [ContractCategoryController::class, 'store'])->name('contratos.categories.store')->middleware('ancora.route:contratos.categories.store');
+        Route::match(['post', 'put'], '/categorias/{category}', [ContractCategoryController::class, 'update'])->name('contratos.categories.update')->middleware('ancora.route:contratos.categories.update');
+        Route::match(['post', 'delete'], '/categorias/{category}/excluir', [ContractCategoryController::class, 'destroy'])->name('contratos.categories.delete')->middleware('ancora.route:contratos.categories.delete');
+        Route::get('/variaveis', [ContractVariableController::class, 'index'])->name('contratos.variables.index')->middleware('ancora.route:contratos.variables.index');
+        Route::match(['post', 'put'], '/variaveis/{variable}', [ContractVariableController::class, 'update'])->name('contratos.variables.update')->middleware('ancora.route:contratos.variables.update');
+        Route::get('/relatorios', [ContractReportController::class, 'index'])->name('contratos.reports.index')->middleware('ancora.route:contratos.reports.index');
+        Route::get('/relatorios/export/csv', [ContractReportController::class, 'exportCsv'])->name('contratos.reports.export.csv')->middleware('ancora.route:contratos.reports.export.csv');
+        Route::get('/relatorios/export/pdf', [ContractReportController::class, 'exportPdf'])->name('contratos.reports.export.pdf')->middleware('ancora.route:contratos.reports.export.pdf');
+        Route::get('/configuracoes', [ContractSettingsController::class, 'index'])->name('contratos.settings.index')->middleware('ancora.route:contratos.settings.index');
+        Route::post('/configuracoes/save', [ContractSettingsController::class, 'save'])->name('contratos.settings.save')->middleware('ancora.route:contratos.settings.save');
+        Route::get('/{contrato}', [ContractController::class, 'show'])->name('contratos.show')->middleware('ancora.route:contratos.show');
+        Route::get('/{contrato}/editar', [ContractController::class, 'edit'])->name('contratos.edit')->middleware('ancora.route:contratos.edit');
+        Route::match(['post', 'put'], '/{contrato}', [ContractController::class, 'update'])->name('contratos.update')->middleware('ancora.route:contratos.update');
+        Route::match(['post', 'delete'], '/{contrato}/excluir', [ContractController::class, 'destroy'])->name('contratos.delete')->middleware('ancora.route:contratos.delete');
+        Route::post('/{contrato}/duplicar', [ContractController::class, 'duplicate'])->name('contratos.duplicate')->middleware('ancora.route:contratos.duplicate');
+        Route::post('/{contrato}/arquivar', [ContractController::class, 'archive'])->name('contratos.archive')->middleware('ancora.route:contratos.archive');
+        Route::post('/{contrato}/rescindir', [ContractController::class, 'rescind'])->name('contratos.rescind')->middleware('ancora.route:contratos.rescind');
+        Route::post('/{contrato}/gerar-pdf', [ContractController::class, 'generatePdf'])->name('contratos.generate-pdf')->middleware('ancora.route:contratos.generate-pdf');
+        Route::get('/{contrato}/pdf', [ContractController::class, 'downloadPdf'])->name('contratos.download-pdf')->middleware('ancora.route:contratos.download-pdf');
+        Route::get('/{contrato}/versoes/{version}', [ContractController::class, 'viewVersion'])->name('contratos.versions.view')->middleware('ancora.route:contratos.versions.view');
+        Route::get('/{contrato}/versoes/{version}/download', [ContractController::class, 'downloadVersion'])->name('contratos.versions.download')->middleware('ancora.route:contratos.versions.download');
+        Route::post('/{contrato}/anexos/upload', [ContractController::class, 'uploadAttachment'])->name('contratos.attachments.upload')->middleware('ancora.route:contratos.attachments.upload');
+        Route::get('/{contrato}/anexos/{attachment}/download', [ContractController::class, 'downloadAttachment'])->name('contratos.attachments.download')->middleware('ancora.route:contratos.attachments.download');
+        Route::match(['post', 'delete'], '/{contrato}/anexos/{attachment}', [ContractController::class, 'deleteAttachment'])->name('contratos.attachments.delete')->middleware('ancora.route:contratos.attachments.delete');
     });
 
     Route::prefix('cobrancas')->group(function () {

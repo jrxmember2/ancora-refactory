@@ -23,5 +23,9 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
             'is_protected' => true,
         ]);
+
+        $this->call([
+            ContractModuleSeeder::class,
+        ]);
     }
 }
