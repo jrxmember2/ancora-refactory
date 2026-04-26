@@ -151,6 +151,7 @@ class Financeiro360ModuleSeeder extends Seeder
         return [
             'financeiro.dashboard' => 'Acessar dashboard financeiro',
             'financeiro.cash-flow.index' => 'Acessar fluxo de caixa',
+            'financeiro.cash-flow.store' => 'Cadastrar movimentacao no fluxo de caixa',
             'financeiro.receivables.index' => 'Listar contas a receber',
             'financeiro.receivables.create' => 'Nova conta a receber',
             'financeiro.receivables.store' => 'Salvar conta a receber',

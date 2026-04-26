@@ -63,6 +63,7 @@ class FinancialExportController extends Controller
             'payables' => $this->payablesDataset($request),
             'cash-flow' => $this->cashFlowDataset($request),
             'accounts' => $this->accountsDataset($request),
+            'collection' => $this->collectionDataset($request),
             'reimbursements' => $this->reimbursementsDataset($request),
             'process-costs' => $this->processCostsDataset($request),
             'statements' => $this->statementsDataset($request),
@@ -80,7 +81,18 @@ class FinancialExportController extends Controller
 
     private function receivablesDataset(Request $request): array
     {
-        $query = FinancialReceivable::query()->with(['client', 'condominium', 'unit', 'contract', 'category', 'account']);
+        $query = FinancialReceivable::query()
+            ->with(['client', 'condominium', 'unit', 'contract', 'category', 'account'])
+            ->when($request->filled('q'), function (Builder $builder) use ($request) {
+                $term = trim((string) $request->input('q'));
+                $builder->where(function (Builder $sub) use ($term) {
+                    $sub->where('code', 'like', '%' . $term . '%')
+                        ->orWhere('title', 'like', '%' . $term . '%')
+                        ->orWhereHas('client', fn (Builder $rel) => $rel->where('display_name', 'like', '%' . $term . '%'))
+                        ->orWhereHas('condominium', fn (Builder $rel) => $rel->where('name', 'like', '%' . $term . '%'));
+                });
+            });
+
         $this->filterReceivables($query, $request);
         $this->applySelectedIds($query, $request);
         $items = $query->orderBy('due_date')->get();
@@ -115,9 +127,7 @@ class FinancialExportController extends Controller
     private function payablesDataset(Request $request): array
     {
         $query = FinancialPayable::query()->with(['supplier', 'category', 'account', 'costCenter']);
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
+        $this->filterPayables($query, $request);
         $this->applySelectedIds($query, $request);
         $items = $query->orderBy('due_date')->get();
 
@@ -213,6 +223,39 @@ class FinancialExportController extends Controller
         ];
     }
 
+    private function collectionDataset(Request $request): array
+    {
+        $query = FinancialReceivable::query()
+            ->with(['client', 'condominium', 'unit'])
+            ->where('generate_collection', true)
+            ->whereNotIn('status', ['recebido', 'cancelado']);
+
+        $this->filterReceivables($query, $request);
+        $this->applySelectedIds($query, $request);
+        $items = $query->orderBy('due_date')->get();
+
+        return [
+            'title' => 'Cobrancas financeiras',
+            'subtitle' => 'Fila de recebiveis aptos a cobranca automatica.',
+            'headers' => ['Codigo', 'Titulo', 'Cliente', 'Condominio', 'Unidade', 'Vencimento', 'Etapa', 'Saldo', 'Status'],
+            'rows' => $items->map(fn (FinancialReceivable $item) => [
+                'Codigo' => $item->code,
+                'Titulo' => $item->title,
+                'Cliente' => $item->client?->display_name,
+                'Condominio' => $item->condominium?->name,
+                'Unidade' => $item->unit?->unit_number,
+                'Vencimento' => optional($item->due_date)->format('d/m/Y'),
+                'Etapa' => FinancialCatalog::collectionStages()[$item->collection_stage] ?? ($item->collection_stage ?: 'Nao iniciado'),
+                'Saldo' => FinancialValue::money((float) $item->final_amount - (float) $item->received_amount),
+                'Status' => FinancialCatalog::receivableStatuses()[$item->status] ?? $item->status,
+            ])->all(),
+            'summary' => [
+                'Titulos' => $items->count(),
+                'Saldo' => FinancialValue::money($items->sum(fn (FinancialReceivable $item) => (float) $item->final_amount - (float) $item->received_amount)),
+            ],
+        ];
+    }
+
     private function reimbursementsDataset(Request $request): array
     {
         $query = FinancialReimbursement::query()->with(['client', 'process']);
@@ -271,7 +314,20 @@ class FinancialExportController extends Controller
 
     private function statementsDataset(Request $request): array
     {
-        $query = FinancialStatement::query()->with('account');
+        $query = FinancialStatement::query()
+            ->with('account')
+            ->when($request->filled('account_id'), fn (Builder $builder) => $builder->where('account_id', (int) $request->integer('account_id')))
+            ->when($request->filled('status'), function (Builder $builder) use ($request) {
+                if ($request->input('status') === 'conciliado') {
+                    $builder->where('is_reconciled', true);
+                    return;
+                }
+
+                if ($request->input('status') === 'pendente') {
+                    $builder->where('is_reconciled', false);
+                }
+            });
+
         $this->applySelectedIds($query, $request);
         $items = $query->orderByDesc('statement_date')->get();
 
@@ -298,11 +354,12 @@ class FinancialExportController extends Controller
 
     private function billingDataset(Request $request): array
     {
-        $items = Contract::query()
+        $query = Contract::query()
             ->with(['client', 'condominium'])
-            ->where('generate_financial_entries', true)
-            ->orderBy('title')
-            ->get();
+            ->where('generate_financial_entries', true);
+
+        $this->applySelectedIds($query, $request);
+        $items = $query->orderBy('title')->get();
 
         return [
             'title' => 'Faturamento',
@@ -328,6 +385,9 @@ class FinancialExportController extends Controller
     private function installmentsDataset(Request $request): array
     {
         $query = FinancialInstallment::query()->with(['contract', 'parentReceivable', 'receivable']);
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
         $this->applySelectedIds($query, $request);
         $items = $query->orderBy('due_date')->get();
 
@@ -511,11 +571,50 @@ class FinancialExportController extends Controller
 
     private function filterReceivables(Builder $query, Request $request): void
     {
-        foreach (['client_id', 'condominium_id', 'unit_id', 'contract_id', 'category_id', 'account_id', 'status'] as $key) {
+        foreach (['client_id', 'condominium_id', 'unit_id', 'contract_id', 'category_id', 'cost_center_id', 'account_id', 'responsible_user_id'] as $key) {
             if ($request->filled($key)) {
                 $query->where($key, $request->input($key));
             }
         }
+
+        foreach (['billing_type', 'status'] as $key) {
+            if ($request->filled($key)) {
+                $query->where($key, $request->input($key));
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('due_date', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('due_date', '<=', $request->input('date_to'));
+        }
+        if ($request->boolean('overdue_only')) {
+            $query->whereDate('due_date', '<', now()->toDateString())->whereNotIn('status', ['recebido', 'cancelado']);
+        }
+        if ($request->boolean('without_pdf')) {
+            $query->whereNull('final_pdf_path');
+        }
+    }
+
+    private function filterPayables(Builder $query, Request $request): void
+    {
+        if ($request->filled('q')) {
+            $term = trim((string) $request->input('q'));
+            $query->where(function (Builder $sub) use ($term) {
+                $sub->where('code', 'like', '%' . $term . '%')
+                    ->orWhere('title', 'like', '%' . $term . '%')
+                    ->orWhere('supplier_name_snapshot', 'like', '%' . $term . '%')
+                    ->orWhereHas('supplier', fn (Builder $rel) => $rel->where('display_name', 'like', '%' . $term . '%'));
+            });
+        }
+
+        foreach (['status', 'category_id', 'cost_center_id', 'account_id'] as $key) {
+            if ($request->filled($key)) {
+                $query->where($key, $request->input($key));
+            }
+        }
+
         if ($request->filled('date_from')) {
             $query->whereDate('due_date', '>=', $request->input('date_from'));
         }

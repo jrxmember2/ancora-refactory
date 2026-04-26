@@ -24,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\View\View;
@@ -182,33 +183,37 @@ class FinancialImportController extends Controller
         $category = $this->findCategoryByName($this->rowValue($row, ['categoria', 'category']));
         $account = $this->findAccountByName($this->rowValue($row, ['conta', 'account']));
 
-        FinancialReceivable::query()->updateOrCreate(
-            [
-                'title' => $title,
-                'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
-                'client_id' => $client?->id,
-                'condominium_id' => $condominium?->id,
-            ],
-            [
-                'code' => $this->codeService->next('financial_receivables', 'entry_prefix', 'REC'),
-                'reference' => $this->rowValue($row, ['referencia', 'reference']),
-                'billing_type' => $this->rowValue($row, ['tipo_cobranca', 'billing_type']) ?: 'honorario',
-                'unit_id' => $unit?->id,
-                'category_id' => $category?->id,
-                'account_id' => $account?->id,
-                'original_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['valor_original', 'original_amount'])) ?? $amount,
-                'interest_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['juros', 'interest_amount'])) ?? 0,
-                'penalty_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['multa', 'penalty_amount'])) ?? 0,
-                'correction_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['correcao', 'correction_amount'])) ?? 0,
-                'discount_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['desconto', 'discount_amount'])) ?? 0,
-                'final_amount' => $amount,
-                'competence_date' => $this->rowDate($row, ['competencia', 'competence_date']),
-                'status' => $this->rowValue($row, ['status']) ?: 'aberto',
-                'notes' => $this->rowValue($row, ['observacoes', 'notes']) ?: null,
-                'created_by' => $userId,
-                'updated_by' => $userId,
-            ]
-        );
+        $receivable = FinancialReceivable::query()->firstOrNew([
+            'title' => $title,
+            'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
+            'client_id' => $client?->id,
+            'condominium_id' => $condominium?->id,
+        ]);
+
+        $receivable->fill([
+            'reference' => $this->rowValue($row, ['referencia', 'reference']),
+            'billing_type' => $this->rowValue($row, ['tipo_cobranca', 'billing_type']) ?: 'honorario',
+            'unit_id' => $unit?->id,
+            'category_id' => $category?->id,
+            'account_id' => $account?->id,
+            'original_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['valor_original', 'original_amount'])) ?? $amount,
+            'interest_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['juros', 'interest_amount'])) ?? 0,
+            'penalty_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['multa', 'penalty_amount'])) ?? 0,
+            'correction_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['correcao', 'correction_amount'])) ?? 0,
+            'discount_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['desconto', 'discount_amount'])) ?? 0,
+            'final_amount' => $amount,
+            'competence_date' => $this->rowDate($row, ['competencia', 'competence_date']),
+            'status' => $this->rowValue($row, ['status']) ?: 'aberto',
+            'notes' => $this->rowValue($row, ['observacoes', 'notes']) ?: null,
+            'updated_by' => $userId,
+        ]);
+
+        if (!$receivable->exists) {
+            $receivable->code = $this->codeService->next('financial_receivables', 'entry_prefix', 'REC');
+            $receivable->created_by = $userId;
+        }
+
+        $receivable->save();
     }
 
     private function processPayableRow(array $row, int $userId): void
@@ -224,27 +229,31 @@ class FinancialImportController extends Controller
         $costCenter = $this->findCostCenterByName($this->rowValue($row, ['centro_custo', 'cost_center']));
         $account = $this->findAccountByName($this->rowValue($row, ['conta', 'account']));
 
-        FinancialPayable::query()->updateOrCreate(
-            [
-                'title' => $title,
-                'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
-                'supplier_entity_id' => $supplier?->id,
-            ],
-            [
-                'code' => $this->codeService->next('financial_payables', 'entry_prefix', 'PAG'),
-                'supplier_name_snapshot' => $supplier?->display_name ?: $this->rowValue($row, ['fornecedor', 'supplier']),
-                'category_id' => $category?->id,
-                'cost_center_id' => $costCenter?->id,
-                'account_id' => $account?->id,
-                'amount' => $amount,
-                'competence_date' => $this->rowDate($row, ['competencia', 'competence_date']),
-                'status' => $this->rowValue($row, ['status']) ?: 'aberto',
-                'payment_method' => $this->rowValue($row, ['forma_pagamento', 'payment_method']) ?: null,
-                'notes' => $this->rowValue($row, ['observacoes', 'notes']) ?: null,
-                'created_by' => $userId,
-                'updated_by' => $userId,
-            ]
-        );
+        $payable = FinancialPayable::query()->firstOrNew([
+            'title' => $title,
+            'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
+            'supplier_entity_id' => $supplier?->id,
+        ]);
+
+        $payable->fill([
+            'supplier_name_snapshot' => $supplier?->display_name ?: $this->rowValue($row, ['fornecedor', 'supplier']),
+            'category_id' => $category?->id,
+            'cost_center_id' => $costCenter?->id,
+            'account_id' => $account?->id,
+            'amount' => $amount,
+            'competence_date' => $this->rowDate($row, ['competencia', 'competence_date']),
+            'status' => $this->rowValue($row, ['status']) ?: 'aberto',
+            'payment_method' => $this->rowValue($row, ['forma_pagamento', 'payment_method']) ?: null,
+            'notes' => $this->rowValue($row, ['observacoes', 'notes']) ?: null,
+            'updated_by' => $userId,
+        ]);
+
+        if (!$payable->exists) {
+            $payable->code = $this->codeService->next('financial_payables', 'entry_prefix', 'PAG');
+            $payable->created_by = $userId;
+        }
+
+        $payable->save();
     }
 
     private function processCategoryRow(array $row): void
@@ -289,22 +298,25 @@ class FinancialImportController extends Controller
             throw new \RuntimeException('Conta financeira sem nome.');
         }
 
-        FinancialAccount::query()->updateOrCreate(
-            ['name' => $name],
-            [
-                'code' => $this->codeService->next('financial_accounts', 'entry_prefix', 'CTA'),
-                'bank_name' => $this->rowValue($row, ['banco', 'bank_name']) ?: null,
-                'agency' => $this->rowValue($row, ['agencia', 'agency']) ?: null,
-                'account_number' => $this->rowValue($row, ['conta', 'account_number']) ?: null,
-                'account_digit' => $this->rowValue($row, ['digito', 'account_digit']) ?: null,
-                'account_type' => $this->rowValue($row, ['tipo', 'account_type']) ?: 'conta_corrente',
-                'pix_key' => $this->rowValue($row, ['pix', 'pix_key']) ?: null,
-                'opening_balance' => FinancialValue::decimalFromInput($this->rowValue($row, ['saldo_inicial', 'opening_balance'])) ?? 0,
-                'credit_limit' => FinancialValue::decimalFromInput($this->rowValue($row, ['limite', 'credit_limit'])) ?? 0,
-                'is_primary' => $this->rowBool($row, ['principal', 'is_primary'], false),
-                'is_active' => $this->rowBool($row, ['ativa', 'is_active'], true),
-            ]
-        );
+        $account = FinancialAccount::query()->firstOrNew(['name' => $name]);
+        $account->fill([
+            'bank_name' => $this->rowValue($row, ['banco', 'bank_name']) ?: null,
+            'agency' => $this->rowValue($row, ['agencia', 'agency']) ?: null,
+            'account_number' => $this->rowValue($row, ['conta', 'account_number']) ?: null,
+            'account_digit' => $this->rowValue($row, ['digito', 'account_digit']) ?: null,
+            'account_type' => $this->rowValue($row, ['tipo', 'account_type']) ?: 'conta_corrente',
+            'pix_key' => $this->rowValue($row, ['pix', 'pix_key']) ?: null,
+            'opening_balance' => FinancialValue::decimalFromInput($this->rowValue($row, ['saldo_inicial', 'opening_balance'])) ?? 0,
+            'credit_limit' => FinancialValue::decimalFromInput($this->rowValue($row, ['limite', 'credit_limit'])) ?? 0,
+            'is_primary' => $this->rowBool($row, ['principal', 'is_primary'], false),
+            'is_active' => $this->rowBool($row, ['ativa', 'is_active'], true),
+        ]);
+
+        if (!$account->exists) {
+            $account->code = $this->codeService->next('financial_accounts', 'entry_prefix', 'CTA');
+        }
+
+        $account->save();
     }
 
     private function processTransactionRow(array $row, int $userId): void
@@ -362,17 +374,25 @@ class FinancialImportController extends Controller
 
         $client = $this->findClientByName($this->rowValue($row, ['cliente', 'client']));
 
-        FinancialReimbursement::query()->create([
-            'code' => $this->codeService->next('financial_reimbursements', 'entry_prefix', 'RMB'),
+        $reimbursement = FinancialReimbursement::query()->firstOrNew([
             'client_id' => $client?->id,
-            'process_id' => null,
             'type' => $this->rowValue($row, ['tipo', 'type']) ?: null,
             'amount' => $amount,
+            'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
+        ]);
+
+        $reimbursement->fill([
+            'process_id' => null,
             'paid_by_office_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['pago_pelo_escritorio', 'paid_by_office_amount'])) ?? 0,
             'reimbursed_amount' => FinancialValue::decimalFromInput($this->rowValue($row, ['reembolsado', 'reimbursed_amount'])) ?? 0,
-            'due_date' => $this->rowDate($row, ['vencimento', 'due_date']),
             'status' => $this->rowValue($row, ['status']) ?: 'pendente',
         ]);
+
+        if (!$reimbursement->exists) {
+            $reimbursement->code = $this->codeService->next('financial_reimbursements', 'entry_prefix', 'RMB');
+        }
+
+        $reimbursement->save();
     }
 
     private function processStatementRow(array $row, array $context): void
@@ -445,7 +465,7 @@ class FinancialImportController extends Controller
 
     private function normalizePreviewRows(string $scope, array $headers, array $rows, Request $request): array
     {
-        $normalizedHeaders = array_map(fn ($header) => $this->normalizeHeader((string) $header), $headers);
+        $normalizedHeaders = array_map(fn ($header) => $this->sanitizeHeader((string) $header), $headers);
         $mappedRows = [];
 
         foreach ($rows as $row) {
@@ -572,10 +592,19 @@ class FinancialImportController extends Controller
         return preg_replace('/[^a-z0-9_]/', '', $header) ?: '';
     }
 
+    private function sanitizeHeader(string $header): string
+    {
+        $normalized = Str::lower(trim(Str::ascii($header)));
+        $normalized = preg_replace('/[\s\-\/\.]+/', '_', $normalized);
+        $normalized = preg_replace('/_+/', '_', (string) $normalized);
+
+        return preg_replace('/[^a-z0-9_]/', '', (string) $normalized) ?: '';
+    }
+
     private function rowValue(array $row, array $keys): string
     {
         foreach ($keys as $key) {
-            $normalized = $this->normalizeHeader($key);
+            $normalized = $this->sanitizeHeader($key);
             if (array_key_exists($normalized, $row) && trim((string) $row[$normalized]) !== '') {
                 return trim((string) $row[$normalized]);
             }

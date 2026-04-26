@@ -239,6 +239,7 @@ class FinancialCatalog
             'payables' => 'Contas a pagar',
             'cash-flow' => 'Fluxo de caixa',
             'accounts' => 'Bancos e contas',
+            'collection' => 'Cobrancas',
             'reimbursements' => 'Reembolsos',
             'process-costs' => 'Custas processuais',
             'statements' => 'Conciliacao bancaria',

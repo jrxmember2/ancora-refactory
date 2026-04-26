@@ -97,7 +97,13 @@ class FinancialReportingService
 
         $alerts = [
             'contas_vencidas' => $overdue->take(8)->values(),
-            'caixa_negativo' => $accounts->filter(fn (FinancialAccount $account) => $this->accountBalance($account) < 0)->values(),
+            'caixa_negativo' => $accounts
+                ->map(fn (FinancialAccount $account) => [
+                    'name' => $account->name,
+                    'balance' => $this->accountBalance($account),
+                ])
+                ->filter(fn (array $account) => $account['balance'] < 0)
+                ->values(),
             'contratos_sem_cobranca' => Contract::query()
                 ->where('generate_financial_entries', true)
                 ->whereDoesntHave('receivables')

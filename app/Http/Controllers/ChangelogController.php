@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.53',
+            'version' => 'v1.54',
             'date' => '26/04/2026',
-            'label' => 'v1.53 - 26/04/2026',
+            'label' => 'v1.54 - 26/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Financeiro 360 com importacao mais segura e exportacao selecionada',
+                'items' => [
+                    'Importacao financeira em lote deixa de sobrescrever codigo interno de contas a receber, contas a pagar, contas bancarias e reembolsos quando o registro ja existe.',
+                    'Listagens principais do Financeiro 360 passam a permitir exportar tudo ou apenas os registros marcados em CSV, XLSX, PDF e impressao.',
+                    'Conciliacao bancaria, historico de importacao e relatorios PDF do financeiro receberam limpeza estrutural e ajuste de layout para reduzir ruido visual e inconsistencias de codificacao.',
+                    'Exportacoes agora respeitam melhor filtros de conciliacao, faturamento selecionado e status de parcelamentos no momento de gerar os arquivos.',
+                ],
+            ],
+            [
+                'version' => 'v1.53',
+                'date' => '26/04/2026',
                 'title' => 'Hotfix no editor de contratos',
                 'items' => [
                     'Tela de Novo contrato volta a abrir normalmente apos a remocao de expressoes Blade com chaves aninhadas no editor rico do modulo Contratos.',
