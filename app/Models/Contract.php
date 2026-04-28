@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contract extends Model
@@ -98,5 +99,10 @@ class Contract extends Model
     public function receivables(): HasMany
     {
         return $this->hasMany(FinancialReceivable::class, 'contract_id')->orderByDesc('due_date');
+    }
+
+    public function signatureRequests(): MorphMany
+    {
+        return $this->morphMany(DocumentSignatureRequest::class, 'signable')->orderByDesc('created_at');
     }
 }

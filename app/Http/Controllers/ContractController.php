@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -219,8 +220,9 @@ class ContractController extends Controller
 
     public function show(Request $request, Contract $contrato): View
     {
-        $activeTab = in_array($request->query('tab'), ['historico', 'anexos'], true) ? $request->query('tab') : 'resumo';
-        $contrato->load([
+        $activeTab = in_array($request->query('tab'), ['historico', 'anexos', 'assinaturas'], true) ? $request->query('tab') : 'resumo';
+        $signatureStorageReady = $this->signatureStorageReady();
+        $relations = [
             'category',
             'template',
             'client',
@@ -233,14 +235,36 @@ class ContractController extends Controller
             'updater',
             'versions.generator',
             'attachments.uploader',
-        ]);
+        ];
+        if ($signatureStorageReady) {
+            $relations = array_merge($relations, [
+                'signatureRequests.signers',
+                'signatureRequests.events.signer',
+                'signatureRequests.creator',
+                'signatureRequests.updater',
+                'signatureRequests.documentVersion',
+            ]);
+        }
+        $contrato->load($relations);
 
         return view('pages.contratos.show', [
             'title' => $contrato->code ?: $contrato->title,
             'item' => $contrato,
             'activeTab' => $activeTab,
             'statusLabels' => ContractCatalog::statuses(),
+            'signatureStorageReady' => $signatureStorageReady,
         ]);
+    }
+
+    private function signatureStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('document_signature_requests')
+                && Schema::hasTable('document_signature_signers')
+                && Schema::hasTable('document_signature_events');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function edit(Contract $contrato): View

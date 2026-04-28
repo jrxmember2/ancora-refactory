@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class CobrancaCase extends Model
 {
@@ -42,4 +43,5 @@ class CobrancaCase extends Model
     public function monetaryUpdates(): HasMany { return $this->hasMany(CobrancaMonetaryUpdate::class, 'cobranca_case_id')->latest('created_at'); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
+    public function signatureRequests(): MorphMany { return $this->morphMany(DocumentSignatureRequest::class, 'signable')->orderByDesc('created_at'); }
 }

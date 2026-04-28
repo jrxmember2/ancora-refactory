@@ -8,7 +8,7 @@ class ContractCatalog
     {
         return [
             'rascunho' => 'Rascunho',
-            'em_revisao' => 'Em revisão',
+            'em_revisao' => 'Em revisao',
             'aguardando_assinatura' => 'Aguardando assinatura',
             'assinado' => 'Assinado',
             'ativo' => 'Ativo',
@@ -22,19 +22,19 @@ class ContractCatalog
     public static function types(): array
     {
         return [
-            'Contrato de assessoria jurídica condominial',
-            'Contrato de cobrança extrajudicial',
-            'Contrato de cobrança judicial',
-            'Contrato de regularização de convenção/regimento',
-            'Contrato de participação em assembleia',
+            'Contrato de assessoria juridica condominial',
+            'Contrato de cobranca extrajudicial',
+            'Contrato de cobranca judicial',
+            'Contrato de regularizacao de convencao/regimento',
+            'Contrato de participacao em assembleia',
             'Termo de acordo',
-            'Confissão de dívida',
+            'Confissao de divida',
             'Aditivo contratual',
             'Distrato',
-            'Notificação extrajudicial',
-            'Procuração',
-            'Declaração',
-            'Termo de quitação',
+            'Notificacao extrajudicial',
+            'Procuracao',
+            'Declaracao',
+            'Termo de quitacao',
             'Recibo',
             'Outro',
         ];
@@ -44,9 +44,9 @@ class ContractCatalog
     {
         return [
             'mensal' => 'Mensal',
-            'unica' => 'Parcela única',
+            'unica' => 'Parcela unica',
             'parcelada' => 'Parcelado',
-            'honorarios_sobre_exito' => 'Honorários sobre êxito',
+            'honorarios_sobre_exito' => 'Honorarios sobre exito',
             'sob_demanda' => 'Sob demanda',
             'outro' => 'Outro',
         ];
@@ -60,7 +60,7 @@ class ContractCatalog
             'trimestral' => 'Trimestral',
             'semestral' => 'Semestral',
             'anual' => 'Anual',
-            'unica' => 'Única',
+            'unica' => 'Unica',
         ];
     }
 
@@ -88,8 +88,8 @@ class ContractCatalog
         return [
             'contrato_assinado' => 'Contrato assinado',
             'documento_pessoal' => 'Documento pessoal',
-            'ata_eleicao' => 'ATA de eleição',
-            'procuracao' => 'Procuração',
+            'ata_eleicao' => 'Ata de eleicao',
+            'procuracao' => 'Procuracao',
             'comprovante' => 'Comprovante',
             'outro' => 'Outro',
         ];
@@ -98,14 +98,14 @@ class ContractCatalog
     public static function initialCategories(): array
     {
         return [
-            ['name' => 'Assessoria Jurídica', 'description' => 'Contratos permanentes de assessoria ao condomínio ou cliente.'],
-            ['name' => 'Cobrança Condominial', 'description' => 'Instrumentos ligados a cobrança judicial e extrajudicial.'],
-            ['name' => 'Acordos', 'description' => 'Termos de acordo, confissão de dívida e renegociação.'],
-            ['name' => 'Distratos', 'description' => 'Encerramentos, distratos e rescisões contratuais.'],
-            ['name' => 'Notificações', 'description' => 'Notificações extrajudiciais e comunicações formais.'],
-            ['name' => 'Procurações', 'description' => 'Procurações e documentos de representação.'],
-            ['name' => 'Declarações', 'description' => 'Declarações, termos de quitação e recibos.'],
-            ['name' => 'Recibos', 'description' => 'Recibos e confirmações de pagamento.'],
+            ['name' => 'Assessoria Juridica', 'description' => 'Contratos permanentes de assessoria ao condominio ou cliente.'],
+            ['name' => 'Cobranca Condominial', 'description' => 'Instrumentos ligados a cobranca judicial e extrajudicial.'],
+            ['name' => 'Acordos', 'description' => 'Termos de acordo, confissao de divida e renegociacao.'],
+            ['name' => 'Distratos', 'description' => 'Encerramentos, distratos e rescisoes contratuais.'],
+            ['name' => 'Notificacoes', 'description' => 'Notificacoes extrajudiciais e comunicacoes formais.'],
+            ['name' => 'Procuracoes', 'description' => 'Procuracoes e documentos de representacao.'],
+            ['name' => 'Declaracoes', 'description' => 'Declaracoes, termos de quitacao e recibos.'],
+            ['name' => 'Recibos', 'description' => 'Recibos e confirmacoes de pagamento.'],
             ['name' => 'Outros', 'description' => 'Modelos livres e documentos diversos.'],
         ];
     }
@@ -113,15 +113,22 @@ class ContractCatalog
     public static function defaultSettings(): array
     {
         return [
-            'default_city' => 'Vitória',
+            'default_city' => 'Vitoria',
             'default_state' => 'ES',
             'signature_text' => '________________________________________',
-            'footer_text' => 'Documento gerado pelo sistema Âncora.',
+            'footer_text' => 'Documento gerado pelo sistema Ancora.',
             'show_logo' => '1',
             'auto_code' => '1',
             'code_prefix' => 'CTR',
             'due_alert_days' => '30',
             'default_status' => 'rascunho',
+            'assinafy_environment' => 'production',
+            'assinafy_account_id' => '',
+            'assinafy_api_key' => '',
+            'assinafy_access_token' => '',
+            'assinafy_webhook_email' => '',
+            'assinafy_webhook_token' => '',
+            'assinafy_default_signer_message' => 'Segue o documento para assinatura digital.',
         ];
     }
 
@@ -131,60 +138,60 @@ class ContractCatalog
 
         return [
             [
-                'name' => 'Contrato de assessoria jurídica condominial',
-                'document_type' => 'Contrato de assessoria jurídica condominial',
-                'category_name' => 'Assessoria Jurídica',
-                'description' => 'Modelo base para prestação contínua de assessoria jurídica ao condomínio.',
+                'name' => 'Contrato de assessoria juridica condominial',
+                'document_type' => 'Contrato de assessoria juridica condominial',
+                'category_name' => 'Assessoria Juridica',
+                'description' => 'Modelo base para prestacao continua de assessoria juridica ao condominio.',
                 'available_variables' => $variables,
-                'content_html' => '<p><strong>CONTRATANTE:</strong> {{condominio_nome}}, inscrito no CNPJ {{condominio_cnpj}}, neste ato representado por {{sindico_nome}}.</p><p><strong>CONTRATADO:</strong> Rebeca Medina Sociedade Individual de Advocacia.</p><p>O presente instrumento tem por objeto a prestação de assessoria jurídica condominial, com início em {{contrato_data_inicio}} e vigência até {{contrato_data_fim}}.</p><p>O valor mensal contratado é de {{contrato_valor}}, vencendo todo dia {{contrato_dia_vencimento}}, com reajuste pelo índice {{contrato_reajuste_indice}}.</p><p>As partes elegem {{cidade}}/{{data_atual}} para os fins deste ajuste.</p>',
+                'content_html' => '<p><strong>CONTRATANTE:</strong> {{condominio_nome}}, inscrito no CNPJ {{condominio_cnpj}}, neste ato representado por {{sindico_nome}}.</p><p><strong>CONTRATADO:</strong> Rebeca Medina Sociedade Individual de Advocacia.</p><p>O presente instrumento tem por objeto a prestacao de assessoria juridica condominial, com inicio em {{contrato_data_inicio}} e vigencia ate {{contrato_data_fim}}.</p><p>O valor mensal contratado e de {{contrato_valor}}, vencendo todo dia {{contrato_dia_vencimento}}, com reajuste pelo indice {{contrato_reajuste_indice}}.</p><p>As partes elegem {{cidade}}/{{data_atual}} para os fins deste ajuste.</p>',
             ],
             [
                 'name' => 'Termo de acordo',
                 'document_type' => 'Termo de acordo',
                 'category_name' => 'Acordos',
-                'description' => 'Modelo para composição amigável de débitos e obrigações.',
+                'description' => 'Modelo para composicao amigavel de debitos e obrigacoes.',
                 'available_variables' => $variables,
-                'content_html' => '<p><strong>CREDOR:</strong> {{condominio_nome}}, representado por {{sindico_nome}}.</p><p><strong>DEVEDOR:</strong> {{cliente_nome}}, documento {{cliente_documento}}, residente em {{cliente_endereco}}.</p><p>As partes firmam o presente termo para quitação do débito referente à unidade {{unidade_numero}}, bloco {{bloco_nome}}, pelo valor de {{contrato_valor}} ({{contrato_valor_extenso}}).</p><p>O pagamento seguirá as condições definidas neste instrumento, com vencimento no dia {{contrato_dia_vencimento}}.</p>',
+                'content_html' => '<p><strong>CREDOR:</strong> {{condominio_nome}}, representado por {{sindico_nome}}.</p><p><strong>DEVEDOR:</strong> {{cliente_nome}}, documento {{cliente_documento}}, residente em {{cliente_endereco}}.</p><p>As partes firmam o presente termo para quitacao do debito referente a unidade {{unidade_numero}}, bloco {{bloco_nome}}, pelo valor de {{contrato_valor}} ({{contrato_valor_extenso}}).</p><p>O pagamento seguira as condicoes definidas neste instrumento, com vencimento no dia {{contrato_dia_vencimento}}.</p>',
             ],
             [
-                'name' => 'Confissão de dívida',
-                'document_type' => 'Confissão de dívida',
+                'name' => 'Confissao de divida',
+                'document_type' => 'Confissao de divida',
                 'category_name' => 'Acordos',
-                'description' => 'Modelo para reconhecimento formal da obrigação pelo devedor.',
+                'description' => 'Modelo para reconhecimento formal da obrigacao pelo devedor.',
                 'available_variables' => $variables,
-                'content_html' => '<p>{{cliente_nome}} reconhece e confessa ser devedor do valor de {{contrato_valor}} ({{contrato_valor_extenso}}), devido em favor de {{condominio_nome}}.</p><p>O débito será satisfeito conforme as condições pactuadas pelas partes, observando-se a data de início {{contrato_data_inicio}} e vencimento definido no instrumento.</p>',
+                'content_html' => '<p>{{cliente_nome}} reconhece e confessa ser devedor do valor de {{contrato_valor}} ({{contrato_valor_extenso}}), devido em favor de {{condominio_nome}}.</p><p>O debito sera satisfeito conforme as condicoes pactuadas pelas partes, observando-se a data de inicio {{contrato_data_inicio}} e vencimento definido no instrumento.</p>',
             ],
             [
                 'name' => 'Aditivo contratual',
                 'document_type' => 'Aditivo contratual',
-                'category_name' => 'Assessoria Jurídica',
-                'description' => 'Modelo para alteração pontual de cláusulas do contrato principal.',
+                'category_name' => 'Assessoria Juridica',
+                'description' => 'Modelo para alteracao pontual de clausulas do contrato principal.',
                 'available_variables' => $variables,
-                'content_html' => '<p>As partes resolvem aditar o contrato intitulado <strong>{{contrato_titulo}}</strong>, firmado entre {{cliente_nome}} e {{condominio_nome}}, para ajustar prazo, valores ou obrigações específicas.</p><p>Ficam mantidas as demais cláusulas não alteradas por este aditivo.</p>',
+                'content_html' => '<p>As partes resolvem aditar o contrato intitulado <strong>{{contrato_titulo}}</strong>, firmado entre {{cliente_nome}} e {{condominio_nome}}, para ajustar prazo, valores ou obrigacoes especificas.</p><p>Ficam mantidas as demais clausulas nao alteradas por este aditivo.</p>',
             ],
             [
                 'name' => 'Distrato',
                 'document_type' => 'Distrato',
                 'category_name' => 'Distratos',
-                'description' => 'Modelo para encerramento consensual do vínculo contratual.',
+                'description' => 'Modelo para encerramento consensual do vinculo contratual.',
                 'available_variables' => $variables,
-                'content_html' => '<p>As partes, de comum acordo, resolvem extinguir o contrato <strong>{{contrato_titulo}}</strong>, celebrado em {{contrato_data_inicio}}, dando-se plena e geral quitação, ressalvadas as obrigações expressamente mantidas.</p>',
+                'content_html' => '<p>As partes, de comum acordo, resolvem extinguir o contrato <strong>{{contrato_titulo}}</strong>, celebrado em {{contrato_data_inicio}}, dando-se plena e geral quitacao, ressalvadas as obrigacoes expressamente mantidas.</p>',
             ],
             [
-                'name' => 'Notificação extrajudicial',
-                'document_type' => 'Notificação extrajudicial',
-                'category_name' => 'Notificações',
-                'description' => 'Modelo base de notificação extrajudicial.',
+                'name' => 'Notificacao extrajudicial',
+                'document_type' => 'Notificacao extrajudicial',
+                'category_name' => 'Notificacoes',
+                'description' => 'Modelo base de notificacao extrajudicial.',
                 'available_variables' => $variables,
-                'content_html' => '<p>Sirva a presente para NOTIFICAR {{cliente_nome}}, documento {{cliente_documento}}, para que adote as providências necessárias no prazo assinalado, sob pena das medidas cabíveis.</p><p>Fica consignado que o presente documento é emitido em {{cidade}}, na data de {{data_atual}}.</p>',
+                'content_html' => '<p>Sirva a presente para NOTIFICAR {{cliente_nome}}, documento {{cliente_documento}}, para que adote as providencias necessarias no prazo assinalado, sob pena das medidas cabiveis.</p><p>Fica consignado que o presente documento e emitido em {{cidade}}, na data de {{data_atual}}.</p>',
             ],
             [
-                'name' => 'Termo de quitação',
-                'document_type' => 'Termo de quitação',
-                'category_name' => 'Declarações',
-                'description' => 'Modelo para declaração de adimplemento integral.',
+                'name' => 'Termo de quitacao',
+                'document_type' => 'Termo de quitacao',
+                'category_name' => 'Declaracoes',
+                'description' => 'Modelo para declaracao de adimplemento integral.',
                 'available_variables' => $variables,
-                'content_html' => '<p>{{condominio_nome}} declara, para os devidos fins, que {{cliente_nome}} quitou integralmente a obrigação tratada no instrumento <strong>{{contrato_titulo}}</strong>, no valor de {{contrato_valor}}.</p>',
+                'content_html' => '<p>{{condominio_nome}} declara, para os devidos fins, que {{cliente_nome}} quitou integralmente a obrigacao tratada no instrumento <strong>{{contrato_titulo}}</strong>, no valor de {{contrato_valor}}.</p>',
             ],
         ];
     }

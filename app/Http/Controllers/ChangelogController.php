@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.54',
-            'date' => '26/04/2026',
-            'label' => 'v1.54 - 26/04/2026',
+            'version' => 'v1.55',
+            'date' => '28/04/2026',
+            'label' => 'v1.55 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Assinatura digital integrada com Assinafy em Contratos e OS',
+                'items' => [
+                    'Configuracoes da Assinafy entram no modulo Contratos, com ambiente, credenciais, URL/token de webhook e sincronizacao automatica da assinatura digital.',
+                    'Contratos passam a ter aba propria de Assinaturas, com envio do PDF final para assinatura, acompanhamento por signatario, eventos do provider e download de documento assinado, certificado e pacote.',
+                    'OS de cobranca ganham painel operacional de assinatura digital no proprio detalhe, com envio do termo de acordo salvo e sincronizacao do status diretamente pela Assinafy.',
+                    'Webhook e sincronizacao manual atualizam o painel de conferenca, baixam artefatos quando a assinatura conclui e refletem o resultado no GED e nos status do contrato/OS.',
+                    'Telas foram blindadas para nao quebrar caso o deploy suba antes da migration da assinatura digital ser executada no servidor.',
+                ],
+            ],
+            [
+                'version' => 'v1.54',
+                'date' => '26/04/2026',
                 'title' => 'Financeiro 360 com importacao mais segura e exportacao selecionada',
                 'items' => [
                     'Importacao financeira em lote deixa de sobrescrever codigo interno de contas a receber, contas a pagar, contas bancarias e reembolsos quando o registro ja existe.',

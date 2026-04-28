@@ -24,6 +24,11 @@
         @else
             <button type="button" id="open-boleto-request-modal" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 hover:bg-success-100 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Solicitar Boleto</button>
         @endif
+        @if($signatureStorageReady ?? false)
+            <a href="{{ route('cobrancas.signatures.create', $case) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Assinatura digital</a>
+        @else
+            <span class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Assinatura digital</span>
+        @endif
         <a href="{{ route('cobrancas.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Nova OS</a>
     </div>
 </x-ancora.section-header>
@@ -38,6 +43,22 @@
                 <div class="mt-1">{{ $case->alert_message }}</div>
             </div>
         </div>
+    </div>
+@endif
+
+@if($signatureStorageReady ?? false)
+    <div class="mb-6">
+        @include('pages.signatures.panel', [
+            'requests' => $case->signatureRequests,
+            'createUrl' => route('cobrancas.signatures.create', $case),
+            'routePrefix' => 'cobrancas.signatures',
+            'ownerRouteParam' => 'cobranca',
+            'owner' => $case,
+        ])
+    </div>
+@else
+    <div class="mb-6 rounded-2xl border border-warning-300 bg-warning-50 p-5 text-sm text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200">
+        Rode a migration da assinatura digital para liberar o painel de assinaturas desta OS.
     </div>
 @endif
 

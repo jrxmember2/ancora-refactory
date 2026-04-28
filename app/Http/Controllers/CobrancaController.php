@@ -533,7 +533,8 @@ class CobrancaController extends Controller
     public function show(CobrancaCase $cobranca): View
     {
         $boletoRequestStorageReady = $this->boletoRequestStorageReady();
-        $cobranca->load([
+        $signatureStorageReady = $this->signatureStorageReady();
+        $relations = [
             'condominium.administradora',
             'block',
             'unit.owner',
@@ -543,7 +544,16 @@ class CobrancaController extends Controller
             'installments',
             'timeline',
             'attachments',
-        ]);
+        ];
+        if ($signatureStorageReady) {
+            $relations = array_merge($relations, [
+                'signatureRequests.signers',
+                'signatureRequests.events.signer',
+                'signatureRequests.creator',
+                'signatureRequests.updater',
+            ]);
+        }
+        $cobranca->load($relations);
         if ($boletoRequestStorageReady) {
             $cobranca->load(['emailHistories.sender', 'emailHistories.monetaryUpdate']);
         }
@@ -566,6 +576,7 @@ class CobrancaController extends Controller
             'billingAdminEmails' => $this->billingAdminEmails($cobranca->condominium?->administradora),
             'preferredBoletoUpdateId' => $this->preferredMonetaryUpdate($cobranca)?->id,
             'boletoMailSubject' => $this->boletoMailSubject($cobranca),
+            'signatureStorageReady' => $signatureStorageReady,
         ]);
     }
 
@@ -908,6 +919,17 @@ class CobrancaController extends Controller
         }
 
         return null;
+    }
+
+    private function signatureStorageReady(): bool
+    {
+        try {
+            return Schema::hasTable('document_signature_requests')
+                && Schema::hasTable('document_signature_signers')
+                && Schema::hasTable('document_signature_events');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function latestAppendableClientDocument(string $relatedType, int $relatedId): ?ClientAttachment
