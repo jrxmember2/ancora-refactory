@@ -140,25 +140,22 @@ class ContractCatalog
             [
                 'name' => 'Contrato de assessoria juridica condominial',
                 'document_type' => 'Contrato de assessoria juridica condominial',
-                'default_contract_title' => 'Contrato de assessoria juridica condominial',
                 'category_name' => 'Assessoria Juridica',
                 'description' => 'Modelo base para prestacao continua de assessoria juridica ao condominio.',
                 'available_variables' => $variables,
-                'content_html' => '<p><strong>CONTRATANTE:</strong> {{condominio_nome}}, inscrito no CNPJ {{condominio_cnpj}}, neste ato representado por {{sindico_qualificacao}}.</p><p><strong>CONTRATADO:</strong> Rebeca Medina Sociedade Individual de Advocacia.</p><p>O presente instrumento tem por objeto a prestacao de assessoria juridica condominial, com inicio em {{contrato_data_inicio}} e vigencia ate {{contrato_data_fim}}.</p><p>O valor mensal contratado e de {{contrato_valor}}, vencendo todo dia {{contrato_dia_vencimento}}, com reajuste pelo indice {{contrato_reajuste_indice}}.</p><p>As partes elegem {{cidade}}/{{data_atual}} para os fins deste ajuste.</p>',
+                'content_html' => '<p><strong>CONTRATANTE:</strong> {{condominio_nome}}, inscrito no CNPJ {{condominio_cnpj}}, neste ato representado por {{sindico_nome}}.</p><p><strong>CONTRATADO:</strong> Rebeca Medina Sociedade Individual de Advocacia.</p><p>O presente instrumento tem por objeto a prestacao de assessoria juridica condominial, com inicio em {{contrato_data_inicio}} e vigencia ate {{contrato_data_fim}}.</p><p>O valor mensal contratado e de {{contrato_valor}}, vencendo todo dia {{contrato_dia_vencimento}}, com reajuste pelo indice {{contrato_reajuste_indice}}.</p><p>As partes elegem {{cidade}}/{{data_atual}} para os fins deste ajuste.</p>',
             ],
             [
                 'name' => 'Termo de acordo',
                 'document_type' => 'Termo de acordo',
-                'default_contract_title' => 'Termo de acordo',
                 'category_name' => 'Acordos',
                 'description' => 'Modelo para composicao amigavel de debitos e obrigacoes.',
                 'available_variables' => $variables,
-                'content_html' => '<p><strong>CREDOR:</strong> {{condominio_nome}}, representado por {{sindico_qualificacao}}.</p><p><strong>DEVEDOR:</strong> {{cliente_nome}}, documento {{cliente_documento}}, residente em {{cliente_endereco}}.</p><p>As partes firmam o presente termo para quitacao do debito referente a unidade {{unidade_numero}}, bloco {{bloco_nome}}, pelo valor de {{contrato_valor}} ({{contrato_valor_extenso}}).</p><p>O pagamento seguira as condicoes definidas neste instrumento, com vencimento no dia {{contrato_dia_vencimento}}.</p>',
+                'content_html' => '<p><strong>CREDOR:</strong> {{condominio_nome}}, representado por {{sindico_nome}}.</p><p><strong>DEVEDOR:</strong> {{cliente_nome}}, documento {{cliente_documento}}, residente em {{cliente_endereco}}.</p><p>As partes firmam o presente termo para quitacao do debito referente a unidade {{unidade_numero}}, bloco {{bloco_nome}}, pelo valor de {{contrato_valor}} ({{contrato_valor_extenso}}).</p><p>O pagamento seguira as condicoes definidas neste instrumento, com vencimento no dia {{contrato_dia_vencimento}}.</p>',
             ],
             [
                 'name' => 'Confissao de divida',
                 'document_type' => 'Confissao de divida',
-                'default_contract_title' => 'Confissao de divida',
                 'category_name' => 'Acordos',
                 'description' => 'Modelo para reconhecimento formal da obrigacao pelo devedor.',
                 'available_variables' => $variables,
@@ -167,7 +164,6 @@ class ContractCatalog
             [
                 'name' => 'Aditivo contratual',
                 'document_type' => 'Aditivo contratual',
-                'default_contract_title' => 'Aditivo contratual',
                 'category_name' => 'Assessoria Juridica',
                 'description' => 'Modelo para alteracao pontual de clausulas do contrato principal.',
                 'available_variables' => $variables,
@@ -176,7 +172,6 @@ class ContractCatalog
             [
                 'name' => 'Distrato',
                 'document_type' => 'Distrato',
-                'default_contract_title' => 'Distrato',
                 'category_name' => 'Distratos',
                 'description' => 'Modelo para encerramento consensual do vinculo contratual.',
                 'available_variables' => $variables,
@@ -185,7 +180,6 @@ class ContractCatalog
             [
                 'name' => 'Notificacao extrajudicial',
                 'document_type' => 'Notificacao extrajudicial',
-                'default_contract_title' => 'Notificacao extrajudicial',
                 'category_name' => 'Notificacoes',
                 'description' => 'Modelo base de notificacao extrajudicial.',
                 'available_variables' => $variables,
@@ -194,7 +188,6 @@ class ContractCatalog
             [
                 'name' => 'Termo de quitacao',
                 'document_type' => 'Termo de quitacao',
-                'default_contract_title' => 'Termo de quitacao',
                 'category_name' => 'Declaracoes',
                 'description' => 'Modelo para declaracao de adimplemento integral.',
                 'available_variables' => $variables,

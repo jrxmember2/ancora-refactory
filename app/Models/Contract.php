@@ -56,11 +56,6 @@ class Contract extends Model
         return $this->belongsTo(ClientCondominium::class, 'condominium_id');
     }
 
-    public function syndic(): BelongsTo
-    {
-        return $this->belongsTo(ClientEntity::class, 'syndico_entity_id');
-    }
-
     public function unit(): BelongsTo
     {
         return $this->belongsTo(ClientUnit::class, 'unit_id');
@@ -79,11 +74,6 @@ class Contract extends Model
     public function responsible(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_user_id');
-    }
-
-    public function financialAccount(): BelongsTo
-    {
-        return $this->belongsTo(FinancialAccount::class, 'financial_account_id');
     }
 
     public function creator(): BelongsTo

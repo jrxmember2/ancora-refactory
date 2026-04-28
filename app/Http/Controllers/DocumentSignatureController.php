@@ -8,7 +8,6 @@ use App\Models\CobrancaCase;
 use App\Models\DocumentSignatureRequest;
 use App\Models\User;
 use App\Services\AssinafyService;
-use App\Services\DocumentSignatureMessageService;
 use App\Services\DocumentSignatureService;
 use App\Support\AncoraAuth;
 use App\Support\ContractSettings;
@@ -26,7 +25,6 @@ class DocumentSignatureController extends Controller
     public function __construct(
         private readonly DocumentSignatureService $signatureService,
         private readonly AssinafyService $assinafyService,
-        private readonly DocumentSignatureMessageService $messageService,
     ) {
     }
 
@@ -48,14 +46,7 @@ class DocumentSignatureController extends Controller
             'submitUrl' => route('contratos.signatures.store', $contrato),
             'submitLabel' => 'Enviar para assinatura',
             'signers' => old('signers', $this->defaultContractSigners($contrato)),
-            'signerMessage' => old(
-                'signer_message',
-                $this->messageService->renderForContract(
-                    $contrato,
-                    ContractSettings::get('assinafy_default_signer_message', 'Segue o documento para assinatura digital.')
-                )
-            ),
-            'messageVariables' => $this->messageService->availableVariables('contract'),
+            'signerMessage' => old('signer_message', ContractSettings::get('assinafy_default_signer_message', 'Segue o documento para assinatura digital.')),
             'providerConfigured' => $this->assinafyService->isConfigured(),
             'missingConfig' => $this->assinafyService->missingConfig(),
             'canSubmit' => true,
@@ -70,7 +61,7 @@ class DocumentSignatureController extends Controller
 
         try {
             $signers = $this->normalizeSigners($request);
-            $message = $this->normalizeMessage($request, $contrato);
+            $message = $this->normalizeMessage($request);
 
             $this->signatureService->sendContract($contrato, $signers, $user, $message);
         } catch (ValidationException $e) {
@@ -146,14 +137,7 @@ class DocumentSignatureController extends Controller
             'submitUrl' => route('cobrancas.signatures.store', $cobranca),
             'submitLabel' => 'Enviar termo para assinatura',
             'signers' => old('signers', $this->defaultCobrancaSigners($cobranca)),
-            'signerMessage' => old(
-                'signer_message',
-                $this->messageService->renderForCobranca(
-                    $cobranca,
-                    ContractSettings::get('assinafy_default_signer_message', 'Segue o documento para assinatura digital.')
-                )
-            ),
-            'messageVariables' => $this->messageService->availableVariables('cobranca'),
+            'signerMessage' => old('signer_message', ContractSettings::get('assinafy_default_signer_message', 'Segue o documento para assinatura digital.')),
             'providerConfigured' => $this->assinafyService->isConfigured(),
             'missingConfig' => $this->assinafyService->missingConfig(),
             'canSubmit' => $blockingReason === null,
@@ -171,7 +155,7 @@ class DocumentSignatureController extends Controller
 
         try {
             $signers = $this->normalizeSigners($request);
-            $message = $this->normalizeMessage($request, $cobranca);
+            $message = $this->normalizeMessage($request);
 
             $this->signatureService->sendCobrancaAgreement($cobranca, $signers, $user, $message);
         } catch (ValidationException $e) {
@@ -271,22 +255,14 @@ class DocumentSignatureController extends Controller
         return $rows->all();
     }
 
-    private function normalizeMessage(Request $request, Contract|CobrancaCase $signable): ?string
+    private function normalizeMessage(Request $request): ?string
     {
         $message = trim((string) $request->input(
             'signer_message',
             ContractSettings::get('assinafy_default_signer_message', 'Segue o documento para assinatura digital.')
         ));
 
-        if ($message === '') {
-            return null;
-        }
-
-        $rendered = $signable instanceof Contract
-            ? $this->messageService->renderForContract($signable, $message)
-            : $this->messageService->renderForCobranca($signable, $message);
-
-        return $rendered !== null ? Str::limit($rendered, 500, '') : null;
+        return $message !== '' ? Str::limit($message, 500, '') : null;
     }
 
     private function defaultContractSigners(Contract $contract): array

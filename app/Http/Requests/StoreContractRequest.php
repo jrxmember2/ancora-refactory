@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Support\Contracts\ContractCatalog;
-use App\Support\Financeiro\FinancialCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,13 +17,12 @@ class StoreContractRequest extends FormRequest
     {
         return [
             'code' => ['nullable', 'string', 'max:60'],
-            'title' => ['nullable', 'string', 'max:220'],
+            'title' => ['required', 'string', 'max:220'],
             'type' => ['required', 'string', Rule::in(ContractCatalog::types())],
             'category_id' => ['nullable', 'integer', 'exists:contract_categories,id'],
             'template_id' => ['nullable', 'integer', 'exists:contract_templates,id'],
             'client_id' => ['nullable', 'integer', 'exists:client_entities,id'],
             'condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
-            'syndico_entity_id' => ['nullable', 'integer', 'exists:client_entities,id'],
             'unit_id' => ['nullable', 'integer', 'exists:client_units,id'],
             'proposal_id' => ['nullable', 'integer'],
             'process_id' => ['nullable', 'integer'],
@@ -44,8 +42,6 @@ class StoreContractRequest extends FormRequest
             'penalty_value' => ['nullable', 'string', 'max:40'],
             'penalty_percentage' => ['nullable', 'string', 'max:20'],
             'generate_financial_entries' => ['nullable', 'boolean'],
-            'financial_account_id' => ['nullable', 'integer', 'exists:financial_accounts,id'],
-            'payment_method' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::paymentMethods()))],
             'cost_center_future' => ['nullable', 'string', 'max:120'],
             'financial_category_future' => ['nullable', 'string', 'max:120'],
             'financial_notes' => ['nullable', 'string'],

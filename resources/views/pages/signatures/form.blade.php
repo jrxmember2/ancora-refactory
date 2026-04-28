@@ -97,19 +97,6 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Mensagem aos signatarios</h3>
             <textarea name="signer_message" rows="4" class="mt-4 {{ $textareaClass }}" placeholder="Mensagem opcional enviada junto com o pedido de assinatura.">{{ $signerMessage }}</textarea>
-            @if(!empty($messageVariables))
-                <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                    <div class="text-sm font-medium text-gray-800 dark:text-gray-100">Variaveis aceitas nesta mensagem</div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Se voce digitar alguma destas chaves, o sistema substitui automaticamente antes de enviar para a Assinafy.</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        @foreach($messageVariables as $variable)
-                            <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" title="{{ $variable['label'] }}">
-                                {{ $variable['token'] }}
-                            </span>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
         </div>
 
         <div class="flex flex-wrap justify-end gap-3">

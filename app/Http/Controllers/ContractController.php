@@ -12,7 +12,6 @@ use App\Models\ContractAttachment;
 use App\Models\ContractCategory;
 use App\Models\ContractTemplate;
 use App\Models\ContractVersion;
-use App\Models\FinancialAccount;
 use App\Models\ProcessCase;
 use App\Models\Proposal;
 use App\Models\User;
@@ -21,7 +20,6 @@ use App\Services\ContractRenderService;
 use App\Support\AncoraAuth;
 use App\Support\ContractSettings;
 use App\Support\Contracts\ContractCatalog;
-use App\Support\Financeiro\FinancialCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -85,11 +83,6 @@ class ContractController extends Controller
 
         $alerts = [
             'upcoming' => $contracts->filter(fn (Contract $item) => $this->isUpcoming($item, $alertDays))->sortBy('end_date')->take(8)->values(),
-            'upcoming_adjustments' => $contracts
-                ->filter(fn (Contract $item) => $item->next_adjustment_date && $item->next_adjustment_date->between(now()->startOfDay(), now()->copy()->addDays(30)->endOfDay()))
-                ->sortBy('next_adjustment_date')
-                ->take(8)
-                ->values(),
             'without_pdf' => $contracts->filter(fn (Contract $item) => !$item->final_pdf_path)->take(8)->values(),
             'drafts' => $contracts->where('status', 'rascunho')->take(8)->values(),
             'without_client' => $contracts->filter(fn (Contract $item) => !$item->client_id && !$item->condominium_id)->take(8)->values(),
@@ -162,7 +155,6 @@ class ContractController extends Controller
         $draft = [
             'status' => ContractSettings::get('default_status', 'rascunho'),
             'page_orientation' => 'portrait',
-            'indefinite_term' => true,
         ];
 
         return view('pages.contratos.form', array_merge($this->formOptions(), [
@@ -171,7 +163,6 @@ class ContractController extends Controller
             'item' => null,
             'draft' => $draft,
             'previewHtml' => old('content_html', ''),
-            'formAlerts' => [],
         ]));
     }
 
@@ -184,11 +175,6 @@ class ContractController extends Controller
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
         $payload = $this->normalizedPayload($request);
-        $payload['title'] = $this->resolvedTitle($payload['title'] ?? null, $template);
-
-        if ($payload['title'] === null) {
-            return back()->withInput()->with('error', 'Informe o titulo do contrato ou configure um titulo padrao no template selecionado.');
-        }
 
         if (!$this->autoCodeEnabled() && trim((string) $payload['code']) === '') {
             return back()->withInput()->with('error', 'Informe o código interno do contrato quando a numeração automática estiver desativada.');
@@ -241,12 +227,10 @@ class ContractController extends Controller
             'template',
             'client',
             'condominium.syndic',
-            'syndic',
             'unit.block',
             'proposal',
             'process',
             'responsible',
-            'financialAccount',
             'creator',
             'updater',
             'versions.generator',
@@ -269,8 +253,6 @@ class ContractController extends Controller
             'activeTab' => $activeTab,
             'statusLabels' => ContractCatalog::statuses(),
             'signatureStorageReady' => $signatureStorageReady,
-            'paymentMethodLabels' => FinancialCatalog::paymentMethods(),
-            'contractAlerts' => $this->contractAlerts($contrato),
         ]);
     }
 
@@ -295,7 +277,6 @@ class ContractController extends Controller
             'item' => $contrato,
             'draft' => $contrato->toArray(),
             'previewHtml' => old('content_html', $contrato->content_html),
-            'formAlerts' => $this->contractAlerts($contrato),
         ]));
     }
 
@@ -308,11 +289,6 @@ class ContractController extends Controller
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
         $payload = $this->normalizedPayload($request);
-        $payload['title'] = $this->resolvedTitle($payload['title'] ?? null, $template, $contrato);
-
-        if ($payload['title'] === null) {
-            return back()->withInput()->with('error', 'Informe o titulo do contrato ou configure um titulo padrao no template selecionado.');
-        }
 
         if (!$this->autoCodeEnabled() && trim((string) ($payload['code'] ?? '')) === '') {
             return back()->withInput()->with('error', 'Informe o código interno do contrato quando a numeração automática estiver desativada.');
@@ -424,11 +400,8 @@ class ContractController extends Controller
             return response()->json(['message' => 'Selecione um template para carregar o preview.'], 422);
         }
 
-        $attributes = $request->all();
-        $attributes['title'] = $this->resolvedTitle((string) ($attributes['title'] ?? ''), $template);
-
         return response()->json([
-            'html' => $this->renderService->renderTemplate($template, $attributes, $html !== '' ? $html : null),
+            'html' => $this->renderService->renderTemplate($template, $request->all(), $html !== '' ? $html : null),
         ]);
     }
 
@@ -553,28 +526,19 @@ class ContractController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'templates' => ContractTemplate::query()->where('is_active', true)->orderBy('name')->get(),
             'clients' => ClientEntity::query()->where('is_active', true)->orderBy('display_name')->get(['id', 'display_name']),
-            'syndics' => ClientEntity::query()
-                ->where('is_active', true)
-                ->whereIn('role_tag', ['sindico', 'Síndico', 'síndico'])
-                ->orderBy('display_name')
-                ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj', 'entity_type', 'legal_representative', 'shareholders_json']),
-            'condominiums' => ClientCondominium::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'syndico_entity_id']),
+            'condominiums' => ClientCondominium::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'units' => ClientUnit::query()->with(['condominium', 'block'])->orderBy('unit_number')->get(),
             'proposals' => Proposal::query()->orderByDesc('id')->limit(300)->get(['id', 'proposal_code', 'client_name']),
             'processes' => class_exists(ProcessCase::class)
                 ? ProcessCase::query()->orderByDesc('id')->limit(300)->get(['id', 'process_number', 'client_name_snapshot'])
                 : collect(),
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'financialAccounts' => Schema::hasTable('financial_accounts')
-                ? FinancialAccount::query()->where('is_active', true)->orderByDesc('is_primary')->orderBy('name')->get(['id', 'name', 'bank_name'])
-                : collect(),
             'statusLabels' => ContractCatalog::statuses(),
             'typeOptions' => ContractCatalog::types(),
             'billingTypes' => ContractCatalog::billingTypes(),
             'recurrenceOptions' => ContractCatalog::recurrences(),
             'adjustmentPeriodicities' => ContractCatalog::adjustmentPeriodicities(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
-            'paymentMethods' => FinancialCatalog::paymentMethods(),
         ];
     }
 
@@ -667,20 +631,15 @@ class ContractController extends Controller
         if ($unit && empty($data['client_id']) && $unit->owner_entity_id) {
             $data['client_id'] = (int) $unit->owner_entity_id;
         }
-        $condominium = !empty($data['condominium_id']) ? ClientCondominium::query()->find((int) $data['condominium_id']) : null;
-        if (empty($data['syndico_entity_id']) && $condominium?->syndico_entity_id) {
-            $data['syndico_entity_id'] = (int) $condominium->syndico_entity_id;
-        }
 
         return [
             'code' => trim((string) ($data['code'] ?? '')) ?: null,
-            'title' => trim((string) ($data['title'] ?? '')) ?: null,
+            'title' => trim((string) $data['title']),
             'type' => trim((string) $data['type']),
             'category_id' => $data['category_id'] ?? null,
             'template_id' => $data['template_id'] ?? null,
             'client_id' => $data['client_id'] ?? null,
             'condominium_id' => $data['condominium_id'] ?? null,
-            'syndico_entity_id' => $data['syndico_entity_id'] ?? null,
             'unit_id' => $data['unit_id'] ?? null,
             'proposal_id' => $data['proposal_id'] ?? null,
             'process_id' => $data['process_id'] ?? null,
@@ -700,8 +659,6 @@ class ContractController extends Controller
             'penalty_value' => $this->renderService->moneyFromInput($data['penalty_value'] ?? null),
             'penalty_percentage' => $this->renderService->moneyFromInput($data['penalty_percentage'] ?? null),
             'generate_financial_entries' => !empty($data['generate_financial_entries']),
-            'financial_account_id' => $data['financial_account_id'] ?? null,
-            'payment_method' => trim((string) ($data['payment_method'] ?? '')) ?: null,
             'cost_center_future' => trim((string) ($data['cost_center_future'] ?? '')) ?: null,
             'financial_category_future' => trim((string) ($data['financial_category_future'] ?? '')) ?: null,
             'financial_notes' => trim((string) ($data['financial_notes'] ?? '')) ?: null,
@@ -709,23 +666,6 @@ class ContractController extends Controller
             'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
             'responsible_user_id' => $data['responsible_user_id'] ?? null,
         ];
-    }
-
-    private function resolvedTitle(?string $title, ?ContractTemplate $template, ?Contract $contract = null): ?string
-    {
-        $title = trim((string) ($title ?? ''));
-        if ($title !== '') {
-            return $title;
-        }
-
-        $templateTitle = trim((string) ($template?->default_contract_title ?: $template?->name ?: ''));
-        if ($templateTitle !== '') {
-            return $templateTitle;
-        }
-
-        $currentTitle = trim((string) ($contract?->title ?? ''));
-
-        return $currentTitle !== '' ? $currentTitle : null;
     }
 
     private function autoCodeEnabled(): bool
@@ -753,21 +693,5 @@ class ContractController extends Controller
         }
 
         return $contract->end_date->between(now()->startOfDay(), now()->copy()->addDays($days)->endOfDay());
-    }
-
-    private function contractAlerts(Contract $contract, int $days = 30): array
-    {
-        $alerts = [];
-        $limit = now()->copy()->addDays($days)->endOfDay();
-
-        if (!$contract->indefinite_term && $contract->end_date && $contract->end_date->between(now()->startOfDay(), $limit)) {
-            $alerts[] = 'A vigencia deste contrato termina em ' . $contract->end_date->format('d/m/Y') . '.';
-        }
-
-        if ($contract->next_adjustment_date && $contract->next_adjustment_date->between(now()->startOfDay(), $limit)) {
-            $alerts[] = 'O proximo reajuste esta previsto para ' . $contract->next_adjustment_date->format('d/m/Y') . '.';
-        }
-
-        return $alerts;
     }
 }

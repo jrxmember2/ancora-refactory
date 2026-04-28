@@ -19,7 +19,6 @@ class StoreContractTemplateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:180', 'unique:contract_templates,name'],
             'document_type' => ['required', 'string', Rule::in(ContractCatalog::types())],
-            'default_contract_title' => ['nullable', 'string', 'max:220'],
             'category_id' => ['nullable', 'integer', 'exists:contract_categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
             'content_html' => ['nullable', 'string'],

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\ContractSetting;
 use App\Services\AssinafyService;
-use App\Services\DocumentSignatureMessageService;
 use App\Support\ContractSettings;
 use App\Support\Contracts\ContractCatalog;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +14,7 @@ use Illuminate\View\View;
 
 class ContractSettingsController extends Controller
 {
-    public function index(DocumentSignatureMessageService $messageService): View
+    public function index(): View
     {
         $settings = [];
         foreach (ContractSettings::defaults() as $key => $default) {
@@ -25,7 +24,6 @@ class ContractSettingsController extends Controller
         return view('pages.contratos.settings.index', [
             'title' => 'Configuracoes de contratos',
             'settings' => $settings,
-            'signatureMessageVariables' => $messageService->availableVariables(),
         ]);
     }
 

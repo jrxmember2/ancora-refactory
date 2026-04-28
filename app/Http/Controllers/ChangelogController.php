@@ -9,38 +9,15 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.57',
+            'version' => 'v1.55',
             'date' => '28/04/2026',
-            'label' => 'v1.57 - 28/04/2026',
+            'label' => 'v1.55 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Mensagens de assinatura com variaveis dinamicas',
-                'items' => [
-                    'Mensagem padrao da Assinafy agora aceita variaveis dinamicas para contratos e OS, como condominio, cliente, unidade, tipo de documento, titulo e numero da OS.',
-                    'Tela de configuracoes de contratos passa a listar claramente os tokens disponiveis para a mensagem padrao, reduzindo erro de digitacao e facilitando personalizacao.',
-                    'Formulario de envio para assinatura mostra as variaveis aceitas naquele contexto e renderiza automaticamente o texto final antes do disparo para a Assinafy.',
-                ],
-            ],
-            [
-                'version' => 'v1.56',
-                'date' => '28/04/2026',
-                'title' => 'Contratos com sindico dedicado, editor melhorado e integracao financeira real',
-                'items' => [
-                    'Tela de contratos ganha dropdown proprio de sindico, inclusive para contratos diretos fora do vinculo do condominio, com suporte a sindico PJ e representante PF no texto do documento.',
-                    'Templates passam a guardar titulo padrao do contrato e o formulario de Novo contrato agora preenche esse titulo automaticamente ao escolher o modelo.',
-                    'Editor rico de templates e contratos recebe tooltips, fonte, tamanho de texto, alinhamento e tabela simples, mantendo o fluxo leve e mais profissional.',
-                    'Campos monetarios do contrato passam a exibir prefixo R$ e o prazo indeterminado fica marcado por padrao, desativando a data de termino quando aplicavel.',
-                    'Contratos agora se integram ao Financeiro 360 com banco/conta financeira e forma de pagamento, e o faturamento automatico herda esses dados ao gerar contas a receber.',
-                    'Alertas de vencimento e reajuste passam a aparecer no detalhe, na edicao e no dashboard do modulo quando faltarem ate 30 dias para a data critica.',
-                ],
-            ],
-            [
-                'version' => 'v1.55',
-                'date' => '28/04/2026',
                 'title' => 'Assinatura digital integrada com Assinafy em Contratos e OS',
                 'items' => [
                     'Configuracoes da Assinafy entram no modulo Contratos, com ambiente, credenciais, URL/token de webhook e sincronizacao automatica da assinatura digital.',
