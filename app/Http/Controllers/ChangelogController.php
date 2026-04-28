@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.57',
+            'version' => 'v1.58',
             'date' => '28/04/2026',
-            'label' => 'v1.57 - 28/04/2026',
+            'label' => 'v1.58 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Templates de contratos com contato do sindico',
+                'items' => [
+                    'Catalogo de variaveis do modulo Contratos passa a expor e-mail e telefone do sindico para uso direto em templates e documentos gerados.',
+                    'Renderizacao das variaveis do contrato agora busca automaticamente o e-mail principal e o telefone principal do cadastro do sindico, respeitando tanto PF quanto PJ.',
+                    'Tabela de variaveis do modulo ganha sincronizacao dedicada para exibir as novas chaves sem depender de reset ou recarga manual do catalogo.',
+                ],
+            ],
+            [
+                'version' => 'v1.57',
+                'date' => '28/04/2026',
                 'title' => 'Variaveis de sindico mais claras e assinatura digital mais operacional',
                 'items' => [
                     'Modulo Contratos ganha novas variaveis explicitas para sindico, com endereco completo, cidade, estado, CEP, tipo de pessoa, CNPJ da empresa e CPF do representante quando houver PJ.',

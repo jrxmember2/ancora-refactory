@@ -39,6 +39,8 @@ class ContractVariableCatalog
             ['key' => 'sindico_cpf', 'label' => 'Sindico - CPF', 'description' => 'CPF do sindico quando o cadastro for pessoa fisica.', 'source' => 'client_entities.cpf_cnpj'],
             ['key' => 'sindico_cnpj', 'label' => 'Sindico - CNPJ', 'description' => 'CNPJ do sindico quando o cadastro for pessoa juridica.', 'source' => 'client_entities.cpf_cnpj'],
             ['key' => 'sindico_endereco', 'label' => 'Sindico - endereco completo', 'description' => 'Endereco completo do cadastro principal do sindico.', 'source' => 'client_entities.primary_address_json'],
+            ['key' => 'sindico_email', 'label' => 'Sindico - e-mail', 'description' => 'E-mail principal do cadastro do sindico.', 'source' => 'client_entities.emails_json'],
+            ['key' => 'sindico_telefone', 'label' => 'Sindico - telefone', 'description' => 'Telefone principal do cadastro do sindico.', 'source' => 'client_entities.phones_json'],
             ['key' => 'sindico_logradouro', 'label' => 'Sindico - logradouro', 'description' => 'Logradouro do cadastro principal do sindico.', 'source' => 'client_entities.primary_address_json.street'],
             ['key' => 'sindico_numero', 'label' => 'Sindico - numero', 'description' => 'Numero do endereco do sindico.', 'source' => 'client_entities.primary_address_json.number'],
             ['key' => 'sindico_complemento', 'label' => 'Sindico - complemento', 'description' => 'Complemento do endereco do sindico.', 'source' => 'client_entities.primary_address_json.complement'],

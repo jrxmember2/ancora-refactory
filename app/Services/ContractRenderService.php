@@ -146,6 +146,8 @@ class ContractRenderService
             'sindico_cnpj' => $syndicVariables['cnpj'],
             'sindico_documento' => $syndicVariables['document'],
             'sindico_endereco' => $this->formatEntityAddress($syndic),
+            'sindico_email' => $syndicVariables['email'],
+            'sindico_telefone' => $syndicVariables['phone'],
             'sindico_empresa_nome' => $syndicVariables['company_name'],
             'sindico_empresa_cnpj' => $syndicVariables['cnpj'],
             'sindico_qualificacao' => $syndicVariables['qualification'],
@@ -176,6 +178,8 @@ class ContractRenderService
                 'document' => '',
                 'cpf' => '',
                 'cnpj' => '',
+                'email' => '',
+                'phone' => '',
                 'company_name' => '',
                 'qualification' => '',
                 'representative_name' => '',
@@ -187,6 +191,8 @@ class ContractRenderService
         $simpleName = trim((string) ($syndic->display_name ?: $syndic->legal_name ?: ''));
         $document = trim((string) ($syndic->cpf_cnpj ?: ''));
         $entityType = trim((string) ($syndic->entity_type ?? 'pf'));
+        $email = trim((string) collect($syndic->emails_json ?? [])->pluck('email')->filter()->first());
+        $phone = trim((string) collect($syndic->phones_json ?? [])->pluck('number')->filter()->first());
 
         if ($entityType !== 'pj') {
             $qualification = trim($simpleName . ($document !== '' ? ', inscrito(a) no CPF sob o no ' . $document : ''));
@@ -198,6 +204,8 @@ class ContractRenderService
                 'document' => $document,
                 'cpf' => $document,
                 'cnpj' => '',
+                'email' => $email,
+                'phone' => $phone,
                 'company_name' => '',
                 'qualification' => $qualification,
                 'representative_name' => '',
@@ -231,6 +239,8 @@ class ContractRenderService
             'document' => $document,
             'cpf' => '',
             'cnpj' => $document,
+            'email' => $email,
+            'phone' => $phone,
             'company_name' => $companyName,
             'qualification' => $qualification,
             'representative_name' => $representativeName,
