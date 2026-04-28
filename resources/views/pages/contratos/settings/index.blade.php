@@ -111,6 +111,16 @@
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mensagem padrao ao signatario</label>
                 <textarea name="assinafy_default_signer_message" rows="3" class="{{ $textareaClass }}">{{ $settings['assinafy_default_signer_message'] }}</textarea>
+                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Aceita variaveis dinamicas. Ex.: <code>{{ '{{condominio_nome}}' }}</code>, <code>{{ '{{cliente_nome}}' }}</code>, <code>{{ '{{documento_titulo}}' }}</code>, <code>{{ '{{os_numero}}' }}</code>.</div>
+                @if(!empty($signatureMessageVariables))
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach($signatureMessageVariables as $variable)
+                            <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" title="{{ $variable['label'] }}">
+                                {{ $variable['token'] }}
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">URL do webhook</label>

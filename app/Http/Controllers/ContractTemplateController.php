@@ -43,6 +43,7 @@ class ContractTemplateController extends Controller
         ContractTemplate::query()->create([
             'name' => trim((string) $request->input('name')),
             'document_type' => trim((string) $request->input('document_type')),
+            'default_contract_title' => trim((string) $request->input('default_contract_title', '')) ?: trim((string) $request->input('name')),
             'category_id' => $request->input('category_id') ?: null,
             'description' => trim((string) $request->input('description', '')) ?: null,
             'content_html' => trim((string) $request->input('content_html', '')) ?: null,
@@ -80,6 +81,7 @@ class ContractTemplateController extends Controller
         $template->update([
             'name' => trim((string) $request->input('name')),
             'document_type' => trim((string) $request->input('document_type')),
+            'default_contract_title' => trim((string) $request->input('default_contract_title', '')) ?: trim((string) $request->input('name')),
             'category_id' => $request->input('category_id') ?: null,
             'description' => trim((string) $request->input('description', '')) ?: null,
             'content_html' => trim((string) $request->input('content_html', '')) ?: null,

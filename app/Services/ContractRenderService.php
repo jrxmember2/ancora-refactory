@@ -20,17 +20,22 @@ class ContractRenderService
         $client = !empty($attributes['client_id']) ? ClientEntity::query()->find((int) $attributes['client_id']) : null;
         $condominium = !empty($attributes['condominium_id']) ? ClientCondominium::query()->find((int) $attributes['condominium_id']) : null;
         $unit = !empty($attributes['unit_id']) ? ClientUnit::query()->with(['block', 'condominium', 'owner'])->find((int) $attributes['unit_id']) : null;
+        $syndic = !empty($attributes['syndico_entity_id']) ? ClientEntity::query()->find((int) $attributes['syndico_entity_id']) : null;
         $responsible = !empty($attributes['responsible_user_id']) ? User::query()->find((int) $attributes['responsible_user_id']) : null;
 
         if (!$condominium && $unit?->condominium) {
             $condominium = $unit->condominium;
         }
 
+        if (!$syndic && $condominium?->syndic) {
+            $syndic = $condominium->syndic;
+        }
+
         if (!$client && $unit?->owner) {
             $client = $unit->owner;
         }
 
-        return $this->composeVariables($attributes, $client, $condominium, $unit, $responsible);
+        return $this->composeVariables($attributes, $client, $condominium, $unit, $responsible, null, $syndic);
     }
 
     public function contractVariables(Contract $contract): array
@@ -38,12 +43,21 @@ class ContractRenderService
         $contract->loadMissing([
             'client',
             'condominium.syndic',
+            'syndic',
             'unit.block',
             'unit.owner',
             'responsible',
         ]);
 
-        return $this->composeVariables($contract->toArray(), $contract->client, $contract->condominium, $contract->unit, $contract->responsible, $contract);
+        return $this->composeVariables(
+            $contract->toArray(),
+            $contract->client,
+            $contract->condominium,
+            $contract->unit,
+            $contract->responsible,
+            $contract,
+            $contract->syndic ?: $contract->condominium?->syndic
+        );
     }
 
     public function renderTemplate(?ContractTemplate $template, array $attributes, ?string $overrideHtml = null): string
@@ -69,7 +83,7 @@ class ContractRenderService
     public function documentPayload(Contract $contract, ?string $contentHtml = null): array
     {
         $variables = $this->contractVariables($contract);
-        $contract->loadMissing(['category', 'template', 'client', 'condominium.syndic', 'unit.block', 'responsible', 'creator']);
+        $contract->loadMissing(['category', 'template', 'client', 'condominium.syndic', 'syndic', 'unit.block', 'responsible', 'creator']);
 
         $city = trim((string) ($variables['cidade'] ?? ''));
         $state = trim((string) ContractSettings::get('default_state', 'ES'));
@@ -81,7 +95,7 @@ class ContractRenderService
             'settings' => [
                 'city' => $city,
                 'state' => $state,
-                'footer_text' => ContractSettings::get('footer_text', 'Documento gerado pelo sistema Âncora.'),
+                'footer_text' => ContractSettings::get('footer_text', 'Documento gerado pelo sistema Ancora.'),
                 'show_logo' => ContractSettings::bool('show_logo', true),
                 'signature_text' => $signatureText,
             ],
@@ -92,7 +106,7 @@ class ContractRenderService
                 : $this->renderHtml((string) $contract->content_html, $variables),
             'date_long' => $dateLong,
             'location_label' => trim($city . ($state !== '' ? '/' . strtolower($state) : '')),
-            'client_label' => $contract->client?->display_name ?: ($contract->condominium?->name ?: 'Não informado'),
+            'client_label' => $contract->client?->display_name ?: ($contract->condominium?->name ?: 'Nao informado'),
             'condominium_label' => $contract->condominium?->name,
             'unit_label' => $contract->unit?->unit_number,
         ];
@@ -104,16 +118,17 @@ class ContractRenderService
         ?ClientCondominium $condominium,
         ?ClientUnit $unit,
         ?User $responsible,
-        ?Contract $contract = null
+        ?Contract $contract = null,
+        ?ClientEntity $syndic = null
     ): array {
         $proposal = !empty($attributes['proposal_id']) ? Proposal::query()->find((int) $attributes['proposal_id']) : null;
-        $syndic = $condominium?->syndic;
         $startDate = $this->formatDate($attributes['start_date'] ?? null);
         $endDate = !empty($attributes['indefinite_term'])
             ? 'Prazo indeterminado'
             : $this->formatDate($attributes['end_date'] ?? null);
         $value = $this->moneyFromInput($attributes['contract_value'] ?? $contract?->contract_value);
-        $city = trim((string) ($condominium?->address_json['city'] ?? ContractSettings::get('default_city', 'Vitória')));
+        $city = trim((string) ($condominium?->address_json['city'] ?? ContractSettings::get('default_city', 'Vitoria')));
+        $syndicVariables = $this->syndicVariables($syndic);
 
         return [
             'contrato_codigo' => (string) ($attributes['code'] ?? $contract?->code ?? ''),
@@ -124,8 +139,13 @@ class ContractRenderService
             'condominio_nome' => (string) ($condominium?->name ?: ''),
             'condominio_cnpj' => (string) ($condominium?->cnpj ?: ''),
             'condominio_endereco' => $this->formatCondominiumAddress($condominium),
-            'sindico_nome' => (string) ($syndic?->display_name ?: ''),
-            'sindico_cpf' => (string) ($syndic?->cpf_cnpj ?: ''),
+            'sindico_nome' => $syndicVariables['name'],
+            'sindico_nome_simples' => $syndicVariables['simple_name'],
+            'sindico_cpf' => $syndicVariables['document'],
+            'sindico_documento' => $syndicVariables['document'],
+            'sindico_qualificacao' => $syndicVariables['qualification'],
+            'sindico_representante_nome' => $syndicVariables['representative_name'],
+            'sindico_representante_documento' => $syndicVariables['representative_document'],
             'unidade_numero' => (string) ($unit?->unit_number ?: ''),
             'bloco_nome' => (string) ($unit?->block?->name ?: ''),
             'contrato_valor' => $value !== null ? $this->formatMoney($value) : '',
@@ -140,15 +160,106 @@ class ContractRenderService
         ];
     }
 
+    private function syndicVariables(?ClientEntity $syndic): array
+    {
+        if (!$syndic) {
+            return [
+                'name' => '',
+                'simple_name' => '',
+                'document' => '',
+                'qualification' => '',
+                'representative_name' => '',
+                'representative_document' => '',
+            ];
+        }
+
+        $simpleName = trim((string) ($syndic->display_name ?: $syndic->legal_name ?: ''));
+        $document = trim((string) ($syndic->cpf_cnpj ?: ''));
+        $entityType = trim((string) ($syndic->entity_type ?? 'pf'));
+
+        if ($entityType !== 'pj') {
+            $qualification = trim($simpleName . ($document !== '' ? ', inscrito(a) no CPF sob o no ' . $document : ''));
+
+            return [
+                'name' => $simpleName,
+                'simple_name' => $simpleName,
+                'document' => $document,
+                'qualification' => $qualification,
+                'representative_name' => '',
+                'representative_document' => '',
+            ];
+        }
+
+        $representative = $this->preferredShareholder($syndic);
+        $companyName = trim((string) ($syndic->legal_name ?: $simpleName));
+        $qualification = $companyName;
+
+        if ($document !== '') {
+            $qualification .= ', inscrita no CNPJ sob o no ' . $document;
+        }
+
+        $representativeName = trim((string) ($representative['name'] ?? ''));
+        $representativeDocument = trim((string) ($representative['document'] ?? ''));
+
+        if ($representativeName !== '') {
+            $qualification .= ', neste ato representada por ' . $representativeName;
+            if ($representativeDocument !== '') {
+                $qualification .= ', inscrito(a) no CPF sob o no ' . $representativeDocument;
+            }
+        }
+
+        return [
+            'name' => $qualification,
+            'simple_name' => $simpleName !== '' ? $simpleName : $companyName,
+            'document' => $document,
+            'qualification' => $qualification,
+            'representative_name' => $representativeName,
+            'representative_document' => $representativeDocument,
+        ];
+    }
+
+    private function preferredShareholder(?ClientEntity $entity): array
+    {
+        $rows = collect($entity?->shareholders_json ?? [])
+            ->map(fn ($row) => [
+                'name' => trim((string) ($row['name'] ?? '')),
+                'document' => trim((string) ($row['document'] ?? '')),
+                'role' => trim((string) ($row['role'] ?? '')),
+            ])
+            ->filter(fn ($row) => $row['name'] !== '' || $row['document'] !== '')
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return [
+                'name' => trim((string) ($entity?->legal_representative ?? '')),
+                'document' => '',
+                'role' => 'Representante legal',
+            ];
+        }
+
+        $preferred = $rows->first(function (array $row) {
+            $role = mb_strtolower((string) ($row['role'] ?? ''), 'UTF-8');
+
+            return str_contains($role, 'administrador')
+                || str_contains($role, 'representante')
+                || str_contains($role, 'socio')
+                || str_contains($role, 'sócio');
+        });
+
+        return $preferred ?: $rows->first();
+    }
+
     private function formatEntityAddress(?ClientEntity $entity): string
     {
         $address = $entity?->primary_address_json ?? [];
+
         return $this->formatAddressParts($address);
     }
 
     private function formatCondominiumAddress(?ClientCondominium $condominium): string
     {
         $address = $condominium?->address_json ?? [];
+
         return $this->formatAddressParts($address);
     }
 
@@ -217,7 +328,7 @@ class ContractRenderService
 
     private function numberToWords(int $number): string
     {
-        $units = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+        $units = ['', 'um', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
         $teens = [10 => 'dez', 11 => 'onze', 12 => 'doze', 13 => 'treze', 14 => 'quatorze', 15 => 'quinze', 16 => 'dezesseis', 17 => 'dezessete', 18 => 'dezoito', 19 => 'dezenove'];
         $tens = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
         $hundreds = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
@@ -237,7 +348,7 @@ class ContractRenderService
         $number %= 1000;
 
         if ($millions > 0) {
-            $parts[] = $millions === 1 ? 'um milhão' : $this->numberToWords($millions) . ' milhões';
+            $parts[] = $millions === 1 ? 'um milhao' : $this->numberToWords($millions) . ' milhoes';
         }
 
         if ($thousands > 0) {
@@ -295,6 +406,7 @@ class ContractRenderService
         }
 
         $last = array_pop($parts);
+
         return implode(', ', $parts) . ' e ' . $last;
     }
 }
