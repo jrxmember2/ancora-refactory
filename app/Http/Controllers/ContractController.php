@@ -12,14 +12,16 @@ use App\Models\ContractAttachment;
 use App\Models\ContractCategory;
 use App\Models\ContractTemplate;
 use App\Models\ContractVersion;
+use App\Models\FinancialAccount;
 use App\Models\ProcessCase;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\ContractPdfService;
 use App\Services\ContractRenderService;
 use App\Support\AncoraAuth;
-use App\Support\ContractSettings;
 use App\Support\Contracts\ContractCatalog;
+use App\Support\ContractSettings;
+use App\Support\Financeiro\FinancialCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -45,11 +47,9 @@ class ContractController extends Controller
         $year = max(2024, (int) $request->integer('year', now()->year));
         $monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
         $alertDays = max(1, (int) ContractSettings::get('due_alert_days', '30'));
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
 
         $contracts = Contract::query()
-            ->with(['category', 'client', 'condominium', 'responsible'])
+            ->with(['category', 'client', 'condominium', 'responsible', 'syndic', 'financialAccount'])
             ->get();
         $templatesCount = ContractTemplate::query()->where('is_active', true)->count();
 
@@ -62,7 +62,7 @@ class ContractController extends Controller
             'rescindidos' => $contracts->where('status', 'rescindido')->count(),
             'assinatura' => $contracts->where('status', 'aguardando_assinatura')->count(),
             'templates' => $templatesCount,
-            'month_label' => $monthLabels[now()->month - 1] . '/' . now()->year,
+            'month_label' => now()->format('m/Y'),
         ];
 
         $monthCounts = array_fill(0, 12, 0);
@@ -78,14 +78,16 @@ class ContractController extends Controller
             if (!$key) {
                 continue;
             }
+
             $upcomingBuckets[$key] = ($upcomingBuckets[$key] ?? 0) + 1;
         }
 
         $alerts = [
             'upcoming' => $contracts->filter(fn (Contract $item) => $this->isUpcoming($item, $alertDays))->sortBy('end_date')->take(8)->values(),
+            'upcoming_adjustments' => $contracts->filter(fn (Contract $item) => $this->isAdjustmentUpcoming($item, $alertDays))->sortBy('next_adjustment_date')->take(8)->values(),
             'without_pdf' => $contracts->filter(fn (Contract $item) => !$item->final_pdf_path)->take(8)->values(),
             'drafts' => $contracts->where('status', 'rascunho')->take(8)->values(),
-            'without_client' => $contracts->filter(fn (Contract $item) => !$item->client_id && !$item->condominium_id)->take(8)->values(),
+            'without_client' => $contracts->filter(fn (Contract $item) => !$item->client_id && !$item->condominium_id && !$item->syndico_entity_id)->take(8)->values(),
             'awaiting_signature' => $contracts->where('status', 'aguardando_assinatura')->take(8)->values(),
         ];
 
@@ -121,7 +123,7 @@ class ContractController extends Controller
         $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
         $query = Contract::query()
-            ->with(['category', 'client', 'condominium', 'responsible'])
+            ->with(['category', 'client', 'condominium', 'responsible', 'syndic', 'financialAccount'])
             ->select('contracts.*');
 
         $this->applyFilters($query, $filters);
@@ -155,6 +157,7 @@ class ContractController extends Controller
         $draft = [
             'status' => ContractSettings::get('default_status', 'rascunho'),
             'page_orientation' => 'portrait',
+            'indefinite_term' => true,
         ];
 
         return view('pages.contratos.form', array_merge($this->formOptions(), [
@@ -163,6 +166,7 @@ class ContractController extends Controller
             'item' => null,
             'draft' => $draft,
             'previewHtml' => old('content_html', ''),
+            'formAlerts' => [],
         ]));
     }
 
@@ -175,16 +179,21 @@ class ContractController extends Controller
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
         $payload = $this->normalizedPayload($request);
+        $payload['title'] = $this->resolvedTitle($template, $payload);
 
-        if (!$this->autoCodeEnabled() && trim((string) $payload['code']) === '') {
-            return back()->withInput()->with('error', 'Informe o código interno do contrato quando a numeração automática estiver desativada.');
+        if (!$this->autoCodeEnabled() && trim((string) ($payload['code'] ?? '')) === '') {
+            return back()->withInput()->with('error', 'Informe o codigo interno do contrato quando a numeracao automatica estiver desativada.');
+        }
+
+        if (trim((string) ($payload['title'] ?? '')) === '') {
+            return back()->withInput()->with('error', 'Selecione um template com titulo padrao ou informe o titulo do contrato.');
         }
 
         if ($payload['code'] && Contract::query()->where('code', $payload['code'])->exists()) {
-            return back()->withInput()->with('error', 'Já existe um contrato com esse código interno.');
+            return back()->withInput()->with('error', 'Ja existe um contrato com esse codigo interno.');
         }
 
-        if (trim((string) $payload['content_html']) === '' && $template) {
+        if (trim((string) ($payload['content_html'] ?? '')) === '' && $template) {
             $payload['content_html'] = $this->renderService->renderTemplate($template, array_merge($request->all(), $payload));
         }
 
@@ -204,13 +213,13 @@ class ContractController extends Controller
                 }
 
                 if ($request->boolean('generate_pdf_now')) {
-                    $this->pdfService->generate($contract->fresh(['template', 'client', 'condominium', 'unit', 'responsible']), $user->id, (string) $request->input('version_notes', 'Versão inicial.'));
+                    $this->pdfService->generate($contract->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']), $user->id, (string) $request->input('version_notes', 'Versao inicial.'));
                 }
 
                 return $contract;
             });
         } catch (\Throwable $e) {
-            return back()->withInput()->with('error', 'Não foi possível salvar o contrato: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Nao foi possivel salvar o contrato: ' . $e->getMessage());
         }
 
         return redirect()
@@ -227,10 +236,12 @@ class ContractController extends Controller
             'template',
             'client',
             'condominium.syndic',
+            'syndic',
             'unit.block',
             'proposal',
             'process',
             'responsible',
+            'financialAccount',
             'creator',
             'updater',
             'versions.generator',
@@ -252,7 +263,9 @@ class ContractController extends Controller
             'item' => $contrato,
             'activeTab' => $activeTab,
             'statusLabels' => ContractCatalog::statuses(),
+            'paymentMethodLabels' => FinancialCatalog::paymentMethods(),
             'signatureStorageReady' => $signatureStorageReady,
+            'contractAlerts' => $this->contractAlerts($contrato),
         ]);
     }
 
@@ -269,7 +282,7 @@ class ContractController extends Controller
 
     public function edit(Contract $contrato): View
     {
-        $contrato->load(['category', 'template', 'client', 'condominium', 'unit', 'responsible']);
+        $contrato->load(['category', 'template', 'client', 'condominium.syndic', 'syndic', 'unit', 'responsible', 'financialAccount']);
 
         return view('pages.contratos.form', array_merge($this->formOptions(), [
             'title' => 'Editar contrato',
@@ -277,6 +290,7 @@ class ContractController extends Controller
             'item' => $contrato,
             'draft' => $contrato->toArray(),
             'previewHtml' => old('content_html', $contrato->content_html),
+            'formAlerts' => $this->contractAlerts($contrato),
         ]));
     }
 
@@ -289,16 +303,21 @@ class ContractController extends Controller
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
         $payload = $this->normalizedPayload($request);
+        $payload['title'] = $this->resolvedTitle($template, $payload, $contrato);
 
         if (!$this->autoCodeEnabled() && trim((string) ($payload['code'] ?? '')) === '') {
-            return back()->withInput()->with('error', 'Informe o código interno do contrato quando a numeração automática estiver desativada.');
+            return back()->withInput()->with('error', 'Informe o codigo interno do contrato quando a numeracao automatica estiver desativada.');
+        }
+
+        if (trim((string) ($payload['title'] ?? '')) === '') {
+            return back()->withInput()->with('error', 'Selecione um template com titulo padrao ou informe o titulo do contrato.');
         }
 
         if (!empty($payload['code']) && Contract::query()->where('code', $payload['code'])->whereKeyNot($contrato->id)->exists()) {
-            return back()->withInput()->with('error', 'Já existe outro contrato com esse código interno.');
+            return back()->withInput()->with('error', 'Ja existe outro contrato com esse codigo interno.');
         }
 
-        if (trim((string) $payload['content_html']) === '' && $template) {
+        if (trim((string) ($payload['content_html'] ?? '')) === '' && $template) {
             $payload['content_html'] = $this->renderService->renderTemplate($template, array_merge($request->all(), $payload));
         }
 
@@ -311,23 +330,23 @@ class ContractController extends Controller
                 $contrato->update(array_merge($payload, ['updated_by' => $user->id]));
 
                 if ($request->boolean('generate_pdf_now')) {
-                    $this->pdfService->generate($contrato->fresh(['template', 'client', 'condominium', 'unit', 'responsible']), $user->id, (string) $request->input('version_notes', 'Nova versão gerada pela edição do contrato.'));
+                    $this->pdfService->generate($contrato->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']), $user->id, (string) $request->input('version_notes', 'Nova versao gerada pela edicao do contrato.'));
                 }
             });
         } catch (\Throwable $e) {
-            return back()->withInput()->with('error', 'Não foi possível atualizar o contrato: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Nao foi possivel atualizar o contrato: ' . $e->getMessage());
         }
 
         return redirect()
             ->route('contratos.show', $contrato)
-            ->with('success', $request->boolean('generate_pdf_now') ? 'Contrato atualizado e nova versão de PDF gerada.' : 'Contrato atualizado com sucesso.');
+            ->with('success', $request->boolean('generate_pdf_now') ? 'Contrato atualizado e nova versao de PDF gerada.' : 'Contrato atualizado com sucesso.');
     }
 
     public function destroy(Contract $contrato): RedirectResponse
     {
         $contrato->delete();
 
-        return redirect()->route('contratos.index')->with('success', 'Contrato excluído com sucesso.');
+        return redirect()->route('contratos.index')->with('success', 'Contrato excluido com sucesso.');
     }
 
     public function duplicate(Request $request, Contract $contrato): RedirectResponse
@@ -347,7 +366,7 @@ class ContractController extends Controller
                 'updated_at',
                 'deleted_at',
             ]);
-            $clone->title = $contrato->title . ' (cópia)';
+            $clone->title = $contrato->title . ' (copia)';
             $clone->status = ContractSettings::get('default_status', 'rascunho');
             $clone->code = null;
             $clone->created_by = $user->id;
@@ -359,7 +378,7 @@ class ContractController extends Controller
             }
         });
 
-        return redirect()->route('contratos.edit', $clone)->with('success', 'Contrato duplicado. Revise os dados antes de salvar a nova versão.');
+        return redirect()->route('contratos.edit', $clone)->with('success', 'Contrato duplicado. Revise os dados antes de salvar a nova versao.');
     }
 
     public function archive(Request $request, Contract $contrato): RedirectResponse
@@ -400,8 +419,12 @@ class ContractController extends Controller
             return response()->json(['message' => 'Selecione um template para carregar o preview.'], 422);
         }
 
+        $attributes = array_merge($request->all(), [
+            'title' => $this->resolvedTitle($template, $request->all()),
+        ]);
+
         return response()->json([
-            'html' => $this->renderService->renderTemplate($template, $request->all(), $html !== '' ? $html : null),
+            'html' => $this->renderService->renderTemplate($template, $attributes, $html !== '' ? $html : null),
         ]);
     }
 
@@ -415,23 +438,23 @@ class ContractController extends Controller
         }
 
         if (trim((string) $contrato->content_html) === '') {
-            return redirect()->route('contratos.edit', $contrato)->with('error', 'O contrato ainda não possui conteúdo editável salvo.');
+            return redirect()->route('contratos.edit', $contrato)->with('error', 'O contrato ainda nao possui conteudo editavel salvo.');
         }
 
         try {
-            $version = $this->pdfService->generate($contrato, $user->id, trim((string) $request->input('version_notes', 'Versão gerada manualmente.')) ?: 'Versão gerada manualmente.');
+            $version = $this->pdfService->generate($contrato, $user->id, trim((string) $request->input('version_notes', 'Versao gerada manualmente.')) ?: 'Versao gerada manualmente.');
         } catch (\Throwable $e) {
-            return redirect()->route('contratos.show', $contrato)->with('error', 'Não foi possível gerar o PDF: ' . $e->getMessage());
+            return redirect()->route('contratos.show', $contrato)->with('error', 'Nao foi possivel gerar o PDF: ' . $e->getMessage());
         }
 
-        return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('success', 'PDF gerado com sucesso na versão v' . $version->version_number . '.');
+        return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('success', 'PDF gerado com sucesso na versao v' . $version->version_number . '.');
     }
 
     public function downloadPdf(Contract $contrato): BinaryFileResponse|RedirectResponse
     {
         $path = $this->pdfService->absolutePath($contrato->final_pdf_path);
         if (!$path) {
-            return redirect()->route('contratos.show', $contrato)->with('error', 'Este contrato ainda não possui PDF final gerado.');
+            return redirect()->route('contratos.show', $contrato)->with('error', 'Este contrato ainda nao possui PDF final gerado.');
         }
 
         return response()->download($path, basename($path), ['Content-Type' => 'application/pdf']);
@@ -443,7 +466,7 @@ class ContractController extends Controller
 
         $path = $this->pdfService->absolutePath($version->pdf_path);
         if (!$path) {
-            return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('error', 'O arquivo PDF desta versão não foi encontrado.');
+            return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('error', 'O arquivo PDF desta versao nao foi encontrado.');
         }
 
         return response()->file($path, ['Content-Type' => 'application/pdf']);
@@ -455,7 +478,7 @@ class ContractController extends Controller
 
         $path = $this->pdfService->absolutePath($version->pdf_path);
         if (!$path) {
-            return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('error', 'O arquivo PDF desta versão não foi encontrado.');
+            return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'historico'])->with('error', 'O arquivo PDF desta versao nao foi encontrado.');
         }
 
         return response()->download($path, basename($path), ['Content-Type' => 'application/pdf']);
@@ -517,7 +540,7 @@ class ContractController extends Controller
 
         $attachment->delete();
 
-        return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'anexos'])->with('success', 'Anexo excluído com sucesso.');
+        return redirect()->route('contratos.show', ['contrato' => $contrato, 'tab' => 'anexos'])->with('success', 'Anexo excluido com sucesso.');
     }
 
     private function formOptions(): array
@@ -526,13 +549,30 @@ class ContractController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'templates' => ContractTemplate::query()->where('is_active', true)->orderBy('name')->get(),
             'clients' => ClientEntity::query()->where('is_active', true)->orderBy('display_name')->get(['id', 'display_name']),
-            'condominiums' => ClientCondominium::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'condominiums' => ClientCondominium::query()->with('syndic')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'syndico_entity_id']),
+            'syndics' => ClientEntity::query()
+                ->where(function (Builder $query): void {
+                    $query
+                        ->whereRaw('LOWER(COALESCE(role_tag, "")) like ?', ['%sindico%'])
+                        ->orWhereRaw('LOWER(COALESCE(role_tag, "")) like ?', ['%syndic%']);
+                })
+                ->where(function (Builder $query): void {
+                    $query
+                        ->where('is_active', true)
+                        ->orWhereNull('is_active');
+                })
+                ->orderBy('display_name')
+                ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj', 'entity_type']),
             'units' => ClientUnit::query()->with(['condominium', 'block'])->orderBy('unit_number')->get(),
             'proposals' => Proposal::query()->orderByDesc('id')->limit(300)->get(['id', 'proposal_code', 'client_name']),
             'processes' => class_exists(ProcessCase::class)
                 ? ProcessCase::query()->orderByDesc('id')->limit(300)->get(['id', 'process_number', 'client_name_snapshot'])
                 : collect(),
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'financialAccounts' => Schema::hasTable('financial_accounts')
+                ? FinancialAccount::query()->where('is_active', true)->orderByDesc('is_primary')->orderBy('name')->get(['id', 'name', 'bank_name', 'account_number'])
+                : collect(),
+            'paymentMethods' => FinancialCatalog::paymentMethods(),
             'statusLabels' => ContractCatalog::statuses(),
             'typeOptions' => ContractCatalog::types(),
             'billingTypes' => ContractCatalog::billingTypes(),
@@ -623,23 +663,29 @@ class ContractController extends Controller
     private function normalizedPayload(Request $request): array
     {
         $data = $request->validated();
-        $unit = !empty($data['unit_id']) ? ClientUnit::query()->with('owner')->find((int) $data['unit_id']) : null;
+        $unit = !empty($data['unit_id']) ? ClientUnit::query()->with(['owner', 'condominium'])->find((int) $data['unit_id']) : null;
+        $condominium = !empty($data['condominium_id']) ? ClientCondominium::query()->find((int) $data['condominium_id']) : null;
 
         if ($unit && empty($data['condominium_id'])) {
             $data['condominium_id'] = (int) $unit->condominium_id;
+            $condominium = $unit->condominium;
         }
         if ($unit && empty($data['client_id']) && $unit->owner_entity_id) {
             $data['client_id'] = (int) $unit->owner_entity_id;
         }
+        if (empty($data['syndico_entity_id']) && $condominium?->syndico_entity_id) {
+            $data['syndico_entity_id'] = (int) $condominium->syndico_entity_id;
+        }
 
         return [
             'code' => trim((string) ($data['code'] ?? '')) ?: null,
-            'title' => trim((string) $data['title']),
+            'title' => trim((string) ($data['title'] ?? '')) ?: null,
             'type' => trim((string) $data['type']),
             'category_id' => $data['category_id'] ?? null,
             'template_id' => $data['template_id'] ?? null,
             'client_id' => $data['client_id'] ?? null,
             'condominium_id' => $data['condominium_id'] ?? null,
+            'syndico_entity_id' => $data['syndico_entity_id'] ?? null,
             'unit_id' => $data['unit_id'] ?? null,
             'proposal_id' => $data['proposal_id'] ?? null,
             'process_id' => $data['process_id'] ?? null,
@@ -659,6 +705,8 @@ class ContractController extends Controller
             'penalty_value' => $this->renderService->moneyFromInput($data['penalty_value'] ?? null),
             'penalty_percentage' => $this->renderService->moneyFromInput($data['penalty_percentage'] ?? null),
             'generate_financial_entries' => !empty($data['generate_financial_entries']),
+            'financial_account_id' => $data['financial_account_id'] ?? null,
+            'payment_method' => trim((string) ($data['payment_method'] ?? '')) ?: null,
             'cost_center_future' => trim((string) ($data['cost_center_future'] ?? '')) ?: null,
             'financial_category_future' => trim((string) ($data['financial_category_future'] ?? '')) ?: null,
             'financial_notes' => trim((string) ($data['financial_notes'] ?? '')) ?: null,
@@ -666,6 +714,47 @@ class ContractController extends Controller
             'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
             'responsible_user_id' => $data['responsible_user_id'] ?? null,
         ];
+    }
+
+    private function resolvedTitle(?ContractTemplate $template, array $payload, ?Contract $contract = null): ?string
+    {
+        $title = trim((string) ($payload['title'] ?? ''));
+        if ($title !== '') {
+            return $title;
+        }
+
+        $templateTitle = trim((string) ($template?->default_contract_title ?: $template?->name ?: ''));
+        if ($templateTitle !== '') {
+            return $templateTitle;
+        }
+
+        return trim((string) ($contract?->title ?? '')) ?: null;
+    }
+
+    private function contractAlerts(Contract $contract): array
+    {
+        $alertDays = max(1, (int) ContractSettings::get('due_alert_days', '30'));
+        $today = now()->startOfDay();
+        $limit = now()->copy()->addDays($alertDays)->endOfDay();
+        $alerts = [];
+
+        if (!$contract->indefinite_term && $contract->end_date && $contract->end_date->between($today, $limit)) {
+            $alerts[] = [
+                'type' => 'warning',
+                'label' => 'Vencimento proximo',
+                'message' => 'Este contrato vence em ' . $contract->end_date->format('d/m/Y') . '.',
+            ];
+        }
+
+        if ($contract->next_adjustment_date && $contract->next_adjustment_date->between($today, $limit)) {
+            $alerts[] = [
+                'type' => 'info',
+                'label' => 'Reajuste proximo',
+                'message' => 'O proximo reajuste esta previsto para ' . $contract->next_adjustment_date->format('d/m/Y') . '.',
+            ];
+        }
+
+        return $alerts;
     }
 
     private function autoCodeEnabled(): bool
@@ -693,5 +782,14 @@ class ContractController extends Controller
         }
 
         return $contract->end_date->between(now()->startOfDay(), now()->copy()->addDays($days)->endOfDay());
+    }
+
+    private function isAdjustmentUpcoming(Contract $contract, int $days): bool
+    {
+        if (!$contract->next_adjustment_date) {
+            return false;
+        }
+
+        return $contract->next_adjustment_date->between(now()->startOfDay(), now()->copy()->addDays($days)->endOfDay());
     }
 }

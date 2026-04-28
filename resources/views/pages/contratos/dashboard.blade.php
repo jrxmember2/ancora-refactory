@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Dashboard de Contratos" subtitle="Visão executiva dos contratos, templates, vencimentos e pendências documentais.">
+<x-ancora.section-header title="Dashboard de Contratos" subtitle="Visao executiva dos contratos, templates, vencimentos e pendencias documentais.">
     <div class="flex flex-wrap gap-3">
         <form method="get" class="flex items-center gap-2">
             <select name="year" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
@@ -17,22 +17,22 @@
 </x-ancora.section-header>
 
 <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-    <x-ancora.stat-card label="Total de contratos" :value="$summary['total']" hint="Base geral do módulo." icon="fa-solid fa-file-contract" />
+    <x-ancora.stat-card label="Total de contratos" :value="$summary['total']" hint="Base geral do modulo." icon="fa-solid fa-file-contract" />
     <x-ancora.stat-card label="Contratos ativos" :value="$summary['ativos']" hint="Status ativo." icon="fa-solid fa-circle-check" />
-    <x-ancora.stat-card label="Em rascunho" :value="$summary['rascunhos']" hint="Aguardando revisão ou geração final." icon="fa-solid fa-file-pen" />
+    <x-ancora.stat-card label="Em rascunho" :value="$summary['rascunhos']" hint="Aguardando revisao ou geracao final." icon="fa-solid fa-file-pen" />
     <x-ancora.stat-card label="Vencidos" :value="$summary['vencidos']" hint="Prazo encerrado." icon="fa-solid fa-calendar-xmark" />
 </div>
 
 <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-    <x-ancora.stat-card label="Próximos do vencimento" :value="$summary['proximos']" hint="Conforme alerta configurado." icon="fa-solid fa-bell" />
+    <x-ancora.stat-card label="Proximos do vencimento" :value="$summary['proximos']" hint="Conforme alerta configurado." icon="fa-solid fa-bell" />
     <x-ancora.stat-card label="Rescindidos" :value="$summary['rescindidos']" hint="Status rescindido." icon="fa-solid fa-ban" />
-    <x-ancora.stat-card label="Aguardando assinatura" :value="$summary['assinatura']" hint="Prontos para formalização." icon="fa-solid fa-signature" />
-    <x-ancora.stat-card label="Templates cadastrados" :value="$summary['templates']" hint="Modelos ativos do módulo." icon="fa-solid fa-layer-group" />
+    <x-ancora.stat-card label="Aguardando assinatura" :value="$summary['assinatura']" hint="Prontos para formalizacao." icon="fa-solid fa-signature" />
+    <x-ancora.stat-card label="Templates cadastrados" :value="$summary['templates']" hint="Modelos ativos do modulo." icon="fa-solid fa-layer-group" />
 </div>
 
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contratos por mês</h3>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Contratos por mes</h3>
         <div class="mt-5"><div id="contractsMonthChart" class="h-[320px]"></div></div>
     </div>
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -53,22 +53,23 @@
                     </div>
                 </div>
             @empty
-                <x-ancora.empty-state icon="fa-solid fa-layer-group" title="Sem contratos por tipo" subtitle="Cadastre contratos para acompanhar a distribuição por documento." />
+                <x-ancora.empty-state icon="fa-solid fa-layer-group" title="Sem contratos por tipo" subtitle="Cadastre contratos para acompanhar a distribuicao por documento." />
             @endforelse
         </div>
     </div>
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Próximos do vencimento</h3>
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Proximos do vencimento</h3>
         <div class="mt-5"><div id="contractsUpcomingChart" class="h-[320px]"></div></div>
     </div>
 </div>
 
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
     @foreach([
-        'upcoming' => ['title' => 'Vencendo nos próximos 30 dias', 'items' => $alerts['upcoming']],
+        'upcoming' => ['title' => 'Vencendo nos proximos 30 dias', 'items' => $alerts['upcoming']],
+        'upcoming_adjustments' => ['title' => 'Reajustes nos proximos 30 dias', 'items' => $alerts['upcoming_adjustments']],
         'without_pdf' => ['title' => 'Contratos sem PDF gerado', 'items' => $alerts['without_pdf']],
         'drafts' => ['title' => 'Contratos em rascunho', 'items' => $alerts['drafts']],
-        'without_client' => ['title' => 'Contratos sem cliente vinculado', 'items' => $alerts['without_client']],
+        'without_client' => ['title' => 'Contratos sem vinculo principal', 'items' => $alerts['without_client']],
         'awaiting_signature' => ['title' => 'Aguardando assinatura', 'items' => $alerts['awaiting_signature']],
     ] as $card)
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -79,8 +80,10 @@
                         <div class="font-semibold text-gray-900 dark:text-white">{{ $item->code ?: 'Contrato #' . $item->id }}</div>
                         <div class="mt-1 text-gray-600 dark:text-gray-300">{{ $item->title }}</div>
                         <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            {{ $item->client?->display_name ?: ($item->condominium?->name ?: 'Sem vínculo') }}
-                            @if($item->end_date)
+                            {{ $item->client?->display_name ?: ($item->condominium?->name ?: ($item->syndic?->display_name ?: 'Sem vinculo')) }}
+                            @if($card['title'] === 'Reajustes nos proximos 30 dias' && $item->next_adjustment_date)
+                                · {{ optional($item->next_adjustment_date)->format('d/m/Y') }}
+                            @elseif($item->end_date)
                                 · {{ optional($item->end_date)->format('d/m/Y') }}
                             @endif
                         </div>

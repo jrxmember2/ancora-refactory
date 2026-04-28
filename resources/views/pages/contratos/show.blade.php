@@ -17,6 +17,17 @@
     </div>
 </x-ancora.section-header>
 
+@if(!empty($contractAlerts))
+    <div class="space-y-3">
+        @foreach($contractAlerts as $alert)
+            <div class="rounded-2xl border px-5 py-4 text-sm {{ ($alert['type'] ?? '') === 'warning' ? 'border-warning-300 bg-warning-50 text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200' : 'border-brand-200 bg-brand-50 text-brand-800 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200' }}">
+                <div class="font-semibold">{{ $alert['label'] ?? 'Alerta' }}</div>
+                <div class="mt-1">{{ $alert['message'] ?? '' }}</div>
+            </div>
+        @endforeach
+    </div>
+@endif
+
 <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Cliente</div><div class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $item->client?->display_name ?: 'Nao informado' }}</div></div>
     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Condominio</div><div class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $item->condominium?->name ?: 'Nao aplicavel' }}</div></div>
@@ -42,9 +53,11 @@
                         'Tipo' => $item->type,
                         'Categoria' => $item->category?->name ?: 'Nao informada',
                         'Template' => $item->template?->name ?: 'Nao informado',
+                        'Sindico' => $item->syndic?->display_name ?: ($item->condominium?->syndic?->display_name ?: 'Nao informado'),
                         'Responsavel' => $item->responsible?->name ?: 'Nao informado',
                         'Inicio' => optional($item->start_date)->format('d/m/Y') ?: 'Nao informado',
                         'Termino' => $item->indefinite_term ? 'Prazo indeterminado' : (optional($item->end_date)->format('d/m/Y') ?: 'Nao informado'),
+                        'Proximo reajuste' => optional($item->next_adjustment_date)->format('d/m/Y') ?: 'Nao informado',
                         'Recorrencia' => $item->recurrence ?: 'Nao informada',
                         'Reajuste' => $item->adjustment_index ?: 'Nao informado',
                     ] as $label => $value)
@@ -64,9 +77,11 @@
 
         <div class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Financeiro futuro</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Financeiro 360</h3>
                 <div class="mt-4 space-y-3 text-sm text-gray-700 dark:text-gray-200">
                     <div><span class="text-gray-500">Forma de cobranca:</span> {{ $item->billing_type ?: 'Nao informada' }}</div>
+                    <div><span class="text-gray-500">Conta financeira:</span> {{ $item->financialAccount?->name ?: 'Nao informada' }}</div>
+                    <div><span class="text-gray-500">Forma de pagamento:</span> {{ $paymentMethodLabels[$item->payment_method] ?? ($item->payment_method ?: 'Nao informada') }}</div>
                     <div><span class="text-gray-500">Dia de vencimento:</span> {{ $item->due_day ?: 'Nao informado' }}</div>
                     <div><span class="text-gray-500">Gera cobranca automatica:</span> {{ $item->generate_financial_entries ? 'Sim' : 'Nao' }}</div>
                     <div><span class="text-gray-500">Centro de custo futuro:</span> {{ $item->cost_center_future ?: 'Nao informado' }}</div>

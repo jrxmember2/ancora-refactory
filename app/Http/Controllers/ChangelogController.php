@@ -9,15 +9,28 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.55',
+            'version' => 'v1.56',
             'date' => '28/04/2026',
-            'label' => 'v1.55 - 28/04/2026',
+            'label' => 'v1.56 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Contratos com sindico dedicado, preview mais inteligente e integracao financeira',
+                'items' => [
+                    'Cadastro de contratos passa a aceitar sindicatura direta com dropdown proprio de sindicos, inclusive aproveitando o sindico do condominio quando ele ja estiver vinculado no cadastro.',
+                    'Templates ganham titulo padrao de contrato, usado para preencher automaticamente a criacao do documento e reduzir digitacao repetitiva na Etapa 1.',
+                    'Editor rico de templates e contratos recebe legenda nos botoes, selecao de fonte, tamanho de fonte, alinhamento de paragrafo e insercao de tabela simples.',
+                    'Renderizacao das variaveis do sindico agora trata pessoa juridica com empresa, CNPJ e representante pessoa fisica quando houver, preservando melhor a qualificacao contratual.',
+                    'Etapa financeira do contrato passa a integrar banco/conta e forma de pagamento do Financeiro 360, com campos monetarios em R$ e alerta para reajuste ou vencimento nos 30 dias anteriores.',
+                    'Prazo indeterminado fica marcado por padrao e desativa automaticamente a data de termino enquanto estiver ativo.',
+                ],
+            ],
+            [
+                'version' => 'v1.55',
+                'date' => '28/04/2026',
                 'title' => 'Assinatura digital integrada com Assinafy em Contratos e OS',
                 'items' => [
                     'Configuracoes da Assinafy entram no modulo Contratos, com ambiente, credenciais, URL/token de webhook e sincronizacao automatica da assinatura digital.',

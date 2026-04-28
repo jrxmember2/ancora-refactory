@@ -6,7 +6,7 @@
 @endphp
 
 @section('content')
-<x-ancora.section-header :title="$mode === 'create' ? 'Novo template' : ($item->name ?: 'Editar template')" subtitle="Modelos reutilizáveis com variáveis dinâmicas, cabeçalho, rodapé e margens personalizadas.">
+<x-ancora.section-header :title="$mode === 'create' ? 'Novo template' : ($item->name ?: 'Editar template')" subtitle="Modelos reutilizaveis com variaveis dinamicas, cabecalho, rodape e margens personalizadas.">
     <a href="{{ route('contratos.templates.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
 </x-ancora.section-header>
 
@@ -19,11 +19,43 @@
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados do template</h3>
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label><input name="name" value="{{ old('name', $item?->name) }}" required class="{{ $inputClass }}"></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de documento</label><select name="document_type" required class="{{ $inputClass }}">@foreach($typeOptions as $type)<option value="{{ $type }}" @selected(old('document_type', $item?->document_type) === $type)>{{ $type }}</option>@endforeach</select></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label><select name="category_id" class="{{ $inputClass }}"><option value="">Selecione</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected((int) old('category_id', $item?->category_id) === (int) $category->id)>{{ $category->name }}</option>@endforeach</select></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Orientação</label><select name="page_orientation" class="{{ $inputClass }}">@foreach($orientationOptions as $key => $label)<option value="{{ $key }}" @selected(old('page_orientation', $item?->page_orientation ?? 'portrait') === $key)>{{ $label }}</option>@endforeach</select></div>
-                    <div class="md:col-span-2"><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição</label><input name="description" value="{{ old('description', $item?->description) }}" class="{{ $inputClass }}"></div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                        <input name="name" value="{{ old('name', $item?->name) }}" required class="{{ $inputClass }}">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de documento</label>
+                        <select name="document_type" required class="{{ $inputClass }}">
+                            @foreach($typeOptions as $type)
+                                <option value="{{ $type }}" @selected(old('document_type', $item?->document_type) === $type)>{{ $type }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Titulo padrao do contrato</label>
+                        <input name="default_contract_title" value="{{ old('default_contract_title', $item?->default_contract_title) }}" class="{{ $inputClass }}" placeholder="Ex.: Contrato de assessoria juridica condominial">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                        <select name="category_id" class="{{ $inputClass }}">
+                            <option value="">Selecione</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected((int) old('category_id', $item?->category_id) === (int) $category->id)>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Orientacao</label>
+                        <select name="page_orientation" class="{{ $inputClass }}">
+                            @foreach($orientationOptions as $key => $label)
+                                <option value="{{ $key }}" @selected(old('page_orientation', $item?->page_orientation ?? 'portrait') === $key)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Descricao</label>
+                        <input name="description" value="{{ old('description', $item?->description) }}" class="{{ $inputClass }}">
+                    </div>
                     <div class="grid grid-cols-2 gap-4 md:col-span-2 xl:grid-cols-4">
                         @php($margins = old('margins_json', $item?->margins_json ?? ['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3]))
                         <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Margem sup. (cm)</label><input name="margin_top" value="{{ $margins['top'] ?? 3 }}" class="{{ $inputClass }}"></div>
@@ -36,13 +68,13 @@
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Conteúdo</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Conteudo</h3>
                 <div class="mt-5">
                     @include('pages.contratos.partials.rich-editor', [
                         'editorId' => 'contract-template-content',
                         'name' => 'content_html',
                         'value' => old('content_html', $item?->content_html),
-                        'placeholder' => 'Escreva o conteúdo base do template.',
+                        'placeholder' => 'Escreva o conteudo base do template.',
                         'minHeight' => '420px',
                         'variableDefinitions' => $variableDefinitions,
                         'showVariablePicker' => true,
@@ -53,11 +85,11 @@
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <div class="grid grid-cols-1 gap-6">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cabeçalho personalizado</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cabecalho personalizado</label>
                         <textarea name="header_html" rows="5" class="{{ $textareaClass }}">{{ old('header_html', $item?->header_html) }}</textarea>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Rodapé personalizado</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Rodape personalizado</label>
                         <textarea name="footer_html" rows="5" class="{{ $textareaClass }}">{{ old('footer_html', $item?->footer_html) }}</textarea>
                     </div>
                 </div>
@@ -66,7 +98,7 @@
 
         <aside class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Variáveis liberadas</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Variaveis liberadas</h3>
                 <div class="mt-4 space-y-3">
                     @php($selectedVariables = old('available_variables', $item?->available_variables_json ?? []))
                     @foreach($variableDefinitions as $variable)

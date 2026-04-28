@@ -72,6 +72,8 @@ class FinancialBillingService
                     'final_amount' => round($amount, 2),
                     'due_date' => $dueDate->toDateString(),
                     'competence_date' => $dueDate->copy()->startOfMonth()->toDateString(),
+                    'account_id' => $contract->financial_account_id,
+                    'payment_method' => $contract->payment_method,
                     'status' => 'aberto',
                     'generate_collection' => true,
                     'responsible_user_id' => $contract->responsible_user_id,
