@@ -61,12 +61,12 @@ class DocumentSignatureService
             throw new \RuntimeException('Configure a Assinafy antes de enviar: ' . implode(', ', $this->assinafy->missingConfig()) . '.');
         }
 
-        $contract->loadMissing(['template', 'client', 'condominium', 'unit', 'responsible', 'versions']);
+        $contract->loadMissing(['template', 'client', 'condominium.syndic', 'syndic', 'unit', 'responsible', 'versions']);
 
         $version = $contract->versions()->orderByDesc('version_number')->first();
         if (!$contract->final_pdf_path) {
             $version = $this->contractPdfService->generate(
-                $contract->fresh(['template', 'client', 'condominium', 'unit', 'responsible']),
+                $contract->fresh(['template', 'client', 'condominium.syndic', 'syndic', 'unit', 'responsible']),
                 $user->id,
                 'PDF gerado para envio à assinatura digital.'
             );
@@ -254,8 +254,8 @@ class DocumentSignatureService
                 $providerSigner = $this->assinafy->findOrCreateSigner([
                     'full_name' => $signer['name'],
                     'email' => $signer['email'],
-                    'whatsapp_phone_number' => $signer['phone'] ?? null,
-                    'government_id' => $signer['document_number'] ?? null,
+                    'whatsapp_phone_number' => $this->sanitizePhone((string) ($signer['phone'] ?? '')),
+                    'government_id' => $this->sanitizeDocument((string) ($signer['document_number'] ?? '')),
                 ]);
 
                 $preparedSigners[] = [
@@ -360,6 +360,27 @@ class DocumentSignatureService
                 ]),
             ])->save();
         }
+    }
+
+    private function sanitizePhone(string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) >= 12 && str_starts_with($digits, '55')) {
+            return $digits;
+        }
+
+        return '55' . $digits;
+    }
+
+    private function sanitizeDocument(string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+
+        return $digits !== '' ? $digits : null;
     }
 
     private function downloadArtifacts(DocumentSignatureRequest $request): void

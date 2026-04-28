@@ -46,22 +46,6 @@
     </div>
 @endif
 
-@if($signatureStorageReady ?? false)
-    <div class="mb-6">
-        @include('pages.signatures.panel', [
-            'requests' => $case->signatureRequests,
-            'createUrl' => route('cobrancas.signatures.create', $case),
-            'routePrefix' => 'cobrancas.signatures',
-            'ownerRouteParam' => 'cobranca',
-            'owner' => $case,
-        ])
-    </div>
-@else
-    <div class="mb-6 rounded-2xl border border-warning-300 bg-warning-50 p-5 text-sm text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200">
-        Rode a migration da assinatura digital para liberar o painel de assinaturas desta OS.
-    </div>
-@endif
-
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-4">
     <x-ancora.stat-card label="Situação da OS" :value="$stageLabels[$case->workflow_stage] ?? $case->workflow_stage" :hint="'Último andamento: ' . (optional($case->last_progress_at)->format('d/m/Y H:i') ?: '—')" icon="fa-solid fa-shoe-prints" />
     <x-ancora.stat-card label="Faturamento" :value="$billingLabels[$case->billing_status] ?? $case->billing_status" :hint="$case->billing_date ? 'Faturado em '.optional($case->billing_date)->format('d/m/Y') : 'Sem data de faturamento'" icon="fa-solid fa-file-invoice-dollar" />
@@ -275,6 +259,20 @@
                 @endforelse
             </div>
         </div>
+
+        @if($signatureStorageReady ?? false)
+            @include('pages.signatures.panel', [
+                'requests' => $case->signatureRequests,
+                'createUrl' => route('cobrancas.signatures.create', $case),
+                'routePrefix' => 'cobrancas.signatures',
+                'ownerRouteParam' => 'cobranca',
+                'owner' => $case,
+            ])
+        @else
+            <div class="rounded-2xl border border-warning-300 bg-warning-50 p-5 text-sm text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200">
+                Rode a migration da assinatura digital para liberar o painel de assinaturas desta OS.
+            </div>
+        @endif
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center justify-between gap-3">

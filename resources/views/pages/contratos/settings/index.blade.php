@@ -5,6 +5,16 @@
     $textareaClass = 'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
     $hasApiKey = trim((string) ($settings['assinafy_api_key'] ?? '')) !== '';
     $hasAccessToken = trim((string) ($settings['assinafy_access_token'] ?? '')) !== '';
+    $defaultSigners = collect(old('assinafy_default_signers', $defaultSigners ?? []))->values();
+    if ($defaultSigners->isEmpty()) {
+        $defaultSigners = collect([[
+            'name' => '',
+            'email' => '',
+            'phone' => '',
+            'document_number' => '',
+            'role_label' => 'Testemunha',
+        ]]);
+    }
 @endphp
 
 @section('content')
@@ -80,7 +90,7 @@
     </div>
 
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Ambiente</label>
                 <select name="assinafy_environment" class="{{ $inputClass }}">
@@ -111,6 +121,16 @@
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Mensagem padrao ao signatario</label>
                 <textarea name="assinafy_default_signer_message" rows="3" class="{{ $textareaClass }}">{{ $settings['assinafy_default_signer_message'] }}</textarea>
+                <div class="mt-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Variaveis disponiveis na mensagem</div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach($signatureMessageVariables as $variable)
+                            @php($token = '{{' . $variable['key'] . '}}')
+                            <span class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" title="{{ $variable['description'] }}">{{ $token }}</span>
+                        @endforeach
+                    </div>
+                    <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">Exemplo: Olá, segue o documento referente ao <code>@{{condominio_nome}}</code> para assinatura digital.</div>
+                </div>
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">URL do webhook</label>
@@ -120,8 +140,195 @@
         </div>
     </div>
 
+    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Signatarios e testemunhas pre-cadastrados</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Cadastre aqui as pessoas que voce reutiliza com frequencia nas assinaturas. Depois, nas telas de assinatura, basta inclui-las uma a uma.</p>
+            </div>
+            <button type="button" data-add-default-signer class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Adicionar cadastrado</button>
+        </div>
+
+        <div class="mt-5 space-y-4" data-default-signers-container>
+            @foreach($defaultSigners as $index => $signer)
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800" data-default-signer-row>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        <div class="xl:col-span-2">
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                            <input name="assinafy_default_signers[{{ $index }}][name]" value="{{ $signer['name'] ?? '' }}" class="{{ $inputClass }}" placeholder="Nome completo">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
+                            <input type="email" name="assinafy_default_signers[{{ $index }}][email]" value="{{ $signer['email'] ?? '' }}" class="{{ $inputClass }}" placeholder="assinante@exemplo.com">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
+                            <input name="assinafy_default_signers[{{ $index }}][phone]" value="{{ $signer['phone'] ?? '' }}" class="{{ $inputClass }}" placeholder="(00) 00000-0000" data-phone-mask>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CPF / CNPJ</label>
+                            <input name="assinafy_default_signers[{{ $index }}][document_number]" value="{{ $signer['document_number'] ?? '' }}" class="{{ $inputClass }}" placeholder="000.000.000-00" data-document-mask>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-2">
+                            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Papel no documento</label>
+                            <select name="assinafy_default_signers[{{ $index }}][role_label]" class="{{ $inputClass }}">
+                                <option value="">Selecione</option>
+                                @foreach($signatureRoleOptions as $label)
+                                    <option value="{{ $label }}" @selected(($signer['role_label'] ?? '') === $label)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" data-remove-default-signer class="w-full rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:text-error-300">Remover</button>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
     <div class="flex justify-end gap-3">
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">Salvar configuracoes</button>
     </div>
 </form>
+
+<template id="default-signature-signer-template">
+    <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800" data-default-signer-row>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div class="xl:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                <input data-field="name" class="{{ $inputClass }}" placeholder="Nome completo">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
+                <input type="email" data-field="email" class="{{ $inputClass }}" placeholder="assinante@exemplo.com">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
+                <input data-field="phone" class="{{ $inputClass }}" placeholder="(00) 00000-0000" data-phone-mask>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CPF / CNPJ</label>
+                <input data-field="document_number" class="{{ $inputClass }}" placeholder="000.000.000-00" data-document-mask>
+            </div>
+            <div class="md:col-span-2 xl:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Papel no documento</label>
+                <select data-field="role_label" class="{{ $inputClass }}">
+                    <option value="">Selecione</option>
+                    @foreach($signatureRoleOptions as $label)
+                        <option value="{{ $label }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="button" data-remove-default-signer class="w-full rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:text-error-300">Remover</button>
+            </div>
+        </div>
+    </div>
+</template>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.querySelector('[data-default-signers-container]');
+    const template = document.getElementById('default-signature-signer-template');
+    const addButton = document.querySelector('[data-add-default-signer]');
+
+    const digits = (value) => String(value || '').replace(/\D/g, '');
+    const formatPhone = (value) => {
+        let clean = digits(value);
+        if (clean.startsWith('55') && clean.length > 11) {
+            clean = clean.slice(2);
+        }
+        if (clean.length > 11) {
+            clean = clean.slice(0, 11);
+        }
+        if (clean.length > 10) {
+            return clean.replace(/(\d{2})(\d{5})(\d{0,4})/, function (_, ddd, first, second) {
+                return `(${ddd}) ${first}${second ? '-' + second : ''}`;
+            });
+        }
+        if (clean.length > 6) {
+            return clean.replace(/(\d{2})(\d{4})(\d{0,4})/, function (_, ddd, first, second) {
+                return `(${ddd}) ${first}${second ? '-' + second : ''}`;
+            });
+        }
+        if (clean.length > 2) {
+            return clean.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+        }
+        return clean;
+    };
+    const formatDocument = (value) => {
+        let clean = digits(value);
+        if (clean.length > 14) {
+            clean = clean.slice(0, 14);
+        }
+        if (clean.length > 11) {
+            return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})(\d{0,2})/, function (_, a, b, c, d, e) {
+                return `${a}.${b}.${c}/${d}${e ? '-' + e : ''}`;
+            });
+        }
+        return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, function (_, a, b, c, d) {
+            return `${a}.${b}.${c}${d ? '-' + d : ''}`;
+        });
+    };
+    const bindMasks = (scope) => {
+        scope.querySelectorAll('[data-phone-mask]').forEach((field) => {
+            field.addEventListener('input', () => {
+                field.value = formatPhone(field.value);
+            });
+            field.value = formatPhone(field.value);
+        });
+        scope.querySelectorAll('[data-document-mask]').forEach((field) => {
+            field.addEventListener('input', () => {
+                field.value = formatDocument(field.value);
+            });
+            field.value = formatDocument(field.value);
+        });
+    };
+
+    if (container && template && addButton) {
+        const reindex = () => {
+            Array.from(container.querySelectorAll('[data-default-signer-row]')).forEach((row, index) => {
+                row.querySelectorAll('[data-field]').forEach((field) => {
+                    field.name = `assinafy_default_signers[${index}][${field.dataset.field}]`;
+                });
+            });
+        };
+
+        addButton.addEventListener('click', () => {
+            const clone = template.content.firstElementChild.cloneNode(true);
+            container.appendChild(clone);
+            bindMasks(clone);
+            reindex();
+        });
+
+        container.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-default-signer]');
+            if (!button) {
+                return;
+            }
+
+            const row = button.closest('[data-default-signer-row]');
+            if (!row) {
+                return;
+            }
+
+            const rows = container.querySelectorAll('[data-default-signer-row]');
+            if (rows.length <= 1) {
+                row.querySelectorAll('input').forEach((field) => field.value = '');
+                row.querySelectorAll('select').forEach((field) => field.value = '');
+                return;
+            }
+
+            row.remove();
+            reindex();
+        });
+
+        bindMasks(document);
+        reindex();
+    }
+});
+</script>
+@endpush

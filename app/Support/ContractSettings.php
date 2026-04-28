@@ -28,6 +28,14 @@ class ContractSettings
         return static::get($key, $default ? '1' : '0') === '1';
     }
 
+    public static function jsonArray(string $key): array
+    {
+        $value = static::get($key, '[]');
+        $decoded = json_decode((string) $value, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     public static function defaults(): array
     {
         return ContractCatalog::defaultSettings();

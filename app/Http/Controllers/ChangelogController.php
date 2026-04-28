@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.56',
+            'version' => 'v1.57',
             'date' => '28/04/2026',
-            'label' => 'v1.56 - 28/04/2026',
+            'label' => 'v1.57 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Variaveis de sindico mais claras e assinatura digital mais operacional',
+                'items' => [
+                    'Modulo Contratos ganha novas variaveis explicitas para sindico, com endereco completo, cidade, estado, CEP, tipo de pessoa, CNPJ da empresa e CPF do representante quando houver PJ.',
+                    'Catalogo de variaveis deixa de confundir CPF e CNPJ do sindico, mantendo chave principal de documento e separando campos especificos para PF, PJ e representante.',
+                    'Assinatura digital passa a aceitar mensagem padrao com variaveis dinamicas para contratos e OS, inclusive nome do condominio, unidade, devedor, tipo do documento e numero da OS.',
+                    'Tela de assinatura recebe mascara para celular, CPF/CNPJ, papel no documento em dropdown e inclusao um a um de signatarios/testemunhas pre-cadastrados nas configuracoes.',
+                    'Painel da assinatura ganha botao Copiar link e o card da OS foi reposicionado para baixo de Andamentos, deixando a leitura operacional mais natural.',
+                ],
+            ],
+            [
+                'version' => 'v1.56',
+                'date' => '28/04/2026',
                 'title' => 'Contratos com sindico dedicado, preview mais inteligente e integracao financeira',
                 'items' => [
                     'Cadastro de contratos passa a aceitar sindicatura direta com dropdown proprio de sindicos, inclusive aproveitando o sindico do condominio quando ele ja estiver vinculado no cadastro.',

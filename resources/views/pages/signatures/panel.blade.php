@@ -100,6 +100,7 @@
                                             </span>
                                             @if($signer->signing_url)
                                                 <a href="{{ $signer->signing_url }}" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.03]">Abrir link</a>
+                                                <button type="button" data-copy-signature-link="{{ $signer->signing_url }}" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:text-brand-200">Copiar link</button>
                                             @endif
                                         </div>
                                     </div>
@@ -142,3 +143,33 @@
         @endforelse
     </div>
 </div>
+
+@once
+    @push('scripts')
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-copy-signature-link]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const text = button.getAttribute('data-copy-signature-link') || '';
+                    if (!text) {
+                        return;
+                    }
+
+                    const originalLabel = button.textContent;
+
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        button.textContent = 'Link copiado';
+                    } catch (error) {
+                        button.textContent = 'Falhou ao copiar';
+                    }
+
+                    window.setTimeout(() => {
+                        button.textContent = originalLabel;
+                    }, 1800);
+                });
+            });
+        });
+        </script>
+    @endpush
+@endonce

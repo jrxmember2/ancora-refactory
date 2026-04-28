@@ -130,7 +130,7 @@ class ContractRenderService
         $city = trim((string) ($condominium?->address_json['city'] ?? ContractSettings::get('default_city', 'Vitoria')));
         $syndicVariables = $this->syndicVariables($syndic);
 
-        return [
+        return array_merge([
             'contrato_codigo' => (string) ($attributes['code'] ?? $contract?->code ?? ''),
             'contrato_titulo' => (string) ($attributes['title'] ?? $contract?->title ?? ''),
             'cliente_nome' => (string) ($client?->display_name ?: $proposal?->client_name ?: ''),
@@ -141,11 +141,17 @@ class ContractRenderService
             'condominio_endereco' => $this->formatCondominiumAddress($condominium),
             'sindico_nome' => $syndicVariables['name'],
             'sindico_nome_simples' => $syndicVariables['simple_name'],
-            'sindico_cpf' => $syndicVariables['document'],
+            'sindico_tipo_pessoa' => $syndicVariables['person_type'],
+            'sindico_cpf' => $syndicVariables['cpf'],
+            'sindico_cnpj' => $syndicVariables['cnpj'],
             'sindico_documento' => $syndicVariables['document'],
+            'sindico_endereco' => $this->formatEntityAddress($syndic),
+            'sindico_empresa_nome' => $syndicVariables['company_name'],
+            'sindico_empresa_cnpj' => $syndicVariables['cnpj'],
             'sindico_qualificacao' => $syndicVariables['qualification'],
             'sindico_representante_nome' => $syndicVariables['representative_name'],
             'sindico_representante_documento' => $syndicVariables['representative_document'],
+            'sindico_representante_cpf' => $syndicVariables['representative_cpf'],
             'unidade_numero' => (string) ($unit?->unit_number ?: ''),
             'bloco_nome' => (string) ($unit?->block?->name ?: ''),
             'contrato_valor' => $value !== null ? $this->formatMoney($value) : '',
@@ -157,7 +163,7 @@ class ContractRenderService
             'data_atual' => Carbon::now()->locale('pt_BR')->translatedFormat('d \\d\\e F \\d\\e Y'),
             'cidade' => $city,
             'responsavel_nome' => (string) ($responsible?->name ?: ''),
-        ];
+        ], $this->addressVariables('cliente', $client?->primary_address_json ?? []), $this->addressVariables('condominio', $condominium?->address_json ?? []), $this->addressVariables('sindico', $syndic?->primary_address_json ?? []));
     }
 
     private function syndicVariables(?ClientEntity $syndic): array
@@ -166,10 +172,15 @@ class ContractRenderService
             return [
                 'name' => '',
                 'simple_name' => '',
+                'person_type' => '',
                 'document' => '',
+                'cpf' => '',
+                'cnpj' => '',
+                'company_name' => '',
                 'qualification' => '',
                 'representative_name' => '',
                 'representative_document' => '',
+                'representative_cpf' => '',
             ];
         }
 
@@ -183,10 +194,15 @@ class ContractRenderService
             return [
                 'name' => $simpleName,
                 'simple_name' => $simpleName,
+                'person_type' => 'PF',
                 'document' => $document,
+                'cpf' => $document,
+                'cnpj' => '',
+                'company_name' => '',
                 'qualification' => $qualification,
                 'representative_name' => '',
                 'representative_document' => '',
+                'representative_cpf' => '',
             ];
         }
 
@@ -211,10 +227,15 @@ class ContractRenderService
         return [
             'name' => $qualification,
             'simple_name' => $simpleName !== '' ? $simpleName : $companyName,
+            'person_type' => 'PJ',
             'document' => $document,
+            'cpf' => '',
+            'cnpj' => $document,
+            'company_name' => $companyName,
             'qualification' => $qualification,
             'representative_name' => $representativeName,
             'representative_document' => $representativeDocument,
+            'representative_cpf' => $representativeDocument,
         ];
     }
 
@@ -273,6 +294,19 @@ class ContractRenderService
             $address['state'] ?? null,
             $address['zip'] ?? null,
         ])->filter(fn ($value) => trim((string) $value) !== '')->implode(', ');
+    }
+
+    private function addressVariables(string $prefix, array $address): array
+    {
+        return [
+            $prefix . '_logradouro' => (string) ($address['street'] ?? ''),
+            $prefix . '_numero' => (string) ($address['number'] ?? ''),
+            $prefix . '_complemento' => (string) ($address['complement'] ?? ''),
+            $prefix . '_bairro' => (string) ($address['neighborhood'] ?? ''),
+            $prefix . '_cidade' => (string) ($address['city'] ?? ''),
+            $prefix . '_estado' => (string) ($address['state'] ?? ''),
+            $prefix . '_cep' => (string) ($address['zip'] ?? ''),
+        ];
     }
 
     private function formatDate(mixed $value): string

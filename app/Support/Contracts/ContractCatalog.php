@@ -129,6 +129,7 @@ class ContractCatalog
             'assinafy_webhook_email' => '',
             'assinafy_webhook_token' => '',
             'assinafy_default_signer_message' => 'Segue o documento para assinatura digital.',
+            'assinafy_default_signers_json' => '[]',
         ];
     }
 

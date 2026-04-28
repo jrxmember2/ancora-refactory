@@ -6,6 +6,7 @@ use App\Models\ContractSetting;
 use App\Services\AssinafyService;
 use App\Support\ContractSettings;
 use App\Support\Contracts\ContractCatalog;
+use App\Support\Signatures\DocumentSignatureCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -24,6 +25,9 @@ class ContractSettingsController extends Controller
         return view('pages.contratos.settings.index', [
             'title' => 'Configuracoes de contratos',
             'settings' => $settings,
+            'defaultSigners' => collect(ContractSettings::jsonArray('assinafy_default_signers_json'))->values(),
+            'signatureRoleOptions' => DocumentSignatureCatalog::roleOptions(),
+            'signatureMessageVariables' => DocumentSignatureCatalog::messageVariableDefinitions(),
         ]);
     }
 
@@ -45,9 +49,19 @@ class ContractSettingsController extends Controller
             'assinafy_access_token' => ['nullable', 'string', 'max:2048'],
             'assinafy_webhook_email' => ['nullable', 'email', 'max:180'],
             'assinafy_default_signer_message' => ['nullable', 'string', 'max:500'],
+            'assinafy_default_signers' => ['nullable', 'array'],
+            'assinafy_default_signers.*.name' => ['nullable', 'string', 'max:180'],
+            'assinafy_default_signers.*.email' => ['nullable', 'email', 'max:180'],
+            'assinafy_default_signers.*.phone' => ['nullable', 'string', 'max:40'],
+            'assinafy_default_signers.*.document_number' => ['nullable', 'string', 'max:40'],
+            'assinafy_default_signers.*.role_label' => ['nullable', 'string', Rule::in(DocumentSignatureCatalog::roleLabels())],
         ]);
 
         $existing = ContractSettings::all();
+        $defaultSignersJson = json_encode(
+            $this->normalizeDefaultSigners((array) $request->input('assinafy_default_signers', [])),
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ) ?: '[]';
 
         foreach (ContractSettings::defaults() as $key => $default) {
             $value = match ($key) {
@@ -58,6 +72,7 @@ class ContractSettingsController extends Controller
                 'assinafy_webhook_token' => trim((string) ($existing[$key] ?? '')) !== ''
                     ? trim((string) $existing[$key])
                     : Str::random(48),
+                'assinafy_default_signers_json' => $defaultSignersJson,
                 default => (string) $request->input($key, $existing[$key] ?? $default),
             };
 
@@ -68,6 +83,30 @@ class ContractSettingsController extends Controller
         }
 
         return redirect()->route('contratos.settings.index')->with('success', 'Configuracoes salvas com sucesso.');
+    }
+
+    private function normalizeDefaultSigners(array $rows): array
+    {
+        return collect($rows)
+            ->map(function ($row) {
+                $row = is_array($row) ? $row : [];
+
+                return [
+                    'name' => trim((string) ($row['name'] ?? '')),
+                    'email' => trim((string) ($row['email'] ?? '')),
+                    'phone' => trim((string) ($row['phone'] ?? '')),
+                    'document_number' => trim((string) ($row['document_number'] ?? '')),
+                    'role_label' => trim((string) ($row['role_label'] ?? '')),
+                ];
+            })
+            ->filter(function (array $row) {
+                return trim((string) ($row['name'] ?? '')) !== ''
+                    || trim((string) ($row['email'] ?? '')) !== ''
+                    || trim((string) ($row['phone'] ?? '')) !== ''
+                    || trim((string) ($row['document_number'] ?? '')) !== '';
+            })
+            ->values()
+            ->all();
     }
 
     public function syncWebhook(AssinafyService $assinafyService): RedirectResponse
