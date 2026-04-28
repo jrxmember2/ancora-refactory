@@ -88,21 +88,41 @@ class AssinafyService
     public function findOrCreateSigner(array $payload): array
     {
         $email = trim((string) ($payload['email'] ?? ''));
-        if ($email !== '') {
+        $normalized = array_filter([
+            'full_name' => trim((string) ($payload['full_name'] ?? '')),
+            'email' => $email !== '' ? $email : null,
+            'whatsapp_phone_number' => trim((string) ($payload['whatsapp_phone_number'] ?? '')) ?: null,
+            'government_id' => trim((string) ($payload['government_id'] ?? '')) ?: null,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        try {
+            return $this->requestJson('POST', '/accounts/' . $this->accountId() . '/signers', [
+                'json' => $normalized,
+            ]);
+        } catch (\Throwable $createError) {
+            if ($email === '') {
+                throw $createError;
+            }
+
             $found = $this->findSignerByEmail($email);
-            if ($found) {
-                return $found;
+            if (!$found || trim((string) ($found['id'] ?? '')) === '') {
+                throw $createError;
+            }
+
+            try {
+                return $this->updateSigner((string) $found['id'], array_filter([
+                    'full_name' => $normalized['full_name'] ?? null,
+                    'email' => $normalized['email'] ?? null,
+                    'whatsapp_phone_number' => $normalized['whatsapp_phone_number'] ?? null,
+                ], static fn ($value) => $value !== null && $value !== ''));
+            } catch (\Throwable $updateError) {
+                throw new \RuntimeException(
+                    'Este e-mail ja foi usado na Assinafy e nao conseguiu ser atualizado para o novo signatario. Tente outro e-mail ou conclua/cancele a assinatura anterior vinculada a ele. Detalhe: ' . $updateError->getMessage(),
+                    0,
+                    $updateError
+                );
             }
         }
-
-        return $this->requestJson('POST', '/accounts/' . $this->accountId() . '/signers', [
-            'json' => array_filter([
-                'full_name' => trim((string) ($payload['full_name'] ?? '')),
-                'email' => $email !== '' ? $email : null,
-                'whatsapp_phone_number' => trim((string) ($payload['whatsapp_phone_number'] ?? '')) ?: null,
-                'government_id' => trim((string) ($payload['government_id'] ?? '')) ?: null,
-            ], static fn ($value) => $value !== null && $value !== ''),
-        ]);
     }
 
     public function createAssignment(string $documentId, array $signerIds, ?string $message = null): array
@@ -162,6 +182,13 @@ class AssinafyService
         }
 
         return null;
+    }
+
+    private function updateSigner(string $signerId, array $payload): array
+    {
+        return $this->requestJson('PUT', '/accounts/' . $this->accountId() . '/signers/' . $signerId, [
+            'json' => $payload,
+        ]);
     }
 
     private function requestJson(string $method, string $uri, array $options = []): array

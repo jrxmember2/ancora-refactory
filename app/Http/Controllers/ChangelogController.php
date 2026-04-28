@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.58',
+            'version' => 'v1.59',
             'date' => '28/04/2026',
-            'label' => 'v1.58 - 28/04/2026',
+            'label' => 'v1.59 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix na identidade do signatario na Assinafy',
+                'items' => [
+                    'Ao reenviar documentos para assinatura com um e-mail ja usado em outra OS ou contrato, a integracao passa a atualizar o cadastro remoto do signatario com os dados do modal atual antes de reutiliza-lo.',
+                    'Com isso, alterar nome, e-mail e telefone no modal de assinatura nao contamina o cadastro local do condomino e evita que o documento seguinte saia em nome da pessoa errada.',
+                ],
+            ],
+            [
+                'version' => 'v1.58',
+                'date' => '28/04/2026',
                 'title' => 'Templates de contratos com contato do sindico',
                 'items' => [
                     'Catalogo de variaveis do modulo Contratos passa a expor e-mail e telefone do sindico para uso direto em templates e documentos gerados.',
