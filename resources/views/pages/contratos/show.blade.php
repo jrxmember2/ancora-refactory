@@ -95,7 +95,7 @@
                     <form method="post" action="{{ route('contratos.duplicate', $item) }}">@csrf<button class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Duplicar contrato</button></form>
                     <form method="post" action="{{ route('contratos.archive', $item) }}">@csrf<button class="w-full rounded-xl border border-warning-300 bg-warning-50 px-4 py-3 text-sm font-medium text-warning-700 dark:border-warning-800 dark:bg-warning-500/10 dark:text-warning-200">Arquivar</button></form>
                     <form method="post" action="{{ route('contratos.rescind', $item) }}">@csrf<button class="w-full rounded-xl border border-error-300 bg-error-50 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-200">Rescindir</button></form>
-                    <form method="post" action="{{ route('contratos.delete', $item) }}">@csrf @method('DELETE')<button onclick="return confirm('Excluir este contrato?')" class="w-full rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:text-error-300">Excluir</button></form>
+                    <form method="post" action="{{ route('contratos.delete', $item) }}">@csrf @method('DELETE')<button onclick="return confirm('Mover este contrato para a lixeira?')" class="w-full rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:text-error-300">Mover para lixeira</button></form>
                 </div>
             </div>
         </div>

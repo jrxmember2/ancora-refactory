@@ -214,6 +214,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/{contrato}/assinaturas', [DocumentSignatureController::class, 'storeContract'])->name('contratos.signatures.store')->middleware('ancora.route:contratos.signatures.store');
         Route::post('/{contrato}/assinaturas/{signature}/sincronizar', [DocumentSignatureController::class, 'syncContract'])->name('contratos.signatures.sync')->middleware('ancora.route:contratos.signatures.sync');
         Route::get('/{contrato}/assinaturas/{signature}/download/{artifact}', [DocumentSignatureController::class, 'downloadContract'])->name('contratos.signatures.download')->middleware('ancora.route:contratos.signatures.download');
+        Route::post('/restaurar/{contractId}', [ContractController::class, 'restore'])->name('contratos.restore')->middleware('ancora.route:contratos.restore');
         Route::get('/{contrato}', [ContractController::class, 'show'])->name('contratos.show')->middleware('ancora.route:contratos.show');
         Route::get('/{contrato}/editar', [ContractController::class, 'edit'])->name('contratos.edit')->middleware('ancora.route:contratos.edit');
         Route::match(['post', 'put'], '/{contrato}', [ContractController::class, 'update'])->name('contratos.update')->middleware('ancora.route:contratos.update');

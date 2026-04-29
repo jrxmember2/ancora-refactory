@@ -2,11 +2,14 @@
 
 namespace App\Support\Contracts;
 
+use App\Support\ContractSettings;
+use Illuminate\Support\Str;
+
 class ContractVariableCatalog
 {
     public static function definitions(): array
     {
-        return [
+        return self::annotate([
             ['key' => 'contrato_codigo', 'label' => 'Contrato - codigo', 'description' => 'Codigo interno do contrato.', 'source' => 'contracts.code'],
             ['key' => 'contrato_titulo', 'label' => 'Contrato - titulo', 'description' => 'Titulo do contrato.', 'source' => 'contracts.title'],
 
@@ -68,11 +71,106 @@ class ContractVariableCatalog
             ['key' => 'data_atual', 'label' => 'Data atual', 'description' => 'Data atual do sistema formatada em portugues.', 'source' => 'system.now'],
             ['key' => 'cidade', 'label' => 'Cidade padrao', 'description' => 'Cidade padrao das configuracoes do modulo.', 'source' => 'contract_settings.default_city'],
             ['key' => 'responsavel_nome', 'label' => 'Responsavel - nome', 'description' => 'Nome do usuario responsavel pelo contrato.', 'source' => 'users.name'],
-        ];
+        ]);
+    }
+
+    public static function definitionsForTemplates(): array
+    {
+        return self::annotate(array_merge(
+            self::definitions(),
+            self::signaturePresetDefinitions()
+        ));
     }
 
     public static function keys(): array
     {
         return array_column(self::definitions(), 'key');
+    }
+
+    public static function groupLabels(): array
+    {
+        return [
+            'all' => 'Todos',
+            'cliente' => 'Cliente',
+            'condominio' => 'Condominio',
+            'sindico' => 'Sindico',
+            'unidade' => 'Unidade',
+            'contrato' => 'Contrato',
+            'assinaturas' => 'Assinaturas',
+            'sistema' => 'Sistema',
+        ];
+    }
+
+    public static function signaturePresetDefinitions(): array
+    {
+        $rows = collect(ContractSettings::jsonArray('assinafy_default_signers_json'));
+
+        return collect([
+            'signatario' => 'Signatario',
+            'testemunha' => 'Testemunha',
+        ])->flatMap(function (string $label, string $slug) use ($rows) {
+            return $rows
+                ->filter(fn ($row) => mb_strtolower(trim((string) ($row['role_label'] ?? '')), 'UTF-8') === $slug)
+                ->values()
+                ->flatMap(function (array $row, int $index) use ($slug, $label) {
+                    $position = $index + 1;
+                    $base = $slug . '_' . $position;
+
+                    return [
+                        [
+                            'key' => $base . '_nome',
+                            'label' => $label . ' ' . $position . ' - nome',
+                            'description' => 'Nome do ' . mb_strtolower($label, 'UTF-8') . ' pre-cadastrado na posicao ' . $position . '.',
+                            'source' => 'contract_settings.assinafy_default_signers_json',
+                        ],
+                        [
+                            'key' => $base . '_email',
+                            'label' => $label . ' ' . $position . ' - e-mail',
+                            'description' => 'E-mail do ' . mb_strtolower($label, 'UTF-8') . ' pre-cadastrado na posicao ' . $position . '.',
+                            'source' => 'contract_settings.assinafy_default_signers_json',
+                        ],
+                        [
+                            'key' => $base . '_telefone',
+                            'label' => $label . ' ' . $position . ' - telefone',
+                            'description' => 'Telefone do ' . mb_strtolower($label, 'UTF-8') . ' pre-cadastrado na posicao ' . $position . '.',
+                            'source' => 'contract_settings.assinafy_default_signers_json',
+                        ],
+                        [
+                            'key' => $base . '_documento',
+                            'label' => $label . ' ' . $position . ' - documento',
+                            'description' => 'Documento do ' . mb_strtolower($label, 'UTF-8') . ' pre-cadastrado na posicao ' . $position . '.',
+                            'source' => 'contract_settings.assinafy_default_signers_json',
+                        ],
+                    ];
+                });
+        })->values()->all();
+    }
+
+    public static function groupKeyFor(string $key): string
+    {
+        return match (true) {
+            Str::startsWith($key, 'cliente_') => 'cliente',
+            Str::startsWith($key, 'condominio_') => 'condominio',
+            Str::startsWith($key, 'sindico_') => 'sindico',
+            Str::startsWith($key, ['unidade_', 'bloco_']) => 'unidade',
+            Str::startsWith($key, 'contrato_') => 'contrato',
+            Str::startsWith($key, ['signatario_', 'testemunha_']) => 'assinaturas',
+            default => 'sistema',
+        };
+    }
+
+    private static function annotate(array $definitions): array
+    {
+        return collect($definitions)
+            ->map(function ($definition) {
+                $definition = is_array($definition) ? $definition : [];
+                $group = self::groupKeyFor((string) ($definition['key'] ?? ''));
+                $definition['group'] = $group;
+                $definition['group_label'] = self::groupLabels()[$group] ?? Str::headline($group);
+
+                return $definition;
+            })
+            ->values()
+            ->all();
     }
 }

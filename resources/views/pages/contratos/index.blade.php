@@ -5,11 +5,15 @@
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('contratos.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo contrato</a>
         <a href="{{ route('contratos.templates.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Templates</a>
+        <a href="{{ route('contratos.index', ['scope' => ($filters['scope'] ?? 'active') === 'trash' ? 'active' : 'trash']) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
+            {{ ($filters['scope'] ?? 'active') === 'trash' ? 'Voltar da lixeira' : 'Lixeira' }}
+        </a>
     </div>
 </x-ancora.section-header>
 
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <input type="hidden" name="scope" value="{{ $filters['scope'] ?? 'active' }}">
         <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Buscar por codigo, titulo ou tipo..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
         <select name="client_id" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-gray-800 dark:border-gray-700 dark:text-gray-100">
             <option value="">Todos os clientes</option>
@@ -56,14 +60,14 @@
         <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200"><input type="checkbox" name="without_pdf_only" value="1" @checked($filters['without_pdf_only'])> Sem PDF</label>
         <div class="flex gap-3 xl:col-span-4">
             <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Filtrar</button>
-            <a href="{{ route('contratos.index') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Limpar</a>
+            <a href="{{ route('contratos.index', ['scope' => $filters['scope'] ?? 'active']) }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Limpar</a>
         </div>
     </form>
 </div>
 
 <div class="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     @if($items->count() === 0)
-        <div class="p-6"><x-ancora.empty-state icon="fa-solid fa-file-contract" title="Sem contratos" subtitle="Nenhum contrato foi encontrado com os filtros informados." /></div>
+        <div class="p-6"><x-ancora.empty-state icon="fa-solid fa-file-contract" title="{{ ($filters['scope'] ?? 'active') === 'trash' ? 'Lixeira vazia' : 'Sem contratos' }}" subtitle="{{ ($filters['scope'] ?? 'active') === 'trash' ? 'Nenhum contrato foi movido para a lixeira.' : 'Nenhum contrato foi encontrado com os filtros informados.' }}" /></div>
     @else
         <div class="overflow-x-auto">
             <table class="min-w-full text-left">
@@ -100,14 +104,39 @@
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->responsible?->name ?: '-' }}</td>
                             <td class="px-6 py-4">
                                 <div class="flex flex-wrap justify-end gap-2">
-                                    <a href="{{ route('contratos.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Visualizar</a>
-                                    <a href="{{ route('contratos.edit', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Editar</a>
-                                    <a href="{{ route('contratos.show', ['contrato' => $item, 'tab' => 'historico']) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Historico</a>
-                                    <form method="post" action="{{ route('contratos.duplicate', $item) }}">@csrf<button class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Duplicar</button></form>
-                                    @if($item->final_pdf_path)
-                                        <a href="{{ route('contratos.download-pdf', $item) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white">PDF</a>
-                                    @elseif($item->template_id && $item->content_html)
-                                        <form method="post" action="{{ route('contratos.generate-pdf', $item) }}">@csrf<button class="rounded-lg border border-success-300 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Gerar PDF</button></form>
+                                    @if(($filters['scope'] ?? 'active') === 'trash')
+                                        <form method="post" action="{{ route('contratos.restore', $item->id) }}">
+                                            @csrf
+                                            <button class="rounded-lg border border-success-300 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Restaurar</button>
+                                        </form>
+                                    @else
+                                        <a href="{{ route('contratos.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Visualizar</a>
+                                        <a href="{{ route('contratos.edit', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Editar</a>
+                                        <a href="{{ route('contratos.show', ['contrato' => $item, 'tab' => 'historico']) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Historico</a>
+                                        <form method="post" action="{{ route('contratos.duplicate', $item) }}">@csrf<button class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Duplicar</button></form>
+                                        @if($item->final_pdf_path)
+                                            <a href="{{ route('contratos.download-pdf', $item) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white">PDF</a>
+                                        @elseif($item->template_id && $item->content_html)
+                                            <form method="post" action="{{ route('contratos.generate-pdf', $item) }}">@csrf<button class="rounded-lg border border-success-300 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Gerar PDF</button></form>
+                                        @endif
+                                        <button type="button" onclick="document.getElementById('delete-contract-{{ $item->id }}').showModal()" class="rounded-lg border border-error-300 px-3 py-2 text-xs font-medium text-error-700 dark:border-error-800 dark:text-error-300">Excluir</button>
+                                        <dialog id="delete-contract-{{ $item->id }}" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+                                            <form method="post" action="{{ route('contratos.delete', $item) }}" class="p-6">
+                                                @csrf
+                                                @method('DELETE')
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Mover contrato para a lixeira</h3>
+                                                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">O contrato <strong>{{ $item->title }}</strong> sera ocultado da lista principal, mas podera ser restaurado depois.</p>
+                                                    </div>
+                                                    <button type="button" onclick="document.getElementById('delete-contract-{{ $item->id }}').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+                                                </div>
+                                                <div class="mt-6 flex justify-end gap-3">
+                                                    <button type="button" onclick="document.getElementById('delete-contract-{{ $item->id }}').close()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+                                                    <button class="rounded-xl border border-error-300 bg-error-50 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-200">Enviar para a lixeira</button>
+                                                </div>
+                                            </form>
+                                        </dialog>
                                     @endif
                                 </div>
                             </td>

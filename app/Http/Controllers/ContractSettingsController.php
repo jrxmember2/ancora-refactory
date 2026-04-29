@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentSignatureRequest;
 use App\Models\ContractSetting;
 use App\Services\AssinafyService;
 use App\Support\ContractSettings;
@@ -10,6 +11,7 @@ use App\Support\Signatures\DocumentSignatureCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -22,12 +24,33 @@ class ContractSettingsController extends Controller
             $settings[$key] = ContractSettings::get($key, $default);
         }
 
+        $signatureHistoryReady = false;
+        $signatureHistory = collect();
+
+        try {
+            $signatureHistoryReady = Schema::hasTable('document_signature_requests')
+                && Schema::hasTable('document_signature_signers')
+                && Schema::hasTable('document_signature_events');
+        } catch (\Throwable) {
+            $signatureHistoryReady = false;
+        }
+
+        if ($signatureHistoryReady) {
+            $signatureHistory = DocumentSignatureRequest::query()
+                ->with(['signers', 'creator', 'signable'])
+                ->latest('created_at')
+                ->limit(120)
+                ->get();
+        }
+
         return view('pages.contratos.settings.index', [
             'title' => 'Configuracoes de contratos',
             'settings' => $settings,
             'defaultSigners' => collect(ContractSettings::jsonArray('assinafy_default_signers_json'))->values(),
             'signatureRoleOptions' => DocumentSignatureCatalog::roleOptions(),
             'signatureMessageVariables' => DocumentSignatureCatalog::messageVariableDefinitions(),
+            'signatureHistoryReady' => $signatureHistoryReady,
+            'signatureHistory' => $signatureHistory,
         ]);
     }
 

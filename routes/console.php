@@ -48,4 +48,6 @@ Artisan::command('processos:datajud-sync {--case=}', function () {
 
 Schedule::command('processos:datajud-sync')
     ->dailyAt('06:00')
-    ->timezone(config('app.timezone'));
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(120)
+    ->appendOutputTo(storage_path('logs/datajud-sync.log'));

@@ -26,10 +26,13 @@
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Assinatura digital / Assinafy</h3>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configuracao compartilhada para contratos e termos de acordo da cobranca.</p>
         </div>
-        <form method="post" action="{{ route('contratos.settings.signatures-webhook') }}">
-            @csrf
-            <button class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Sincronizar webhook</button>
-        </form>
+        <div class="flex flex-wrap gap-3">
+            <button type="button" onclick="document.getElementById('signature-history-modal').showModal()" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Historico</button>
+            <form method="post" action="{{ route('contratos.settings.signatures-webhook') }}">
+                @csrf
+                <button class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Sincronizar webhook</button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -191,6 +194,76 @@
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">Salvar configuracoes</button>
     </div>
 </form>
+
+<dialog id="signature-history-modal" class="fixed inset-0 m-auto max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Historico geral de assinaturas</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Acompanhe todos os envios de assinatura digital feitos pelo sistema e abra rapidamente a OS ou o contrato de origem.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('signature-history-modal').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+        </div>
+
+        <div class="mt-5">
+            @if(!($signatureHistoryReady ?? false))
+                <div class="rounded-2xl border border-warning-300 bg-warning-50 p-5 text-sm text-warning-800 dark:border-warning-800/60 dark:bg-warning-500/10 dark:text-warning-200">
+                    Rode as migrations de assinatura digital para habilitar o historico consolidado.
+                </div>
+            @elseif(($signatureHistory ?? collect())->isEmpty())
+                <x-ancora.empty-state icon="fa-solid fa-file-signature" title="Sem assinaturas registradas" subtitle="Assim que contratos ou OS forem enviados para assinatura, eles aparecerao aqui." />
+            @else
+                <div class="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
+                    <table class="min-w-full text-left">
+                        <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40">
+                            <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                <th class="px-5 py-4">Documento</th>
+                                <th class="px-5 py-4">Origem</th>
+                                <th class="px-5 py-4">Status</th>
+                                <th class="px-5 py-4">Assinaturas</th>
+                                <th class="px-5 py-4">Criado em</th>
+                                <th class="px-5 py-4 text-right">Acao</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            @foreach($signatureHistory as $historyItem)
+                                @php
+                                    $signableType = $historyItem->signable_type;
+                                    $openUrl = null;
+                                    $originLabel = 'Documento';
+                                    if ($signableType === \App\Models\Contract::class && $historyItem->signable) {
+                                        $openUrl = route('contratos.show', ['contrato' => $historyItem->signable, 'tab' => 'assinaturas']);
+                                        $originLabel = 'Contrato';
+                                    } elseif ($signableType === \App\Models\CobrancaCase::class && $historyItem->signable) {
+                                        $openUrl = route('cobrancas.show', $historyItem->signable);
+                                        $originLabel = 'OS de cobranca';
+                                    }
+                                @endphp
+                                <tr>
+                                    <td class="px-5 py-4">
+                                        <div class="font-medium text-gray-900 dark:text-white">{{ $historyItem->document_name }}</div>
+                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $historyItem->creator?->name ?: 'Sistema' }}</div>
+                                    </td>
+                                    <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{{ $originLabel }}</td>
+                                    <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{{ \App\Services\DocumentSignatureService::requestStatusLabels()[$historyItem->status] ?? $historyItem->status }}</td>
+                                    <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{{ $historyItem->signers->where('completed', true)->count() }}/{{ $historyItem->signers->count() }}</td>
+                                    <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{{ optional($historyItem->created_at)->format('d/m/Y H:i') ?: '-' }}</td>
+                                    <td class="px-5 py-4 text-right">
+                                        @if($openUrl)
+                                            <a href="{{ $openUrl }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Abrir</a>
+                                        @else
+                                            <span class="text-xs text-gray-400">Indisponivel</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    </div>
+</dialog>
 
 <template id="default-signature-signer-template">
     <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800" data-default-signer-row>

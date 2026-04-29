@@ -191,6 +191,7 @@ class AncoraRouteCatalog
                     'contratos.signatures.store' => 'Enviar contrato para assinatura digital',
                     'contratos.signatures.sync' => 'Sincronizar assinatura digital do contrato',
                     'contratos.signatures.download' => 'Baixar artefatos da assinatura digital do contrato',
+                    'contratos.restore' => 'Restaurar contrato da lixeira',
                 ],
             ],
             'financeiro' => [

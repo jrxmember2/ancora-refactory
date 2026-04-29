@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.59',
+            'version' => 'v1.60',
             'date' => '28/04/2026',
-            'label' => 'v1.59 - 28/04/2026',
+            'label' => 'v1.60 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Contratos com lixeira e historico global de assinaturas, mais rastreabilidade no DataJud',
+                'items' => [
+                    'Lista de contratos ganha lixeira com restauracao, exclusao apenas logica e confirmacao visual antes de mover o documento para fora da listagem principal.',
+                    'Configuracoes do modulo Contratos passam a ter um historico consolidado de assinaturas digitais, com botao Abrir para saltar direto para a OS ou o contrato de origem.',
+                    'Sincronizacao diaria do DataJud passa a registrar saida propria em storage/logs/datajud-sync.log, evitar sobreposicao de execucao e gravar resumo da rotina no log de auditoria.',
+                    'Leitura dos movimentos do DataJud ficou mais amigavel, com datas formatadas e tentativa de expor anexos/localizadores quando o payload publico trouxer links de documentos.',
+                    'Base inicial da wiki operacional do sistema foi adicionada dentro de docs/wiki para comecar o manual versionado junto do codigo.',
+                ],
+            ],
+            [
+                'version' => 'v1.59',
+                'date' => '28/04/2026',
                 'title' => 'Hotfix na identidade do signatario na Assinafy',
                 'items' => [
                     'Ao reenviar documentos para assinatura com um e-mail ja usado em outra OS ou contrato, a integracao passa a atualizar o cadastro remoto do signatario com os dados do modal atual antes de reutiliza-lo.',

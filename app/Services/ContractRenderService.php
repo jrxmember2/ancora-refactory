@@ -95,7 +95,7 @@ class ContractRenderService
             'settings' => [
                 'city' => $city,
                 'state' => $state,
-                'footer_text' => ContractSettings::get('footer_text', 'Documento gerado pelo sistema Ancora.'),
+                'footer_text' => 'documento gerado pelo âncora hub',
                 'show_logo' => ContractSettings::bool('show_logo', true),
                 'signature_text' => $signatureText,
             ],
@@ -109,6 +109,7 @@ class ContractRenderService
             'client_label' => $contract->client?->display_name ?: ($contract->condominium?->name ?: 'Nao informado'),
             'condominium_label' => $contract->condominium?->name,
             'unit_label' => $contract->unit?->unit_number,
+            'meta_blocks' => $this->documentMetaBlocks($contract, $variables),
         ];
     }
 
@@ -165,7 +166,7 @@ class ContractRenderService
             'data_atual' => Carbon::now()->locale('pt_BR')->translatedFormat('d \\d\\e F \\d\\e Y'),
             'cidade' => $city,
             'responsavel_nome' => (string) ($responsible?->name ?: ''),
-        ], $this->addressVariables('cliente', $client?->primary_address_json ?? []), $this->addressVariables('condominio', $condominium?->address_json ?? []), $this->addressVariables('sindico', $syndic?->primary_address_json ?? []));
+        ], $this->addressVariables('cliente', $client?->primary_address_json ?? []), $this->addressVariables('condominio', $condominium?->address_json ?? []), $this->addressVariables('sindico', $syndic?->primary_address_json ?? []), $this->signaturePresetVariables());
     }
 
     private function syndicVariables(?ClientEntity $syndic): array
@@ -317,6 +318,96 @@ class ContractRenderService
             $prefix . '_estado' => (string) ($address['state'] ?? ''),
             $prefix . '_cep' => (string) ($address['zip'] ?? ''),
         ];
+    }
+
+    private function documentMetaBlocks(Contract $contract, array $variables): array
+    {
+        $blocks = [];
+
+        $clientQualification = $this->qualificationLine(
+            (string) ($variables['cliente_nome'] ?? ''),
+            (string) ($variables['cliente_documento'] ?? ''),
+            (string) ($variables['cliente_endereco'] ?? ''),
+            'CPF/CNPJ'
+        );
+        if ($clientQualification !== '') {
+            $blocks[] = ['label' => 'Cliente', 'value' => $clientQualification];
+        }
+
+        $condominiumQualification = $this->qualificationLine(
+            (string) ($variables['condominio_nome'] ?? ''),
+            (string) ($variables['condominio_cnpj'] ?? ''),
+            (string) ($variables['condominio_endereco'] ?? ''),
+            'CNPJ'
+        );
+        if ($condominiumQualification !== '') {
+            $blocks[] = ['label' => 'Condominio', 'value' => $condominiumQualification];
+        }
+
+        $syndicQualification = trim((string) ($variables['sindico_qualificacao'] ?? $variables['sindico_nome'] ?? ''));
+        if ($syndicQualification !== '') {
+            $blocks[] = ['label' => 'Sindico(a)', 'value' => $syndicQualification];
+        }
+
+        $unit = trim((string) ($variables['unidade_numero'] ?? ''));
+        $block = trim((string) ($variables['bloco_nome'] ?? ''));
+        if ($unit !== '') {
+            $blocks[] = ['label' => 'Unidade', 'value' => $block !== '' ? $block . ' - unidade ' . $unit : 'Unidade ' . $unit];
+        }
+
+        $value = trim((string) ($variables['contrato_valor'] ?? ''));
+        if ($value !== '') {
+            $blocks[] = ['label' => 'Valor', 'value' => $value];
+        }
+
+        if (!$contract->indefinite_term) {
+            $endDate = trim((string) ($variables['contrato_data_fim'] ?? ''));
+            if ($endDate !== '') {
+                $blocks[] = ['label' => 'Vigencia final', 'value' => $endDate];
+            }
+        }
+
+        return $blocks;
+    }
+
+    private function qualificationLine(string $name, string $document, string $address, string $documentLabel): string
+    {
+        $parts = array_filter([
+            trim($name),
+            trim($document) !== '' ? $documentLabel . ' ' . trim($document) : '',
+            trim($address),
+        ]);
+
+        return implode(' - ', $parts);
+    }
+
+    private function signaturePresetVariables(): array
+    {
+        $variables = [];
+
+        $rows = collect(ContractSettings::jsonArray('assinafy_default_signers_json'))
+            ->map(fn ($row) => [
+                'name' => trim((string) ($row['name'] ?? '')),
+                'email' => trim((string) ($row['email'] ?? '')),
+                'phone' => trim((string) ($row['phone'] ?? '')),
+                'document' => trim((string) ($row['document_number'] ?? '')),
+                'role' => mb_strtolower(trim((string) ($row['role_label'] ?? '')), 'UTF-8'),
+            ]);
+
+        foreach (['signatario', 'testemunha'] as $role) {
+            $rows
+                ->filter(fn ($row) => $row['role'] === $role)
+                ->values()
+                ->each(function (array $row, int $index) use (&$variables, $role) {
+                    $base = $role . '_' . ($index + 1);
+                    $variables[$base . '_nome'] = $row['name'];
+                    $variables[$base . '_email'] = $row['email'];
+                    $variables[$base . '_telefone'] = $row['phone'];
+                    $variables[$base . '_documento'] = $row['document'];
+                });
+        }
+
+        return $variables;
     }
 
     private function formatDate(mixed $value): string

@@ -20,6 +20,7 @@ use App\Services\ContractPdfService;
 use App\Services\ContractRenderService;
 use App\Support\AncoraAuth;
 use App\Support\Contracts\ContractCatalog;
+use App\Support\Contracts\ContractVariableCatalog;
 use App\Support\ContractSettings;
 use App\Support\Financeiro\FinancialCatalog;
 use Illuminate\Database\Eloquent\Builder;
@@ -125,6 +126,10 @@ class ContractController extends Controller
         $query = Contract::query()
             ->with(['category', 'client', 'condominium', 'responsible', 'syndic', 'financialAccount'])
             ->select('contracts.*');
+
+        if ($filters['scope'] === 'trash') {
+            $query->onlyTrashed();
+        }
 
         $this->applyFilters($query, $filters);
 
@@ -346,7 +351,17 @@ class ContractController extends Controller
     {
         $contrato->delete();
 
-        return redirect()->route('contratos.index')->with('success', 'Contrato excluido com sucesso.');
+        return redirect()->route('contratos.index')->with('success', 'Contrato enviado para a lixeira com sucesso.');
+    }
+
+    public function restore(int $contractId): RedirectResponse
+    {
+        $contract = Contract::withTrashed()->findOrFail($contractId);
+        $contract->restore();
+
+        return redirect()
+            ->route('contratos.index', ['scope' => 'trash'])
+            ->with('success', 'Contrato restaurado com sucesso.');
     }
 
     public function duplicate(Request $request, Contract $contrato): RedirectResponse
@@ -579,12 +594,14 @@ class ContractController extends Controller
             'recurrenceOptions' => ContractCatalog::recurrences(),
             'adjustmentPeriodicities' => ContractCatalog::adjustmentPeriodicities(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
+            'variableDefinitions' => ContractVariableCatalog::definitionsForTemplates(),
         ];
     }
 
     private function filtersFromRequest(Request $request): array
     {
         return [
+            'scope' => $request->input('scope') === 'trash' ? 'trash' : 'active',
             'q' => trim((string) $request->input('q', '')),
             'client_id' => (int) $request->integer('client_id') ?: null,
             'condominium_id' => (int) $request->integer('condominium_id') ?: null,

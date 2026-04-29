@@ -317,6 +317,8 @@
                         'value' => $previewHtml,
                         'placeholder' => 'Carregue o template e ajuste as clausulas aqui.',
                         'minHeight' => '420px',
+                        'variableDefinitions' => $variableDefinitions,
+                        'showVariablePicker' => true,
                     ])
                 </div>
                 <div class="mt-4">

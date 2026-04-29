@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AuditLog;
 use App\Models\ProcessCase;
 use App\Models\ProcessCasePhase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ProcessDataJudService
@@ -34,6 +36,9 @@ class ProcessDataJudService
                     }
                 }
             });
+
+        $this->recordScheduledSummary($summary);
+        $this->dataJudLogger()->info('Sincronizacao diaria do DataJud concluida.', $summary);
 
         return $summary;
     }
@@ -69,6 +74,13 @@ class ProcessDataJudService
                 ]);
 
             if (!$response->successful()) {
+                $this->dataJudLogger()->warning('Falha HTTP ao sincronizar processo no DataJud.', [
+                    'process_case_id' => $case->id,
+                    'process_number' => $case->process_number,
+                    'court' => $courtAlias,
+                    'status_code' => $response->status(),
+                ]);
+
                 return ['skipped' => true, 'created' => 0, 'refreshed' => 0, 'error' => 'DataJud HTTP ' . $response->status()];
             }
 
@@ -98,6 +110,7 @@ class ProcessDataJudService
                         'datajud_payload_json' => [
                             'processo' => $this->processSummary($source),
                             'movimento' => $movement,
+                            'anexos' => $this->movementAttachments($movement),
                         ],
                     ];
 
@@ -127,8 +140,25 @@ class ProcessDataJudService
                 'datajud_last_hash' => $fingerprint,
             ]);
 
+            if ($created > 0 || $refreshed > 0) {
+                $this->dataJudLogger()->info('Processo sincronizado com movimentos do DataJud.', [
+                    'process_case_id' => $case->id,
+                    'process_number' => $case->process_number,
+                    'court' => $courtAlias,
+                    'created' => $created,
+                    'refreshed' => $refreshed,
+                ]);
+            }
+
             return ['skipped' => false, 'created' => $created, 'refreshed' => $refreshed, 'error' => null];
         } catch (\Throwable $e) {
+            $this->dataJudLogger()->error('Excecao ao sincronizar processo no DataJud.', [
+                'process_case_id' => $case->id,
+                'process_number' => $case->process_number,
+                'court' => $courtAlias,
+                'message' => $e->getMessage(),
+            ]);
+
             return ['skipped' => true, 'created' => 0, 'refreshed' => 0, 'error' => Str::limit($e->getMessage(), 180, '')];
         }
     }
@@ -181,6 +211,19 @@ class ProcessDataJudService
             }
         }
 
+        $attachments = $this->movementAttachments($movement);
+        if ($attachments !== []) {
+            $parts[] = '';
+            $parts[] = 'Anexos/localizadores do movimento:';
+            foreach ($attachments as $attachment) {
+                $label = trim((string) ($attachment['label'] ?? 'Documento'));
+                $url = trim((string) ($attachment['url'] ?? ''));
+                if ($url !== '') {
+                    $parts[] = '- ' . $label . ': ' . $url;
+                }
+            }
+        }
+
         $parts[] = '';
         $parts[] = 'Dados do processo no DataJud:';
         $this->appendLine($parts, 'Tribunal', data_get($source, 'tribunal'));
@@ -203,7 +246,7 @@ class ProcessDataJudService
     private function movementDescription(array $movement): string
     {
         $name = trim((string) (data_get($movement, 'nome') ?: 'Movimento DataJud'));
-        $complements = $this->movementComplements($movement);
+        $complements = $this->movementComplements($movement, false);
 
         if ($complements !== []) {
             $name .= ' - ' . implode(' | ', array_slice($complements, 0, 2));
@@ -212,7 +255,7 @@ class ProcessDataJudService
         return Str::limit($name, 255, '');
     }
 
-    private function movementComplements(array $movement): array
+    private function movementComplements(array $movement, bool $includeMeta = true): array
     {
         $items = [];
 
@@ -226,15 +269,19 @@ class ProcessDataJudService
             $value = data_get($complement, 'valor');
             $code = data_get($complement, 'codigo');
 
+            $description = $description !== ''
+                ? Str::ucfirst(Str::of($description)->replace('_', ' ')->lower()->toString())
+                : '';
+
             $label = $description !== '' && $name !== ''
                 ? "{$description}: {$name}"
                 : ($name !== '' ? $name : $description);
 
             $meta = [];
-            if ($value !== null && $value !== '') {
+            if ($includeMeta && $value !== null && $value !== '') {
                 $meta[] = 'valor ' . $value;
             }
-            if ($code !== null && $code !== '') {
+            if ($includeMeta && $code !== null && $code !== '') {
                 $meta[] = 'codigo ' . $code;
             }
 
@@ -279,7 +326,7 @@ class ProcessDataJudService
     private function namedCode(mixed $value): string
     {
         if (!is_array($value)) {
-            return trim((string) $value);
+            return $this->formatDisplayValue(trim((string) $value));
         }
 
         $name = trim((string) data_get($value, 'nome', ''));
@@ -295,9 +342,127 @@ class ProcessDataJudService
     private function appendLine(array &$parts, string $label, mixed $value): void
     {
         $value = is_array($value) ? $this->namedCode($value) : trim((string) $value);
+        $value = $this->formatDisplayValue($value, $label);
 
         if ($value !== '') {
             $parts[] = "{$label}: {$value}";
         }
+    }
+
+    private function formatDisplayValue(string $value, ?string $label = null): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d{14}$/', $value) === 1) {
+            try {
+                return Carbon::createFromFormat('YmdHis', $value, 'UTC')
+                    ->timezone(config('app.timezone'))
+                    ->format('d/m/Y H:i:s');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        if ($label && str_contains(mb_strtolower($label, 'UTF-8'), 'data')) {
+            try {
+                return Carbon::parse($value)->timezone(config('app.timezone'))->format('d/m/Y H:i:s');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        return $value;
+    }
+
+    private function movementAttachments(array $movement): array
+    {
+        $items = [];
+        $this->collectMovementAttachments($movement, $items);
+
+        return collect($items)
+            ->filter(fn (array $item) => trim((string) ($item['url'] ?? '')) !== '')
+            ->unique(fn (array $item) => trim((string) ($item['url'] ?? '')))
+            ->values()
+            ->all();
+    }
+
+    private function collectMovementAttachments(array $payload, array &$items, string $path = ''): void
+    {
+        foreach ($payload as $key => $value) {
+            $currentPath = trim($path . '.' . (string) $key, '.');
+
+            if (is_array($value)) {
+                if ($this->looksLikeAttachmentNode($currentPath, $value)) {
+                    $items[] = $this->normalizeAttachmentNode($currentPath, $value);
+                }
+
+                $this->collectMovementAttachments($value, $items, $currentPath);
+            }
+        }
+    }
+
+    private function looksLikeAttachmentNode(string $path, array $value): bool
+    {
+        $path = mb_strtolower($path, 'UTF-8');
+
+        if (!str_contains($path, 'anex') && !str_contains($path, 'document') && !str_contains($path, 'arquivo') && !str_contains($path, 'link')) {
+            return false;
+        }
+
+        return trim((string) ($value['url'] ?? $value['href'] ?? $value['link'] ?? '')) !== '';
+    }
+
+    private function normalizeAttachmentNode(string $path, array $value): array
+    {
+        $url = trim((string) ($value['url'] ?? $value['href'] ?? $value['link'] ?? ''));
+        $label = trim((string) ($value['nome'] ?? $value['descricao'] ?? $value['titulo'] ?? $value['tipo'] ?? ''));
+
+        if ($label === '') {
+            $label = Str::headline(Str::afterLast($path, '.') ?: 'Documento');
+        }
+
+        return [
+            'label' => $label,
+            'url' => $url,
+        ];
+    }
+
+    private function recordScheduledSummary(array $summary): void
+    {
+        try {
+            AuditLog::query()->create([
+                'user_id' => null,
+                'user_email' => 'scheduler@ancora.local',
+                'action' => 'processos.datajud.schedule',
+                'entity_type' => 'process_cases',
+                'entity_id' => null,
+                'details' => sprintf(
+                    'Sincronizacao diaria do DataJud: %d verificado(s), %d atualizado(s), %d movimento(s) criado(s), %d revisado(s), %d ignorado(s).%s',
+                    (int) ($summary['checked'] ?? 0),
+                    (int) ($summary['updated'] ?? 0),
+                    (int) ($summary['created'] ?? 0),
+                    (int) ($summary['refreshed'] ?? 0),
+                    (int) ($summary['skipped'] ?? 0),
+                    !empty($summary['errors']) ? ' Erros: ' . implode(' | ', array_slice((array) $summary['errors'], 0, 5)) : ''
+                ),
+                'ip_address' => 'scheduler',
+                'user_agent' => 'artisan-processos:datajud-sync',
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable) {
+            // Mantem a rotina principal viva mesmo sem conseguir registrar a auditoria.
+        }
+    }
+
+    private function dataJudLogger()
+    {
+        return Log::build([
+            'driver' => 'single',
+            'path' => storage_path('logs/datajud-sync.log'),
+            'replace_placeholders' => true,
+        ]);
     }
 }

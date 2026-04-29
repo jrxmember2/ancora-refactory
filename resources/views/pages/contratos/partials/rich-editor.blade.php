@@ -8,6 +8,13 @@
     $showVariablePicker = $showVariablePicker ?? false;
     $toolbarButton = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-white/[0.06]';
     $toolbarSelect = 'h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200';
+    $variableGroups = collect($variableDefinitions)
+        ->map(fn ($variable) => [
+            'key' => is_array($variable) ? ($variable['group'] ?? 'sistema') : ($variable->group ?? 'sistema'),
+            'label' => is_array($variable) ? ($variable['group_label'] ?? 'Sistema') : ($variable->group_label ?? 'Sistema'),
+        ])
+        ->unique('key')
+        ->values();
 @endphp
 
 <div class="space-y-3" data-rich-editor-wrapper>
@@ -51,11 +58,18 @@
     @if($showVariablePicker)
         <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
             <div class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Variaveis disponiveis</div>
-            <div class="flex flex-wrap gap-2">
+            <div class="mb-4 flex flex-wrap gap-2" data-variable-filter-group>
+                <button type="button" class="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" data-variable-filter="all">Todos</button>
+                @foreach($variableGroups as $group)
+                    <button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200" data-variable-filter="{{ $group['key'] }}">{{ $group['label'] }}</button>
+                @endforeach
+            </div>
+            <div class="flex flex-wrap gap-2" data-variable-filter-container>
                 @foreach($variableDefinitions as $variable)
                     @php
                         $variableKey = is_array($variable) ? ($variable['key'] ?? '') : ($variable->key ?? '');
                         $variableDescription = is_array($variable) ? ($variable['description'] ?? '') : ($variable->description ?? '');
+                        $variableGroup = is_array($variable) ? ($variable['group'] ?? 'sistema') : ($variable->group ?? 'sistema');
                         $variableToken = '{{' . $variableKey . '}}';
                     @endphp
                     <button
@@ -63,6 +77,7 @@
                         class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200"
                         data-editor-variable="{{ $variableToken }}"
                         data-editor-target="{{ $editorId }}"
+                        data-variable-group="{{ $variableGroup }}"
                         title="{{ $variableDescription }}"
                     >
                         {{ $variableToken }}
@@ -161,6 +176,35 @@
                     const tableHtml = '<table style="width:100%; border-collapse:collapse;"><tr><td style="border:1px solid #d1d5db; padding:8px;">Campo</td><td style="border:1px solid #d1d5db; padding:8px;">Informacao</td></tr></table><p></p>';
                     document.execCommand('insertHTML', false, tableHtml);
                     syncEditor(target);
+                });
+            });
+
+            document.querySelectorAll('[data-variable-filter-group]').forEach((group) => {
+                group.addEventListener('click', (event) => {
+                    const button = event.target.closest('[data-variable-filter]');
+                    if (!button) {
+                        return;
+                    }
+
+                    const wrapper = group.closest('[data-rich-editor-wrapper]');
+                    const container = wrapper?.querySelector('[data-variable-filter-container]');
+                    const filter = button.getAttribute('data-variable-filter') || 'all';
+                    if (!container) {
+                        return;
+                    }
+
+                    group.querySelectorAll('[data-variable-filter]').forEach((item) => {
+                        item.classList.remove('border-brand-300', 'bg-brand-50', 'text-brand-700', 'dark:border-brand-800', 'dark:bg-brand-500/10', 'dark:text-brand-200');
+                        item.classList.add('border-gray-200', 'bg-white', 'text-gray-700', 'dark:border-gray-700', 'dark:bg-gray-900', 'dark:text-gray-200');
+                    });
+
+                    button.classList.remove('border-gray-200', 'bg-white', 'text-gray-700', 'dark:border-gray-700', 'dark:bg-gray-900', 'dark:text-gray-200');
+                    button.classList.add('border-brand-300', 'bg-brand-50', 'text-brand-700', 'dark:border-brand-800', 'dark:bg-brand-500/10', 'dark:text-brand-200');
+
+                    container.querySelectorAll('[data-variable-group]').forEach((item) => {
+                        const matches = filter === 'all' || item.getAttribute('data-variable-group') === filter;
+                        item.classList.toggle('hidden', !matches);
+                    });
                 });
             });
         });

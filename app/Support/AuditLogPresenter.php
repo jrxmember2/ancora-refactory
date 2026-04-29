@@ -64,6 +64,7 @@ class AuditLogPresenter
             'processos.attachments.upload' => 'Anexou arquivo no processo',
             'processos.attachments.delete' => 'Excluiu anexo do processo',
             'processos.datajud.sync' => 'Sincronizou processo com DataJud',
+            'processos.datajud.schedule' => 'Executou sincronizacao agendada do DataJud',
 
             'demandas.update' => 'Atualizou demanda',
             'demandas.tag.update' => 'Moveu demanda no kanban',
@@ -85,6 +86,7 @@ class AuditLogPresenter
             'contratos.store' => 'Criou contrato',
             'contratos.update' => 'Atualizou contrato',
             'contratos.delete' => 'Excluiu contrato',
+            'contratos.restore' => 'Restaurou contrato',
             'contratos.duplicate' => 'Duplicou contrato',
             'contratos.archive' => 'Arquivou contrato',
             'contratos.rescind' => 'Rescindiu contrato',
@@ -250,6 +252,7 @@ class AuditLogPresenter
                 Str::endsWith($routeName, '.store') => 'Tentou criar registro',
                 Str::endsWith($routeName, '.update') => 'Tentou atualizar registro',
                 Str::endsWith($routeName, '.delete') => 'Tentou excluir registro',
+                Str::endsWith($routeName, '.restore') => 'Tentou restaurar registro',
                 Str::endsWith($routeName, '.save') => 'Tentou salvar registro',
                 default => 'Tentou alterar',
             };
@@ -259,6 +262,7 @@ class AuditLogPresenter
             Str::endsWith($routeName, '.store') => 'Criou registro',
             Str::endsWith($routeName, '.update') => 'Atualizou registro',
             Str::endsWith($routeName, '.delete') => 'Excluiu registro',
+            Str::endsWith($routeName, '.restore') => 'Restaurou registro',
             Str::endsWith($routeName, '.save') => 'Salvou registro',
             Str::endsWith($routeName, '.upload') => 'Anexou arquivo em',
             Str::contains($routeName, '.import.preview') => 'Gerou prévia de',

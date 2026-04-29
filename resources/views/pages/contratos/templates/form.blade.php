@@ -99,11 +99,26 @@
         <aside class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Variaveis liberadas</h3>
+                @php
+                    $selectedVariables = old('available_variables', $item?->available_variables_json ?? []);
+                    $variableGroups = collect($variableDefinitions)
+                        ->map(fn ($variable) => [
+                            'key' => $variable['group'] ?? 'sistema',
+                            'label' => $variable['group_label'] ?? 'Sistema',
+                        ])
+                        ->unique('key')
+                        ->values();
+                @endphp
+                <div class="mt-4 flex flex-wrap gap-2" data-contract-variable-filter-group>
+                    <button type="button" class="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" data-contract-variable-filter="all">Todos</button>
+                    @foreach($variableGroups as $group)
+                        <button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200" data-contract-variable-filter="{{ $group['key'] }}">{{ $group['label'] }}</button>
+                    @endforeach
+                </div>
                 <div class="mt-4 space-y-3">
-                    @php($selectedVariables = old('available_variables', $item?->available_variables_json ?? []))
                     @foreach($variableDefinitions as $variable)
                         @php($variableToken = '{{' . ($variable['key'] ?? '') . '}}')
-                        <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                        <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200" data-contract-variable-group="{{ $variable['group'] ?? 'sistema' }}">
                             <input type="checkbox" name="available_variables[]" value="{{ $variable['key'] }}" @checked(in_array($variable['key'], $selectedVariables, true))>
                             <span>
                                 <span class="block font-semibold">{{ $variableToken }}</span>
@@ -122,3 +137,34 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-contract-variable-filter-group]').forEach((group) => {
+        group.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-contract-variable-filter]');
+            if (!button) {
+                return;
+            }
+
+            const panel = group.parentElement;
+            const filter = button.getAttribute('data-contract-variable-filter') || 'all';
+
+            group.querySelectorAll('[data-contract-variable-filter]').forEach((item) => {
+                item.classList.remove('border-brand-300', 'bg-brand-50', 'text-brand-700', 'dark:border-brand-800', 'dark:bg-brand-500/10', 'dark:text-brand-200');
+                item.classList.add('border-gray-200', 'bg-white', 'text-gray-700', 'dark:border-gray-700', 'dark:bg-gray-900', 'dark:text-gray-200');
+            });
+
+            button.classList.remove('border-gray-200', 'bg-white', 'text-gray-700', 'dark:border-gray-700', 'dark:bg-gray-900', 'dark:text-gray-200');
+            button.classList.add('border-brand-300', 'bg-brand-50', 'text-brand-700', 'dark:border-brand-800', 'dark:bg-brand-500/10', 'dark:text-brand-200');
+
+            panel.querySelectorAll('[data-contract-variable-group]').forEach((item) => {
+                const matches = filter === 'all' || item.getAttribute('data-contract-variable-group') === filter;
+                item.classList.toggle('hidden', !matches);
+            });
+        });
+    });
+});
+</script>
+@endpush

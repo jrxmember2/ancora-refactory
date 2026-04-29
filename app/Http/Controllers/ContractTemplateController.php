@@ -31,7 +31,7 @@ class ContractTemplateController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'typeOptions' => ContractCatalog::types(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
-            'variableDefinitions' => ContractVariableCatalog::definitions(),
+            'variableDefinitions' => ContractVariableCatalog::definitionsForTemplates(),
         ]);
     }
 
@@ -69,7 +69,7 @@ class ContractTemplateController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'typeOptions' => ContractCatalog::types(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
-            'variableDefinitions' => ContractVariableCatalog::definitions(),
+            'variableDefinitions' => ContractVariableCatalog::definitionsForTemplates(),
         ]);
     }
 

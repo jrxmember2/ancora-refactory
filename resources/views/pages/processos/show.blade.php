@@ -164,6 +164,20 @@
                             <div class="whitespace-pre-line text-sm leading-6 text-gray-700 dark:text-gray-200">{{ $phase->notes }}</div>
                         </div>
                     @endif
+                    @if($phase->source === 'datajud' && collect(data_get($phase->datajud_payload_json, 'anexos', []))->isNotEmpty())
+                        <div class="mt-4 rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                            <div class="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Anexos/localizadores DataJud</div>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach(data_get($phase->datajud_payload_json, 'anexos', []) as $attachment)
+                                    @if(!empty($attachment['url']))
+                                        <a href="{{ $attachment['url'] }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
+                                            {{ $attachment['label'] ?? 'Documento' }}
+                                        </a>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                     @if($phase->legal_opinion || $phase->conference)
                         <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                             <div class="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
