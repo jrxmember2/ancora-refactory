@@ -143,19 +143,14 @@ class CobrancaAgreementPdfService
             'type' => $this->clientAttachmentKind($attachment),
             'title' => 'Documento do proprietario',
             'original_name' => (string) $attachment->original_name,
-            'relative_path' => '/' . ltrim((string) $attachment->relative_path, '/'),
+            'relative_path' => $attachment->publicUrl(),
             'absolute_path' => $this->clientAttachmentAbsolutePath($attachment),
         ];
     }
 
     private function clientAttachmentAbsolutePath(ClientAttachment $attachment): ?string
     {
-        $relativePath = trim((string) $attachment->relative_path);
-        if ($relativePath === '') {
-            return null;
-        }
-
-        return public_path(ltrim($relativePath, '/'));
+        return $attachment->absolutePath();
     }
 
     private function clientAttachmentKind(ClientAttachment $attachment): string

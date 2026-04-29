@@ -956,7 +956,7 @@ class CobrancaController extends Controller
     private function ownerDocumentViewData(ClientAttachment $attachment): array
     {
         $absolutePath = $this->clientAttachmentAbsolutePath($attachment);
-        $relativePath = '/' . ltrim((string) $attachment->relative_path, '/');
+        $relativePath = $attachment->publicUrl();
 
         return [
             'type' => $this->clientAttachmentKind($attachment),
@@ -969,12 +969,7 @@ class CobrancaController extends Controller
 
     private function clientAttachmentAbsolutePath(ClientAttachment $attachment): ?string
     {
-        $relativePath = trim((string) $attachment->relative_path);
-        if ($relativePath === '') {
-            return null;
-        }
-
-        return public_path(ltrim($relativePath, '/'));
+        return $attachment->absolutePath();
     }
 
     private function clientAttachmentKind(ClientAttachment $attachment): string

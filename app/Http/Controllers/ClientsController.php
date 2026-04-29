@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -707,10 +708,7 @@ class ClientsController extends Controller
 
     private function storeAttachmentFiles(string $relatedType, int $relatedId, array $files, string $role, Request $request, ?string $labelPrefix = null): void
     {
-        $dir = public_path('uploads/clientes/' . $relatedType . '/' . $relatedId);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
+        $directory = 'clientes/' . $relatedType . '/' . $relatedId;
 
         foreach ($files as $file) {
             if (!$file instanceof UploadedFile || !$file->isValid()) {
@@ -734,7 +732,7 @@ class ClientsController extends Controller
             $mimeType = Str::limit((string) $file->getClientMimeType(), 120, '');
             $fileSize = $this->safeUploadedFileSize($file);
 
-            $file->move($dir, $stored);
+            Storage::disk('public')->putFileAs($directory, $file, $stored);
 
             ClientAttachment::query()->create([
                 'related_type' => $relatedType,
@@ -742,7 +740,7 @@ class ClientsController extends Controller
                 'file_role' => $role,
                 'original_name' => $originalName,
                 'stored_name' => $stored,
-                'relative_path' => '/uploads/clientes/' . $relatedType . '/' . $relatedId . '/' . $stored,
+                'relative_path' => '/storage/' . $directory . '/' . $stored,
                 'mime_type' => $mimeType ?: null,
                 'file_size' => $fileSize,
                 'uploaded_by' => AncoraAuth::user($request)?->id,
@@ -1552,16 +1550,16 @@ class ClientsController extends Controller
 
     public function attachmentDownload(ClientAttachment $attachment): BinaryFileResponse
     {
-        $path = public_path(ltrim($attachment->relative_path, '/'));
-        abort_unless(is_file($path), 404, 'Arquivo não encontrado.');
+        $path = $attachment->absolutePath();
+        abort_unless(is_string($path) && is_file($path), 404, 'Arquivo não encontrado.');
         return response()->download($path, $attachment->original_name);
     }
 
     public function attachmentDelete(ClientAttachment $attachment): RedirectResponse
     {
         $redirect = $this->attachmentReturnRedirect($attachment);
-        $path = public_path(ltrim($attachment->relative_path, '/'));
-        if (is_file($path)) {
+        $path = $attachment->absolutePath();
+        if (is_string($path) && is_file($path)) {
             @unlink($path);
         }
         $attachment->delete();

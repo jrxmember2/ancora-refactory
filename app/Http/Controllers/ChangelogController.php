@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.78',
+            'version' => 'v1.79',
             'date' => '29/04/2026',
-            'label' => 'v1.78 - 29/04/2026',
+            'label' => 'v1.79 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Anexos de cliente e sindico passam a usar o disco publico persistente',
+                'items' => [
+                    'Os novos anexos de cadastro de cliente, condominio, unidade e sindico deixam de ser gravados em public/uploads/clientes e passam a usar o disco publico do Laravel em /storage/clientes, reduzindo perda de arquivos em redeploy.',
+                    'Download, exclusao e leitura de anexos passam a aceitar tanto o caminho antigo em /uploads/clientes quanto o novo em /storage/clientes, preservando compatibilidade com registros ja existentes.',
+                    'A leitura dos anexos selecionados para PDF de contrato e dos documentos exibidos na cobranca/acordo passa a resolver corretamente os arquivos gravados no novo caminho persistente.',
+                ],
+            ],
+            [
+                'version' => 'v1.78',
+                'date' => '29/04/2026',
                 'title' => 'Anexos do contrato desacoplados do corpo e icones do rodape preservados',
                 'items' => [
                     'Os anexos selecionados para o contrato deixam de ser renderizados dentro do mesmo HTML do documento principal e passam a ser gerados em um PDF proprio, depois mesclado ao final do contrato. Isso reduz falhas de anexo, inclusive para documentos do sindico.',

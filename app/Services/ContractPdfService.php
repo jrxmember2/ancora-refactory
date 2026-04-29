@@ -559,13 +559,24 @@ class ContractPdfService
 
         $candidates = [];
         if ($relativePath !== '') {
-            $candidates[] = public_path(ltrim($relativePath, '/'));
-            $candidates[] = storage_path('app/public/' . ltrim($relativePath, '/'));
+            if (Str::startsWith($relativePath, ['/storage/', 'storage/'])) {
+                $storageRelative = preg_replace('#^/?storage/#', '', $relativePath) ?: '';
+                if ($storageRelative !== '') {
+                    $candidates[] = storage_path('app/public/' . ltrim($storageRelative, '/'));
+                    $candidates[] = public_path('storage/' . ltrim($storageRelative, '/'));
+                }
+            } elseif (Str::startsWith($relativePath, ['/uploads/', 'uploads/'])) {
+                $candidates[] = public_path(ltrim($relativePath, '/'));
+            } else {
+                $candidates[] = storage_path('app/public/' . ltrim($relativePath, '/'));
+                $candidates[] = public_path(ltrim($relativePath, '/'));
+            }
         }
 
         if ($storedName !== '' && !empty($attachment['owner_type'] ?? null) && !empty($attachment['owner_id'] ?? null)) {
             $ownerType = trim((string) $attachment['owner_type']);
             $ownerId = (int) $attachment['owner_id'];
+            $candidates[] = storage_path('app/public/clientes/' . $ownerType . '/' . $ownerId . '/' . $storedName);
             $candidates[] = public_path('uploads/clientes/' . $ownerType . '/' . $ownerId . '/' . $storedName);
         }
 
