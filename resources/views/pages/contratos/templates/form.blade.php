@@ -10,7 +10,7 @@
     <a href="{{ route('contratos.templates.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
 </x-ancora.section-header>
 
-<form method="post" action="{{ $mode === 'create' ? route('contratos.templates.store') : route('contratos.templates.update', $item) }}" class="space-y-6">
+<form method="post" action="{{ $mode === 'create' ? route('contratos.templates.store') : route('contratos.templates.update', $item) }}" class="space-y-6" id="contract-template-form">
     @csrf
     @if($mode === 'edit') @method('PUT') @endif
 
@@ -100,7 +100,17 @@
 
         <aside class="space-y-6">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Variaveis liberadas</h3>
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Variaveis liberadas</h3>
+                    <button
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                        data-contract-variable-toggle
+                        aria-expanded="false"
+                    >
+                        Mostrar variaveis
+                    </button>
+                </div>
                 @php
                     $selectedVariables = old('available_variables', $item?->available_variables_json ?? []);
                     $variableGroups = collect($variableDefinitions)
@@ -111,25 +121,30 @@
                         ->unique('key')
                         ->values();
                 @endphp
-                <div class="mt-4 flex flex-wrap gap-2" data-contract-variable-filter-group>
-                    <button type="button" class="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" data-contract-variable-filter="all">Todos</button>
-                    @foreach($variableGroups as $group)
-                        <button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200" data-contract-variable-filter="{{ $group['key'] }}">{{ $group['label'] }}</button>
-                    @endforeach
+                <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    {{ count($selectedVariables) }} variavel(is) liberada(s) neste template.
                 </div>
-                <div class="mt-4 space-y-3">
-                    @foreach($variableDefinitions as $variable)
-                        @php
-                            $variableToken = '{' . '{' . ($variable['key'] ?? '') . '}' . '}';
-                        @endphp
-                        <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200" data-contract-variable-group="{{ $variable['group'] ?? 'sistema' }}">
-                            <input type="checkbox" name="available_variables[]" value="{{ $variable['key'] }}" @checked(in_array($variable['key'], $selectedVariables, true))>
-                            <span>
-                                <span class="block font-semibold">{{ $variableToken }}</span>
-                                <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $variable['description'] }}</span>
-                            </span>
-                        </label>
-                    @endforeach
+                <div class="mt-4 hidden space-y-4" data-contract-variable-panel>
+                    <div class="flex flex-wrap gap-2" data-contract-variable-filter-group>
+                        <button type="button" class="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" data-contract-variable-filter="all">Todos</button>
+                        @foreach($variableGroups as $group)
+                            <button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200" data-contract-variable-filter="{{ $group['key'] }}">{{ $group['label'] }}</button>
+                        @endforeach
+                    </div>
+                    <div class="space-y-3">
+                        @foreach($variableDefinitions as $variable)
+                            @php
+                                $variableToken = '{' . '{' . ($variable['key'] ?? '') . '}' . '}';
+                            @endphp
+                            <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200" data-contract-variable-group="{{ $variable['group'] ?? 'sistema' }}">
+                                <input type="checkbox" name="available_variables[]" value="{{ $variable['key'] }}" @checked(in_array($variable['key'], $selectedVariables, true))>
+                                <span>
+                                    <span class="block font-semibold">{{ $variableToken }}</span>
+                                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $variable['description'] }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </aside>
@@ -145,6 +160,42 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('#contract-template-form');
+
+    const syncTemplateEditors = () => {
+        if (!form) {
+            return;
+        }
+
+        form.querySelectorAll('[data-rich-editor]').forEach((editor) => {
+            const editorId = editor.getAttribute('data-rich-editor');
+            const input = form.querySelector(`[data-rich-editor-input="${editorId}"]`);
+            if (!input) {
+                return;
+            }
+
+            input.value = editor.innerHTML.trim();
+        });
+    };
+
+    form?.addEventListener('submit', () => {
+        syncTemplateEditors();
+    });
+
+    document.querySelectorAll('[data-contract-variable-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const panel = button.closest('.rounded-2xl')?.querySelector('[data-contract-variable-panel]');
+            if (!panel) {
+                return;
+            }
+
+            const willShow = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !willShow);
+            button.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+            button.textContent = willShow ? 'Ocultar variaveis' : 'Mostrar variaveis';
+        });
+    });
+
     document.querySelectorAll('[data-contract-variable-filter-group]').forEach((group) => {
         group.addEventListener('click', (event) => {
             const button = event.target.closest('[data-contract-variable-filter]');

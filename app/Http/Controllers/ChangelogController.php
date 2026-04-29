@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.62',
+            'version' => 'v1.63',
             'date' => '29/04/2026',
-            'label' => 'v1.62 - 29/04/2026',
+            'label' => 'v1.63 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix no salvamento de templates e painel recolhido de variaveis',
+                'items' => [
+                    'A tela de template agora sincroniza explicitamente o editor rico antes do submit, evitando falso positivo de Template atualizado com sucesso quando o conteudo alterado ainda nao tinha ido para o campo oculto.',
+                    'O bloco Variaveis liberadas passa a abrir recolhido por padrao e ganha botao para mostrar ou ocultar, deixando a tela mais limpa durante a edicao.',
+                    'O painel informa quantas variaveis estao liberadas no template sem precisar expandir a lista inteira.',
+                ],
+            ],
+            [
+                'version' => 'v1.62',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix no preview do contrato em modo de edicao',
                 'items' => [
                     'O botao Carregar ou atualizar preview volta a funcionar ao editar contratos, mesmo quando o texto do editor for apagado antes de recarregar o template.',
