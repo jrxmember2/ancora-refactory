@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.61',
-            'date' => '28/04/2026',
-            'label' => 'v1.61 - 28/04/2026',
+            'version' => 'v1.62',
+            'date' => '29/04/2026',
+            'label' => 'v1.62 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix no preview do contrato em modo de edicao',
+                'items' => [
+                    'O botao Carregar ou atualizar preview volta a funcionar ao editar contratos, mesmo quando o texto do editor for apagado antes de recarregar o template.',
+                    'O frontend deixa de enviar o _method=PUT no fetch do preview, passa a exigir JSON e trata melhor respostas inesperadas para evitar o alerta bruto de Unexpected token.',
+                    'O backend agora reconhece editor vazio mesmo quando sobram tags residuais como paragrafos em branco, permitindo recarregar o template de forma limpa.',
+                ],
+            ],
+            [
+                'version' => 'v1.61',
+                'date' => '28/04/2026',
                 'title' => 'Hotfix de Blade no template de contratos',
                 'items' => [
                     'A tela de edicao de templates do modulo Contratos volta a abrir normalmente apos remover expressoes Blade sensiveis envolvendo chaves de variaveis e @php curto com arrays.',

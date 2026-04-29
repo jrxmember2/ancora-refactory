@@ -374,6 +374,22 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastAutoTitle = titleInput ? titleInput.value.trim() : '';
     let syndicTouched = false;
 
+    const normalizeEditorHtml = (html) => {
+        const value = String(html || '').trim();
+        if (!value) {
+            return '';
+        }
+
+        const container = document.createElement('div');
+        container.innerHTML = value;
+        const plain = (container.textContent || container.innerText || '')
+            .replace(/\u00a0/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return plain === '' ? '' : value;
+    };
+
     const formatMoneyField = (field) => {
         const digits = String(field.value || '').replace(/\D/g, '');
         if (!digits) {
@@ -461,24 +477,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (previewButton && form && editor && input) {
         previewButton.addEventListener('click', async () => {
-            input.value = editor.innerHTML.trim();
+            input.value = normalizeEditorHtml(editor.innerHTML);
             const formData = new FormData(form);
+            formData.set('content_html', input.value);
+            formData.delete('_method');
+            formData.delete('generate_pdf_now');
             previewButton.disabled = true;
             previewButton.textContent = 'Carregando...';
 
             try {
                 const response = await fetch(@json(route('contratos.preview.resolve')), {
                     method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    },
                     body: formData,
                 });
-                const data = await response.json();
+                const raw = await response.text();
+                let data = {};
+
+                try {
+                    data = raw ? JSON.parse(raw) : {};
+                } catch (parseError) {
+                    throw new Error('A resposta do preview nao veio em JSON. Recarregue a pagina e tente novamente.');
+                }
+
                 if (!response.ok) {
                     throw new Error(data.message || 'Nao foi possivel carregar o preview.');
                 }
 
                 editor.innerHTML = data.html || '';
-                input.value = editor.innerHTML.trim();
+                input.value = normalizeEditorHtml(editor.innerHTML);
             } catch (error) {
                 window.alert(error.message || 'Nao foi possivel carregar o preview do contrato.');
             } finally {

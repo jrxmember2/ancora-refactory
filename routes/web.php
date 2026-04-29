@@ -191,7 +191,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/', [ContractController::class, 'index'])->name('contratos.index')->middleware('ancora.route:contratos.index');
         Route::get('/novo', [ContractController::class, 'create'])->name('contratos.create')->middleware('ancora.route:contratos.create');
         Route::post('/store', [ContractController::class, 'store'])->name('contratos.store')->middleware('ancora.route:contratos.store');
-        Route::post('/preview-template', [ContractController::class, 'resolvePreview'])->name('contratos.preview.resolve')->middleware('ancora.route:contratos.preview.resolve');
+        Route::match(['post', 'put'], '/preview-template', [ContractController::class, 'resolvePreview'])->name('contratos.preview.resolve')->middleware('ancora.route:contratos.preview.resolve');
         Route::get('/templates', [ContractTemplateController::class, 'index'])->name('contratos.templates.index')->middleware('ancora.route:contratos.templates.index');
         Route::get('/templates/novo', [ContractTemplateController::class, 'create'])->name('contratos.templates.create')->middleware('ancora.route:contratos.templates.create');
         Route::post('/templates/store', [ContractTemplateController::class, 'store'])->name('contratos.templates.store')->middleware('ancora.route:contratos.templates.store');

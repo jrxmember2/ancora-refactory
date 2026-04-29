@@ -429,13 +429,14 @@ class ContractController extends Controller
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
 
-        $html = trim((string) $request->input('content_html'));
+        $html = $this->normalizedEditorHtml($request->input('content_html'));
         if ($html === '' && !$template) {
             return response()->json(['message' => 'Selecione um template para carregar o preview.'], 422);
         }
 
         $attributes = array_merge($request->all(), [
             'title' => $this->resolvedTitle($template, $request->all()),
+            'content_html' => $html,
         ]);
 
         return response()->json([
@@ -727,10 +728,25 @@ class ContractController extends Controller
             'cost_center_future' => trim((string) ($data['cost_center_future'] ?? '')) ?: null,
             'financial_category_future' => trim((string) ($data['financial_category_future'] ?? '')) ?: null,
             'financial_notes' => trim((string) ($data['financial_notes'] ?? '')) ?: null,
-            'content_html' => trim((string) ($data['content_html'] ?? '')) ?: null,
+            'content_html' => $this->normalizedEditorHtml($data['content_html'] ?? null) ?: null,
             'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
             'responsible_user_id' => $data['responsible_user_id'] ?? null,
         ];
+    }
+
+    private function normalizedEditorHtml(mixed $html): string
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return '';
+        }
+
+        $plain = str_replace(['&nbsp;', "\xc2\xa0"], ' ', $html);
+        $plain = preg_replace('/<br\s*\/?>/i', ' ', $plain) ?? $plain;
+        $plain = html_entity_decode(strip_tags($plain), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+
+        return trim($plain) === '' ? '' : $html;
     }
 
     private function resolvedTitle(?ContractTemplate $template, array $payload, ?Contract $contract = null): ?string
