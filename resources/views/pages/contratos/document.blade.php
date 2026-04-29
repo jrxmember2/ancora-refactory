@@ -31,9 +31,9 @@
             + substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '</li>');
         $footerLengthHints = max(0, (int) ceil(max(0, mb_strlen($footerMeasureText, 'UTF-8') - 90) / 90));
         $footerVisualLines = max(1, min(8, $footerLineHints > 0 ? $footerLineHints : 1));
-        $footerReserveCm = $renderFooterInBody ? min(5.5, 1.4 + (($footerVisualLines - 1) * 0.45) + ($footerLengthHints * 0.3)) : 0;
+        $footerReserveCm = $renderFooterInBody ? min(5.8, 2.0 + (($footerVisualLines - 1) * 0.45) + ($footerLengthHints * 0.3)) : 0;
         $effectiveBottomMargin = (float) ($margins['bottom'] ?? 2) + $footerReserveCm;
-        $footerBottomOffsetCm = $renderFooterInBody ? max(0, $effectiveBottomMargin - 0.15) : 0.15;
+        $footerBottomOffsetCm = 0.1;
     @endphp
     <style>
         @page {
@@ -203,8 +203,9 @@
             position: fixed;
             left: 0;
             right: 0;
-            bottom: {{ $renderFooterInBody ? '-' . $footerBottomOffsetCm . 'cm' : '0.15cm' }};
-            font-size: 11px;
+            bottom: {{ $footerBottomOffsetCm }}cm;
+            font-size: 10px;
+            line-height: 1.35;
             color: #6b7280;
         }
         .default-page-footer {
