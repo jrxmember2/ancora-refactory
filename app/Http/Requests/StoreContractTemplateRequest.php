@@ -27,6 +27,7 @@ class StoreContractTemplateRequest extends FormRequest
             'qualification_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
             'page_orientation' => ['required', 'string', Rule::in(array_keys(ContractCatalog::pageOrientations()))],
+            'page_size' => ['required', 'string', Rule::in(array_keys(ContractCatalog::pageSizes()))],
             'margin_top' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'margin_right' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'margin_bottom' => ['nullable', 'numeric', 'min:0', 'max:10'],

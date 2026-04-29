@@ -8,6 +8,7 @@
     $showVariablePicker = $showVariablePicker ?? false;
     $toolbarButton = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-white/[0.06]';
     $toolbarSelect = 'h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200';
+    $toolbarInput = 'h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-700 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200';
     $variableGroups = collect($variableDefinitions)
         ->map(fn ($variable) => [
             'key' => is_array($variable) ? ($variable['group'] ?? 'sistema') : ($variable->group ?? 'sistema'),
@@ -19,22 +20,29 @@
 
 <div class="space-y-3" data-rich-editor-wrapper>
     <div class="flex flex-wrap items-center gap-2">
-        <select class="{{ $toolbarSelect }}" data-editor-command="fontName" data-editor-target="{{ $editorId }}" title="Tipo de fonte">
+        <select class="{{ $toolbarSelect }}" data-editor-font-family data-editor-target="{{ $editorId }}" title="Tipo de fonte">
             <option value="">Fonte</option>
-            <option value="Arial">Arial</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Tahoma">Tahoma</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Verdana">Verdana</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Tahoma, sans-serif">Tahoma</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="Verdana, sans-serif">Verdana</option>
         </select>
-        <select class="{{ $toolbarSelect }}" data-editor-command="fontSize" data-editor-target="{{ $editorId }}" title="Tamanho da fonte">
+
+        <select class="{{ $toolbarSelect }}" data-editor-font-size data-editor-target="{{ $editorId }}" title="Tamanho da fonte">
             <option value="">Tamanho</option>
-            <option value="2">10</option>
-            <option value="3">12</option>
-            <option value="4">14</option>
-            <option value="5">18</option>
-            <option value="6">24</option>
+            @foreach([7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24] as $sizeOption)
+                <option value="{{ $sizeOption }}">{{ $sizeOption }}</option>
+            @endforeach
         </select>
+
+        <input type="number" min="1" step="0.5" value="10" class="{{ $toolbarInput }} w-20" data-editor-font-size-custom data-editor-target="{{ $editorId }}" title="Digite o tamanho da fonte">
+        <button type="button" class="{{ $toolbarButton }}" data-editor-font-size-apply data-editor-target="{{ $editorId }}" title="Aplicar tamanho digitado">pt</button>
+
+        <label class="{{ $toolbarButton }} cursor-pointer px-2" title="Cor da fonte">
+            <i class="fa-solid fa-palette"></i>
+            <input type="color" value="#1f2937" class="sr-only" data-editor-color data-editor-target="{{ $editorId }}">
+        </label>
 
         <button type="button" class="{{ $toolbarButton }}" data-editor-command="bold" data-editor-target="{{ $editorId }}" title="Negrito"><i class="fa-solid fa-bold"></i></button>
         <button type="button" class="{{ $toolbarButton }}" data-editor-command="italic" data-editor-target="{{ $editorId }}" title="Italico"><i class="fa-solid fa-italic"></i></button>
@@ -52,7 +60,8 @@
         <button type="button" class="{{ $toolbarButton }}" data-editor-command="justifyRight" data-editor-target="{{ $editorId }}" title="Alinhar a direita"><i class="fa-solid fa-align-right"></i></button>
         <button type="button" class="{{ $toolbarButton }}" data-editor-command="justifyFull" data-editor-target="{{ $editorId }}" title="Justificar"><i class="fa-solid fa-align-justify"></i></button>
 
-        <button type="button" class="{{ $toolbarButton }}" data-editor-table data-editor-target="{{ $editorId }}" title="Inserir tabela simples"><i class="fa-solid fa-table"></i></button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-table data-editor-target="{{ $editorId }}" title="Inserir tabela"><i class="fa-solid fa-table"></i></button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-rule data-editor-target="{{ $editorId }}" title="Inserir linha horizontal"><i class="fa-solid fa-minus"></i></button>
         <button type="button" class="{{ $toolbarButton }}" data-editor-image data-editor-target="{{ $editorId }}" title="Inserir imagem por URL ou caminho publico"><i class="fa-solid fa-image"></i></button>
         <button type="button" class="{{ $toolbarButton }}" data-editor-icon data-editor-target="{{ $editorId }}" title="Inserir icone do Font Awesome"><i class="fa-solid fa-icons"></i></button>
         <button type="button" class="{{ $toolbarButton }}" data-editor-token="{{ '{' . '{numero_pagina}' . '}' }}" data-editor-target="{{ $editorId }}" title="Inserir numero da pagina atual">#</button>
@@ -105,6 +114,66 @@
 </div>
 
 @once
+    <dialog id="rich-editor-table-dialog" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+        <form method="dialog" class="p-6 space-y-4" data-rich-editor-table-form>
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inserir tabela</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Defina o tamanho e a espessura das linhas.</p>
+                </div>
+                <button type="button" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-table-dialog">Fechar</button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Linhas</label>
+                    <input type="number" min="1" value="2" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white" name="rows">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Colunas</label>
+                    <input type="number" min="1" value="2" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white" name="cols">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Espessura da linha</label>
+                    <input type="number" min="0" step="0.5" value="1" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white" name="border_width">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cor da linha</label>
+                    <input type="color" value="#d1d5db" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-900" name="border_color">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-table-dialog">Cancelar</button>
+                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Inserir</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="rich-editor-rule-dialog" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+        <form method="dialog" class="p-6 space-y-4" data-rich-editor-rule-form>
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inserir linha horizontal</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Escolha a espessura e a cor da linha.</p>
+                </div>
+                <button type="button" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-rule-dialog">Fechar</button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Espessura</label>
+                    <input type="number" min="0" step="0.5" value="1" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white" name="thickness">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cor</label>
+                    <input type="color" value="#941415" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-900" name="color">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-rule-dialog">Cancelar</button>
+                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Inserir</button>
+            </div>
+        </form>
+    </dialog>
+
     @push('scripts')
         <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -121,7 +190,7 @@
                     return;
                 }
 
-                input.value = editor.innerHTML.trim();
+                input.value = editor.innerHTML.replace(/\u200B/g, '').trim();
             };
 
             const focusEditor = (editorId) => {
@@ -132,6 +201,110 @@
 
                 editor.focus();
                 return editor;
+            };
+
+            const getEditorSelectionRange = (editor) => {
+                const selection = window.getSelection();
+                if (!selection || selection.rangeCount === 0) {
+                    return null;
+                }
+
+                const range = selection.getRangeAt(0);
+                return editor.contains(range.commonAncestorContainer) ? range : null;
+            };
+
+            const applyInlineStyle = (editorId, styles) => {
+                const editor = focusEditor(editorId);
+                if (!editor) {
+                    return;
+                }
+
+                const range = getEditorSelectionRange(editor);
+                if (!range) {
+                    return;
+                }
+
+                const styleString = Object.entries(styles)
+                    .filter(([, value]) => String(value || '').trim() !== '')
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('; ');
+
+                if (!styleString) {
+                    return;
+                }
+
+                const selection = window.getSelection();
+
+                if (range.collapsed) {
+                    const span = document.createElement('span');
+                    span.setAttribute('style', styleString);
+                    const textNode = document.createTextNode('\u200B');
+                    span.appendChild(textNode);
+                    range.insertNode(span);
+
+                    const nextRange = document.createRange();
+                    nextRange.setStart(textNode, textNode.length);
+                    nextRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(nextRange);
+                } else {
+                    const contents = range.extractContents();
+                    const span = document.createElement('span');
+                    span.setAttribute('style', styleString);
+                    span.appendChild(contents);
+                    range.insertNode(span);
+
+                    const nextRange = document.createRange();
+                    nextRange.selectNodeContents(span);
+                    nextRange.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(nextRange);
+                }
+
+                syncEditor(editorId);
+            };
+
+            const applyFontSize = (editorId, size) => {
+                const normalized = String(size || '').replace(',', '.').trim();
+                if (!normalized || Number(normalized) <= 0) {
+                    return;
+                }
+
+                applyInlineStyle(editorId, {
+                    'font-size': `${normalized}pt`,
+                });
+            };
+
+            const insertHtml = (editorId, html) => {
+                const editor = focusEditor(editorId);
+                if (!editor || !html) {
+                    return;
+                }
+
+                document.execCommand('insertHTML', false, html);
+                syncEditor(editorId);
+            };
+
+            const buildTableHtml = (rows, cols, borderWidth, borderColor) => {
+                const width = Math.max(0, Number(borderWidth || 0));
+                const borderStyle = width > 0 ? `${width}px solid ${borderColor}` : '0';
+                let html = '<table style="width:100%; border-collapse:collapse;">';
+
+                for (let row = 0; row < rows; row++) {
+                    html += '<tr>';
+                    for (let col = 0; col < cols; col++) {
+                        html += `<td style="border:${borderStyle}; padding:8px;">&nbsp;</td>`;
+                    }
+                    html += '</tr>';
+                }
+
+                html += '</table><p></p>';
+                return html;
+            };
+
+            const buildRuleHtml = (thickness, color) => {
+                const value = Math.max(0, Number(thickness || 0));
+                return `<hr style="border:0; border-top:${value}px solid ${escapeHtmlAttribute(color || '#941415')};">`;
             };
 
             document.querySelectorAll('[data-rich-editor]').forEach((editor) => {
@@ -162,15 +335,67 @@
                 control.addEventListener(eventName, handler);
             });
 
+            document.querySelectorAll('[data-editor-font-family]').forEach((control) => {
+                control.addEventListener('change', () => {
+                    const value = control.value;
+                    const target = control.getAttribute('data-editor-target');
+                    if (!value || !target) {
+                        return;
+                    }
+
+                    applyInlineStyle(target, {
+                        'font-family': value,
+                    });
+                    control.value = '';
+                });
+            });
+
+            document.querySelectorAll('[data-editor-font-size]').forEach((control) => {
+                control.addEventListener('change', () => {
+                    const target = control.getAttribute('data-editor-target');
+                    if (!target || !control.value) {
+                        return;
+                    }
+
+                    applyFontSize(target, control.value);
+                    control.value = '';
+                });
+            });
+
+            document.querySelectorAll('[data-editor-font-size-apply]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    const input = document.querySelector(`[data-editor-font-size-custom][data-editor-target="${target}"]`);
+                    if (!target || !input) {
+                        return;
+                    }
+
+                    applyFontSize(target, input.value);
+                });
+            });
+
+            document.querySelectorAll('[data-editor-color]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    const target = input.getAttribute('data-editor-target');
+                    if (!target || !input.value) {
+                        return;
+                    }
+
+                    applyInlineStyle(target, {
+                        color: input.value,
+                    });
+                });
+            });
+
             document.querySelectorAll('[data-editor-variable]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const content = button.getAttribute('data-editor-variable');
-                    const editor = focusEditor(target);
-                    if (!editor) {
+                    if (!target || !content) {
                         return;
                     }
 
+                    focusEditor(target);
                     document.execCommand('insertText', false, content);
                     syncEditor(target);
                 });
@@ -180,41 +405,19 @@
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const content = button.getAttribute('data-editor-token');
-                    const editor = focusEditor(target);
-                    if (!editor) {
+                    if (!target || !content) {
                         return;
                     }
 
+                    focusEditor(target);
                     document.execCommand('insertText', false, content);
-                    syncEditor(target);
-                });
-            });
-
-            document.querySelectorAll('[data-editor-table]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    const target = button.getAttribute('data-editor-target');
-                    const editor = focusEditor(target);
-                    if (!editor) {
-                        return;
-                    }
-
-                    const tableHtml = '<table style="width:100%; border-collapse:collapse;"><tr><td style="border:1px solid #d1d5db; padding:8px;">Campo</td><td style="border:1px solid #d1d5db; padding:8px;">Informacao</td></tr></table><p></p>';
-                    document.execCommand('insertHTML', false, tableHtml);
                     syncEditor(target);
                 });
             });
 
             document.querySelectorAll('[data-editor-html]').forEach((button) => {
                 button.addEventListener('click', () => {
-                    const target = button.getAttribute('data-editor-target');
-                    const editor = focusEditor(target);
-                    const html = button.getAttribute('data-editor-html');
-                    if (!editor || !html) {
-                        return;
-                    }
-
-                    document.execCommand('insertHTML', false, html);
-                    syncEditor(target);
+                    insertHtml(button.getAttribute('data-editor-target'), button.getAttribute('data-editor-html'));
                 });
             });
 
@@ -232,9 +435,7 @@
                     }
 
                     const alt = window.prompt('Texto alternativo da imagem (opcional):') || '';
-                    const html = `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}" style="max-width:100%; height:auto;">`;
-                    document.execCommand('insertHTML', false, html);
-                    syncEditor(target);
+                    insertHtml(target, `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}" style="max-width:100%; height:auto;">`);
                 });
             });
 
@@ -251,10 +452,79 @@
                         return;
                     }
 
-                    const html = `<i class="${escapeHtmlAttribute(iconClass)}"></i>&nbsp;`;
-                    document.execCommand('insertHTML', false, html);
-                    syncEditor(target);
+                    insertHtml(target, `<i class="${escapeHtmlAttribute(iconClass)}"></i>&nbsp;`);
                 });
+            });
+
+            const tableDialog = document.querySelector('#rich-editor-table-dialog');
+            const ruleDialog = document.querySelector('#rich-editor-rule-dialog');
+
+            document.querySelectorAll('[data-editor-table]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (!tableDialog || !target) {
+                        return;
+                    }
+
+                    tableDialog.dataset.editorTarget = target;
+                    tableDialog.showModal();
+                });
+            });
+
+            document.querySelectorAll('[data-editor-rule]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (!ruleDialog || !target) {
+                        return;
+                    }
+
+                    ruleDialog.dataset.editorTarget = target;
+                    ruleDialog.showModal();
+                });
+            });
+
+            document.querySelectorAll('[data-rich-editor-close-dialog]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const selector = button.getAttribute('data-rich-editor-close-dialog');
+                    const dialog = selector ? document.querySelector(selector) : null;
+                    dialog?.close();
+                });
+            });
+
+            document.querySelector('[data-rich-editor-table-form]')?.addEventListener('submit', (event) => {
+                event.preventDefault();
+
+                const dialog = tableDialog;
+                const target = dialog?.dataset.editorTarget;
+                if (!dialog || !target) {
+                    return;
+                }
+
+                const formData = new FormData(event.currentTarget);
+                const rows = Math.max(1, Number(formData.get('rows') || 1));
+                const cols = Math.max(1, Number(formData.get('cols') || 1));
+                const borderWidth = Number(formData.get('border_width') || 0);
+                const borderColor = String(formData.get('border_color') || '#d1d5db');
+
+                insertHtml(target, buildTableHtml(rows, cols, borderWidth, borderColor));
+                dialog.close();
+            });
+
+            document.querySelector('[data-rich-editor-rule-form]')?.addEventListener('submit', (event) => {
+                event.preventDefault();
+
+                const dialog = ruleDialog;
+                const target = dialog?.dataset.editorTarget;
+                if (!dialog || !target) {
+                    return;
+                }
+
+                const formData = new FormData(event.currentTarget);
+                const thickness = Number(formData.get('thickness') || 1);
+                const color = String(formData.get('color') || '#941415');
+
+                insertHtml(target, buildRuleHtml(thickness, color));
+                dialog.close();
             });
 
             document.querySelectorAll('[data-variable-filter-group]').forEach((group) => {

@@ -31,6 +31,7 @@ class ContractTemplateController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'typeOptions' => ContractCatalog::types(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
+            'pageSizeOptions' => ContractCatalog::pageSizes(),
             'variableDefinitions' => ContractVariableCatalog::definitionsForTemplates(),
         ]);
     }
@@ -51,6 +52,7 @@ class ContractTemplateController extends Controller
             'qualification_html' => trim((string) $request->input('qualification_html', '')) ?: null,
             'footer_html' => trim((string) $request->input('footer_html', '')) ?: null,
             'page_orientation' => $request->input('page_orientation', 'portrait'),
+            'page_size' => $request->input('page_size', 'a4'),
             'margins_json' => $this->marginsFromRequest($request),
             'available_variables_json' => array_values(array_filter((array) $request->input('available_variables', []))),
             'is_active' => $request->boolean('is_active', true),
@@ -70,6 +72,7 @@ class ContractTemplateController extends Controller
             'categories' => ContractCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'typeOptions' => ContractCatalog::types(),
             'orientationOptions' => ContractCatalog::pageOrientations(),
+            'pageSizeOptions' => ContractCatalog::pageSizes(),
             'variableDefinitions' => ContractVariableCatalog::definitionsForTemplates(),
         ]);
     }
@@ -90,6 +93,7 @@ class ContractTemplateController extends Controller
             'qualification_html' => trim((string) $request->input('qualification_html', '')) ?: null,
             'footer_html' => trim((string) $request->input('footer_html', '')) ?: null,
             'page_orientation' => $request->input('page_orientation', 'portrait'),
+            'page_size' => $request->input('page_size', 'a4'),
             'margins_json' => $this->marginsFromRequest($request),
             'available_variables_json' => array_values(array_filter((array) $request->input('available_variables', []))),
             'is_active' => $request->boolean('is_active', true),

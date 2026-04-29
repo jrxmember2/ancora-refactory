@@ -83,6 +83,15 @@ class ContractCatalog
         ];
     }
 
+    public static function pageSizes(): array
+    {
+        return [
+            'a4' => 'A4',
+            'legal' => 'Oficio',
+            'letter' => 'Carta',
+        ];
+    }
+
     public static function fileTypes(): array
     {
         return [

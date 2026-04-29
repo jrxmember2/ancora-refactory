@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.65',
+            'version' => 'v1.66',
             'date' => '29/04/2026',
-            'label' => 'v1.65 - 29/04/2026',
+            'label' => 'v1.66 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Contratos com rodape por pagina, folha configuravel e editor mais completo',
+                'items' => [
+                    'Quadros de qualificacao do PDF passam a ficar empilhados, um abaixo do outro, preservando a organizacao interna em duas colunas invisiveis quando fizer sentido.',
+                    'Rodape do contrato agora vira rodape real de pagina no PDF: o padrao do sistema aparece em todas as paginas quando nao houver customizacao, e o rodape personalizado substitui integralmente o padrao quando existir.',
+                    'Templates passam a escolher tambem o tipo de folha entre A4, Oficio e Carta, e a geracao do PDF respeita esse formato junto com orientacao e margens.',
+                    'Editor rico do modulo Contratos ganha tamanhos de fonte menores, tamanho digitavel, cor de fonte, insercao configuravel de linha horizontal e modal para montar tabelas com espessura de borda, inclusive invisivel.',
+                ],
+            ],
+            [
+                'version' => 'v1.65',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix na geracao do PDF de contratos',
                 'items' => [
                     'Corrigida a montagem das linhas de qualificacao do PDF do contrato, eliminando o erro array_values() expects exactly 1 argument, 2 given ao gerar a versao final.',

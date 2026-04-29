@@ -52,6 +52,14 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de folha</label>
+                        <select name="page_size" class="{{ $inputClass }}">
+                            @foreach($pageSizeOptions as $key => $label)
+                                <option value="{{ $key }}" @selected(old('page_size', $item?->page_size ?? 'a4') === $key)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="md:col-span-2">
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Descricao</label>
                         <input name="description" value="{{ old('description', $item?->description) }}" class="{{ $inputClass }}">

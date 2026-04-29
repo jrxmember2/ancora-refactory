@@ -38,7 +38,7 @@ class ContractPdfService
         ]))->render());
 
         $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
-            || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath, $contract->template?->margins_json ?? null);
+            || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath, $contract->template?->margins_json ?? null, (string) ($contract->template?->page_size ?? 'a4'), (string) ($contract->template?->page_orientation ?? 'portrait'));
 
         File::delete($htmlPath);
 
@@ -119,7 +119,7 @@ class ContractPdfService
         }
     }
 
-    private function renderPdfWithWkhtmltopdf(string $htmlPath, string $pdfPath, ?array $margins = null): bool
+    private function renderPdfWithWkhtmltopdf(string $htmlPath, string $pdfPath, ?array $margins = null, string $pageSize = 'a4', string $orientation = 'portrait'): bool
     {
         $binary = $this->availableExecutable(['wkhtmltopdf']);
         if (!$binary) {
@@ -127,6 +127,12 @@ class ContractPdfService
         }
 
         $margins = array_merge(['top' => 10, 'right' => 10, 'bottom' => 10, 'left' => 10], $margins ?? []);
+        $wkhtmlPageSize = match ($pageSize) {
+            'legal' => 'Legal',
+            'letter' => 'Letter',
+            default => 'A4',
+        };
+        $wkhtmlOrientation = $orientation === 'landscape' ? 'Landscape' : 'Portrait';
 
         try {
             $process = new Process([
@@ -135,7 +141,9 @@ class ContractPdfService
                 '--encoding',
                 'UTF-8',
                 '--page-size',
-                'A4',
+                $wkhtmlPageSize,
+                '--orientation',
+                $wkhtmlOrientation,
                 '--margin-top',
                 (string) $margins['top'],
                 '--margin-right',
