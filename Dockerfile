@@ -9,12 +9,14 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip zip libzip-dev libicu-dev libonig-dev libxml2-dev \
-    && docker-php-ext-install intl zip \
+    git unzip zip libzip-dev libicu-dev libonig-dev libxml2-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install intl zip mbstring gd \
     && rm -rf /var/lib/apt/lists/*
 
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
+RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts \
+    && composer update mpdf/mpdf --with-all-dependencies --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
 
 FROM node:22-alpine AS assets
 WORKDIR /app
@@ -29,8 +31,9 @@ FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv chromium poppler-utils fonts-dejavu-core fonts-liberation \
-    && docker-php-ext-install pdo pdo_mysql intl zip \
+    git unzip zip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv chromium poppler-utils fonts-dejavu-core fonts-liberation \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql intl zip mbstring gd \
     && python3 -m venv /opt/pyenv \
     && /opt/pyenv/bin/pip install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 websocket-client==1.8.0 \
     && a2enmod rewrite headers \

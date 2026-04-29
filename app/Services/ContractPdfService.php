@@ -33,6 +33,7 @@ class ContractPdfService
         $appendixSections = $this->buildAppendixSections($appendixAttachments);
         $generated = false;
         $externalFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-external-footer.html';
+        $mpdfFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-mpdf-footer.html';
         $wkhtmlFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml-footer.html';
         $chromiumFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-chromium-footer.html';
 
@@ -42,17 +43,29 @@ class ContractPdfService
             'appendixSections' => $appendixSections,
             'renderFooterInBody' => false,
         ]))->render());
+        File::put($mpdfFooterHtmlPath, $this->buildMpdfFooterTemplate($payload));
         File::put($wkhtmlFooterHtmlPath, $this->buildWkhtmlFooterHtml($payload));
         File::put($chromiumFooterHtmlPath, $this->buildChromiumFooterHtml($payload));
 
-        $generated = $this->renderPdfWithChromiumDevtools(
+        $generated = $this->renderPdfWithMpdf(
             $externalFooterHtmlPath,
             $pdfPath,
             $contract->template?->margins_json ?? null,
             (string) ($contract->template?->page_size ?? 'a4'),
             (string) ($contract->template?->page_orientation ?? 'portrait'),
-            $chromiumFooterHtmlPath
+            $mpdfFooterHtmlPath
         );
+
+        if (!$generated) {
+            $generated = $this->renderPdfWithChromiumDevtools(
+                $externalFooterHtmlPath,
+                $pdfPath,
+                $contract->template?->margins_json ?? null,
+                (string) ($contract->template?->page_size ?? 'a4'),
+                (string) ($contract->template?->page_orientation ?? 'portrait'),
+                $chromiumFooterHtmlPath
+            );
+        }
 
         if (!$generated) {
             $generated = $this->renderPdfWithWkhtmltopdf(
@@ -65,7 +78,7 @@ class ContractPdfService
             );
         }
 
-        File::delete([$externalFooterHtmlPath, $wkhtmlFooterHtmlPath, $chromiumFooterHtmlPath]);
+        File::delete([$externalFooterHtmlPath, $mpdfFooterHtmlPath, $wkhtmlFooterHtmlPath, $chromiumFooterHtmlPath]);
 
         if (!$generated) {
             File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
@@ -153,6 +166,57 @@ class ContractPdfService
             return false;
         } finally {
             File::deleteDirectory($profileDir);
+        }
+    }
+
+    private function renderPdfWithMpdf(
+        string $htmlPath,
+        string $pdfPath,
+        ?array $margins = null,
+        string $pageSize = 'a4',
+        string $orientation = 'portrait',
+        ?string $footerTemplatePath = null
+    ): bool {
+        if (!class_exists(\Mpdf\Mpdf::class)) {
+            return false;
+        }
+
+        $margins = array_merge(['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3], $margins ?? []);
+        $footerTemplate = ($footerTemplatePath && is_file($footerTemplatePath)) ? (string) File::get($footerTemplatePath) : '';
+        $footerReserveMm = $this->footerReserveMm($footerTemplate);
+        $tempDir = storage_path('framework/cache/mpdf');
+        File::ensureDirectoryExists($tempDir);
+
+        try {
+            $mpdf = new \Mpdf\Mpdf([
+                'tempDir' => $tempDir,
+                'format' => $this->mpdfPageFormat($pageSize),
+                'orientation' => $orientation === 'landscape' ? 'L' : 'P',
+                'margin_top' => $this->cmToMm((float) ($margins['top'] ?? 3)),
+                'margin_right' => $this->cmToMm((float) ($margins['right'] ?? 2)),
+                'margin_bottom' => $this->cmToMm((float) ($margins['bottom'] ?? 2)),
+                'margin_left' => $this->cmToMm((float) ($margins['left'] ?? 3)),
+                'margin_footer' => max(6, $footerReserveMm),
+                'setAutoTopMargin' => 'pad',
+                'setAutoBottomMargin' => 'stretch',
+            ]);
+
+            $mpdf->showImageErrors = false;
+            $mpdf->autoScriptToLang = true;
+            $mpdf->autoLangToFont = true;
+
+            if ($footerTemplate !== '') {
+                $mpdf->SetHTMLFooter($this->buildMpdfFooterHtml($footerTemplate));
+            }
+
+            $html = (string) File::get($htmlPath);
+            $mpdf->WriteHTML($html);
+            $mpdf->Output($pdfPath, \Mpdf\Output\Destination::FILE);
+
+            return is_file($pdfPath);
+        } catch (\Throwable) {
+            File::delete($pdfPath);
+            return false;
         }
     }
 
@@ -316,7 +380,7 @@ class ContractPdfService
                 $kind = $this->appendixKind($attachment, $path);
                 $pages = match ($kind) {
                     'pdf' => $this->pdfPagesToDataUris($path),
-                    'image' => array_filter([$this->fileUri($path) ?: $this->imageToDataUri($path)]),
+                    'image' => array_filter([$this->imageToDataUri($path) ?: $this->fileUri($path)]),
                     default => [],
                 };
 
@@ -498,6 +562,36 @@ class ContractPdfService
             . '</div></div>';
     }
 
+    private function buildMpdfFooterTemplate(array $payload): string
+    {
+        $customFooter = trim((string) ($payload['rendered_footer_html'] ?? ''));
+
+        if ($customFooter !== '') {
+            return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#4b5563;">'
+                . $this->buildMpdfFooterHtml($customFooter)
+                . '</div>';
+        }
+
+        return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6b7280;">'
+            . '<div style="border-top:2px solid #941415;padding-top:6px;text-align:center;text-transform:lowercase;">'
+            . e((string) ($payload['settings']['footer_text'] ?? 'documento gerado pelo ancora hub'))
+            . '</div></div>';
+    }
+
+    private function buildMpdfFooterHtml(string $footerHtml): string
+    {
+        return str_replace(
+            [
+                '<span class="ancora-page-number"></span>',
+                '<span class="ancora-page-total"></span>',
+                '<span class="pageNumber"></span>',
+                '<span class="totalPages"></span>',
+            ],
+            ['{PAGENO}', '{nbpg}', '{PAGENO}', '{nbpg}'],
+            $footerHtml
+        );
+    }
+
     private function normalizeFooterHtmlForChromium(string $html): string
     {
         return str_replace(
@@ -526,6 +620,20 @@ class ContractPdfService
         return min(6.2, 1.4 + (($visualLines - 1) * 0.45) + ($lengthHints * 0.28));
     }
 
+    private function footerReserveMm(string $footerHtml): float
+    {
+        return max(10, round($this->footerReserveCm($footerHtml) * 10, 1));
+    }
+
+    private function mpdfPageFormat(string $pageSize): string
+    {
+        return match ($pageSize) {
+            'legal' => 'Legal',
+            'letter' => 'Letter',
+            default => 'A4',
+        };
+    }
+
     private function paperDimensionsInches(string $pageSize, string $orientation): array
     {
         $dimensions = match ($pageSize) {
@@ -544,5 +652,10 @@ class ContractPdfService
     private function cmToInches(float $value): float
     {
         return round($value * 0.3937007874, 4);
+    }
+
+    private function cmToMm(float $value): float
+    {
+        return round($value * 10, 2);
     }
 }

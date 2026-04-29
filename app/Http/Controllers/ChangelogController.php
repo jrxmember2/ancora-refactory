@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.74',
+            'version' => 'v1.75',
             'date' => '29/04/2026',
-            'label' => 'v1.74 - 29/04/2026',
+            'label' => 'v1.75 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Contratos passam a priorizar mPDF para rodape estavel e paginacao real',
+                'items' => [
+                    'A geracao do PDF do modulo Contratos passa a priorizar mPDF, que trata melhor documentos paginados com rodape repetido, margem inferior real e numeracao honesta por pagina.',
+                    'O container de deploy passa a instalar as extensoes e bibliotecas necessarias para o mPDF, incluindo gd e mbstring, sem remover os renderizadores antigos que ficam como fallback.',
+                    'Os anexos selecionados continuam entrando ao final do contrato e cada pagina anexada segue em quebra propria, enquanto o corpo principal deixa de depender do print-to-pdf simples do Chromium como caminho principal.',
+                ],
+            ],
+            [
+                'version' => 'v1.74',
+                'date' => '29/04/2026',
                 'title' => 'PDF de contratos com Chromium DevTools para rodape real e anexos mais estaveis',
                 'items' => [
                     'A geracao do PDF do contrato passa a priorizar um renderer via Chromium DevTools, em vez do print-to-pdf simples do CLI, permitindo reservar area real de rodape e destravar a paginacao correta com numero da pagina e total.',
