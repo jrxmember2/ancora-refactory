@@ -32,23 +32,32 @@ class ContractPdfService
         $payload = $this->renderService->documentPayload($contract);
         $appendixSections = $this->buildAppendixSections($appendixAttachments);
         $generated = false;
+        $mpdfHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-mpdf.html';
         $externalFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-external-footer.html';
         $mpdfFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-mpdf-footer.html';
         $wkhtmlFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml-footer.html';
         $chromiumFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-chromium-footer.html';
 
+        File::put($mpdfHtmlPath, view('pages.contratos.document', array_merge($payload, [
+            'pdfMode' => true,
+            'autoPrint' => false,
+            'appendixSections' => $appendixSections,
+            'renderFooterInBody' => false,
+            'pdfEngine' => 'mpdf',
+        ]))->render());
         File::put($externalFooterHtmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
             'appendixSections' => $appendixSections,
             'renderFooterInBody' => false,
+            'pdfEngine' => 'browser',
         ]))->render());
         File::put($mpdfFooterHtmlPath, $this->buildMpdfFooterTemplate($payload));
         File::put($wkhtmlFooterHtmlPath, $this->buildWkhtmlFooterHtml($payload));
         File::put($chromiumFooterHtmlPath, $this->buildChromiumFooterHtml($payload));
 
         $generated = $this->renderPdfWithMpdf(
-            $externalFooterHtmlPath,
+            $mpdfHtmlPath,
             $pdfPath,
             $contract->template?->margins_json ?? null,
             (string) ($contract->template?->page_size ?? 'a4'),
@@ -78,7 +87,7 @@ class ContractPdfService
             );
         }
 
-        File::delete([$externalFooterHtmlPath, $mpdfFooterHtmlPath, $wkhtmlFooterHtmlPath, $chromiumFooterHtmlPath]);
+        File::delete([$mpdfHtmlPath, $externalFooterHtmlPath, $mpdfFooterHtmlPath, $wkhtmlFooterHtmlPath, $chromiumFooterHtmlPath]);
 
         if (!$generated) {
             File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
@@ -186,6 +195,8 @@ class ContractPdfService
         $footerReserveMm = $this->footerReserveMm($footerTemplate);
         $tempDir = storage_path('framework/cache/mpdf');
         File::ensureDirectoryExists($tempDir);
+        $baseBottomMm = $this->cmToMm((float) ($margins['bottom'] ?? 2));
+        $effectiveBottomMm = max($baseBottomMm + $footerReserveMm + 4, 28);
 
         try {
             $mpdf = new \Mpdf\Mpdf([
@@ -194,11 +205,9 @@ class ContractPdfService
                 'orientation' => $orientation === 'landscape' ? 'L' : 'P',
                 'margin_top' => $this->cmToMm((float) ($margins['top'] ?? 3)),
                 'margin_right' => $this->cmToMm((float) ($margins['right'] ?? 2)),
-                'margin_bottom' => $this->cmToMm((float) ($margins['bottom'] ?? 2)),
+                'margin_bottom' => $effectiveBottomMm,
                 'margin_left' => $this->cmToMm((float) ($margins['left'] ?? 3)),
-                'margin_footer' => max(6, $footerReserveMm),
-                'setAutoTopMargin' => 'pad',
-                'setAutoBottomMargin' => 'stretch',
+                'margin_footer' => 4,
             ]);
 
             $mpdf->showImageErrors = false;
@@ -210,6 +219,7 @@ class ContractPdfService
             }
 
             $html = (string) File::get($htmlPath);
+            $html = preg_replace('/<link[^>]+font-awesome[^>]*>/i', '', $html) ?: $html;
             $mpdf->WriteHTML($html);
             $mpdf->Output($pdfPath, \Mpdf\Output\Destination::FILE);
 

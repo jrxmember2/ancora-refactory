@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.76',
+            'version' => 'v1.77',
             'date' => '29/04/2026',
-            'label' => 'v1.76 - 29/04/2026',
+            'label' => 'v1.77 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix no renderer mPDF dos contratos',
+                'items' => [
+                    'A versao em mPDF do HTML do contrato passa a usar um markup proprio, sem depender do bloco @page e sem puxar o link externo do Font Awesome, reduzindo conflito de layout no motor paginado.',
+                    'A margem inferior do mPDF deixa de usar ajuste automatico por stretch e passa a reservar um espaco fixo calculado para o rodape, evitando o efeito extremo de uma letra por pagina quando o footer era interpretado com altura exagerada.',
+                ],
+            ],
+            [
+                'version' => 'v1.76',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix de deploy do mPDF no build Docker',
                 'items' => [
                     'O build da imagem deixa de travar quando composer.json pede mpdf/mpdf mas composer.lock ainda nao foi atualizado localmente, passando a instalar a dependencia no proprio stage vendor.',

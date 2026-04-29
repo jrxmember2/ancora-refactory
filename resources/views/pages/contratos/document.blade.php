@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>{{ $contract->title }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     @php
+        $pdfEngine = $pdfEngine ?? 'browser';
+        $isMpdf = $pdfEngine === 'mpdf';
         $margins = array_merge(['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3], $contract->template?->margins_json ?? []);
         $pageSize = match ($contract->template?->page_size ?? 'a4') {
             'legal' => 'Legal',
@@ -35,11 +36,16 @@
         $effectiveBottomMargin = (float) ($margins['bottom'] ?? 2) + $footerReserveCm;
         $footerBottomOffsetCm = 0.1;
     @endphp
+    @unless($isMpdf)
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    @endunless
     <style>
-        @page {
-            size: {{ $pageSize }} {{ $orientation }};
-            margin: {{ (float) ($margins['top'] ?? 3) }}cm {{ (float) ($margins['right'] ?? 2) }}cm {{ $effectiveBottomMargin }}cm {{ (float) ($margins['left'] ?? 3) }}cm;
-        }
+        @if(!$isMpdf)
+            @page {
+                size: {{ $pageSize }} {{ $orientation }};
+                margin: {{ (float) ($margins['top'] ?? 3) }}cm {{ (float) ($margins['right'] ?? 2) }}cm {{ $effectiveBottomMargin }}cm {{ (float) ($margins['left'] ?? 3) }}cm;
+            }
+        @endif
         body {
             font-family: Arial, Helvetica, sans-serif;
             color: #1f2937;
@@ -163,7 +169,7 @@
             height: auto;
         }
         .page-break {
-            break-before: page;
+            @if(!$isMpdf) break-before: page; @endif
             page-break-before: always;
         }
         .appendix-shell {
@@ -217,12 +223,14 @@
         .custom-page-footer {
             padding-top: 6px;
         }
-        .ancora-page-number::before {
-            content: {{ $renderFooterInBody ? "''" : 'counter(page)' }};
-        }
-        .ancora-page-total::before {
-            content: {{ $renderFooterInBody ? "''" : 'counter(pages)' }};
-        }
+        @if(!$isMpdf)
+            .ancora-page-number::before {
+                content: {{ $renderFooterInBody ? "''" : 'counter(page)' }};
+            }
+            .ancora-page-total::before {
+                content: {{ $renderFooterInBody ? "''" : 'counter(pages)' }};
+            }
+        @endif
     </style>
 </head>
 <body @if(!empty($autoPrint)) onload="window.print()" @endif>
