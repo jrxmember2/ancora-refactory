@@ -57,7 +57,9 @@
                         <input name="description" value="{{ old('description', $item?->description) }}" class="{{ $inputClass }}">
                     </div>
                     <div class="grid grid-cols-2 gap-4 md:col-span-2 xl:grid-cols-4">
-                        @php($margins = old('margins_json', $item?->margins_json ?? ['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3]))
+                        @php
+                            $margins = old('margins_json', $item?->margins_json ?? ['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3]);
+                        @endphp
                         <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Margem sup. (cm)</label><input name="margin_top" value="{{ $margins['top'] ?? 3 }}" class="{{ $inputClass }}"></div>
                         <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Margem dir. (cm)</label><input name="margin_right" value="{{ $margins['right'] ?? 2 }}" class="{{ $inputClass }}"></div>
                         <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Margem inf. (cm)</label><input name="margin_bottom" value="{{ $margins['bottom'] ?? 2 }}" class="{{ $inputClass }}"></div>
@@ -117,7 +119,9 @@
                 </div>
                 <div class="mt-4 space-y-3">
                     @foreach($variableDefinitions as $variable)
-                        @php($variableToken = '{{' . ($variable['key'] ?? '') . '}}')
+                        @php
+                            $variableToken = '{' . '{' . ($variable['key'] ?? '') . '}' . '}';
+                        @endphp
                         <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200" data-contract-variable-group="{{ $variable['group'] ?? 'sistema' }}">
                             <input type="checkbox" name="available_variables[]" value="{{ $variable['key'] }}" @checked(in_array($variable['key'], $selectedVariables, true))>
                             <span>

@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.60',
+            'version' => 'v1.61',
             'date' => '28/04/2026',
-            'label' => 'v1.60 - 28/04/2026',
+            'label' => 'v1.61 - 28/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix de Blade no template de contratos',
+                'items' => [
+                    'A tela de edicao de templates do modulo Contratos volta a abrir normalmente apos remover expressoes Blade sensiveis envolvendo chaves de variaveis e @php curto com arrays.',
+                    'A montagem visual dos tokens {{variavel}} foi reescrita de forma segura no editor, na tela de templates, nas configuracoes e na listagem de variaveis.',
+                ],
+            ],
+            [
+                'version' => 'v1.60',
+                'date' => '28/04/2026',
                 'title' => 'Contratos com lixeira e historico global de assinaturas, mais rastreabilidade no DataJud',
                 'items' => [
                     'Lista de contratos ganha lixeira com restauracao, exclusao apenas logica e confirmacao visual antes de mover o documento para fora da listagem principal.',

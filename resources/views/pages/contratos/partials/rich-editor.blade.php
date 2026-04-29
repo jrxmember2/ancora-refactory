@@ -70,7 +70,7 @@
                         $variableKey = is_array($variable) ? ($variable['key'] ?? '') : ($variable->key ?? '');
                         $variableDescription = is_array($variable) ? ($variable['description'] ?? '') : ($variable->description ?? '');
                         $variableGroup = is_array($variable) ? ($variable['group'] ?? 'sistema') : ($variable->group ?? 'sistema');
-                        $variableToken = '{{' . $variableKey . '}}';
+                        $variableToken = '{' . '{' . $variableKey . '}' . '}';
                     @endphp
                     <button
                         type="button"
