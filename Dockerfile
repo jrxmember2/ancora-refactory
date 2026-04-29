@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git unzip zip libzip-dev libpng-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv chromium poppler-utils fonts-dejavu-core fonts-liberation \
     && docker-php-ext-install pdo pdo_mysql intl zip \
     && python3 -m venv /opt/pyenv \
-    && /opt/pyenv/bin/pip install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 \
+    && /opt/pyenv/bin/pip install --no-cache-dir openpyxl==3.1.5 xlrd==2.0.1 websocket-client==1.8.0 \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 

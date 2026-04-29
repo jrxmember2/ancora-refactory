@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.73',
+            'version' => 'v1.74',
             'date' => '29/04/2026',
-            'label' => 'v1.73 - 29/04/2026',
+            'label' => 'v1.74 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'PDF de contratos com Chromium DevTools para rodape real e anexos mais estaveis',
+                'items' => [
+                    'A geracao do PDF do contrato passa a priorizar um renderer via Chromium DevTools, em vez do print-to-pdf simples do CLI, permitindo reservar area real de rodape e destravar a paginacao correta com numero da pagina e total.',
+                    'O rodape customizado deixa de disputar espaco dentro do corpo do HTML no caminho principal do contrato, reduzindo o risco de sobreposicao sobre o texto do documento.',
+                    'Anexos selecionados para o contrato passam a abrir em pagina propria no final do PDF e imagens do cadastro agora preferem URI de arquivo local, o que melhora a renderizacao de JPEG e PNG no Chromium.',
+                ],
+            ],
+            [
+                'version' => 'v1.73',
+                'date' => '29/04/2026',
                 'title' => 'Refino do rodape do PDF no fallback por Chromium',
                 'items' => [
                     'O rodape do contrato deixa de usar deslocamento negativo e passa a ser posicionado de forma mais simples no fallback por Chromium, com a reserva de espaco concentrada na margem inferior dinamica do PDF.',

@@ -32,27 +32,40 @@ class ContractPdfService
         $payload = $this->renderService->documentPayload($contract);
         $appendixSections = $this->buildAppendixSections($appendixAttachments);
         $generated = false;
-        $wkhtmlHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml.html';
-        $footerHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-footer.html';
+        $externalFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-external-footer.html';
+        $wkhtmlFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml-footer.html';
+        $chromiumFooterHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-chromium-footer.html';
 
-        File::put($wkhtmlHtmlPath, view('pages.contratos.document', array_merge($payload, [
+        File::put($externalFooterHtmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
             'appendixSections' => $appendixSections,
             'renderFooterInBody' => false,
         ]))->render());
-        File::put($footerHtmlPath, $this->buildWkhtmlFooterHtml($payload));
+        File::put($wkhtmlFooterHtmlPath, $this->buildWkhtmlFooterHtml($payload));
+        File::put($chromiumFooterHtmlPath, $this->buildChromiumFooterHtml($payload));
 
-        $generated = $this->renderPdfWithWkhtmltopdf(
-            $wkhtmlHtmlPath,
+        $generated = $this->renderPdfWithChromiumDevtools(
+            $externalFooterHtmlPath,
             $pdfPath,
             $contract->template?->margins_json ?? null,
             (string) ($contract->template?->page_size ?? 'a4'),
             (string) ($contract->template?->page_orientation ?? 'portrait'),
-            $footerHtmlPath
+            $chromiumFooterHtmlPath
         );
 
-        File::delete([$wkhtmlHtmlPath, $footerHtmlPath]);
+        if (!$generated) {
+            $generated = $this->renderPdfWithWkhtmltopdf(
+                $externalFooterHtmlPath,
+                $pdfPath,
+                $contract->template?->margins_json ?? null,
+                (string) ($contract->template?->page_size ?? 'a4'),
+                (string) ($contract->template?->page_orientation ?? 'portrait'),
+                $wkhtmlFooterHtmlPath
+            );
+        }
+
+        File::delete([$externalFooterHtmlPath, $wkhtmlFooterHtmlPath, $chromiumFooterHtmlPath]);
 
         if (!$generated) {
             File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
@@ -140,6 +153,65 @@ class ContractPdfService
             return false;
         } finally {
             File::deleteDirectory($profileDir);
+        }
+    }
+
+    private function renderPdfWithChromiumDevtools(
+        string $htmlPath,
+        string $pdfPath,
+        ?array $margins = null,
+        string $pageSize = 'a4',
+        string $orientation = 'portrait',
+        ?string $footerTemplatePath = null
+    ): bool {
+        $binary = $this->availableExecutable([
+            'chromium',
+            'chromium-browser',
+            'google-chrome',
+            'google-chrome-stable',
+        ]);
+        $python = $this->availableExecutable(['python3', 'python']);
+        $script = base_path('scripts/render_contract_pdf.py');
+
+        if (!$binary || !$python || !is_file($script)) {
+            return false;
+        }
+
+        $margins = array_merge(['top' => 3, 'right' => 2, 'bottom' => 2, 'left' => 3], $margins ?? []);
+        $dimensions = $this->paperDimensionsInches($pageSize, $orientation);
+        $footerTemplate = ($footerTemplatePath && is_file($footerTemplatePath)) ? (string) File::get($footerTemplatePath) : '';
+        $marginBottomCm = (float) ($margins['bottom'] ?? 2) + $this->footerReserveCm($footerTemplate);
+
+        try {
+            $process = new Process([
+                $python,
+                $script,
+                '--chromium',
+                $binary,
+                '--html',
+                $htmlPath,
+                '--output',
+                $pdfPath,
+                '--paper-width',
+                (string) $dimensions['width'],
+                '--paper-height',
+                (string) $dimensions['height'],
+                '--margin-top',
+                (string) $this->cmToInches((float) ($margins['top'] ?? 3)),
+                '--margin-right',
+                (string) $this->cmToInches((float) ($margins['right'] ?? 2)),
+                '--margin-bottom',
+                (string) $this->cmToInches($marginBottomCm),
+                '--margin-left',
+                (string) $this->cmToInches((float) ($margins['left'] ?? 3)),
+                '--footer-template-file',
+                $footerTemplatePath ?: '',
+            ], timeout: 180);
+            $process->run();
+
+            return $process->isSuccessful() && is_file($pdfPath);
+        } catch (\Throwable) {
+            return false;
         }
     }
 
@@ -244,7 +316,7 @@ class ContractPdfService
                 $kind = $this->appendixKind($attachment, $path);
                 $pages = match ($kind) {
                     'pdf' => $this->pdfPagesToDataUris($path),
-                    'image' => array_filter([$this->imageToDataUri($path)]),
+                    'image' => array_filter([$this->fileUri($path) ?: $this->imageToDataUri($path)]),
                     default => [],
                 };
 
@@ -408,5 +480,69 @@ class ContractPdfService
             ['[page]', '[topage]'],
             $html
         );
+    }
+
+    private function buildChromiumFooterHtml(array $payload): string
+    {
+        $customFooter = trim((string) ($payload['rendered_footer_html'] ?? ''));
+
+        if ($customFooter !== '') {
+            return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#4b5563;">'
+                . $this->normalizeFooterHtmlForChromium($customFooter)
+                . '</div>';
+        }
+
+        return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6b7280;">'
+            . '<div style="border-top:2px solid #941415;padding-top:6px;text-align:center;text-transform:lowercase;">'
+            . e((string) ($payload['settings']['footer_text'] ?? 'documento gerado pelo ancora hub'))
+            . '</div></div>';
+    }
+
+    private function normalizeFooterHtmlForChromium(string $html): string
+    {
+        return str_replace(
+            ['<span class="ancora-page-number"></span>', '<span class="ancora-page-total"></span>'],
+            ['<span class="pageNumber"></span>', '<span class="totalPages"></span>'],
+            $html
+        );
+    }
+
+    private function footerReserveCm(string $footerHtml): float
+    {
+        $text = trim((string) preg_replace('/\s+/u', ' ', strip_tags(str_ireplace(
+            ['<br>', '<br/>', '<br />', '</p>', '</div>', '</li>', '</tr>'],
+            ["\n", "\n", "\n", "\n", "\n", "\n", "\n"],
+            $footerHtml
+        ))));
+        $source = mb_strtolower($footerHtml, 'UTF-8');
+        $lineHints = substr_count($source, '<br')
+            + substr_count($source, '<tr')
+            + substr_count($source, '<p')
+            + substr_count($source, '<div')
+            + substr_count($source, '</li>');
+        $lengthHints = max(0, (int) ceil(max(0, mb_strlen($text, 'UTF-8') - 80) / 80));
+        $visualLines = max(1, min(8, $lineHints > 0 ? $lineHints : 1));
+
+        return min(6.2, 1.4 + (($visualLines - 1) * 0.45) + ($lengthHints * 0.28));
+    }
+
+    private function paperDimensionsInches(string $pageSize, string $orientation): array
+    {
+        $dimensions = match ($pageSize) {
+            'legal' => ['width' => 8.5, 'height' => 14.0],
+            'letter' => ['width' => 8.5, 'height' => 11.0],
+            default => ['width' => 8.27, 'height' => 11.69],
+        };
+
+        if ($orientation === 'landscape') {
+            return ['width' => $dimensions['height'], 'height' => $dimensions['width']];
+        }
+
+        return $dimensions;
+    }
+
+    private function cmToInches(float $value): float
+    {
+        return round($value * 0.3937007874, 4);
     }
 }

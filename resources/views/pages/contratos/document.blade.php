@@ -302,18 +302,18 @@
 
         @if($appendixSections->isNotEmpty())
             @foreach($appendixSections as $section)
-                <div class="page-break appendix-shell">
-                    <div class="appendix-title">Documento anexado ao contrato</div>
-                    <div class="appendix-subtitle">{{ $section['original_name'] ?? 'Documento' }}</div>
-                    @if(!empty($section['owner_label']))
-                        <div class="appendix-owner">{{ $section['owner_label'] }}</div>
-                    @endif
-                    @foreach(($section['pages'] ?? []) as $page)
+                @foreach(($section['pages'] ?? []) as $page)
+                    <div class="page-break appendix-shell">
+                        <div class="appendix-title">Documento anexado ao contrato</div>
+                        <div class="appendix-subtitle">{{ $section['original_name'] ?? 'Documento' }}</div>
+                        @if(!empty($section['owner_label']))
+                            <div class="appendix-owner">{{ $section['owner_label'] }}</div>
+                        @endif
                         <div class="appendix-image-wrap">
                             <img src="{{ $page['src'] }}" alt="{{ $section['original_name'] ?? 'Documento anexado' }}" class="appendix-image">
                         </div>
-                    @endforeach
-                </div>
+                    </div>
+                @endforeach
             @endforeach
         @endif
     </div>
