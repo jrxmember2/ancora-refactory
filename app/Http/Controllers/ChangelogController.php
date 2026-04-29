@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.71',
+            'version' => 'v1.72',
             'date' => '29/04/2026',
-            'label' => 'v1.71 - 29/04/2026',
+            'label' => 'v1.72 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Refino do contrato em PDF com reserva dinamica de rodape e anexos ampliados',
+                'items' => [
+                    'O template do PDF passa a estimar o espaco necessario do rodape customizado e amplia a margem inferior do documento conforme o volume real do conteudo, reduzindo o risco de o corpo atropelar o fechamento.',
+                    'A qualificacao automatica em quadrados deixa de ser renderizada por padrao, evitando poluicao visual quando o proprio corpo do contrato ja traz a qualificacao textual das partes.',
+                    'A selecao de anexos para o PDF agora considera tambem documentos vinculados a unidade, proprietario e locatario, alem de cliente, sindico e condominio.',
+                ],
+            ],
+            [
+                'version' => 'v1.71',
+                'date' => '29/04/2026',
                 'title' => 'Refino do PDF de contratos apos ajuste de deploy',
                 'items' => [
                     'Rodape do fallback em Chromium passa a ser empurrado para dentro da margem inferior real da pagina, em vez de ficar aparente no meio da area util do documento.',

@@ -658,13 +658,16 @@ class ContractController extends Controller
 
     private function availablePdfAppendixAttachments(Contract $contract)
     {
-        $contract->loadMissing(['client', 'condominium.syndic', 'syndic']);
+        $contract->loadMissing(['client', 'condominium.syndic', 'syndic', 'unit.owner', 'unit.tenant']);
 
         $targets = collect([
             $contract->client ? ['type' => 'entity', 'id' => (int) $contract->client->id, 'label' => 'Cliente vinculado'] : null,
             $contract->syndic ? ['type' => 'entity', 'id' => (int) $contract->syndic->id, 'label' => 'Sindico vinculado'] : null,
             (!$contract->syndic && $contract->condominium?->syndic) ? ['type' => 'entity', 'id' => (int) $contract->condominium->syndic->id, 'label' => 'Sindico do condominio'] : null,
             $contract->condominium ? ['type' => 'condominium', 'id' => (int) $contract->condominium->id, 'label' => 'Condominio vinculado'] : null,
+            $contract->unit ? ['type' => 'unit', 'id' => (int) $contract->unit->id, 'label' => 'Unidade vinculada'] : null,
+            $contract->unit?->owner ? ['type' => 'entity', 'id' => (int) $contract->unit->owner->id, 'label' => 'Proprietario da unidade'] : null,
+            $contract->unit?->tenant ? ['type' => 'entity', 'id' => (int) $contract->unit->tenant->id, 'label' => 'Locatario da unidade'] : null,
         ])->filter();
 
         if ($targets->isEmpty()) {

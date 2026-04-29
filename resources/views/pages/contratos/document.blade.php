@@ -18,7 +18,20 @@
         $contractedParty = $parties['contracted'] ?? [];
         $hasCustomFooter = trim((string) ($rendered_footer_html ?? '')) !== '';
         $renderFooterInBody = $renderFooterInBody ?? true;
-        $footerReserveCm = 0;
+        $footerMeasureSource = $hasCustomFooter ? (string) $rendered_footer_html : (string) ($settings['footer_text'] ?? '');
+        $footerMeasureText = trim((string) preg_replace('/\s+/u', ' ', strip_tags(str_ireplace(
+            ['<br>', '<br/>', '<br />', '</p>', '</div>', '</li>', '</tr>'],
+            ["\n", "\n", "\n", "\n", "\n", "\n", "\n"],
+            $footerMeasureSource
+        ))));
+        $footerLineHints = substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '<br')
+            + substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '<tr')
+            + substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '<p')
+            + substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '<div')
+            + substr_count(mb_strtolower($footerMeasureSource, 'UTF-8'), '</li>');
+        $footerLengthHints = max(0, (int) ceil(max(0, mb_strlen($footerMeasureText, 'UTF-8') - 90) / 90));
+        $footerVisualLines = max(1, min(8, $footerLineHints > 0 ? $footerLineHints : 1));
+        $footerReserveCm = $renderFooterInBody ? min(5.5, 1.4 + (($footerVisualLines - 1) * 0.45) + ($footerLengthHints * 0.3)) : 0;
         $effectiveBottomMargin = (float) ($margins['bottom'] ?? 2) + $footerReserveCm;
         $footerBottomOffsetCm = $renderFooterInBody ? max(0, $effectiveBottomMargin - 0.15) : 0.15;
     @endphp
@@ -237,7 +250,7 @@
 
         @if(!empty($rendered_qualification_html))
             <div class="custom-fragment">{!! $rendered_qualification_html !!}</div>
-        @elseif(!empty($contractingParty['rows']) || !empty($contractedParty['rows']))
+        @elseif(false && (!empty($contractingParty['rows']) || !empty($contractedParty['rows'])))
             <div class="party-shell">
                 @foreach([$contractingParty, $contractedParty] as $party)
                     <div class="party-card">
