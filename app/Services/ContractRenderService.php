@@ -109,7 +109,7 @@ class ContractRenderService
             'settings' => [
                 'city' => $city,
                 'state' => $state,
-                'footer_text' => 'documento gerado pelo âncora hub',
+                'footer_text' => 'documento gerado pelo ancora hub',
                 'show_logo' => ContractSettings::bool('show_logo', true),
                 'signature_text' => $signatureText,
             ],

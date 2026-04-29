@@ -17,6 +17,7 @@
         $contractingParty = $parties['contracting'] ?? [];
         $contractedParty = $parties['contracted'] ?? [];
         $hasCustomFooter = trim((string) ($rendered_footer_html ?? '')) !== '';
+        $renderFooterInBody = $renderFooterInBody ?? true;
     @endphp
     <style>
         @page {
@@ -32,7 +33,7 @@
         }
         .wrapper {
             width: 100%;
-            padding-bottom: 72px;
+            padding-bottom: {{ $renderFooterInBody ? '72px' : '0' }};
         }
         .default-header {
             border-bottom: 3px solid #941415;
@@ -288,14 +289,16 @@
                 @endforeach
             @endforeach
         @endif
+    </div>
 
+    @if($renderFooterInBody)
         <div class="page-footer {{ $hasCustomFooter ? 'custom-page-footer' : 'default-page-footer' }}">
             @if($hasCustomFooter)
                 {!! $rendered_footer_html !!}
             @else
-                {{ $settings['footer_text'] ?? 'documento gerado pelo âncora hub' }}
+                {{ $settings['footer_text'] ?? 'documento gerado pelo ancora hub' }}
             @endif
         </div>
-    </div>
+    @endif
 </body>
 </html>

@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.67',
+            'version' => 'v1.68',
             'date' => '29/04/2026',
-            'label' => 'v1.67 - 29/04/2026',
+            'label' => 'v1.68 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix no editor e na geracao do PDF de contratos',
+                'items' => [
+                    'Insercao de linha horizontal no editor de contratos deixa de depender de execCommand e passa a usar insercao direta no range selecionado, estabilizando o recurso apos o uso do modal.',
+                    'Geracao de PDF passa a preparar o rodape de forma especifica para wkhtmltopdf, repetindo corretamente em todas as paginas quando esse motor for o usado no servidor.',
+                    'Anexos selecionados no PDF passam a usar resolucao de caminho e renderizacao de imagem mais robustas, cobrindo melhor arquivos JPEG e outros documentos visuais vindos do cadastro vinculado.',
+                ],
+            ],
+            [
+                'version' => 'v1.67',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix estrutural do editor de templates de contratos',
                 'items' => [
                     'Editor rico do modulo Contratos passa a preservar a selecao do texto ao abrir color picker, linha horizontal e tabela, permitindo aplicar cor e inserir elementos no ponto certo do documento.',

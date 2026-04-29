@@ -691,8 +691,11 @@ class ContractController extends Controller
                             'original_name' => (string) $attachment->original_name,
                             'stored_name' => (string) $attachment->stored_name,
                             'relative_path' => (string) $attachment->relative_path,
+                            'mime_type' => (string) ($attachment->mime_type ?? ''),
                             'file_role' => (string) ($attachment->file_role ?? 'documento'),
                             'owner_label' => $target['label'],
+                            'owner_type' => $target['type'],
+                            'owner_id' => (int) $target['id'],
                             'extension' => $extension,
                         ];
                     })

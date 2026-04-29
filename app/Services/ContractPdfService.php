@@ -35,12 +35,36 @@ class ContractPdfService
             'pdfMode' => true,
             'autoPrint' => false,
             'appendixSections' => $appendixSections,
+            'renderFooterInBody' => true,
         ]))->render());
 
-        $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
-            || $this->renderPdfWithWkhtmltopdf($htmlPath, $pdfPath, $contract->template?->margins_json ?? null, (string) ($contract->template?->page_size ?? 'a4'), (string) ($contract->template?->page_orientation ?? 'portrait'));
+        $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath);
 
         File::delete($htmlPath);
+
+        if (!$generated) {
+            $wkhtmlHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml.html';
+            $footerHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-footer.html';
+
+            File::put($wkhtmlHtmlPath, view('pages.contratos.document', array_merge($payload, [
+                'pdfMode' => true,
+                'autoPrint' => false,
+                'appendixSections' => $appendixSections,
+                'renderFooterInBody' => false,
+            ]))->render());
+            File::put($footerHtmlPath, $this->buildWkhtmlFooterHtml($payload));
+
+            $generated = $this->renderPdfWithWkhtmltopdf(
+                $wkhtmlHtmlPath,
+                $pdfPath,
+                $contract->template?->margins_json ?? null,
+                (string) ($contract->template?->page_size ?? 'a4'),
+                (string) ($contract->template?->page_orientation ?? 'portrait'),
+                $footerHtmlPath
+            );
+
+            File::delete([$wkhtmlHtmlPath, $footerHtmlPath]);
+        }
 
         if (!$generated || !is_file($pdfPath)) {
             File::delete($pdfPath);
@@ -119,7 +143,7 @@ class ContractPdfService
         }
     }
 
-    private function renderPdfWithWkhtmltopdf(string $htmlPath, string $pdfPath, ?array $margins = null, string $pageSize = 'a4', string $orientation = 'portrait'): bool
+    private function renderPdfWithWkhtmltopdf(string $htmlPath, string $pdfPath, ?array $margins = null, string $pageSize = 'a4', string $orientation = 'portrait', ?string $footerHtmlPath = null): bool
     {
         $binary = $this->availableExecutable(['wkhtmltopdf']);
         if (!$binary) {
@@ -135,7 +159,7 @@ class ContractPdfService
         $wkhtmlOrientation = $orientation === 'landscape' ? 'Landscape' : 'Portrait';
 
         try {
-            $process = new Process([
+            $command = [
                 $binary,
                 '--enable-local-file-access',
                 '--encoding',
@@ -152,9 +176,19 @@ class ContractPdfService
                 (string) $margins['bottom'],
                 '--margin-left',
                 (string) $margins['left'],
-                $htmlPath,
-                $pdfPath,
-            ], timeout: 120);
+            ];
+
+            if ($footerHtmlPath && is_file($footerHtmlPath)) {
+                $command[] = '--footer-html';
+                $command[] = $footerHtmlPath;
+                $command[] = '--footer-spacing';
+                $command[] = '4';
+            }
+
+            $command[] = $htmlPath;
+            $command[] = $pdfPath;
+
+            $process = new Process($command, timeout: 120);
             $process->run();
 
             return $process->isSuccessful() && is_file($pdfPath);
@@ -207,10 +241,10 @@ class ContractPdfService
                     return null;
                 }
 
-                $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
-                $pages = match ($extension) {
+                $kind = $this->appendixKind($attachment, $path);
+                $pages = match ($kind) {
                     'pdf' => $this->pdfPagesToDataUris($path),
-                    'png', 'jpg', 'jpeg', 'webp' => array_filter([$this->imageToDataUri($path)]),
+                    'image' => array_filter([$this->fileUri($path)]),
                     default => [],
                 };
 
@@ -233,18 +267,27 @@ class ContractPdfService
     private function resolveAppendixPath(array $attachment): ?string
     {
         $relativePath = trim((string) ($attachment['relative_path'] ?? ''));
-        if ($relativePath === '') {
-            return null;
+        $storedName = trim((string) ($attachment['stored_name'] ?? ''));
+
+        $candidates = [];
+        if ($relativePath !== '') {
+            $candidates[] = public_path(ltrim($relativePath, '/'));
+            $candidates[] = storage_path('app/public/' . ltrim($relativePath, '/'));
         }
 
-        $publicPath = public_path(ltrim($relativePath, '/'));
-        if (is_file($publicPath)) {
-            return $publicPath;
+        if ($storedName !== '' && !empty($attachment['owner_type'] ?? null) && !empty($attachment['owner_id'] ?? null)) {
+            $ownerType = trim((string) $attachment['owner_type']);
+            $ownerId = (int) $attachment['owner_id'];
+            $candidates[] = public_path('uploads/clientes/' . $ownerType . '/' . $ownerId . '/' . $storedName);
         }
 
-        $storagePath = storage_path('app/public/' . ltrim($relativePath, '/'));
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
 
-        return is_file($storagePath) ? $storagePath : null;
+        return null;
     }
 
     private function pdfPagesToDataUris(string $pdfPath): array
@@ -309,5 +352,61 @@ class ContractPdfService
         }
 
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    private function appendixKind(array $attachment, string $path): string
+    {
+        $extension = strtolower((string) pathinfo((string) ($attachment['stored_name'] ?? $attachment['relative_path'] ?? $path), PATHINFO_EXTENSION));
+        $mimeType = strtolower((string) ($attachment['mime_type'] ?? ''));
+
+        if ($extension === 'pdf' || str_contains($mimeType, 'pdf')) {
+            return 'pdf';
+        }
+
+        if (in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true) || str_starts_with($mimeType, 'image/')) {
+            return 'image';
+        }
+
+        return 'unsupported';
+    }
+
+    private function fileUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $normalized = str_replace('\\', '/', realpath($path) ?: $path);
+        $segments = array_map('rawurlencode', explode('/', ltrim($normalized, '/')));
+
+        return 'file:///' . implode('/', $segments);
+    }
+
+    private function buildWkhtmlFooterHtml(array $payload): string
+    {
+        $customFooter = trim((string) ($payload['rendered_footer_html'] ?? ''));
+        $content = $customFooter !== ''
+            ? $this->normalizeFooterHtmlForWkhtml($customFooter)
+            : '<div class="default-footer">' . e((string) ($payload['settings']['footer_text'] ?? 'documento gerado pelo ancora hub')) . '</div>';
+
+        return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>'
+            . 'body{margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;}'
+            . '.default-footer{border-top:2px solid #941415;padding-top:10px;text-align:center;text-transform:lowercase;}'
+            . '.custom-footer{padding-top:8px;}'
+            . '.custom-footer table{width:100%;border-collapse:collapse;}'
+            . '.custom-footer td,.custom-footer th{border:1px solid #d1d5db;padding:8px;}'
+            . '.custom-footer img{max-width:100%;height:auto;}'
+            . '</style></head><body>'
+            . ($customFooter !== '' ? '<div class="custom-footer">' . $content . '</div>' : $content)
+            . '</body></html>';
+    }
+
+    private function normalizeFooterHtmlForWkhtml(string $html): string
+    {
+        return str_replace(
+            ['<span class="ancora-page-number"></span>', '<span class="ancora-page-total"></span>'],
+            ['[page]', '[topage]'],
+            $html
+        );
     }
 }

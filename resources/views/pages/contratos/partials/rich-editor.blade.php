@@ -305,7 +305,36 @@
                     return;
                 }
 
-                document.execCommand('insertHTML', false, html);
+                const selection = window.getSelection();
+                let range = getEditorSelectionRange(editor) || selectionRanges.get(editorId)?.cloneRange() || null;
+
+                if (!range) {
+                    editor.insertAdjacentHTML('beforeend', html);
+                    rememberSelection(editorId);
+                    syncEditor(editorId);
+                    return;
+                }
+
+                range.deleteContents();
+
+                const template = document.createElement('template');
+                template.innerHTML = html.trim();
+                const fragment = template.content;
+                const lastNode = fragment.lastChild;
+
+                range.insertNode(fragment);
+
+                if (lastNode && selection) {
+                    const nextRange = document.createRange();
+                    nextRange.setStartAfter(lastNode);
+                    nextRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(nextRange);
+                    selectionRanges.set(editorId, nextRange.cloneRange());
+                } else {
+                    rememberSelection(editorId);
+                }
+
                 syncEditor(editorId);
             };
 
@@ -328,7 +357,8 @@
 
             const buildRuleHtml = (thickness, color) => {
                 const value = Math.max(0, Number(thickness || 0));
-                return `<hr style="border:0; border-top:${value}px solid ${escapeHtmlAttribute(color || '#941415')};">`;
+                const safeColor = escapeHtmlAttribute(color || '#941415');
+                return `<div style="margin:12px 0;"><hr style="display:block; width:100%; height:0; margin:0; border:0; border-top:${value}px solid ${safeColor};"></div><p></p>`;
             };
 
             document.querySelectorAll('[data-rich-editor]').forEach((editor) => {

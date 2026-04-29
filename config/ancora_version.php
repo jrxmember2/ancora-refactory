@@ -2,7 +2,7 @@
 
 return [
     'current' => [
-        'version' => 'v1.67',
+        'version' => 'v1.68',
         'date' => '29/04/2026',
         'label' => 'v1.67 - 29/04/2026',
     ],
