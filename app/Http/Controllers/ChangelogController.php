@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.64',
+            'version' => 'v1.65',
             'date' => '29/04/2026',
-            'label' => 'v1.64 - 29/04/2026',
+            'label' => 'v1.65 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix na geracao do PDF de contratos',
+                'items' => [
+                    'Corrigida a montagem das linhas de qualificacao do PDF do contrato, eliminando o erro array_values() expects exactly 1 argument, 2 given ao gerar a versao final.',
+                    'A estrutura dos quadros de contratante e contratada continua com o novo layout, agora sem quebrar a geracao do arquivo.',
+                ],
+            ],
+            [
+                'version' => 'v1.64',
+                'date' => '29/04/2026',
                 'title' => 'PDF de contratos com qualificação mais elegante, anexos selecionáveis e áreas customizáveis',
                 'items' => [
                     'O PDF do contrato deixa de inserir automaticamente a linha final de cidade e data fora do template, respeitando apenas o texto montado no próprio modelo.',

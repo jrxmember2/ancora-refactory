@@ -441,7 +441,7 @@ class ContractRenderService
                     ['label' => 'Endereco', 'value' => trim((string) ($variables['sindico_endereco'] ?? '')), 'wide' => true],
                     ['label' => 'E-mail', 'value' => trim((string) ($variables['sindico_email'] ?? '')), 'wide' => false],
                     ['label' => 'Telefone', 'value' => trim((string) ($variables['sindico_telefone'] ?? '')), 'wide' => false],
-                ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+                ], fn (array $row) => trim((string) ($row['value'] ?? '')) !== '')));
         }
 
         if ($contract->client instanceof ClientEntity) {
@@ -451,7 +451,7 @@ class ContractRenderService
                     ['label' => 'Endereco', 'value' => trim((string) ($variables['cliente_endereco'] ?? '')), 'wide' => true],
                     ['label' => 'E-mail', 'value' => $this->entityEmail($contract->client), 'wide' => false],
                     ['label' => 'Telefone', 'value' => $this->entityPhone($contract->client), 'wide' => false],
-                ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+                ], fn (array $row) => trim((string) ($row['value'] ?? '')) !== '')));
         }
 
         return $this->partyCard('Contratante', array_values(array_filter([
@@ -462,7 +462,7 @@ class ContractRenderService
                 ['label' => 'Endereco', 'value' => trim((string) ($variables['condominio_endereco'] ?? '')), 'wide' => true],
                 ['label' => 'E-mail', 'value' => $this->entityEmail($contract->syndic ?: $contract->condominium?->syndic), 'wide' => false],
                 ['label' => 'Telefone', 'value' => $this->entityPhone($contract->syndic ?: $contract->condominium?->syndic), 'wide' => false],
-            ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+            ], fn (array $row) => trim((string) ($row['value'] ?? '')) !== '')));
     }
 
     private function contractedParty(array $brand): array
@@ -476,7 +476,7 @@ class ContractRenderService
                 ['label' => 'Endereco', 'value' => trim((string) ($brand['company_address'] ?? '')), 'wide' => true],
                 ['label' => 'E-mail', 'value' => trim((string) ($brand['company_email'] ?? '')), 'wide' => false],
                 ['label' => 'Telefone', 'value' => trim((string) ($brand['company_phone'] ?? '')), 'wide' => false],
-            ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+            ], fn (array $row) => trim((string) ($row['value'] ?? '')) !== '')));
     }
 
     private function partyCard(string $title, array $rows): array
