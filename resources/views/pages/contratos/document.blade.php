@@ -18,8 +18,9 @@
         $contractedParty = $parties['contracted'] ?? [];
         $hasCustomFooter = trim((string) ($rendered_footer_html ?? '')) !== '';
         $renderFooterInBody = $renderFooterInBody ?? true;
-        $footerReserveCm = $renderFooterInBody ? 2.2 : 0;
+        $footerReserveCm = 0;
         $effectiveBottomMargin = (float) ($margins['bottom'] ?? 2) + $footerReserveCm;
+        $footerBottomOffsetCm = $renderFooterInBody ? max(0, $effectiveBottomMargin - 0.15) : 0.15;
     @endphp
     <style>
         @page {
@@ -35,7 +36,7 @@
         }
         .wrapper {
             width: 100%;
-            padding-bottom: {{ $renderFooterInBody ? '0.35cm' : '0' }};
+            padding-bottom: 0;
         }
         .default-header {
             border-bottom: 3px solid #941415;
@@ -189,7 +190,7 @@
             position: fixed;
             left: 0;
             right: 0;
-            bottom: 0.15cm;
+            bottom: {{ $renderFooterInBody ? '-' . $footerBottomOffsetCm . 'cm' : '0.15cm' }};
             font-size: 11px;
             color: #6b7280;
         }
@@ -203,10 +204,10 @@
             padding-top: 6px;
         }
         .ancora-page-number::before {
-            content: counter(page);
+            content: {{ $renderFooterInBody ? "''" : 'counter(page)' }};
         }
         .ancora-page-total::before {
-            content: counter(pages);
+            content: {{ $renderFooterInBody ? "''" : 'counter(pages)' }};
         }
     </style>
 </head>

@@ -266,7 +266,7 @@ class ContractPdfService
 
     private function resolveAppendixPath(array $attachment): ?string
     {
-        $relativePath = trim((string) ($attachment['relative_path'] ?? ''));
+        $relativePath = trim(str_replace('\\', '/', (string) ($attachment['relative_path'] ?? '')));
         $storedName = trim((string) ($attachment['stored_name'] ?? ''));
 
         $candidates = [];

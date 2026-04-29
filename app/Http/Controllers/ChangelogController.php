@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.70',
+            'version' => 'v1.71',
             'date' => '29/04/2026',
-            'label' => 'v1.70 - 29/04/2026',
+            'label' => 'v1.71 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Refino do PDF de contratos apos ajuste de deploy',
+                'items' => [
+                    'Rodape do fallback em Chromium passa a ser empurrado para dentro da margem inferior real da pagina, em vez de ficar aparente no meio da area util do documento.',
+                    'Quando o PDF roda em Chromium e nao ha motor com paginacao nativa, os marcadores de pagina deixam de exibir 0 de 0 para evitar numeracao enganosa no rodape customizado.',
+                    'Resolucao de anexos do cadastro ganha normalizacao extra de caminho e o PDF volta a embutir imagens selecionadas como JPEG, PNG e WEBP ao final do contrato.',
+                ],
+            ],
+            [
+                'version' => 'v1.70',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix de deploy do PDF de contratos',
                 'items' => [
                     'O Dockerfile deixa de tentar instalar wkhtmltopdf no Debian trixie do EasyPanel, evitando falha de build por pacote sem candidato disponivel.',
