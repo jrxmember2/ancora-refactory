@@ -221,15 +221,10 @@ class ContractController extends Controller
 
                 if ($request->boolean('generate_pdf_now')) {
                     $freshContract = $contract->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']);
-                    $availableAttachments = $this->availablePdfAppendixAttachments($freshContract)->keyBy('id');
-                    $selectedAttachments = collect((array) $request->input('pdf_attachment_ids', []))
-                        ->map(fn ($id) => (int) $id)
-                        ->filter()
-                        ->unique()
-                        ->map(fn (int $id) => $availableAttachments->get($id))
-                        ->filter()
-                        ->values()
-                        ->all();
+                    $selectedAttachments = $this->selectedPdfAppendixAttachments(
+                        $freshContract,
+                        (array) $request->input('pdf_attachment_ids', [])
+                    );
 
                     $this->pdfService->generate(
                         $freshContract,
@@ -356,15 +351,10 @@ class ContractController extends Controller
 
                 if ($request->boolean('generate_pdf_now')) {
                     $freshContract = $contrato->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']);
-                    $availableAttachments = $this->availablePdfAppendixAttachments($freshContract)->keyBy('id');
-                    $selectedAttachments = collect((array) $request->input('pdf_attachment_ids', []))
-                        ->map(fn ($id) => (int) $id)
-                        ->filter()
-                        ->unique()
-                        ->map(fn (int $id) => $availableAttachments->get($id))
-                        ->filter()
-                        ->values()
-                        ->all();
+                    $selectedAttachments = $this->selectedPdfAppendixAttachments(
+                        $freshContract,
+                        (array) $request->input('pdf_attachment_ids', [])
+                    );
 
                     $this->pdfService->generate(
                         $freshContract,
@@ -499,15 +489,10 @@ class ContractController extends Controller
             return redirect()->route('contratos.edit', $contrato)->with('error', 'O contrato ainda nao possui conteudo editavel salvo.');
         }
 
-        $availableAttachments = $this->availablePdfAppendixAttachments($contrato)->keyBy('id');
-        $selectedAttachments = collect((array) $request->input('pdf_attachment_ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->map(fn (int $id) => $availableAttachments->get($id))
-            ->filter()
-            ->values()
-            ->all();
+        $selectedAttachments = $this->selectedPdfAppendixAttachments(
+            $contrato,
+            (array) $request->input('pdf_attachment_ids', [])
+        );
 
         try {
             $version = $this->pdfService->generate(
@@ -706,6 +691,52 @@ class ContractController extends Controller
             })
             ->unique('id')
             ->values();
+    }
+
+    private function selectedPdfAppendixAttachments(Contract $contract, array $selectedIds): array
+    {
+        $ids = collect($selectedIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $available = $this->availablePdfAppendixAttachments($contract)->keyBy('id');
+
+        return $ids
+            ->map(function (int $id) use ($available) {
+                $row = $available->get($id);
+                if ($row) {
+                    return $row;
+                }
+
+                $attachment = ClientAttachment::query()->find($id);
+                if (!$attachment) {
+                    return null;
+                }
+
+                $extension = strtolower((string) pathinfo((string) ($attachment->stored_name ?: $attachment->original_name), PATHINFO_EXTENSION));
+
+                return [
+                    'id' => (int) $attachment->id,
+                    'original_name' => (string) $attachment->original_name,
+                    'stored_name' => (string) $attachment->stored_name,
+                    'relative_path' => (string) $attachment->relative_path,
+                    'mime_type' => (string) ($attachment->mime_type ?? ''),
+                    'file_role' => (string) ($attachment->file_role ?? 'documento'),
+                    'owner_label' => 'Documento selecionado',
+                    'owner_type' => (string) $attachment->related_type,
+                    'owner_id' => (int) $attachment->related_id,
+                    'extension' => $extension,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function filtersFromRequest(Request $request): array

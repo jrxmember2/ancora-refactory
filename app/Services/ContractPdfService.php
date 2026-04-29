@@ -41,14 +41,14 @@ class ContractPdfService
         File::put($mpdfHtmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
-            'appendixSections' => $appendixSections,
+            'appendixSections' => [],
             'renderFooterInBody' => false,
             'pdfEngine' => 'mpdf',
         ]))->render());
         File::put($externalFooterHtmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
-            'appendixSections' => $appendixSections,
+            'appendixSections' => [],
             'renderFooterInBody' => false,
             'pdfEngine' => 'browser',
         ]))->render());
@@ -104,6 +104,19 @@ class ContractPdfService
         if (!$generated || !is_file($pdfPath)) {
             File::delete($pdfPath);
             throw new \RuntimeException('Nao foi possivel gerar o PDF do contrato neste ambiente.');
+        }
+
+        if (!empty($appendixSections)) {
+            $this->appendAppendixPdf(
+                $pdfPath,
+                $appendixSections,
+                $baseDir,
+                $slug,
+                $nextVersion,
+                $contract->template?->margins_json ?? null,
+                (string) ($contract->template?->page_size ?? 'a4'),
+                (string) ($contract->template?->page_orientation ?? 'portrait')
+            );
         }
 
         $version = ContractVersion::query()->create([
@@ -226,6 +239,135 @@ class ContractPdfService
             return is_file($pdfPath);
         } catch (\Throwable) {
             File::delete($pdfPath);
+            return false;
+        }
+    }
+
+    private function appendAppendixPdf(
+        string $mainPdfPath,
+        array $appendixSections,
+        string $baseDir,
+        string $slug,
+        int $versionNumber,
+        ?array $margins = null,
+        string $pageSize = 'a4',
+        string $orientation = 'portrait'
+    ): void {
+        if ($appendixSections === [] || !is_file($mainPdfPath)) {
+            return;
+        }
+
+        $appendixPdfPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $versionNumber, 2, '0', STR_PAD_LEFT) . '-appendices.pdf';
+        $mergedPdfPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $versionNumber, 2, '0', STR_PAD_LEFT) . '-merged.pdf';
+
+        try {
+            $generated = $this->renderAppendixPdf($appendixSections, $appendixPdfPath, $margins, $pageSize, $orientation);
+            if (!$generated || !is_file($appendixPdfPath)) {
+                File::delete($appendixPdfPath);
+                return;
+            }
+
+            if (!$this->mergePdfFiles([$mainPdfPath, $appendixPdfPath], $mergedPdfPath)) {
+                File::delete([$appendixPdfPath, $mergedPdfPath]);
+                return;
+            }
+
+            File::delete($mainPdfPath);
+            File::move($mergedPdfPath, $mainPdfPath);
+            File::delete($appendixPdfPath);
+        } catch (\Throwable) {
+            File::delete([$appendixPdfPath, $mergedPdfPath]);
+        }
+    }
+
+    private function renderAppendixPdf(
+        array $appendixSections,
+        string $pdfPath,
+        ?array $margins = null,
+        string $pageSize = 'a4',
+        string $orientation = 'portrait'
+    ): bool {
+        $html = $this->buildAppendixHtml($appendixSections);
+        $htmlPath = dirname($pdfPath) . DIRECTORY_SEPARATOR . pathinfo($pdfPath, PATHINFO_FILENAME) . '.html';
+        File::put($htmlPath, $html);
+
+        try {
+            if (class_exists(\Mpdf\Mpdf::class)) {
+                $margins = array_merge(['top' => 2, 'right' => 1.5, 'bottom' => 2, 'left' => 1.5], $margins ?? []);
+                $tempDir = storage_path('framework/cache/mpdf');
+                File::ensureDirectoryExists($tempDir);
+
+                $mpdf = new \Mpdf\Mpdf([
+                    'tempDir' => $tempDir,
+                    'format' => $this->mpdfPageFormat($pageSize),
+                    'orientation' => $orientation === 'landscape' ? 'L' : 'P',
+                    'margin_top' => $this->cmToMm((float) ($margins['top'] ?? 2)),
+                    'margin_right' => $this->cmToMm((float) ($margins['right'] ?? 1.5)),
+                    'margin_bottom' => $this->cmToMm((float) ($margins['bottom'] ?? 2)),
+                    'margin_left' => $this->cmToMm((float) ($margins['left'] ?? 1.5)),
+                ]);
+                $mpdf->showImageErrors = false;
+                $mpdf->WriteHTML($html);
+                $mpdf->Output($pdfPath, \Mpdf\Output\Destination::FILE);
+
+                return is_file($pdfPath);
+            }
+
+            return $this->renderPdfWithChromium($htmlPath, $pdfPath);
+        } catch (\Throwable) {
+            File::delete($pdfPath);
+            return false;
+        } finally {
+            File::delete($htmlPath);
+        }
+    }
+
+    private function buildAppendixHtml(array $appendixSections): string
+    {
+        $pages = [];
+
+        foreach ($appendixSections as $section) {
+            foreach (($section['pages'] ?? []) as $page) {
+                $pages[] = '
+                    <div class="appendix-page">
+                        <div class="appendix-title">Documento anexado ao contrato</div>
+                        <div class="appendix-subtitle">' . e((string) ($section['original_name'] ?? 'Documento')) . '</div>'
+                        . (!empty($section['owner_label']) ? '<div class="appendix-owner">' . e((string) $section['owner_label']) . '</div>' : '') . '
+                        <div class="appendix-image-wrap">
+                            <img src="' . e((string) ($page['src'] ?? '')) . '" alt="' . e((string) ($section['original_name'] ?? 'Documento anexado')) . '" class="appendix-image">
+                        </div>
+                    </div>';
+            }
+        }
+
+        return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>
+            body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-height:1.5;margin:0}
+            .appendix-page{page-break-after:always}
+            .appendix-page:last-child{page-break-after:auto}
+            .appendix-title{font-size:15px;font-weight:700;color:#941415;text-transform:uppercase;letter-spacing:.08em}
+            .appendix-subtitle{margin-top:6px;font-size:12px;color:#6b7280}
+            .appendix-owner{margin-top:2px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em}
+            .appendix-image-wrap{margin-top:18px;text-align:center}
+            .appendix-image{max-width:100%;max-height:240mm;object-fit:contain}
+        </style></head><body>' . implode('', $pages) . '</body></html>';
+    }
+
+    private function mergePdfFiles(array $paths, string $outputPath): bool
+    {
+        $binary = $this->availableExecutable(['pdfunite']);
+        $files = array_values(array_filter($paths, fn ($path) => is_file((string) $path)));
+
+        if (!$binary || count($files) < 2) {
+            return false;
+        }
+
+        try {
+            $process = new Process(array_merge([$binary], $files, [$outputPath]), timeout: 120);
+            $process->run();
+
+            return $process->isSuccessful() && is_file($outputPath);
+        } catch (\Throwable) {
+            File::delete($outputPath);
             return false;
         }
     }
@@ -590,6 +732,8 @@ class ContractPdfService
 
     private function buildMpdfFooterHtml(string $footerHtml): string
     {
+        $footerHtml = $this->normalizeFontAwesomeForMpdf($footerHtml);
+
         return str_replace(
             [
                 '<span class="ancora-page-number"></span>',
@@ -600,6 +744,37 @@ class ContractPdfService
             ['{PAGENO}', '{nbpg}', '{PAGENO}', '{nbpg}'],
             $footerHtml
         );
+    }
+
+    private function normalizeFontAwesomeForMpdf(string $html): string
+    {
+        $map = [
+            'fa-phone' => '☎',
+            'fa-envelope' => '✉',
+            'fa-location-dot' => '📍',
+            'fa-map-marker-alt' => '📍',
+            'fa-map-pin' => '📍',
+            'fa-globe' => '🌐',
+            'fa-earth-americas' => '🌐',
+            'fa-link' => '🔗',
+            'fa-arrow-up-right-from-square' => '↗',
+            'fa-external-link-alt' => '↗',
+            'fa-whatsapp' => '✆',
+            'fa-building' => '🏢',
+            'fa-user' => '👤',
+            'fa-scale-balanced' => '⚖',
+        ];
+
+        return preg_replace_callback('/<i\b[^>]*class="([^"]*)"[^>]*><\/i>/i', function (array $matches) use ($map) {
+            $classes = preg_split('/\s+/', trim((string) ($matches[1] ?? ''))) ?: [];
+            foreach ($classes as $class) {
+                if (isset($map[$class])) {
+                    return '<span style="font-weight:700;">' . $map[$class] . '</span>';
+                }
+            }
+
+            return '';
+        }, $html) ?? $html;
     }
 
     private function normalizeFooterHtmlForChromium(string $html): string

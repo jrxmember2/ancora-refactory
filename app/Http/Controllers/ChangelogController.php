@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.77',
+            'version' => 'v1.78',
             'date' => '29/04/2026',
-            'label' => 'v1.77 - 29/04/2026',
+            'label' => 'v1.78 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Anexos do contrato desacoplados do corpo e icones do rodape preservados',
+                'items' => [
+                    'Os anexos selecionados para o contrato deixam de ser renderizados dentro do mesmo HTML do documento principal e passam a ser gerados em um PDF proprio, depois mesclado ao final do contrato. Isso reduz falhas de anexo, inclusive para documentos do sindico.',
+                    'A selecao dos anexos agora respeita diretamente os IDs marcados no modal, evitando perda do documento em fluxos de salvar e gerar PDF logo em seguida.',
+                    'O rodape customizado do mPDF volta a tratar icones comuns do Font Awesome, convertendo classes conhecidas em simbolos equivalentes para nao desaparecerem no PDF.',
+                ],
+            ],
+            [
+                'version' => 'v1.77',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix no renderer mPDF dos contratos',
                 'items' => [
                     'A versao em mPDF do HTML do contrato passa a usar um markup proprio, sem depender do bloco @page e sem puxar o link externo do Font Awesome, reduzindo conflito de layout no motor paginado.',
