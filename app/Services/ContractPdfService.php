@@ -31,39 +31,39 @@ class ContractPdfService
 
         $payload = $this->renderService->documentPayload($contract);
         $appendixSections = $this->buildAppendixSections($appendixAttachments);
-        File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
+        $generated = false;
+        $wkhtmlHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml.html';
+        $footerHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-footer.html';
+
+        File::put($wkhtmlHtmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
             'appendixSections' => $appendixSections,
-            'renderFooterInBody' => true,
+            'renderFooterInBody' => false,
         ]))->render());
+        File::put($footerHtmlPath, $this->buildWkhtmlFooterHtml($payload));
 
-        $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath);
+        $generated = $this->renderPdfWithWkhtmltopdf(
+            $wkhtmlHtmlPath,
+            $pdfPath,
+            $contract->template?->margins_json ?? null,
+            (string) ($contract->template?->page_size ?? 'a4'),
+            (string) ($contract->template?->page_orientation ?? 'portrait'),
+            $footerHtmlPath
+        );
 
-        File::delete($htmlPath);
+        File::delete([$wkhtmlHtmlPath, $footerHtmlPath]);
 
         if (!$generated) {
-            $wkhtmlHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-wkhtml.html';
-            $footerHtmlPath = $baseDir . DIRECTORY_SEPARATOR . $slug . '-v' . str_pad((string) $nextVersion, 2, '0', STR_PAD_LEFT) . '-footer.html';
-
-            File::put($wkhtmlHtmlPath, view('pages.contratos.document', array_merge($payload, [
+            File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
                 'pdfMode' => true,
                 'autoPrint' => false,
                 'appendixSections' => $appendixSections,
-                'renderFooterInBody' => false,
+                'renderFooterInBody' => true,
             ]))->render());
-            File::put($footerHtmlPath, $this->buildWkhtmlFooterHtml($payload));
 
-            $generated = $this->renderPdfWithWkhtmltopdf(
-                $wkhtmlHtmlPath,
-                $pdfPath,
-                $contract->template?->margins_json ?? null,
-                (string) ($contract->template?->page_size ?? 'a4'),
-                (string) ($contract->template?->page_orientation ?? 'portrait'),
-                $footerHtmlPath
-            );
-
-            File::delete([$wkhtmlHtmlPath, $footerHtmlPath]);
+            $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath);
+            File::delete($htmlPath);
         }
 
         if (!$generated || !is_file($pdfPath)) {
@@ -182,7 +182,7 @@ class ContractPdfService
                 $command[] = '--footer-html';
                 $command[] = $footerHtmlPath;
                 $command[] = '--footer-spacing';
-                $command[] = '4';
+                $command[] = '1';
             }
 
             $command[] = $htmlPath;
@@ -244,7 +244,7 @@ class ContractPdfService
                 $kind = $this->appendixKind($attachment, $path);
                 $pages = match ($kind) {
                     'pdf' => $this->pdfPagesToDataUris($path),
-                    'image' => array_filter([$this->fileUri($path)]),
+                    'image' => array_filter([$this->imageToDataUri($path)]),
                     default => [],
                 };
 

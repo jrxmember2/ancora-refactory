@@ -18,11 +18,13 @@
         $contractedParty = $parties['contracted'] ?? [];
         $hasCustomFooter = trim((string) ($rendered_footer_html ?? '')) !== '';
         $renderFooterInBody = $renderFooterInBody ?? true;
+        $footerReserveCm = $renderFooterInBody ? 2.2 : 0;
+        $effectiveBottomMargin = (float) ($margins['bottom'] ?? 2) + $footerReserveCm;
     @endphp
     <style>
         @page {
             size: {{ $pageSize }} {{ $orientation }};
-            margin: {{ (float) ($margins['top'] ?? 3) }}cm {{ (float) ($margins['right'] ?? 2) }}cm {{ (float) ($margins['bottom'] ?? 2) }}cm {{ (float) ($margins['left'] ?? 3) }}cm;
+            margin: {{ (float) ($margins['top'] ?? 3) }}cm {{ (float) ($margins['right'] ?? 2) }}cm {{ $effectiveBottomMargin }}cm {{ (float) ($margins['left'] ?? 3) }}cm;
         }
         body {
             font-family: Arial, Helvetica, sans-serif;
@@ -33,7 +35,7 @@
         }
         .wrapper {
             width: 100%;
-            padding-bottom: {{ $renderFooterInBody ? '72px' : '0' }};
+            padding-bottom: {{ $renderFooterInBody ? '0.35cm' : '0' }};
         }
         .default-header {
             border-bottom: 3px solid #941415;
@@ -81,9 +83,9 @@
             margin-bottom: 24px;
         }
         .party-card {
-            border: 1px solid #d8a3a4;
+            border: 1px solid #941415;
             border-radius: 18px;
-            background: #fff7f7;
+            background: #f5f5f6;
             padding: 16px 18px;
         }
         .party-card + .party-card {
@@ -101,6 +103,7 @@
             width: 100%;
             border-collapse: separate;
             border-spacing: 0 8px;
+            table-layout: fixed;
         }
         .party-lines td {
             border: none;
@@ -109,7 +112,10 @@
         }
         .party-pair {
             width: 50%;
-            padding-right: 10px;
+            padding-right: 12px;
+        }
+        .party-lines tr > td + td {
+            padding-left: 14px;
         }
         .party-field {
             width: 100%;
@@ -123,9 +129,15 @@
         .party-label {
             width: 92px;
             font-weight: 700;
-            color: #6b7280;
+            color: #374151;
             white-space: nowrap;
-            padding-right: 6px;
+            padding-right: 10px;
+        }
+        .party-field td:last-child {
+            color: #111827;
+            font-weight: 500;
+            word-break: break-word;
+            overflow-wrap: anywhere;
         }
         .contract-body {
             min-height: 380px;
@@ -142,6 +154,8 @@
         }
         .appendix-shell {
             margin-top: 0;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
         .appendix-title {
             font-size: 15px;
@@ -168,25 +182,25 @@
         }
         .appendix-image {
             max-width: 100%;
-            max-height: 25cm;
+            max-height: 21cm;
             object-fit: contain;
         }
         .page-footer {
             position: fixed;
             left: 0;
             right: 0;
-            bottom: 0;
+            bottom: 0.15cm;
             font-size: 11px;
             color: #6b7280;
         }
         .default-page-footer {
             border-top: 2px solid #941415;
-            padding-top: 10px;
+            padding-top: 8px;
             text-align: center;
             text-transform: lowercase;
         }
         .custom-page-footer {
-            padding-top: 8px;
+            padding-top: 6px;
         }
         .ancora-page-number::before {
             content: counter(page);
@@ -279,14 +293,12 @@
                     @if(!empty($section['owner_label']))
                         <div class="appendix-owner">{{ $section['owner_label'] }}</div>
                     @endif
-                </div>
-                @foreach(($section['pages'] ?? []) as $page)
-                    <div class="{{ $loop->first ? '' : 'page-break' }}">
+                    @foreach(($section['pages'] ?? []) as $page)
                         <div class="appendix-image-wrap">
                             <img src="{{ $page['src'] }}" alt="{{ $section['original_name'] ?? 'Documento anexado' }}" class="appendix-image">
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             @endforeach
         @endif
     </div>

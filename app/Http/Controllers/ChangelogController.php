@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.68',
+            'version' => 'v1.69',
             'date' => '29/04/2026',
-            'label' => 'v1.68 - 29/04/2026',
+            'label' => 'v1.69 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'PDF de contratos com rodape mais estavel, melhor qualificacao e anexo visual',
+                'items' => [
+                    'A geracao do PDF passa a priorizar wkhtmltopdf quando disponivel no container, o que melhora repeticao do rodape em todas as paginas e destrava a numeracao correta usando pagina atual e total de paginas.',
+                    'O fallback em Chromium ganha reserva maior de espaco para o rodape, reduzindo o risco de o corpo do contrato correr por cima da area final da pagina.',
+                    'Os quadros de qualificacao foram refinados com borda em #941415, fundo mais neutro, texto mais escuro, espacamento lateral melhor e quebra de linha para conteudos longos.',
+                    'Anexos visuais do cadastro voltam a ser embutidos como imagem no PDF e cada anexo passa a abrir sua propria pagina ao final do contrato, com altura controlada para nao estourar o layout.',
+                ],
+            ],
+            [
+                'version' => 'v1.68',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix no editor e na geracao do PDF de contratos',
                 'items' => [
                     'Insercao de linha horizontal no editor de contratos deixa de depender de execCommand e passa a usar insercao direta no range selecionado, estabilizando o recurso apos o uso do modal.',
