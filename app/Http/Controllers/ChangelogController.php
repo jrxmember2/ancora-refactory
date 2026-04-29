@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.66',
+            'version' => 'v1.67',
             'date' => '29/04/2026',
-            'label' => 'v1.66 - 29/04/2026',
+            'label' => 'v1.67 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix estrutural do editor de templates de contratos',
+                'items' => [
+                    'Editor rico do modulo Contratos passa a preservar a selecao do texto ao abrir color picker, linha horizontal e tabela, permitindo aplicar cor e inserir elementos no ponto certo do documento.',
+                    'Os dialogs internos do editor deixam de usar form aninhado dentro do formulario principal do template, eliminando conflitos que impediam o botao Salvar template de funcionar corretamente.',
+                    'Sincronizacao do HTML editado foi reforcada antes do submit para evitar perda de conteudo ou caracteres invisiveis durante o salvamento do template.',
+                ],
+            ],
+            [
+                'version' => 'v1.66',
+                'date' => '29/04/2026',
                 'title' => 'Contratos com rodape por pagina, folha configuravel e editor mais completo',
                 'items' => [
                     'Quadros de qualificacao do PDF passam a ficar empilhados, um abaixo do outro, preservando a organizacao interna em duas colunas invisiveis quando fizer sentido.',

@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            input.value = editor.innerHTML.trim();
+            input.value = editor.innerHTML.replace(/\u200B/g, '').trim();
         });
     };
 

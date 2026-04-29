@@ -39,7 +39,7 @@
         <input type="number" min="1" step="0.5" value="10" class="{{ $toolbarInput }} w-20" data-editor-font-size-custom data-editor-target="{{ $editorId }}" title="Digite o tamanho da fonte">
         <button type="button" class="{{ $toolbarButton }}" data-editor-font-size-apply data-editor-target="{{ $editorId }}" title="Aplicar tamanho digitado">pt</button>
 
-        <label class="{{ $toolbarButton }} cursor-pointer px-2" title="Cor da fonte">
+        <label class="{{ $toolbarButton }} cursor-pointer px-2" title="Cor da fonte" data-editor-color-trigger data-editor-target="{{ $editorId }}">
             <i class="fa-solid fa-palette"></i>
             <input type="color" value="#1f2937" class="sr-only" data-editor-color data-editor-target="{{ $editorId }}">
         </label>
@@ -115,7 +115,7 @@
 
 @once
     <dialog id="rich-editor-table-dialog" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
-        <form method="dialog" class="p-6 space-y-4" data-rich-editor-table-form>
+        <div class="p-6 space-y-4" data-rich-editor-table-panel>
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inserir tabela</h3>
@@ -143,13 +143,13 @@
             </div>
             <div class="flex justify-end gap-3">
                 <button type="button" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-table-dialog">Cancelar</button>
-                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Inserir</button>
+                <button type="button" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white" data-rich-editor-table-submit>Inserir</button>
             </div>
-        </form>
+        </div>
     </dialog>
 
     <dialog id="rich-editor-rule-dialog" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
-        <form method="dialog" class="p-6 space-y-4" data-rich-editor-rule-form>
+        <div class="p-6 space-y-4" data-rich-editor-rule-panel>
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Inserir linha horizontal</h3>
@@ -169,9 +169,9 @@
             </div>
             <div class="flex justify-end gap-3">
                 <button type="button" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200" data-rich-editor-close-dialog="#rich-editor-rule-dialog">Cancelar</button>
-                <button type="submit" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Inserir</button>
+                <button type="button" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white" data-rich-editor-rule-submit>Inserir</button>
             </div>
-        </form>
+        </div>
     </dialog>
 
     @push('scripts')
@@ -182,6 +182,7 @@
                 .replace(/"/g, '&quot;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
+            const selectionRanges = new Map();
 
             const syncEditor = (editorId) => {
                 const editor = document.querySelector(`[data-rich-editor="${editorId}"]`);
@@ -193,6 +194,28 @@
                 input.value = editor.innerHTML.replace(/\u200B/g, '').trim();
             };
 
+            const rememberSelection = (editorId) => {
+                const editor = document.querySelector(`[data-rich-editor="${editorId}"]`);
+                const range = editor ? getEditorSelectionRange(editor) : null;
+                if (!editor || !range) {
+                    return;
+                }
+
+                selectionRanges.set(editorId, range.cloneRange());
+            };
+
+            const restoreSelection = (editorId) => {
+                const editor = document.querySelector(`[data-rich-editor="${editorId}"]`);
+                const range = selectionRanges.get(editorId);
+                if (!editor || !range) {
+                    return;
+                }
+
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range.cloneRange());
+            };
+
             const focusEditor = (editorId) => {
                 const editor = document.querySelector(`[data-rich-editor="${editorId}"]`);
                 if (!editor) {
@@ -200,6 +223,7 @@
                 }
 
                 editor.focus();
+                restoreSelection(editorId);
                 return editor;
             };
 
@@ -309,11 +333,23 @@
 
             document.querySelectorAll('[data-rich-editor]').forEach((editor) => {
                 const editorId = editor.getAttribute('data-rich-editor');
-                editor.addEventListener('input', () => syncEditor(editorId));
+                ['input', 'keyup', 'mouseup', 'focus', 'click'].forEach((eventName) => {
+                    editor.addEventListener(eventName, () => {
+                        rememberSelection(editorId);
+                        syncEditor(editorId);
+                    });
+                });
                 syncEditor(editorId);
             });
 
             document.querySelectorAll('[data-editor-command]').forEach((control) => {
+                control.addEventListener('mousedown', () => {
+                    const target = control.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 const handler = () => {
                     const target = control.getAttribute('data-editor-target');
                     const command = control.getAttribute('data-editor-command');
@@ -336,6 +372,13 @@
             });
 
             document.querySelectorAll('[data-editor-font-family]').forEach((control) => {
+                control.addEventListener('mousedown', () => {
+                    const target = control.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 control.addEventListener('change', () => {
                     const value = control.value;
                     const target = control.getAttribute('data-editor-target');
@@ -351,6 +394,13 @@
             });
 
             document.querySelectorAll('[data-editor-font-size]').forEach((control) => {
+                control.addEventListener('mousedown', () => {
+                    const target = control.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 control.addEventListener('change', () => {
                     const target = control.getAttribute('data-editor-target');
                     if (!target || !control.value) {
@@ -363,6 +413,13 @@
             });
 
             document.querySelectorAll('[data-editor-font-size-apply]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const input = document.querySelector(`[data-editor-font-size-custom][data-editor-target="${target}"]`);
@@ -374,7 +431,32 @@
                 });
             });
 
+            document.querySelectorAll('[data-editor-font-size-custom]').forEach((input) => {
+                input.addEventListener('mousedown', () => {
+                    const target = input.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-editor-color-trigger]').forEach((trigger) => {
+                trigger.addEventListener('mousedown', () => {
+                    const target = trigger.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+            });
+
             document.querySelectorAll('[data-editor-color]').forEach((input) => {
+                input.addEventListener('mousedown', () => {
+                    const target = input.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 input.addEventListener('change', () => {
                     const target = input.getAttribute('data-editor-target');
                     if (!target || !input.value) {
@@ -388,6 +470,13 @@
             });
 
             document.querySelectorAll('[data-editor-variable]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const content = button.getAttribute('data-editor-variable');
@@ -402,6 +491,13 @@
             });
 
             document.querySelectorAll('[data-editor-token]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const content = button.getAttribute('data-editor-token');
@@ -416,12 +512,26 @@
             });
 
             document.querySelectorAll('[data-editor-html]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     insertHtml(button.getAttribute('data-editor-target'), button.getAttribute('data-editor-html'));
                 });
             });
 
             document.querySelectorAll('[data-editor-image]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const editor = focusEditor(target);
@@ -440,6 +550,13 @@
             });
 
             document.querySelectorAll('[data-editor-icon]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     const editor = focusEditor(target);
@@ -460,24 +577,40 @@
             const ruleDialog = document.querySelector('#rich-editor-rule-dialog');
 
             document.querySelectorAll('[data-editor-table]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     if (!tableDialog || !target) {
                         return;
                     }
 
+                    rememberSelection(target);
                     tableDialog.dataset.editorTarget = target;
                     tableDialog.showModal();
                 });
             });
 
             document.querySelectorAll('[data-editor-rule]').forEach((button) => {
+                button.addEventListener('mousedown', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    if (target) {
+                        rememberSelection(target);
+                    }
+                });
+
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
                     if (!ruleDialog || !target) {
                         return;
                     }
 
+                    rememberSelection(target);
                     ruleDialog.dataset.editorTarget = target;
                     ruleDialog.showModal();
                 });
@@ -491,37 +624,33 @@
                 });
             });
 
-            document.querySelector('[data-rich-editor-table-form]')?.addEventListener('submit', (event) => {
-                event.preventDefault();
-
+            document.querySelector('[data-rich-editor-table-submit]')?.addEventListener('click', () => {
                 const dialog = tableDialog;
                 const target = dialog?.dataset.editorTarget;
                 if (!dialog || !target) {
                     return;
                 }
 
-                const formData = new FormData(event.currentTarget);
-                const rows = Math.max(1, Number(formData.get('rows') || 1));
-                const cols = Math.max(1, Number(formData.get('cols') || 1));
-                const borderWidth = Number(formData.get('border_width') || 0);
-                const borderColor = String(formData.get('border_color') || '#d1d5db');
+                const panel = dialog.querySelector('[data-rich-editor-table-panel]');
+                const rows = Math.max(1, Number(panel?.querySelector('[name="rows"]')?.value || 1));
+                const cols = Math.max(1, Number(panel?.querySelector('[name="cols"]')?.value || 1));
+                const borderWidth = Number(panel?.querySelector('[name="border_width"]')?.value || 0);
+                const borderColor = String(panel?.querySelector('[name="border_color"]')?.value || '#d1d5db');
 
                 insertHtml(target, buildTableHtml(rows, cols, borderWidth, borderColor));
                 dialog.close();
             });
 
-            document.querySelector('[data-rich-editor-rule-form]')?.addEventListener('submit', (event) => {
-                event.preventDefault();
-
+            document.querySelector('[data-rich-editor-rule-submit]')?.addEventListener('click', () => {
                 const dialog = ruleDialog;
                 const target = dialog?.dataset.editorTarget;
                 if (!dialog || !target) {
                     return;
                 }
 
-                const formData = new FormData(event.currentTarget);
-                const thickness = Number(formData.get('thickness') || 1);
-                const color = String(formData.get('color') || '#941415');
+                const panel = dialog.querySelector('[data-rich-editor-rule-panel]');
+                const thickness = Number(panel?.querySelector('[name="thickness"]')?.value || 1);
+                const color = String(panel?.querySelector('[name="color"]')?.value || '#941415');
 
                 insertHtml(target, buildRuleHtml(thickness, color));
                 dialog.close();
