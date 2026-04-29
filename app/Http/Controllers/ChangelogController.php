@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.69',
+            'version' => 'v1.70',
             'date' => '29/04/2026',
-            'label' => 'v1.69 - 29/04/2026',
+            'label' => 'v1.70 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix de deploy do PDF de contratos',
+                'items' => [
+                    'O Dockerfile deixa de tentar instalar wkhtmltopdf no Debian trixie do EasyPanel, evitando falha de build por pacote sem candidato disponivel.',
+                    'A geracao do PDF continua preparada para usar wkhtmltopdf apenas se o binario ja existir no ambiente; caso contrario, o sistema segue no fallback por Chromium sem travar o deploy.',
+                ],
+            ],
+            [
+                'version' => 'v1.69',
+                'date' => '29/04/2026',
                 'title' => 'PDF de contratos com rodape mais estavel, melhor qualificacao e anexo visual',
                 'items' => [
                     'A geracao do PDF passa a priorizar wkhtmltopdf quando disponivel no container, o que melhora repeticao do rodape em todas as paginas e destrava a numeracao correta usando pagina atual e total de paginas.',
