@@ -9,15 +9,26 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.63',
+            'version' => 'v1.64',
             'date' => '29/04/2026',
-            'label' => 'v1.63 - 29/04/2026',
+            'label' => 'v1.64 - 29/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'PDF de contratos com qualificação mais elegante, anexos selecionáveis e áreas customizáveis',
+                'items' => [
+                    'O PDF do contrato deixa de inserir automaticamente a linha final de cidade e data fora do template, respeitando apenas o texto montado no próprio modelo.',
+                    'A área de qualificação padrão foi redesenhada em dois quadros lado a lado, com linhas inteligentes e exibição apenas dos dados realmente preenchidos para contratante e contratada.',
+                    'Templates passam a ter editores ricos separados para cabeçalho, qualificação e rodapé, com suporte a imagens, ícones do Font Awesome, quebra de página e marcadores de número total de páginas.',
+                    'Geração de PDF passa a aceitar anexos documentais do cadastro no final do contrato, com modal de seleção tanto na tela de visualização quanto na edição do contrato já existente.',
+                ],
+            ],
+            [
+                'version' => 'v1.63',
+                'date' => '29/04/2026',
                 'title' => 'Hotfix no salvamento de templates e painel recolhido de variaveis',
                 'items' => [
                     'A tela de template agora sincroniza explicitamente o editor rico antes do submit, evitando falso positivo de Template atualizado com sucesso quando o conteudo alterado ainda nao tinha ido para o campo oculto.',

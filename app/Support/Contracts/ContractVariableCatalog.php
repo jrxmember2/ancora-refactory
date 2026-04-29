@@ -68,6 +68,8 @@ class ContractVariableCatalog
             ['key' => 'contrato_dia_vencimento', 'label' => 'Contrato - dia de vencimento', 'description' => 'Dia de vencimento configurado no contrato.', 'source' => 'contracts.due_day'],
             ['key' => 'contrato_reajuste_indice', 'label' => 'Contrato - indice de reajuste', 'description' => 'Indice de reajuste definido no contrato.', 'source' => 'contracts.adjustment_index'],
 
+            ['key' => 'numero_pagina', 'label' => 'Sistema - numero da pagina', 'description' => 'Numero da pagina atual no PDF gerado.', 'source' => 'pdf.counter.page'],
+            ['key' => 'total_paginas', 'label' => 'Sistema - total de paginas', 'description' => 'Quantidade total de paginas no PDF gerado.', 'source' => 'pdf.counter.pages'],
             ['key' => 'data_atual', 'label' => 'Data atual', 'description' => 'Data atual do sistema formatada em portugues.', 'source' => 'system.now'],
             ['key' => 'cidade', 'label' => 'Cidade padrao', 'description' => 'Cidade padrao das configuracoes do modulo.', 'source' => 'contract_settings.default_city'],
             ['key' => 'responsavel_nome', 'label' => 'Responsavel - nome', 'description' => 'Nome do usuario responsavel pelo contrato.', 'source' => 'users.name'],
@@ -84,7 +86,12 @@ class ContractVariableCatalog
 
     public static function keys(): array
     {
-        return array_column(self::definitions(), 'key');
+        return collect(self::definitionsForTemplates())
+            ->pluck('key')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public static function groupLabels(): array

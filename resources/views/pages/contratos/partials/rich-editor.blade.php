@@ -53,6 +53,11 @@
         <button type="button" class="{{ $toolbarButton }}" data-editor-command="justifyFull" data-editor-target="{{ $editorId }}" title="Justificar"><i class="fa-solid fa-align-justify"></i></button>
 
         <button type="button" class="{{ $toolbarButton }}" data-editor-table data-editor-target="{{ $editorId }}" title="Inserir tabela simples"><i class="fa-solid fa-table"></i></button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-image data-editor-target="{{ $editorId }}" title="Inserir imagem por URL ou caminho publico"><i class="fa-solid fa-image"></i></button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-icon data-editor-target="{{ $editorId }}" title="Inserir icone do Font Awesome"><i class="fa-solid fa-icons"></i></button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-token="{{ '{' . '{numero_pagina}' . '}' }}" data-editor-target="{{ $editorId }}" title="Inserir numero da pagina atual">#</button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-token="{{ '{' . '{total_paginas}' . '}' }}" data-editor-target="{{ $editorId }}" title="Inserir total de paginas">##</button>
+        <button type="button" class="{{ $toolbarButton }}" data-editor-html='<div class="page-break"></div><p></p>' data-editor-target="{{ $editorId }}" title="Inserir quebra de pagina"><i class="fa-solid fa-file-lines"></i></button>
     </div>
 
     @if($showVariablePicker)
@@ -103,6 +108,12 @@
     @push('scripts')
         <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const escapeHtmlAttribute = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
             const syncEditor = (editorId) => {
                 const editor = document.querySelector(`[data-rich-editor="${editorId}"]`);
                 const input = document.querySelector(`[data-rich-editor-input="${editorId}"]`);
@@ -165,6 +176,20 @@
                 });
             });
 
+            document.querySelectorAll('[data-editor-token]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    const content = button.getAttribute('data-editor-token');
+                    const editor = focusEditor(target);
+                    if (!editor) {
+                        return;
+                    }
+
+                    document.execCommand('insertText', false, content);
+                    syncEditor(target);
+                });
+            });
+
             document.querySelectorAll('[data-editor-table]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const target = button.getAttribute('data-editor-target');
@@ -175,6 +200,59 @@
 
                     const tableHtml = '<table style="width:100%; border-collapse:collapse;"><tr><td style="border:1px solid #d1d5db; padding:8px;">Campo</td><td style="border:1px solid #d1d5db; padding:8px;">Informacao</td></tr></table><p></p>';
                     document.execCommand('insertHTML', false, tableHtml);
+                    syncEditor(target);
+                });
+            });
+
+            document.querySelectorAll('[data-editor-html]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    const editor = focusEditor(target);
+                    const html = button.getAttribute('data-editor-html');
+                    if (!editor || !html) {
+                        return;
+                    }
+
+                    document.execCommand('insertHTML', false, html);
+                    syncEditor(target);
+                });
+            });
+
+            document.querySelectorAll('[data-editor-image]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    const editor = focusEditor(target);
+                    if (!editor) {
+                        return;
+                    }
+
+                    const src = window.prompt('Informe a URL completa da imagem ou o caminho publico (ex.: /uploads/arquivo.png):');
+                    if (!src) {
+                        return;
+                    }
+
+                    const alt = window.prompt('Texto alternativo da imagem (opcional):') || '';
+                    const html = `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}" style="max-width:100%; height:auto;">`;
+                    document.execCommand('insertHTML', false, html);
+                    syncEditor(target);
+                });
+            });
+
+            document.querySelectorAll('[data-editor-icon]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-editor-target');
+                    const editor = focusEditor(target);
+                    if (!editor) {
+                        return;
+                    }
+
+                    const iconClass = window.prompt('Informe a classe do Font Awesome (ex.: fa-solid fa-phone):');
+                    if (!iconClass) {
+                        return;
+                    }
+
+                    const html = `<i class="${escapeHtmlAttribute(iconClass)}"></i>&nbsp;`;
+                    document.execCommand('insertHTML', false, html);
                     syncEditor(target);
                 });
             });

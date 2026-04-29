@@ -338,11 +338,11 @@
                 </div>
             </div>
 
-            @if($contract?->final_pdf_path)
+            @if($item?->final_pdf_path)
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                     <div class="text-base font-semibold text-gray-900 dark:text-white">PDF atual</div>
-                    <div class="mt-3 text-sm text-gray-600 dark:text-gray-300">Ultimo PDF gerado em {{ optional($contract->final_pdf_generated_at)->format('d/m/Y H:i') ?: 'data nao informada' }}.</div>
-                    <a href="{{ route('contratos.download-pdf', $contract) }}" class="mt-4 inline-flex rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Baixar PDF final</a>
+                    <div class="mt-3 text-sm text-gray-600 dark:text-gray-300">Ultimo PDF gerado em {{ optional($item->final_pdf_generated_at)->format('d/m/Y H:i') ?: 'data nao informada' }}.</div>
+                    <a href="{{ route('contratos.download-pdf', $item) }}" class="mt-4 inline-flex rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Baixar PDF final</a>
                 </div>
             @endif
         </aside>
@@ -351,8 +351,50 @@
     <div class="flex flex-wrap justify-end gap-3">
         <a href="{{ route('contratos.index') }}" class="rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</a>
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">Salvar contrato</button>
-        <button type="submit" name="generate_pdf_now" value="1" class="rounded-xl border border-success-300 bg-success-50 px-5 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
+        @if($mode === 'edit' && $item)
+            <button type="button" id="open-contract-pdf-modal" class="rounded-xl border border-success-300 bg-success-50 px-5 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
+        @else
+            <button type="submit" name="generate_pdf_now" value="1" class="rounded-xl border border-success-300 bg-success-50 px-5 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
+        @endif
     </div>
+
+    @if($mode === 'edit' && $item)
+        <dialog id="contract-form-pdf-modal" class="fixed inset-0 m-auto w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+            <div class="p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Salvar e gerar PDF</h3>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Selecione os documentos do cadastro que devem entrar como anexo no final do contrato.</p>
+                    </div>
+                    <button type="button" id="close-contract-pdf-modal" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+                </div>
+
+                <div class="mt-5 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Documentos disponiveis</div>
+                    <div class="mt-3 space-y-3">
+                        @forelse($pdfAppendixAttachments as $attachment)
+                            <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                                <input type="checkbox" name="pdf_attachment_ids[]" value="{{ $attachment['id'] }}">
+                                <span>
+                                    <span class="block font-semibold text-gray-900 dark:text-white">{{ $attachment['original_name'] }}</span>
+                                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $attachment['owner_label'] }} · {{ strtoupper($attachment['extension']) }} · {{ ucfirst(str_replace('_', ' ', $attachment['file_role'])) }}</span>
+                                </span>
+                            </label>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                Nenhum documento elegivel foi encontrado nos cadastros vinculados. O PDF sera gerado somente com o conteudo do contrato.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="cancel-contract-pdf-modal" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+                    <button type="submit" name="generate_pdf_now" value="1" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
+                </div>
+            </div>
+        </dialog>
+    @endif
 </form>
 @endsection
 
@@ -370,6 +412,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const syndicSelect = document.querySelector('#contract-syndic-id');
     const indefiniteCheckbox = document.querySelector('#contract-indefinite-term');
     const endDateInput = document.querySelector('#contract-end-date');
+    const pdfModal = document.querySelector('#contract-form-pdf-modal');
+    const openPdfModalButton = document.querySelector('#open-contract-pdf-modal');
+    const closePdfModalButton = document.querySelector('#close-contract-pdf-modal');
+    const cancelPdfModalButton = document.querySelector('#cancel-contract-pdf-modal');
 
     let lastAutoTitle = titleInput ? titleInput.value.trim() : '';
     let syndicTouched = false;
@@ -423,6 +469,18 @@ document.addEventListener('DOMContentLoaded', function () {
             typeSelect.value = nextType;
         }
     };
+
+    openPdfModalButton?.addEventListener('click', () => {
+        pdfModal?.showModal();
+    });
+
+    closePdfModalButton?.addEventListener('click', () => {
+        pdfModal?.close();
+    });
+
+    cancelPdfModalButton?.addEventListener('click', () => {
+        pdfModal?.close();
+    });
 
     const syncSyndicFromCondominium = () => {
         if (!condominiumSelect || !syndicSelect || syndicTouched) {

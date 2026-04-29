@@ -15,6 +15,13 @@ use Carbon\Carbon;
 
 class ContractRenderService
 {
+    private const DEFAULT_CONTRACTED_PARTY = [
+        'name' => 'REBECA DA SILVA PAULA SOCIEDADE INDIVIDUAL DE ADVOCACIA',
+        'document' => '52.816.983/0001-32',
+        'responsible' => 'REBECA DA SILVA PAULA',
+        'responsible_document' => 'OAB/ES sob o nº. 25.057',
+    ];
+
     public function draftVariables(array $attributes): array
     {
         $client = !empty($attributes['client_id']) ? ClientEntity::query()->find((int) $attributes['client_id']) : null;
@@ -77,13 +84,20 @@ class ContractRenderService
             $map['{{' . $key . '}}'] = (string) $value;
         }
 
-        return strtr($html, $map);
+        $html = strtr($html, $map);
+
+        return strtr($html, [
+            '{{numero_pagina}}' => '<span class="ancora-page-number"></span>',
+            '{{total_paginas}}' => '<span class="ancora-page-total"></span>',
+        ]);
     }
 
     public function documentPayload(Contract $contract, ?string $contentHtml = null): array
     {
         $variables = $this->contractVariables($contract);
         $contract->loadMissing(['category', 'template', 'client', 'condominium.syndic', 'syndic', 'unit.block', 'responsible', 'creator']);
+        $brand = AncoraSettings::brand();
+        $parties = $this->documentParties($contract, $variables, $brand);
 
         $city = trim((string) ($variables['cidade'] ?? ''));
         $state = trim((string) ContractSettings::get('default_state', 'ES'));
@@ -91,7 +105,7 @@ class ContractRenderService
         $dateLong = Carbon::now()->locale('pt_BR')->translatedFormat('d \\d\\e F \\d\\e Y');
 
         return [
-            'brand' => AncoraSettings::brand(),
+            'brand' => $brand,
             'settings' => [
                 'city' => $city,
                 'state' => $state,
@@ -101,6 +115,10 @@ class ContractRenderService
             ],
             'contract' => $contract,
             'variables' => $variables,
+            'rendered_title' => $this->documentTitle($contract),
+            'rendered_header_html' => $this->renderDocumentFragment((string) ($contract->template?->header_html ?? ''), $variables),
+            'rendered_qualification_html' => $this->renderDocumentFragment((string) ($contract->template?->qualification_html ?? ''), $variables),
+            'rendered_footer_html' => $this->renderDocumentFragment((string) ($contract->template?->footer_html ?? ''), $variables),
             'content_html' => $contentHtml !== null && trim($contentHtml) !== ''
                 ? $this->renderHtml($contentHtml, $variables)
                 : $this->renderHtml((string) $contract->content_html, $variables),
@@ -109,6 +127,7 @@ class ContractRenderService
             'client_label' => $contract->client?->display_name ?: ($contract->condominium?->name ?: 'Nao informado'),
             'condominium_label' => $contract->condominium?->name,
             'unit_label' => $contract->unit?->unit_number,
+            'parties' => $parties,
             'meta_blocks' => $this->documentMetaBlocks($contract, $variables),
         ];
     }
@@ -379,6 +398,139 @@ class ContractRenderService
         ]);
 
         return implode(' - ', $parts);
+    }
+
+    private function renderDocumentFragment(string $html, array $variables): string
+    {
+        $html = trim($html);
+
+        return $html === '' ? '' : $this->renderHtml($html, $variables);
+    }
+
+    private function documentTitle(Contract $contract): string
+    {
+        $title = trim((string) $contract->title);
+        $type = trim((string) $contract->type);
+
+        if ($title === '') {
+            return '';
+        }
+
+        return mb_strtolower($title, 'UTF-8') === mb_strtolower($type, 'UTF-8') ? '' : $title;
+    }
+
+    private function documentParties(Contract $contract, array $variables, array $brand): array
+    {
+        return [
+            'contracting' => $this->contractingParty($contract, $variables),
+            'contracted' => $this->contractedParty($brand),
+        ];
+    }
+
+    private function contractingParty(Contract $contract, array $variables): array
+    {
+        $syndic = $contract->syndic ?: $contract->condominium?->syndic;
+        if ($syndic instanceof ClientEntity) {
+            $isCompany = mb_strtoupper((string) ($variables['sindico_tipo_pessoa'] ?? ''), 'UTF-8') === 'PJ';
+
+            return $this->partyCard('Contratante', array_values(array_filter([
+                    ['label' => 'Nome', 'value' => trim((string) ($isCompany ? ($variables['sindico_empresa_nome'] ?? $variables['sindico_nome_simples'] ?? '') : ($variables['sindico_nome_simples'] ?? ''))), 'wide' => false],
+                    ['label' => $isCompany ? 'CNPJ' : 'CPF', 'value' => trim((string) ($isCompany ? ($variables['sindico_empresa_cnpj'] ?? $variables['sindico_cnpj'] ?? '') : ($variables['sindico_cpf'] ?? $variables['sindico_documento'] ?? ''))), 'wide' => false],
+                    ['label' => 'Responsavel', 'value' => trim((string) ($isCompany ? ($variables['sindico_representante_nome'] ?? '') : ($variables['sindico_nome_simples'] ?? ''))), 'wide' => false],
+                    ['label' => $isCompany ? 'CPF' : 'Documento', 'value' => trim((string) ($isCompany ? ($variables['sindico_representante_cpf'] ?? '') : ($variables['sindico_documento'] ?? ''))), 'wide' => false],
+                    ['label' => 'Endereco', 'value' => trim((string) ($variables['sindico_endereco'] ?? '')), 'wide' => true],
+                    ['label' => 'E-mail', 'value' => trim((string) ($variables['sindico_email'] ?? '')), 'wide' => false],
+                    ['label' => 'Telefone', 'value' => trim((string) ($variables['sindico_telefone'] ?? '')), 'wide' => false],
+                ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+        }
+
+        if ($contract->client instanceof ClientEntity) {
+            return $this->partyCard('Contratante', array_values(array_filter([
+                    ['label' => 'Nome', 'value' => trim((string) ($variables['cliente_nome'] ?? '')), 'wide' => true],
+                    ['label' => 'Documento', 'value' => trim((string) ($variables['cliente_documento'] ?? '')), 'wide' => false],
+                    ['label' => 'Endereco', 'value' => trim((string) ($variables['cliente_endereco'] ?? '')), 'wide' => true],
+                    ['label' => 'E-mail', 'value' => $this->entityEmail($contract->client), 'wide' => false],
+                    ['label' => 'Telefone', 'value' => $this->entityPhone($contract->client), 'wide' => false],
+                ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+        }
+
+        return $this->partyCard('Contratante', array_values(array_filter([
+                ['label' => 'Nome', 'value' => trim((string) ($variables['condominio_nome'] ?? '')), 'wide' => true],
+                ['label' => 'CNPJ', 'value' => trim((string) ($variables['condominio_cnpj'] ?? '')), 'wide' => false],
+                ['label' => 'Responsavel', 'value' => trim((string) ($variables['sindico_nome_simples'] ?? '')), 'wide' => false],
+                ['label' => 'CPF', 'value' => trim((string) ($variables['sindico_cpf'] ?? $variables['sindico_documento'] ?? '')), 'wide' => false],
+                ['label' => 'Endereco', 'value' => trim((string) ($variables['condominio_endereco'] ?? '')), 'wide' => true],
+                ['label' => 'E-mail', 'value' => $this->entityEmail($contract->syndic ?: $contract->condominium?->syndic), 'wide' => false],
+                ['label' => 'Telefone', 'value' => $this->entityPhone($contract->syndic ?: $contract->condominium?->syndic), 'wide' => false],
+            ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+    }
+
+    private function contractedParty(array $brand): array
+    {
+        $name = trim((string) ($brand['company_name'] ?? self::DEFAULT_CONTRACTED_PARTY['name'])) ?: self::DEFAULT_CONTRACTED_PARTY['name'];
+
+        return $this->partyCard('Contratada', array_values(array_filter([
+                ['label' => 'Nome', 'value' => $name, 'wide' => true],
+                ['label' => 'CNPJ', 'value' => self::DEFAULT_CONTRACTED_PARTY['document'], 'wide' => true],
+                ['label' => 'Responsavel', 'value' => self::DEFAULT_CONTRACTED_PARTY['responsible'] . ', inscrita na ' . self::DEFAULT_CONTRACTED_PARTY['responsible_document'], 'wide' => true],
+                ['label' => 'Endereco', 'value' => trim((string) ($brand['company_address'] ?? '')), 'wide' => true],
+                ['label' => 'E-mail', 'value' => trim((string) ($brand['company_email'] ?? '')), 'wide' => false],
+                ['label' => 'Telefone', 'value' => trim((string) ($brand['company_phone'] ?? '')), 'wide' => false],
+            ]), fn (array $row) => trim((string) ($row['value'] ?? '')) !== ''));
+    }
+
+    private function partyCard(string $title, array $rows): array
+    {
+        return [
+            'title' => $title,
+            'rows' => $rows,
+            'grid_rows' => $this->groupPartyRows($rows),
+        ];
+    }
+
+    private function groupPartyRows(array $rows): array
+    {
+        $grouped = [];
+        $count = count($rows);
+
+        for ($index = 0; $index < $count; $index++) {
+            $row = $rows[$index] ?? [];
+
+            if (($row['wide'] ?? false) === true) {
+                $grouped[] = [
+                    'wide' => true,
+                    'columns' => [$row],
+                ];
+                continue;
+            }
+
+            $next = $rows[$index + 1] ?? null;
+            if (is_array($next) && (($next['wide'] ?? false) === false)) {
+                $grouped[] = [
+                    'wide' => false,
+                    'columns' => [$row, $next],
+                ];
+                $index++;
+                continue;
+            }
+
+            $grouped[] = [
+                'wide' => false,
+                'columns' => [$row],
+            ];
+        }
+
+        return $grouped;
+    }
+
+    private function entityEmail(?ClientEntity $entity): string
+    {
+        return trim((string) collect($entity?->emails_json ?? [])->pluck('email')->filter()->first());
+    }
+
+    private function entityPhone(?ClientEntity $entity): string
+    {
+        return trim((string) collect($entity?->phones_json ?? [])->pluck('number')->filter()->first());
     }
 
     private function signaturePresetVariables(): array

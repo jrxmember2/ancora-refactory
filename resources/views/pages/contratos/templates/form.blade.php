@@ -88,11 +88,42 @@
                 <div class="grid grid-cols-1 gap-6">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cabecalho personalizado</label>
-                        <textarea name="header_html" rows="5" class="{{ $textareaClass }}">{{ old('header_html', $item?->header_html) }}</textarea>
+                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Use esta area para montar o topo do documento com imagem, icones, variaveis e numero de pagina, se desejar.</p>
+                        @include('pages.contratos.partials.rich-editor', [
+                            'editorId' => 'contract-template-header',
+                            'name' => 'header_html',
+                            'value' => old('header_html', $item?->header_html),
+                            'placeholder' => 'Opcional. Se preenchido, substitui o cabecalho padrao do PDF.',
+                            'minHeight' => '220px',
+                            'variableDefinitions' => $variableDefinitions,
+                            'showVariablePicker' => true,
+                        ])
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Qualificacao personalizada</label>
+                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Opcional. Se preenchido, substitui os quadrados automaticos de contratante e contratada no PDF.</p>
+                        @include('pages.contratos.partials.rich-editor', [
+                            'editorId' => 'contract-template-qualification',
+                            'name' => 'qualification_html',
+                            'value' => old('qualification_html', $item?->qualification_html),
+                            'placeholder' => 'Monte aqui a area de qualificacao das partes.',
+                            'minHeight' => '260px',
+                            'variableDefinitions' => $variableDefinitions,
+                            'showVariablePicker' => true,
+                        ])
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Rodape personalizado</label>
-                        <textarea name="footer_html" rows="5" class="{{ $textareaClass }}">{{ old('footer_html', $item?->footer_html) }}</textarea>
+                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">Aceita imagens, icones, variaveis e marcadores de pagina. O rodape institucional do sistema continua sendo exibido abaixo.</p>
+                        @include('pages.contratos.partials.rich-editor', [
+                            'editorId' => 'contract-template-footer',
+                            'name' => 'footer_html',
+                            'value' => old('footer_html', $item?->footer_html),
+                            'placeholder' => 'Opcional. Personalize o fechamento visual do documento.',
+                            'minHeight' => '220px',
+                            'variableDefinitions' => $variableDefinitions,
+                            'showVariablePicker' => true,
+                        ])
                     </div>
                 </div>
             </div>

@@ -15,7 +15,7 @@ class ContractPdfService
     ) {
     }
 
-    public function generate(Contract $contract, ?int $userId = null, ?string $notes = null): ContractVersion
+    public function generate(Contract $contract, ?int $userId = null, ?string $notes = null, array $appendixAttachments = []): ContractVersion
     {
         $contract->loadMissing(['template', 'client', 'condominium.syndic', 'unit.block', 'responsible']);
 
@@ -30,9 +30,11 @@ class ContractPdfService
         $relativePdfPath = 'contracts/' . $contract->id . '/versions/' . $pdfFilename;
 
         $payload = $this->renderService->documentPayload($contract);
+        $appendixSections = $this->buildAppendixSections($appendixAttachments);
         File::put($htmlPath, view('pages.contratos.document', array_merge($payload, [
             'pdfMode' => true,
             'autoPrint' => false,
+            'appendixSections' => $appendixSections,
         ]))->render());
 
         $generated = $this->renderPdfWithChromium($htmlPath, $pdfPath)
@@ -182,5 +184,122 @@ class ContractPdfService
         }
 
         return null;
+    }
+
+    private function buildAppendixSections(array $attachments): array
+    {
+        return collect($attachments)
+            ->map(function ($attachment) {
+                if (!is_array($attachment)) {
+                    return null;
+                }
+
+                $path = $this->resolveAppendixPath($attachment);
+                if (!$path) {
+                    return null;
+                }
+
+                $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+                $pages = match ($extension) {
+                    'pdf' => $this->pdfPagesToDataUris($path),
+                    'png', 'jpg', 'jpeg', 'webp' => array_filter([$this->imageToDataUri($path)]),
+                    default => [],
+                };
+
+                if ($pages === []) {
+                    return null;
+                }
+
+                return [
+                    'id' => $attachment['id'] ?? null,
+                    'original_name' => $attachment['original_name'] ?? basename($path),
+                    'owner_label' => $attachment['owner_label'] ?? '',
+                    'pages' => array_map(fn (string $src) => ['src' => $src], $pages),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function resolveAppendixPath(array $attachment): ?string
+    {
+        $relativePath = trim((string) ($attachment['relative_path'] ?? ''));
+        if ($relativePath === '') {
+            return null;
+        }
+
+        $publicPath = public_path(ltrim($relativePath, '/'));
+        if (is_file($publicPath)) {
+            return $publicPath;
+        }
+
+        $storagePath = storage_path('app/public/' . ltrim($relativePath, '/'));
+
+        return is_file($storagePath) ? $storagePath : null;
+    }
+
+    private function pdfPagesToDataUris(string $pdfPath): array
+    {
+        $binary = $this->availableExecutable(['pdftoppm']);
+        if (!$binary) {
+            return [];
+        }
+
+        $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ancora-contract-appendix-' . Str::random(10);
+        File::ensureDirectoryExists($tempDir);
+        $outputPrefix = $tempDir . DIRECTORY_SEPARATOR . 'page';
+
+        try {
+            $process = new Process([
+                $binary,
+                '-png',
+                $pdfPath,
+                $outputPrefix,
+            ], timeout: 120);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                return [];
+            }
+
+            return collect(File::files($tempDir))
+                ->filter(fn ($file) => strtolower((string) $file->getExtension()) === 'png')
+                ->sortBy(fn ($file) => $file->getFilename())
+                ->map(fn ($file) => $this->imageToDataUri($file->getPathname()))
+                ->filter()
+                ->values()
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        } finally {
+            File::deleteDirectory($tempDir);
+        }
+    }
+
+    private function imageToDataUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+        $mime = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            default => null,
+        };
+
+        if (!$mime) {
+            return null;
+        }
+
+        $contents = @file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 }

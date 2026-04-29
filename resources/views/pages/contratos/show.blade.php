@@ -8,7 +8,7 @@
         @else
             <span class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Assinatura digital</span>
         @endif
-        <form method="post" action="{{ route('contratos.generate-pdf', $item) }}">@csrf<button class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar PDF</button></form>
+        <button type="button" onclick="document.getElementById('contract-pdf-modal').showModal()" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar PDF</button>
         @if($item->final_pdf_path)
             <a href="{{ route('contratos.download-pdf', $item) }}" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Baixar PDF</a>
         @endif
@@ -27,6 +27,48 @@
         @endforeach
     </div>
 @endif
+
+<dialog id="contract-pdf-modal" class="fixed inset-0 m-auto w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <form method="post" action="{{ route('contratos.generate-pdf', $item) }}" class="p-6">
+        @csrf
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Gerar PDF do contrato</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Selecione quais documentos do cadastro do contratante devem entrar como anexos ao final do PDF.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('contract-pdf-modal').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+        </div>
+
+        <div class="mt-5">
+            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Observacao da versao</label>
+            <input name="version_notes" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Ex.: ajuste final, versao para assinatura, contrato consolidado...">
+        </div>
+
+        <div class="mt-5 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Documentos disponiveis</div>
+            <div class="mt-3 space-y-3">
+                @forelse($pdfAppendixAttachments as $attachment)
+                    <label class="flex items-start gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                        <input type="checkbox" name="pdf_attachment_ids[]" value="{{ $attachment['id'] }}">
+                        <span>
+                            <span class="block font-semibold text-gray-900 dark:text-white">{{ $attachment['original_name'] }}</span>
+                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $attachment['owner_label'] }} · {{ strtoupper($attachment['extension']) }} · {{ ucfirst(str_replace('_', ' ', $attachment['file_role'])) }}</span>
+                        </span>
+                    </label>
+                @empty
+                    <div class="rounded-xl border border-dashed border-gray-300 px-4 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                        Nenhum documento elegivel foi encontrado nos cadastros vinculados. O PDF sera gerado somente com o conteudo do contrato.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('contract-pdf-modal').close()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+            <button class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Gerar PDF</button>
+        </div>
+    </form>
+</dialog>
 
 <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Cliente</div><div class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $item->client?->display_name ?: 'Nao informado' }}</div></div>
