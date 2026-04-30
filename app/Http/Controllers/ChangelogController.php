@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.82',
+            'version' => 'v1.83',
             'date' => '30/04/2026',
-            'label' => 'v1.82 - 30/04/2026',
+            'label' => 'v1.83 - 30/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Importacao de inadimplencia ganha fila local de decisoes e aplicacao em lote',
+                'items' => [
+                    'A tela de importacao de inadimplencia deixa de exigir refresh por linha em cada conflito e passa a guardar decisoes pendentes em fila local, permitindo revisar varias linhas antes de aplicar tudo de uma vez.',
+                    'Sugestoes, correcoes, ignorar linha, criar nova OS e escolher OS existente passam a entrar na mesma fila de decisoes em lote, com resumo visual do que ainda sera aplicado.',
+                    'A aplicacao em lote reutiliza a mesma logica de resolucao do backend, mantendo a classificacao segura das linhas e limpando a fila local ao processar, cancelar ou concluir o lote.',
+                ],
+            ],
+            [
+                'version' => 'v1.82',
+                'date' => '30/04/2026',
                 'title' => 'Importacao de inadimplencia ganha validacao mais dura, matching de unidade com bloco embutido e agrupamento real por unidade',
                 'items' => [
                     'A planilha de inadimplencia passa a exigir tambem o cabecalho de proprietario na pre-validacao, evitando seguir com arquivo estruturalmente incompleto para uma rotina juridica critica.',

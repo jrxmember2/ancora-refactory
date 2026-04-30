@@ -102,6 +102,7 @@ class AncoraRouteCatalog
                     'cobrancas.import.index' => 'Acessar importacao de inadimplencia',
                     'cobrancas.import.preview' => 'Analisar planilha de inadimplencia',
                     'cobrancas.import.show' => 'Visualizar lote de importacao de inadimplencia',
+                    'cobrancas.import.resolve.bulk' => 'Aplicar decisoes em lote na importacao de inadimplencia',
                     'cobrancas.import.resolve' => 'Resolver conflito da importacao de inadimplencia',
                     'cobrancas.import.cancel' => 'Cancelar lote de inadimplencia',
                     'cobrancas.import.report' => 'Exportar relatorio da importacao de inadimplencia',

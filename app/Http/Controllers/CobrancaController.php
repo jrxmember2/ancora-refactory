@@ -588,77 +588,98 @@ class CobrancaController extends Controller
             return $this->importCancel($request, $batch);
         }
 
-        $details = 'Linha ' . $row->row_number . ': ';
-
-        switch ($actionType) {
-            case 'ignore_line':
-                $row->update([
-                    'status' => 'ignored_manual',
-                    'issue_code' => 'manual_ignore',
-                    'message' => 'Linha ignorada manualmente pelo usuario.',
-                    'matched_case_id' => null,
-                    'resolution_payload_json' => [
-                        'decision' => 'ignore_line',
-                        'user_id' => $user->id,
-                        'decided_at' => now()->toDateTimeString(),
-                    ],
-                ]);
-                $details .= 'linha ignorada manualmente.';
-                break;
-
-            case 'create_new_case':
-                $row->update([
-                    'resolution_payload_json' => [
-                        'decision' => 'create_new_case',
-                        'user_id' => $user->id,
-                        'decided_at' => now()->toDateTimeString(),
-                    ],
-                ]);
-                $details .= 'usuario autorizou nova OS.';
-                break;
-
-            case 'use_case':
-                $caseId = (int) $request->integer('target_case_id');
-                if ($caseId <= 0) {
-                    return back()->with('error', 'Selecione a OS que deve receber a cota.');
-                }
-
-                $row->update([
-                    'resolution_payload_json' => [
-                        'decision' => 'use_case',
-                        'target_case_id' => $caseId,
-                        'user_id' => $user->id,
-                        'decided_at' => now()->toDateTimeString(),
-                    ],
-                ]);
-                $details .= 'usuario escolheu a OS #' . $caseId . ' para reaproveitamento.';
-                break;
-
-            case 'correct':
-            default:
-                $row->update([
-                    'condominium_input' => trim((string) $request->input('condominium_input', $row->condominium_input)),
-                    'block_input' => trim((string) $request->input('block_input', $row->block_input)),
-                    'unit_input' => trim((string) $request->input('unit_input', $row->unit_input)),
-                    'owner_input' => trim((string) $request->input('owner_input', $row->owner_input)),
-                    'reference_input' => $this->formatImportReferenceInput((string) $request->input('reference_input', $row->reference_input)),
-                    'due_date_input' => $this->formatImportDateInput((string) $request->input('due_date_input', $row->due_date_input)),
-                    'amount_value' => $this->moneyToDb($request->input('amount_value', $row->amount_value)),
-                    'quota_type_input' => trim((string) $request->input('quota_type_input', $row->quota_type_input)),
-                    'resolution_payload_json' => [
-                        'decision' => 'corrected_fields',
-                        'user_id' => $user->id,
-                        'decided_at' => now()->toDateTimeString(),
-                    ],
-                ]);
-                $details .= 'campos corrigidos manualmente.';
-                break;
+        try {
+            $details = 'Linha ' . $row->row_number . ': ' . $this->applyImportRowResolution($row, $request->all(), $user->id);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         $this->classifyImportBatch($batch);
         $this->logAction($request, 'cobrancas.import.resolve', $batch->id, $details);
 
         return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Linha atualizada e reavaliada com sucesso.');
+    }
+
+    public function importBulkResolve(Request $request, CobrancaImportBatch $batch): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        if ($batch->status === 'processed') {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Este lote ja foi processado e nao pode mais ser alterado.');
+        }
+
+        if ($batch->status === 'cancelled') {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Este lote foi cancelado e nao pode mais ser alterado.');
+        }
+
+        $decisionsRaw = trim((string) $request->input('decisions_json', ''));
+        if ($decisionsRaw === '') {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Nenhuma decisao pendente foi enviada para aplicacao em lote.');
+        }
+
+        $decisions = json_decode($decisionsRaw, true);
+        if (!is_array($decisions) || $decisions === []) {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Nao foi possivel interpretar as decisoes pendentes da fila.');
+        }
+
+        $rowIds = collect($decisions)
+            ->map(fn ($decision) => (int) ($decision['row_id'] ?? 0))
+            ->filter(fn (int $rowId) => $rowId > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($rowIds === []) {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'A fila de decisoes nao possui linhas validas para aplicacao.');
+        }
+
+        $rowsById = $batch->rows()
+            ->whereIn('id', $rowIds)
+            ->get()
+            ->keyBy('id');
+
+        $applied = 0;
+        $details = [];
+
+        foreach ($decisions as $decision) {
+            $rowId = (int) ($decision['row_id'] ?? 0);
+            $actionType = trim((string) ($decision['action_type'] ?? ''));
+
+            if ($rowId <= 0 || $actionType === '' || $actionType === 'cancel_import') {
+                continue;
+            }
+
+            /** @var CobrancaImportRow|null $row */
+            $row = $rowsById->get($rowId);
+            if (!$row) {
+                continue;
+            }
+
+            try {
+                $details[] = 'Linha ' . $row->row_number . ': ' . $this->applyImportRowResolution($row, $decision, $user->id);
+                $applied++;
+            } catch (\InvalidArgumentException $e) {
+                return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Nao foi possivel aplicar a fila: ' . $e->getMessage());
+            }
+        }
+
+        if ($applied === 0) {
+            return redirect()->route('cobrancas.import.show', $batch)->with('error', 'Nenhuma decisao valida da fila foi aplicada.');
+        }
+
+        $this->classifyImportBatch($batch);
+        $this->logAction(
+            $request,
+            'cobrancas.import.resolve',
+            $batch->id,
+            'Aplicou ' . $applied . ' decisoes em lote na importacao de inadimplencia. ' . implode(' | ', $details)
+        );
+
+        return redirect()
+            ->route('cobrancas.import.show', $batch)
+            ->with('success', 'Foram aplicadas ' . $applied . ' decisoes em lote. A previa foi atualizada.')
+            ->with('importDecisionQueueCleared', true);
     }
 
     public function importCancel(Request $request, CobrancaImportBatch $batch): RedirectResponse
@@ -684,7 +705,10 @@ class CobrancaController extends Controller
 
         $this->logAction($request, 'cobrancas.import.cancel', $batch->id, 'Importacao de inadimplencia cancelada antes do processamento.');
 
-        return redirect()->route('cobrancas.import.show', $batch)->with('success', 'Importacao cancelada. Nenhuma OS foi criada.');
+        return redirect()
+            ->route('cobrancas.import.show', $batch)
+            ->with('success', 'Importacao cancelada. Nenhuma OS foi criada.')
+            ->with('importDecisionQueueCleared', true);
     }
 
     public function importReport(Request $request, CobrancaImportBatch $batch, string $format): Response|BinaryFileResponse
@@ -816,6 +840,89 @@ class CobrancaController extends Controller
         }
 
         return redirect()->route('cobrancas.import.show', $batch)->with('success', $message);
+    }
+
+    private function applyImportRowResolution(CobrancaImportRow $row, array $payload, int $userId): string
+    {
+        $actionType = trim((string) ($payload['action_type'] ?? 'correct'));
+
+        return match ($actionType) {
+            'ignore_line' => $this->applyImportRowIgnoreResolution($row, $userId),
+            'create_new_case' => $this->applyImportRowCreateCaseResolution($row, $userId),
+            'use_case' => $this->applyImportRowUseCaseResolution($row, $payload, $userId),
+            'correct', '' => $this->applyImportRowCorrectionResolution($row, $payload, $userId),
+            default => $this->applyImportRowCorrectionResolution($row, $payload, $userId),
+        };
+    }
+
+    private function applyImportRowIgnoreResolution(CobrancaImportRow $row, int $userId): string
+    {
+        $row->update([
+            'status' => 'ignored_manual',
+            'issue_code' => 'manual_ignore',
+            'message' => 'Linha ignorada manualmente pelo usuario.',
+            'matched_case_id' => null,
+            'resolution_payload_json' => [
+                'decision' => 'ignore_line',
+                'user_id' => $userId,
+                'decided_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return 'linha ignorada manualmente.';
+    }
+
+    private function applyImportRowCreateCaseResolution(CobrancaImportRow $row, int $userId): string
+    {
+        $row->update([
+            'resolution_payload_json' => [
+                'decision' => 'create_new_case',
+                'user_id' => $userId,
+                'decided_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return 'usuario autorizou nova OS.';
+    }
+
+    private function applyImportRowUseCaseResolution(CobrancaImportRow $row, array $payload, int $userId): string
+    {
+        $caseId = (int) ($payload['target_case_id'] ?? 0);
+        if ($caseId <= 0) {
+            throw new \InvalidArgumentException('Selecione a OS que deve receber a cota.');
+        }
+
+        $row->update([
+            'resolution_payload_json' => [
+                'decision' => 'use_case',
+                'target_case_id' => $caseId,
+                'user_id' => $userId,
+                'decided_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return 'usuario escolheu a OS #' . $caseId . ' para reaproveitamento.';
+    }
+
+    private function applyImportRowCorrectionResolution(CobrancaImportRow $row, array $payload, int $userId): string
+    {
+        $row->update([
+            'condominium_input' => trim((string) ($payload['condominium_input'] ?? $row->condominium_input)),
+            'block_input' => trim((string) ($payload['block_input'] ?? $row->block_input)),
+            'unit_input' => trim((string) ($payload['unit_input'] ?? $row->unit_input)),
+            'owner_input' => trim((string) ($payload['owner_input'] ?? $row->owner_input)),
+            'reference_input' => $this->formatImportReferenceInput((string) ($payload['reference_input'] ?? $row->reference_input)),
+            'due_date_input' => $this->formatImportDateInput((string) ($payload['due_date_input'] ?? $row->due_date_input)),
+            'amount_value' => $this->moneyToDb($payload['amount_value'] ?? $row->amount_value),
+            'quota_type_input' => trim((string) ($payload['quota_type_input'] ?? $row->quota_type_input)),
+            'resolution_payload_json' => [
+                'decision' => 'corrected_fields',
+                'user_id' => $userId,
+                'decided_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        return 'campos corrigidos manualmente.';
     }
 
     private function importShowV2(Request $request, CobrancaImportBatch $batch): View
@@ -1076,7 +1183,8 @@ class CobrancaController extends Controller
 
         return redirect()
             ->route('cobrancas.import.show', $batch)
-            ->with('success', 'Importacao concluida. OS criadas: ' . $createdCases . ' · OS reaproveitadas: ' . $linkedCases . ' · cotas adicionadas: ' . $createdQuotas . '.');
+            ->with('success', 'Importacao concluida. OS criadas: ' . $createdCases . ' · OS reaproveitadas: ' . $linkedCases . ' · cotas adicionadas: ' . $createdQuotas . '.')
+            ->with('importDecisionQueueCleared', true);
     }
 
     public function create(): View

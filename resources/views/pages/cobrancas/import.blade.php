@@ -80,6 +80,27 @@
                     </div>
                 </div>
 
+                @if($batch->status !== 'processed' && $batch->status !== 'cancelled')
+                    <form id="bulk-import-resolution-form" method="post" action="{{ route('cobrancas.import.resolve.bulk', $batch) }}" class="hidden">
+                        @csrf
+                        <input type="hidden" name="decisions_json" id="bulk-import-resolution-input">
+                    </form>
+
+                    <div id="bulk-import-resolution-panel" class="mt-5 hidden rounded-2xl border border-brand-200 bg-brand-50 px-5 py-4 dark:border-brand-900/40 dark:bg-brand-500/10">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <div class="text-xs uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">Fila de decisoes</div>
+                                <div id="bulk-import-resolution-text" class="mt-1 text-sm font-medium text-brand-900 dark:text-brand-100">Nenhuma decisao pendente.</div>
+                                <div class="mt-1 text-xs text-brand-700/80 dark:text-brand-200/80">Guarde as decisoes nas linhas e aplique tudo em lote para evitar refresh a cada conflito.</div>
+                            </div>
+                            <div class="flex flex-wrap gap-3">
+                                <button type="button" id="bulk-import-resolution-apply" onclick="submitImportDecisionQueue()" class="rounded-xl bg-brand-600 px-4 py-3 text-sm font-medium text-white">Aplicar decisoes em lote</button>
+                                <button type="button" id="bulk-import-resolution-clear" onclick="clearImportDecisionQueue()" class="rounded-xl border border-brand-300 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:text-brand-300">Descartar fila</button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Linhas lidas</div><div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ $summary['total_rows'] ?? 0 }}</div></div>
                     <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Prontas</div><div class="mt-2 text-2xl font-semibold text-success-600 dark:text-success-300">{{ $summary['ready_rows'] ?? 0 }}</div></div>
@@ -140,7 +161,7 @@
                                     $caseOptions = $issue['case_options'] ?? [];
                                     $suggestions = $issue['suggestions'] ?? [];
                                 @endphp
-                                <tr>
+                                <tr data-import-row-id="{{ $row->id }}">
                                     <td class="px-4 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $row->row_number }}</td>
                                     <td class="px-4 py-4 align-top">
                                         <div class="font-medium text-gray-900 dark:text-white">{{ $row->condominium_input }}</div>
@@ -171,6 +192,7 @@
                                     <td class="px-4 py-4 align-top">
                                         @if(in_array($row->status, ['warning_duplicate', 'warning_multi_case', 'error_condominium', 'error_unit', 'error_required'], true))
                                             <button type="button" onclick="openImportDialog('{{ $dialogId }}')" class="rounded-xl border border-brand-200 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:text-brand-300">Corrigir / decidir</button>
+                                            <div class="js-import-row-pending mt-2 hidden text-xs font-medium text-brand-600 dark:text-brand-300" data-row-id="{{ $row->id }}"></div>
                                         @elseif($row->cobrancaCase)
                                             <a href="{{ route('cobrancas.show', $row->cobrancaCase) }}" class="text-xs font-medium text-brand-600 dark:text-brand-300">Abrir OS</a>
                                         @else
@@ -195,6 +217,9 @@
                                         </div>
 
                                         <div class="space-y-6 px-6 py-6">
+                                            <div class="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 dark:border-brand-900/40 dark:bg-brand-500/10 dark:text-brand-200">
+                                                As decisoes desta linha podem ser guardadas em fila. Voce pode continuar revisando outras linhas e aplicar tudo em lote depois.
+                                            </div>
                                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                 <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
                                                     <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Linha importada</div>
@@ -222,11 +247,11 @@
                                                                     <div class="mt-1 text-gray-600 dark:text-gray-300">Última movimentação: {{ $caseOption['last_progress_at'] ?: '—' }}</div>
                                                                     <div class="mt-3 flex flex-wrap gap-2">
                                                                         @if($row->status === 'warning_multi_case')
-                                                                            <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}">
+                                                                            <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision" data-row-id="{{ $row->id }}">
                                                                                 @csrf
                                                                                 <input type="hidden" name="action_type" value="use_case">
                                                                                 <input type="hidden" name="target_case_id" value="{{ $caseOption['id'] }}">
-                                                                                <button class="rounded-xl bg-brand-500 px-3 py-2 text-xs font-medium text-white">Vincular nesta OS</button>
+                                                                                <button class="rounded-xl bg-brand-500 px-3 py-2 text-xs font-medium text-white">Adicionar vinculo a fila</button>
                                                                             </form>
                                                                         @endif
                                                                     </div>
@@ -254,7 +279,7 @@
                                                                 </div>
                                                                 <div class="flex flex-wrap gap-2">
                                                                     <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">Similaridade {{ $suggestion['score'] ?? 0 }}%</span>
-                                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}">
+                                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision" data-row-id="{{ $row->id }}">
                                                                         @csrf
                                                                         <input type="hidden" name="action_type" value="correct">
                                                                         <input type="hidden" name="condominium_input" value="{{ $suggestion['condominium_name'] ?? $suggestion['name'] ?? $row->condominium_input }}">
@@ -265,7 +290,7 @@
                                                                         <input type="hidden" name="due_date_input" value="{{ $row->due_date_input }}">
                                                                         <input type="hidden" name="amount_value" value="{{ $row->amount_value }}">
                                                                         <input type="hidden" name="quota_type_input" value="{{ $row->quota_type_input }}">
-                                                                        <button class="rounded-xl border border-brand-200 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:text-brand-300">Usar sugestao</button>
+                                                                        <button class="rounded-xl border border-brand-200 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:text-brand-300">Adicionar sugestao a fila</button>
                                                                     </form>
                                                                 </div>
                                                             </div>
@@ -276,15 +301,15 @@
 
                                             @if(in_array($row->status, ['warning_duplicate', 'warning_multi_case'], true))
                                                 <div class="flex flex-wrap gap-3">
-                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}">
+                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision" data-row-id="{{ $row->id }}">
                                                         @csrf
                                                         <input type="hidden" name="action_type" value="create_new_case">
-                                                        <button class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white">Criar nova OS mesmo assim</button>
+                                                        <button class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white">Adicionar nova OS a fila</button>
                                                     </form>
-                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}">
+                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision" data-row-id="{{ $row->id }}">
                                                         @csrf
                                                         <input type="hidden" name="action_type" value="ignore_line">
-                                                        <button class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Ignorar esta linha</button>
+                                                        <button class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Adicionar ignorar a fila</button>
                                                     </form>
                                                     <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}">
                                                         @csrf
@@ -297,7 +322,7 @@
                                             @if(in_array($row->status, ['error_condominium', 'error_unit', 'error_required'], true))
                                                 <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
                                                     <div class="text-sm font-medium text-gray-900 dark:text-white">Correcao manual</div>
-                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision mt-4 grid grid-cols-1 gap-4 md:grid-cols-2" data-row-id="{{ $row->id }}">
                                                         @csrf
                                                         <input type="hidden" name="action_type" value="correct">
                                                         <div>
@@ -333,13 +358,13 @@
                                                             <input type="text" name="quota_type_input" value="{{ $row->quota_type_input }}" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                                                         </div>
                                                         <div class="md:col-span-2 flex flex-wrap gap-3">
-                                                            <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Salvar correcao</button>
+                                                            <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Adicionar correcao a fila</button>
                                                         </div>
                                                     </form>
-                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="mt-3">
+                                                    <form method="post" action="{{ route('cobrancas.import.resolve', [$batch, $row]) }}" class="js-queue-import-decision mt-3" data-row-id="{{ $row->id }}">
                                                         @csrf
                                                         <input type="hidden" name="action_type" value="ignore_line">
-                                                        <button class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Ignorar esta linha</button>
+                                                        <button class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Adicionar ignorar a fila</button>
                                                     </form>
                                                 </div>
                                             @endif
@@ -414,6 +439,164 @@
 </div>
 
 <script>
+    const importBatchId = @json($batch?->id);
+    const importDecisionQueueShouldClear = @json((bool) session('importDecisionQueueCleared'));
+    let importDecisionQueue = {};
+
+    function importDecisionQueueKey() {
+        return importBatchId ? `cobrancas-import-queue-${importBatchId}` : null;
+    }
+
+    function loadImportDecisionQueue() {
+        const key = importDecisionQueueKey();
+        if (!key) {
+            importDecisionQueue = {};
+            return;
+        }
+
+        if (importDecisionQueueShouldClear) {
+            sessionStorage.removeItem(key);
+            importDecisionQueue = {};
+            return;
+        }
+
+        try {
+            const raw = sessionStorage.getItem(key);
+            const list = raw ? JSON.parse(raw) : [];
+            importDecisionQueue = {};
+
+            if (Array.isArray(list)) {
+                list.forEach((item) => {
+                    const rowId = Number(item?.row_id || 0);
+                    if (rowId > 0) {
+                        importDecisionQueue[rowId] = item;
+                    }
+                });
+            }
+        } catch (error) {
+            importDecisionQueue = {};
+        }
+    }
+
+    function saveImportDecisionQueue() {
+        const key = importDecisionQueueKey();
+        if (!key) {
+            return;
+        }
+
+        sessionStorage.setItem(key, JSON.stringify(Object.values(importDecisionQueue)));
+        refreshImportDecisionQueueUI();
+    }
+
+    function describeImportDecision(decision) {
+        const actionType = String(decision?.action_type || '');
+
+        if (actionType === 'ignore_line') {
+            return 'Ignorar linha';
+        }
+        if (actionType === 'create_new_case') {
+            return 'Criar nova OS';
+        }
+        if (actionType === 'use_case') {
+            return `Vincular na OS #${decision?.target_case_id || '?'}`;
+        }
+        if (actionType === 'correct') {
+            return 'Correcao pendente';
+        }
+
+        return 'Decisao pendente';
+    }
+
+    function refreshImportDecisionQueueUI() {
+        const panel = document.getElementById('bulk-import-resolution-panel');
+        const text = document.getElementById('bulk-import-resolution-text');
+        const applyButton = document.getElementById('bulk-import-resolution-apply');
+        const clearButton = document.getElementById('bulk-import-resolution-clear');
+        const decisions = Object.values(importDecisionQueue);
+        const total = decisions.length;
+
+        if (panel) {
+            panel.classList.toggle('hidden', total === 0);
+        }
+        if (text) {
+            text.textContent = total === 1
+                ? '1 linha com decisao pendente para aplicar em lote.'
+                : `${total} linha(s) com decisao pendente para aplicar em lote.`;
+        }
+        if (applyButton) {
+            applyButton.disabled = total === 0;
+            applyButton.classList.toggle('opacity-50', total === 0);
+            applyButton.classList.toggle('cursor-not-allowed', total === 0);
+        }
+        if (clearButton) {
+            clearButton.disabled = total === 0;
+        }
+
+        document.querySelectorAll('.js-import-row-pending').forEach((element) => {
+            const rowId = Number(element.dataset.rowId || 0);
+            const decision = importDecisionQueue[rowId];
+
+            if (decision) {
+                element.textContent = describeImportDecision(decision);
+                element.classList.remove('hidden');
+            } else {
+                element.textContent = '';
+                element.classList.add('hidden');
+            }
+        });
+    }
+
+    function queueImportDecision(form) {
+        if (!(form instanceof HTMLFormElement)) {
+            return true;
+        }
+
+        const rowId = Number(form.dataset.rowId || 0);
+        const formData = new FormData(form);
+        const actionType = String(formData.get('action_type') || '').trim();
+
+        if (rowId <= 0 || actionType === '' || actionType === 'cancel_import') {
+            return true;
+        }
+
+        const payload = { row_id: rowId };
+        formData.forEach((value, key) => {
+            payload[key] = typeof value === 'string' ? value.trim() : value;
+        });
+
+        importDecisionQueue[rowId] = payload;
+        saveImportDecisionQueue();
+
+        const dialog = form.closest('dialog');
+        if (dialog instanceof HTMLDialogElement) {
+            dialog.close();
+        }
+
+        return false;
+    }
+
+    function clearImportDecisionQueue() {
+        const key = importDecisionQueueKey();
+        if (key) {
+            sessionStorage.removeItem(key);
+        }
+        importDecisionQueue = {};
+        refreshImportDecisionQueueUI();
+    }
+
+    function submitImportDecisionQueue() {
+        const form = document.getElementById('bulk-import-resolution-form');
+        const input = document.getElementById('bulk-import-resolution-input');
+        const decisions = Object.values(importDecisionQueue);
+
+        if (!form || !input || decisions.length === 0) {
+            return;
+        }
+
+        input.value = JSON.stringify(decisions);
+        form.submit();
+    }
+
     function openImportDialog(id) {
         const dialog = document.getElementById(id);
         if (dialog) dialog.showModal();
@@ -429,6 +612,19 @@
         if (target instanceof HTMLDialogElement) {
             target.close();
         }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadImportDecisionQueue();
+        refreshImportDecisionQueueUI();
+
+        document.querySelectorAll('.js-queue-import-decision').forEach((form) => {
+            form.addEventListener('submit', function (event) {
+                if (!queueImportDecision(form)) {
+                    event.preventDefault();
+                }
+            });
+        });
     });
 </script>
 @endsection
