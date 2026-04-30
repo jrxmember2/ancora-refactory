@@ -209,7 +209,7 @@ class ContractPdfService
         $tempDir = storage_path('framework/cache/mpdf');
         File::ensureDirectoryExists($tempDir);
         $baseBottomMm = $this->cmToMm((float) ($margins['bottom'] ?? 2));
-        $effectiveBottomMm = max($baseBottomMm + $footerReserveMm + 4, 28);
+        $effectiveBottomMm = max($baseBottomMm + $footerReserveMm + 1.5, 24);
 
         try {
             $mpdf = new \Mpdf\Mpdf([
@@ -220,7 +220,7 @@ class ContractPdfService
                 'margin_right' => $this->cmToMm((float) ($margins['right'] ?? 2)),
                 'margin_bottom' => $effectiveBottomMm,
                 'margin_left' => $this->cmToMm((float) ($margins['left'] ?? 3)),
-                'margin_footer' => 4,
+                'margin_footer' => 2,
             ]);
 
             $mpdf->showImageErrors = false;
@@ -730,13 +730,13 @@ class ContractPdfService
         $customFooter = trim((string) ($payload['rendered_footer_html'] ?? ''));
 
         if ($customFooter !== '') {
-            return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#4b5563;">'
+            return '<div style="width:100%;padding:0 0 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#4b5563;">'
                 . $this->buildMpdfFooterHtml($customFooter)
                 . '</div>';
         }
 
-        return '<div style="width:100%;padding:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6b7280;">'
-            . '<div style="border-top:2px solid #941415;padding-top:6px;text-align:center;text-transform:lowercase;">'
+        return '<div style="width:100%;padding:0 0 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6b7280;">'
+            . '<div style="border-top:2px solid #941415;padding-top:4px;text-align:center;text-transform:lowercase;">'
             . e((string) ($payload['settings']['footer_text'] ?? 'documento gerado pelo ancora hub'))
             . '</div></div>';
     }
@@ -813,12 +813,12 @@ class ContractPdfService
         $lengthHints = max(0, (int) ceil(max(0, mb_strlen($text, 'UTF-8') - 80) / 80));
         $visualLines = max(1, min(8, $lineHints > 0 ? $lineHints : 1));
 
-        return min(6.2, 1.4 + (($visualLines - 1) * 0.45) + ($lengthHints * 0.28));
+        return min(5.2, 0.9 + (($visualLines - 1) * 0.34) + ($lengthHints * 0.2));
     }
 
     private function footerReserveMm(string $footerHtml): float
     {
-        return max(10, round($this->footerReserveCm($footerHtml) * 10, 1));
+        return max(7, round($this->footerReserveCm($footerHtml) * 10, 1));
     }
 
     private function mpdfPageFormat(string $pageSize): string

@@ -50,7 +50,7 @@
             font-family: Arial, Helvetica, sans-serif;
             color: #1f2937;
             font-size: 13px;
-            line-height: 1.65;
+            line-height: 1.58;
             margin: 0;
         }
         .wrapper {

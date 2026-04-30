@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.79',
-            'date' => '29/04/2026',
-            'label' => 'v1.79 - 29/04/2026',
+            'version' => 'v1.80',
+            'date' => '30/04/2026',
+            'label' => 'v1.80 - 30/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Contrato em PDF aproveita melhor a area util da pagina',
+                'items' => [
+                    'O renderer mPDF dos contratos passa a reservar menos gordura para o rodape, reduzindo a quebra antecipada do corpo do documento quando ainda existe area util livre na folha.',
+                    'O footer do contrato fica mais compacto no caminho do mPDF, com menos padding vertical e menor folga tecnica entre o conteudo e a margem inferior da pagina.',
+                    'O corpo do contrato recebe um line-height levemente mais justo para recuperar algumas linhas por pagina sem descaracterizar a leitura do documento.',
+                ],
+            ],
+            [
+                'version' => 'v1.79',
+                'date' => '29/04/2026',
                 'title' => 'Anexos de cliente e sindico passam a usar o disco publico persistente',
                 'items' => [
                     'Os novos anexos de cadastro de cliente, condominio, unidade e sindico deixam de ser gravados em public/uploads/clientes e passam a usar o disco publico do Laravel em /storage/clientes, reduzindo perda de arquivos em redeploy.',
