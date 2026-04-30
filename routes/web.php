@@ -334,6 +334,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/importacao', [CobrancaController::class, 'importIndex'])->name('cobrancas.import.index')->middleware('ancora.route:cobrancas.import.index');
         Route::post('/importacao/preview', [CobrancaController::class, 'importPreview'])->name('cobrancas.import.preview')->middleware('ancora.route:cobrancas.import.preview');
         Route::get('/importacao/modelo', [CobrancaController::class, 'downloadImportTemplate'])->name('cobrancas.import.template')->middleware('ancora.route:cobrancas.import.index');
+        Route::post('/importacao/{batch}/linhas/{row}/resolver', [CobrancaController::class, 'importResolve'])->name('cobrancas.import.resolve')->middleware('ancora.route:cobrancas.import.process');
+        Route::post('/importacao/{batch}/cancelar', [CobrancaController::class, 'importCancel'])->name('cobrancas.import.cancel')->middleware('ancora.route:cobrancas.import.process');
+        Route::get('/importacao/{batch}/relatorio/{format}', [CobrancaController::class, 'importReport'])->name('cobrancas.import.report')->middleware('ancora.route:cobrancas.import.show');
         Route::get('/importacao/{batch}', [CobrancaController::class, 'importShow'])->name('cobrancas.import.show')->middleware('ancora.route:cobrancas.import.show');
         Route::post('/importacao/{batch}/processar', [CobrancaController::class, 'importProcess'])->name('cobrancas.import.process')->middleware('ancora.route:cobrancas.import.process');
         Route::get('/faturamento', [CobrancaController::class, 'billingReport'])->name('cobrancas.billing.report')->middleware('ancora.route:cobrancas.billing.report');

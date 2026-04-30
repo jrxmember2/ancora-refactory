@@ -15,6 +15,8 @@ class CobrancaImportRow extends Model
     {
         return [
             'raw_payload_json' => 'array',
+            'issue_payload_json' => 'array',
+            'resolution_payload_json' => 'array',
             'processed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

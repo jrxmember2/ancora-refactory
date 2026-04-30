@@ -9,15 +9,35 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.80',
+            'version' => 'v1.82',
             'date' => '30/04/2026',
-            'label' => 'v1.80 - 30/04/2026',
+            'label' => 'v1.82 - 30/04/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Importacao de inadimplencia ganha validacao mais dura, matching de unidade com bloco embutido e agrupamento real por unidade',
+                'items' => [
+                    'A planilha de inadimplencia passa a exigir tambem o cabecalho de proprietario na pre-validacao, evitando seguir com arquivo estruturalmente incompleto para uma rotina juridica critica.',
+                    'O matching inteligente da unidade agora entende variacoes como A-401, Bloco A 401 e Torre A 401, reaproveitando a unidade correta quando houver correspondencia inequivoca e mantendo sugestoes quando ainda existir duvida.',
+                    'No processamento final, varias cotas novas da mesma unidade deixam de abrir OS separadas dentro do mesmo lote e passam a ser agrupadas na mesma OS ativa criada ou reaproveitada, preservando a centralizacao operacional da cobranca.',
+                ],
+            ],
+            [
+                'version' => 'v1.81',
+                'date' => '30/04/2026',
+                'title' => 'Importacao de inadimplencia ganha previa segura, reaproveitamento de OS e correcoes por linha',
+                'items' => [
+                    'A importacao de inadimplencia passa a rodar em etapas de conferencia, com classificacao por linha, cards-resumo, filtros por status e confirmacao final apenas quando nao houver conflitos impeditivos pendentes.',
+                    'A rotina deixa de criar condominio ou unidade automaticamente, passa a sugerir correspondencias semelhantes para correcao manual e ignora automaticamente linhas com divergencia relevante de proprietario em relacao ao cadastro da unidade.',
+                    'Antes de abrir nova OS, o sistema agora tenta reaproveitar uma OS valida da mesma unidade, detecta duplicidade exata de cota, permite escolha manual quando houver mais de uma OS elegivel e exporta relatorio final em CSV, XLSX e PDF.',
+                ],
+            ],
+            [
+                'version' => 'v1.80',
+                'date' => '30/04/2026',
                 'title' => 'Contrato em PDF aproveita melhor a area util da pagina',
                 'items' => [
                     'O renderer mPDF dos contratos passa a reservar menos gordura para o rodape, reduzindo a quebra antecipada do corpo do documento quando ainda existe area util livre na folha.',
