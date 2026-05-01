@@ -173,6 +173,10 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/notificacoes/ciente', [ProcessNotificationController::class, 'acknowledge'])->name('processos.notifications.ack');
         Route::get('/dashboard', [ProcessController::class, 'dashboard'])->name('processos.dashboard')->middleware('ancora.route:processos.dashboard');
         Route::get('/', [ProcessController::class, 'index'])->name('processos.index')->middleware('ancora.route:processos.index');
+        Route::get('/importacao', [ProcessController::class, 'import'])->name('processos.import.index')->middleware('ancora.route:processos.import.index');
+        Route::get('/importacao/modelo', [ProcessController::class, 'downloadImportTemplate'])->name('processos.import.template')->middleware('ancora.route:processos.import.template');
+        Route::post('/importacao/preview', [ProcessController::class, 'importPreview'])->name('processos.import.preview')->middleware('ancora.route:processos.import.preview');
+        Route::post('/importacao/executar', [ProcessController::class, 'importExecute'])->name('processos.import.execute')->middleware('ancora.route:processos.import.execute');
         Route::get('/novo', [ProcessController::class, 'create'])->name('processos.create')->middleware('ancora.route:processos.create');
         Route::post('/store', [ProcessController::class, 'store'])->name('processos.store')->middleware('ancora.route:processos.store');
         Route::get('/{processo}', [ProcessController::class, 'show'])->name('processos.show')->middleware('ancora.route:processos.show');

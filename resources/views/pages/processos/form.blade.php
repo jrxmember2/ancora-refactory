@@ -85,10 +85,10 @@
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de processo</label>
-                <select name="process_type_option_id" class="{{ $inputClass }}">
+                <select name="process_type_option_id" class="{{ $inputClass }}" data-process-type-select>
                     <option value="">Selecione</option>
                     @foreach(($options['process_type'] ?? collect()) as $option)
-                        <option value="{{ $option->id }}" @selected((int) ($formData['process_type_option_id'] ?? 0) === (int) $option->id)>{{ $option->name }}</option>
+                        <option value="{{ $option->id }}" data-process-type-slug="{{ \Illuminate\Support\Str::slug($option->name) }}" @selected((int) ($formData['process_type_option_id'] ?? 0) === (int) $option->id)>{{ $option->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -100,6 +100,10 @@
                         <option value="{{ $option->id }}" @selected((int) ($formData['nature_option_id'] ?? 0) === (int) $option->id)>{{ $option->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="hidden" data-judging-body-wrapper>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300" data-judging-body-label>Vara/Orgao/Setor</label>
+                <input name="judging_body" value="{{ $formData['judging_body'] }}" class="{{ $inputClass }}" data-judging-body-input>
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
@@ -246,6 +250,47 @@ document.addEventListener('input', (event) => {
     if (event.target.matches('[data-money-mask]')) {
         event.target.value = moneyMaskValue(event.target.value);
     }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const typeSelect = document.querySelector('[data-process-type-select]');
+    const wrapper = document.querySelector('[data-judging-body-wrapper]');
+    const label = document.querySelector('[data-judging-body-label]');
+    const input = document.querySelector('[data-judging-body-input]');
+
+    if (!typeSelect || !wrapper || !label || !input) {
+        return;
+    }
+
+    const syncJudgingBodyField = () => {
+        const selected = typeSelect.options[typeSelect.selectedIndex];
+        const slug = selected?.dataset.processTypeSlug || '';
+        const hasValue = input.value.trim() !== '';
+
+        if (slug === 'administrativo') {
+            label.textContent = 'Orgao/Setor';
+            wrapper.classList.remove('hidden');
+            return;
+        }
+
+        if (slug === 'judicial') {
+            label.textContent = 'Vara/Setor';
+            wrapper.classList.remove('hidden');
+            return;
+        }
+
+        if (hasValue) {
+            label.textContent = 'Vara/Orgao/Setor';
+            wrapper.classList.remove('hidden');
+            return;
+        }
+
+        wrapper.classList.add('hidden');
+    };
+
+    typeSelect.addEventListener('change', syncJudgingBodyField);
+    input.addEventListener('input', syncJudgingBodyField);
+    syncJudgingBodyField();
 });
 </script>
 @endpush

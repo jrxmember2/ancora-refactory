@@ -9,10 +9,11 @@
 @section('content')
 <x-ancora.section-header title="Processos" subtitle="Controle processual do escritorio com cadastro, fases, anexos e sincronizacao DataJud.">
     <div class="flex flex-wrap gap-3">
-        <a href="{{ route('processos.dashboard') }}" class="{{ $softButtonClass }}">Dashboard</a>
+        <a href="{{ route('processos.import.index') }}" class="{{ $softButtonClass }}">Importacao</a>
         <a href="{{ route('processos.create') }}" class="{{ $buttonClass }}">Novo processo</a>
     </div>
 </x-ancora.section-header>
+@include('pages.processos.partials.subnav')
 
 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 xl:grid-cols-6">

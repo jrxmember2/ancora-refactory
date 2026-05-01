@@ -72,6 +72,7 @@ class AncoraMenu
                         'subItems' => [
                             ['label' => 'Dashboard', 'path' => route('processos.dashboard')],
                             ['label' => 'Lista', 'path' => route('processos.index')],
+                            ['label' => 'Importacao', 'path' => route('processos.import.index')],
                             ['label' => 'Novo processo', 'path' => route('processos.create')],
                         ],
                     ] : null,

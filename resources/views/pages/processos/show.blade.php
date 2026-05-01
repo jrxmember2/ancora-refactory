@@ -60,15 +60,28 @@
         <div class="space-y-6 xl:col-span-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais</h3>
-                <dl class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    @foreach([
+                @php
+                    $judgingBodyLabel = match (\Illuminate\Support\Str::slug((string) ($case->processTypeOption?->name ?? ''))) {
+                        'administrativo' => 'Orgao/Setor',
+                        'judicial' => 'Vara/Setor',
+                        default => 'Vara/Orgao/Setor',
+                    };
+
+                    $mainDetails = [
                         'Responsavel' => $case->responsible_lawyer ?: 'Nao informado',
                         'Abertura' => $date($case->opened_at),
                         'Tipo de acao' => $case->actionTypeOption?->name ?: 'Nao informado',
                         'Natureza' => $case->natureOption?->name ?: 'Nao informado',
                         'Advogado do cliente' => $case->client_lawyer ?: 'Nao informado',
                         'Advogado do adverso' => $case->adverse_lawyer ?: 'Nao informado',
-                    ] as $label => $value)
+                    ];
+
+                    if (filled($case->judging_body)) {
+                        $mainDetails[$judgingBodyLabel] = $case->judging_body;
+                    }
+                @endphp
+                <dl class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    @foreach($mainDetails as $label => $value)
                         <div class="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
                             <dt class="text-xs uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">{{ $label }}</dt>
                             <dd class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ $value }}</dd>

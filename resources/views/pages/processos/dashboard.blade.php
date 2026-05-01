@@ -18,10 +18,11 @@
             </select>
             <button class="{{ $buttonClass }}">Aplicar</button>
         </form>
-        <a href="{{ route('processos.index') }}" class="{{ $softButtonClass }}">Lista de processos</a>
+        <a href="{{ route('processos.import.index') }}" class="{{ $softButtonClass }}">Importacao</a>
         <a href="{{ route('processos.create') }}" class="{{ $softButtonClass }}">Novo processo</a>
     </div>
 </x-ancora.section-header>
+@include('pages.processos.partials.subnav')
 
 <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
     <x-ancora.stat-card label="Processos cadastrados" :value="$summary['total']" hint="Total acessivel ao usuario." icon="fa-solid fa-scale-balanced" />

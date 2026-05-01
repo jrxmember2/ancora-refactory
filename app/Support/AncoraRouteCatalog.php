@@ -138,6 +138,10 @@ class AncoraRouteCatalog
                 'routes' => [
                     'processos.dashboard' => 'Acessar dashboard de processos',
                     'processos.index' => 'Listar processos',
+                    'processos.import.index' => 'Acessar importacao de processos',
+                    'processos.import.template' => 'Baixar modelo de importacao de processos',
+                    'processos.import.preview' => 'Gerar previa da importacao de processos',
+                    'processos.import.execute' => 'Executar importacao de processos',
                     'processos.create' => 'Novo processo',
                     'processos.store' => 'Salvar processo',
                     'processos.show' => 'Visualizar processo',
