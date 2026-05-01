@@ -737,5 +737,63 @@ document.addEventListener('submit', async (event) => {
         if (submitter) submitter.disabled = false;
     }
 });
+
+document.addEventListener('submit', async (event) => {
+    const form = event.target.closest('.js-async-form');
+    if (!form) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const submitter = event.submitter || form.querySelector('button[type="submit"], button:not([type])');
+    const action = submitter?.formAction || form.action;
+    const method = (submitter?.formMethod || form.method || 'POST').toUpperCase();
+    const targetSelector = form.dataset.refreshTarget;
+
+    if (submitter) submitter.disabled = true;
+
+    try {
+        const response = await fetch(action, {
+            method,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form),
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Nao foi possivel concluir esta acao agora.';
+            const contentType = response.headers.get('content-type') || '';
+
+            if (contentType.includes('application/json')) {
+                const payload = await response.json().catch(() => null);
+                if (payload?.errors) {
+                    const firstGroup = Object.values(payload.errors)[0];
+                    if (Array.isArray(firstGroup) && firstGroup[0]) {
+                        errorMessage = firstGroup[0];
+                    }
+                } else if (payload?.message) {
+                    errorMessage = payload.message;
+                }
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        const html = await response.text();
+        if (targetSelector) {
+            refreshConfigSection(targetSelector, html);
+        }
+
+        const successMessage = submitter?.textContent?.trim()?.includes('Excluir')
+            ? 'Registro excluido com sucesso.'
+            : 'Registro salvo com sucesso.';
+
+        showConfigToast(successMessage);
+    } catch (error) {
+        showConfigToast(error?.message || 'Nao foi possivel concluir esta acao agora.', 'error');
+    } finally {
+        if (submitter) submitter.disabled = false;
+    }
+}, true);
 </script>
 @endpush

@@ -871,6 +871,19 @@ class ConfigController extends Controller
         }
 
         $data['slug'] = $slug !== '' ? $slug : Str::random(8);
+
+        $slugExists = ProcessCaseOption::query()
+            ->where('group_key', $data['group_key'])
+            ->where('slug', $data['slug'])
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->exists();
+
+        if ($slugExists) {
+            throw ValidationException::withMessages([
+                'slug' => 'Ja existe uma configuracao neste catalogo com este slug.',
+            ]);
+        }
+
         $data['color_hex'] = $data['color_hex'] ?: null;
         $data['is_active'] = $request->boolean('is_active');
         $data['sort_order'] = (int) $request->integer('sort_order');
