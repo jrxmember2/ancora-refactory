@@ -281,6 +281,8 @@ class ProcessController extends Controller
             'importPreview' => $importPreview,
             'templateHeaders' => $this->processImportTemplateHeaders(),
             'phaseTemplateHeaders' => $this->processImportPhaseHeaders(),
+            'options' => $this->optionsForForms(),
+            'condominiums' => $this->condominiumsForLookup(),
         ]);
     }
 
@@ -410,7 +412,8 @@ class ProcessController extends Controller
             return redirect()->route('processos.import.index')->with('error', 'A previa da importacao expirou. Envie o CSV novamente.');
         }
 
-        $preview = $this->prepareProcessImportPreview((array) $preview['rows']);
+        $rows = $this->applyProcessImportResolutions((array) $preview['rows'], $request);
+        $preview = $this->prepareProcessImportPreview($rows);
         $request->session()->put("process_import_previews.{$token}", $preview);
 
         if (($preview['summary']['errors'] ?? 0) > 0) {
@@ -1148,14 +1151,83 @@ class ProcessController extends Controller
         ];
     }
 
+    private function applyProcessImportResolutions(array $rows, Request $request): array
+    {
+        $resolutions = (array) $request->input('resolutions', []);
+
+        if ($resolutions === []) {
+            return $rows;
+        }
+
+        foreach ($rows as &$row) {
+            $rowKey = (string) ($row['row_number'] ?? '');
+            if ($rowKey === '' || !isset($resolutions[$rowKey]) || !is_array($resolutions[$rowKey])) {
+                continue;
+            }
+
+            $resolution = $resolutions[$rowKey];
+
+            $actionTypeId = (int) ($resolution['action_type_option_id'] ?? 0);
+            if ($actionTypeId > 0 && $this->importOptionExistsForGroup('action_type', $actionTypeId)) {
+                $row['action_type'] = (string) $actionTypeId;
+            }
+
+            $natureId = (int) ($resolution['nature_option_id'] ?? 0);
+            if ($natureId > 0 && $this->importOptionExistsForGroup('nature', $natureId)) {
+                $row['nature'] = (string) $natureId;
+            }
+
+            $this->applyCondominiumImportResolution($row, $resolution, 'client');
+            $this->applyCondominiumImportResolution($row, $resolution, 'adverse');
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private function applyCondominiumImportResolution(array &$row, array $resolution, string $party): void
+    {
+        $modeKey = "{$party}_condominium_mode";
+        $idKey = "{$party}_condominium_id";
+        $rowField = "{$party}_condominium";
+        $ignoreField = "{$party}_condominium_ignore";
+
+        $mode = (string) ($resolution[$modeKey] ?? '');
+
+        if ($mode === 'ignore') {
+            $row[$rowField] = '';
+            $row[$ignoreField] = true;
+
+            return;
+        }
+
+        if ($mode === 'select') {
+            $condominiumId = (int) ($resolution[$idKey] ?? 0);
+            if ($condominiumId > 0 && ClientCondominium::query()->whereKey($condominiumId)->exists()) {
+                $row[$rowField] = (string) $condominiumId;
+                $row[$ignoreField] = false;
+            }
+        }
+    }
+
+    private function importOptionExistsForGroup(string $group, int $id): bool
+    {
+        return $this->importOptionsForGroup($group)
+            ->contains(fn (ProcessCaseOption $option) => (int) $option->id === $id);
+    }
+
     private function payloadFromImportRow(array $row): array
     {
         $clientName = trim((string) ($row['client_name'] ?? ''));
         $adverseName = trim((string) ($row['adverse_name'] ?? ''));
         $client = $this->resolveEntity($clientName);
         $adverse = $this->resolveEntity($adverseName);
-        $clientCondominium = $this->resolveImportCondominium((string) ($row['client_condominium'] ?? '')) ?: $this->resolveCondominium($clientName);
-        $adverseCondominium = $this->resolveImportCondominium((string) ($row['adverse_condominium'] ?? '')) ?: $this->resolveCondominium($adverseName);
+        $clientCondominium = !empty($row['client_condominium_ignore'])
+            ? null
+            : ($this->resolveImportCondominium((string) ($row['client_condominium'] ?? '')) ?: $this->resolveCondominium($clientName));
+        $adverseCondominium = !empty($row['adverse_condominium_ignore'])
+            ? null
+            : ($this->resolveImportCondominium((string) ($row['adverse_condominium'] ?? '')) ?: $this->resolveCondominium($adverseName));
 
         $payload = [
             'responsible_lawyer' => $this->emptyToNull($row['responsible_lawyer'] ?? null),

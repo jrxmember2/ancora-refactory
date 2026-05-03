@@ -36,7 +36,9 @@
     </div>
     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Status</div>
-        @php($statusColor = $case->statusOption?->color_hex ?: '#6B7280')
+        @php
+            $statusColor = $case->statusOption?->color_hex ?: '#6B7280';
+        @endphp
         <div class="mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold text-white" style="background-color: {{ $statusColor }}">{{ $case->statusOption?->name ?: 'Sem status' }}</div>
         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $case->processTypeOption?->name ?: 'Tipo nao informado' }}</div>
     </div>

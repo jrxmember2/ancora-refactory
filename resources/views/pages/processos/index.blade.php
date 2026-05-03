@@ -90,7 +90,9 @@
                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->phases_count }} fase(s) &middot; {{ $item->attachments_count }} anexo(s)</div>
                             </td>
                             <td class="px-6 py-4 align-top">
-                                @php($statusColor = $item->statusOption?->color_hex ?: '#6B7280')
+                                @php
+                                    $statusColor = $item->statusOption?->color_hex ?: '#6B7280';
+                                @endphp
                                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold text-white" style="background-color: {{ $statusColor }}">{{ $item->statusOption?->name ?: 'Sem status' }}</span>
                             </td>
                             <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $item->responsible_lawyer ?: 'Nao informado' }}</td>

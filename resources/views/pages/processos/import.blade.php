@@ -68,7 +68,11 @@
 </div>
 
 @if(!empty($importPreview))
-    @php($previewSummary = $importPreview['summary'] ?? ['total' => 0, 'ready' => 0, 'errors' => 0, 'phases' => 0])
+    @php
+        $previewSummary = $importPreview['summary'] ?? ['total' => 0, 'ready' => 0, 'errors' => 0, 'phases' => 0];
+        $actionTypeOptions = $options['action_type'] ?? collect();
+        $natureOptions = $options['nature'] ?? collect();
+    @endphp
     <dialog id="process-import-preview-modal" class="fixed inset-0 m-auto max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900" data-auto-open>
         <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -86,7 +90,11 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto px-6 py-5">
+        <form method="post" action="{{ route('processos.import.execute') }}">
+            @csrf
+            <input type="hidden" name="import_token" value="{{ $importPreviewToken }}">
+
+            <div class="overflow-x-auto px-6 py-5">
             <table class="min-w-full text-left text-sm">
                 <thead class="border-b border-gray-100 text-xs uppercase tracking-[0.16em] text-gray-500 dark:border-gray-800 dark:text-gray-400">
                     <tr>
@@ -100,6 +108,15 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @foreach(($importPreview['rows'] ?? []) as $row)
+                        @php
+                            $rowMessages = $row['messages'] ?? [];
+                            $rowKey = (string) ($row['row_number'] ?? $loop->iteration);
+                            $needsActionTypeResolution = in_array('Tipo de acao nao encontrado nas configuracoes.', $rowMessages, true);
+                            $needsNatureResolution = in_array('Natureza nao encontrada nas configuracoes.', $rowMessages, true);
+                            $needsClientCondominiumResolution = in_array('Condominio do cliente nao encontrado.', $rowMessages, true);
+                            $needsAdverseCondominiumResolution = in_array('Condominio do adverso nao encontrado.', $rowMessages, true);
+                            $hasResolvablePendencies = $needsActionTypeResolution || $needsNatureResolution || $needsClientCondominiumResolution || $needsAdverseCondominiumResolution;
+                        @endphp
                         <tr>
                             <td class="py-3 pr-4 text-gray-500 dark:text-gray-400">{{ $row['row_number'] ?? '-' }}</td>
                             <td class="py-3 pr-4 text-gray-700 dark:text-gray-200">
@@ -115,11 +132,75 @@
                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $row['judging_body'] ?: 'Sem vara/orgao/setor' }}</div>
                             </td>
                             <td class="py-3 pr-4 text-gray-700 dark:text-gray-200">{{ $row['phase_count'] ?? 0 }}</td>
-                            <td class="py-3 pr-4">
+                            <td class="min-w-[320px] py-3 pr-4">
                                 @if(($row['preview_status'] ?? '') === 'ready')
                                     <span class="rounded-full bg-success-50 px-3 py-1 text-xs font-medium text-success-700 dark:bg-success-500/10 dark:text-success-300">Pronto para criar</span>
                                 @else
-                                    <div class="rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-xs text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-300">{{ implode(' ', $row['messages'] ?? ['Pendencia na linha.']) }}</div>
+                                    <div class="rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-xs text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-300">{{ implode(' ', $rowMessages ?: ['Pendencia na linha.']) }}</div>
+
+                                    @if($hasResolvablePendencies)
+                                        <div class="mt-3 space-y-3 rounded-xl border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
+                                            <div class="font-semibold text-gray-900 dark:text-white">Resolver esta linha</div>
+
+                                            @if($needsClientCondominiumResolution)
+                                                <div>
+                                                    <label class="mb-1 block font-medium text-gray-700 dark:text-gray-300">Condominio do cliente</label>
+                                                    <select name="resolutions[{{ $rowKey }}][client_condominium_mode]" class="h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Escolha uma solucao</option>
+                                                        <option value="ignore">Cadastrar mesmo assim, sem vincular a condominio</option>
+                                                        <option value="select">Indicar condominio existente abaixo</option>
+                                                    </select>
+                                                    <select name="resolutions[{{ $rowKey }}][client_condominium_id]" class="mt-2 h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Selecionar condominio existente</option>
+                                                        @foreach($condominiums as $condominium)
+                                                            <option value="{{ $condominium->id }}">{{ $condominium->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            @endif
+
+                                            @if($needsAdverseCondominiumResolution)
+                                                <div>
+                                                    <label class="mb-1 block font-medium text-gray-700 dark:text-gray-300">Condominio do adverso</label>
+                                                    <select name="resolutions[{{ $rowKey }}][adverse_condominium_mode]" class="h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Escolha uma solucao</option>
+                                                        <option value="ignore">Cadastrar mesmo assim, sem vincular a condominio</option>
+                                                        <option value="select">Indicar condominio existente abaixo</option>
+                                                    </select>
+                                                    <select name="resolutions[{{ $rowKey }}][adverse_condominium_id]" class="mt-2 h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Selecionar condominio existente</option>
+                                                        @foreach($condominiums as $condominium)
+                                                            <option value="{{ $condominium->id }}">{{ $condominium->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            @endif
+
+                                            @if($needsNatureResolution)
+                                                <div>
+                                                    <label class="mb-1 block font-medium text-gray-700 dark:text-gray-300">Natureza</label>
+                                                    <select name="resolutions[{{ $rowKey }}][nature_option_id]" class="h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Selecionar natureza</option>
+                                                        @foreach($natureOptions as $option)
+                                                            <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            @endif
+
+                                            @if($needsActionTypeResolution)
+                                                <div>
+                                                    <label class="mb-1 block font-medium text-gray-700 dark:text-gray-300">Tipo de acao</label>
+                                                    <select name="resolutions[{{ $rowKey }}][action_type_option_id]" class="h-10 w-full rounded-xl border border-gray-300 bg-white px-3 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+                                                        <option value="">Selecionar tipo de acao</option>
+                                                        @foreach($actionTypeOptions as $option)
+                                                            <option value="{{ $option->id }}">{{ $option->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 @endif
                             </td>
                         </tr>
@@ -128,14 +209,11 @@
             </table>
         </div>
 
-        <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-5 dark:border-gray-800">
-            <button type="button" onclick="document.getElementById('process-import-preview-modal').close()" class="{{ $softButtonClass }}">Voltar e revisar</button>
-            <form method="post" action="{{ route('processos.import.execute') }}">
-                @csrf
-                <input type="hidden" name="import_token" value="{{ $importPreviewToken }}">
-                <button class="{{ $buttonClass }} disabled:cursor-not-allowed disabled:opacity-50" @disabled(($previewSummary['errors'] ?? 0) > 0 || ($previewSummary['ready'] ?? 0) === 0)>Executar importacao</button>
-            </form>
-        </div>
+            <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-5 dark:border-gray-800">
+                <button type="button" onclick="document.getElementById('process-import-preview-modal').close()" class="{{ $softButtonClass }}">Voltar e revisar</button>
+                <button class="{{ $buttonClass }} disabled:cursor-not-allowed disabled:opacity-50" @disabled(($previewSummary['ready'] ?? 0) === 0 && ($previewSummary['errors'] ?? 0) === 0)>Aplicar correcoes e executar importacao</button>
+            </div>
+        </form>
     </dialog>
 @endif
 @endsection

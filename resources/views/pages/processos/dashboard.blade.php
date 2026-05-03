@@ -143,7 +143,9 @@
                             <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $item->client_name_snapshot ?: 'Cliente nao informado' }}</div>
                             <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->processTypeOption?->name ?: 'Tipo nao informado' }} &middot; {{ $item->phases_count }} fase(s)</div>
                         </div>
-                        @php($statusColor = $item->statusOption?->color_hex ?: '#6B7280')
+                        @php
+                            $statusColor = $item->statusOption?->color_hex ?: '#6B7280';
+                        @endphp
                         <span class="rounded-full px-2.5 py-1 text-xs font-semibold text-white" style="background-color: {{ $statusColor }}">{{ $item->statusOption?->name ?: 'Sem status' }}</span>
                     </div>
                 </a>
@@ -181,7 +183,9 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Processos ativos ha mais tempo sem fase registrada.</p>
         <div class="mt-4 space-y-3">
             @forelse($attentionCases as $row)
-                @php($item = $row['case'])
+                @php
+                    $item = $row['case'];
+                @endphp
                 <a href="{{ route('processos.show', $item) }}" class="block rounded-2xl border border-gray-200 p-4 transition hover:border-brand-300 hover:bg-brand-50 dark:border-gray-800 dark:hover:bg-brand-500/10">
                     <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $item->process_number ?: 'Processo #' . $item->id }}</div>
                     <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $item->client_name_snapshot ?: 'Cliente nao informado' }}</div>
