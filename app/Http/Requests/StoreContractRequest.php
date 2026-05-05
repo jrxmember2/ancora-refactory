@@ -36,6 +36,7 @@ class StoreContractRequest extends FormRequest
             'monthly_value' => ['nullable', 'string', 'max:40'],
             'total_value' => ['nullable', 'string', 'max:40'],
             'billing_type' => ['nullable', 'string', Rule::in(array_keys(ContractCatalog::billingTypes()))],
+            'installment_quantity' => ['nullable', 'integer', 'min:1'],
             'due_day' => ['nullable', 'integer', 'between:1,31'],
             'recurrence' => ['nullable', 'string', Rule::in(array_keys(ContractCatalog::recurrences()))],
             'adjustment_index' => ['nullable', 'string', 'max:80'],
@@ -54,6 +55,8 @@ class StoreContractRequest extends FormRequest
             'responsible_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'version_notes' => ['nullable', 'string', 'max:255'],
             'generate_pdf_now' => ['nullable', 'boolean'],
+            'confirm_active_without_financial' => ['nullable', 'boolean'],
+            'financial_entries_action' => ['nullable', 'string', Rule::in(['maintain', 'recreate'])],
         ];
     }
 }

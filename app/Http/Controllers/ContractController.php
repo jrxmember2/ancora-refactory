@@ -17,6 +17,7 @@ use App\Models\FinancialAccount;
 use App\Models\ProcessCase;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\ContractFinancialService;
 use App\Services\ContractPdfService;
 use App\Services\ContractRenderService;
 use App\Support\AncoraAuth;
@@ -41,6 +42,7 @@ class ContractController extends Controller
     public function __construct(
         private readonly ContractRenderService $renderService,
         private readonly ContractPdfService $pdfService,
+        private readonly ContractFinancialService $contractFinancialService,
     ) {
     }
 
@@ -174,6 +176,7 @@ class ContractController extends Controller
             'previewHtml' => old('content_html', ''),
             'formAlerts' => [],
             'pdfAppendixAttachments' => collect(),
+            'existingReceivablesCount' => 0,
         ]));
     }
 
@@ -185,8 +188,12 @@ class ContractController extends Controller
         $template = $request->filled('template_id')
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
-        $payload = $this->normalizedPayload($request);
+        $payload = $this->applyConditionalContractPayload($this->normalizedPayload($request));
         $payload['title'] = $this->resolvedTitle($template, $payload);
+
+        if ($response = $this->contractSaveGuardResponse($request, $payload)) {
+            return $response;
+        }
 
         if (!$this->autoCodeEnabled() && trim((string) ($payload['code'] ?? '')) === '') {
             return back()->withInput()->with('error', 'Informe o codigo interno do contrato quando a numeracao automatica estiver desativada.');
@@ -208,8 +215,10 @@ class ContractController extends Controller
             return back()->withInput()->with('error', 'Selecione um template antes de gerar o PDF do contrato.');
         }
 
+        $financialSync = ['created' => 0, 'skipped' => 0, 'deleted' => 0, 'mode' => null];
+
         try {
-            $contract = DB::transaction(function () use ($payload, $user, $request) {
+            $contract = DB::transaction(function () use ($payload, $user, $request, &$financialSync) {
                 $contract = Contract::query()->create(array_merge($payload, [
                     'created_by' => $user->id,
                     'updated_by' => $user->id,
@@ -218,6 +227,13 @@ class ContractController extends Controller
                 if ($this->autoCodeEnabled() && !$contract->code) {
                     $contract->forceFill(['code' => $this->generatedCode($contract)])->save();
                 }
+
+                $financialSync = $this->syncContractFinancialEntriesAfterSave(
+                    $contract->fresh(),
+                    null,
+                    $user->id,
+                    (string) $request->input('financial_entries_action', '')
+                );
 
                 if ($request->boolean('generate_pdf_now')) {
                     $freshContract = $contract->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']);
@@ -240,9 +256,12 @@ class ContractController extends Controller
             return back()->withInput()->with('error', 'Nao foi possivel salvar o contrato: ' . $e->getMessage());
         }
 
+        $message = $request->boolean('generate_pdf_now') ? 'Contrato salvo e PDF gerado com sucesso.' : 'Contrato salvo com sucesso.';
+        $message .= $this->contractFinancialSyncMessage($financialSync);
+
         return redirect()
             ->route('contratos.show', $contract)
-            ->with('success', $request->boolean('generate_pdf_now') ? 'Contrato salvo e PDF gerado com sucesso.' : 'Contrato salvo com sucesso.');
+            ->with('success', $message);
     }
 
     public function show(Request $request, Contract $contrato): View
@@ -301,7 +320,8 @@ class ContractController extends Controller
 
     public function edit(Contract $contrato): View
     {
-        $contrato->load(['category', 'template', 'client', 'condominium.syndic', 'syndic', 'unit', 'responsible', 'financialAccount']);
+        $contrato->load(['category', 'template', 'client', 'condominium.syndic', 'syndic', 'unit', 'responsible', 'financialAccount'])
+            ->loadCount('receivables');
 
         return view('pages.contratos.form', array_merge($this->formOptions(), [
             'title' => 'Editar contrato',
@@ -311,6 +331,7 @@ class ContractController extends Controller
             'previewHtml' => old('content_html', $contrato->content_html),
             'formAlerts' => $this->contractAlerts($contrato),
             'pdfAppendixAttachments' => $this->availablePdfAppendixAttachments($contrato),
+            'existingReceivablesCount' => (int) ($contrato->receivables_count ?? 0),
         ]));
     }
 
@@ -322,8 +343,12 @@ class ContractController extends Controller
         $template = $request->filled('template_id')
             ? ContractTemplate::query()->find((int) $request->input('template_id'))
             : null;
-        $payload = $this->normalizedPayload($request);
+        $payload = $this->applyConditionalContractPayload($this->normalizedPayload($request, $contrato), $contrato);
         $payload['title'] = $this->resolvedTitle($template, $payload, $contrato);
+
+        if ($response = $this->contractSaveGuardResponse($request, $payload, $contrato)) {
+            return $response;
+        }
 
         if (!$this->autoCodeEnabled() && trim((string) ($payload['code'] ?? '')) === '') {
             return back()->withInput()->with('error', 'Informe o codigo interno do contrato quando a numeracao automatica estiver desativada.');
@@ -345,9 +370,19 @@ class ContractController extends Controller
             return back()->withInput()->with('error', 'Selecione um template antes de gerar o PDF do contrato.');
         }
 
+        $financialSync = ['created' => 0, 'skipped' => 0, 'deleted' => 0, 'mode' => null];
+        $originalContract = clone $contrato;
+
         try {
-            DB::transaction(function () use ($contrato, $payload, $user, $request) {
+            DB::transaction(function () use ($contrato, $payload, $user, $request, $originalContract, &$financialSync) {
                 $contrato->update(array_merge($payload, ['updated_by' => $user->id]));
+
+                $financialSync = $this->syncContractFinancialEntriesAfterSave(
+                    $contrato->fresh(),
+                    $originalContract,
+                    $user->id,
+                    (string) $request->input('financial_entries_action', '')
+                );
 
                 if ($request->boolean('generate_pdf_now')) {
                     $freshContract = $contrato->fresh(['template', 'client', 'condominium', 'syndic', 'unit', 'responsible']);
@@ -368,9 +403,12 @@ class ContractController extends Controller
             return back()->withInput()->with('error', 'Nao foi possivel atualizar o contrato: ' . $e->getMessage());
         }
 
+        $message = $request->boolean('generate_pdf_now') ? 'Contrato atualizado e nova versao de PDF gerada.' : 'Contrato atualizado com sucesso.';
+        $message .= $this->contractFinancialSyncMessage($financialSync);
+
         return redirect()
             ->route('contratos.show', $contrato)
-            ->with('success', $request->boolean('generate_pdf_now') ? 'Contrato atualizado e nova versao de PDF gerada.' : 'Contrato atualizado com sucesso.');
+            ->with('success', $message);
     }
 
     public function destroy(Contract $contrato): RedirectResponse
@@ -818,60 +856,361 @@ class ContractController extends Controller
         }
     }
 
-    private function normalizedPayload(Request $request): array
+    private function normalizedPayload(Request $request, ?Contract $contract = null): array
     {
         $data = $request->validated();
-        $unit = !empty($data['unit_id']) ? ClientUnit::query()->with(['owner', 'condominium'])->find((int) $data['unit_id']) : null;
-        $condominium = !empty($data['condominium_id']) ? ClientCondominium::query()->find((int) $data['condominium_id']) : null;
+        $value = function (string $key, mixed $fallback = null) use ($data, $contract) {
+            if (array_key_exists($key, $data)) {
+                return $data[$key];
+            }
 
-        if ($unit && empty($data['condominium_id'])) {
-            $data['condominium_id'] = (int) $unit->condominium_id;
+            return $contract?->{$key} ?? $fallback;
+        };
+
+        $booleanValue = function (string $key, bool $fallback = false) use ($data, $request, $contract) {
+            if ($request->has($key)) {
+                return !empty($data[$key]);
+            }
+
+            return $contract ? (bool) $contract->{$key} : $fallback;
+        };
+
+        $unitId = $value('unit_id');
+        $condominiumId = $value('condominium_id');
+        $unit = !empty($unitId) ? ClientUnit::query()->with(['owner', 'condominium'])->find((int) $unitId) : null;
+        $condominium = !empty($condominiumId) ? ClientCondominium::query()->find((int) $condominiumId) : null;
+
+        if ($unit && empty($condominiumId)) {
+            $condominiumId = (int) $unit->condominium_id;
             $condominium = $unit->condominium;
         }
-        if ($unit && empty($data['client_id']) && $unit->owner_entity_id) {
+        if ($unit && empty($value('client_id')) && $unit->owner_entity_id) {
             $data['client_id'] = (int) $unit->owner_entity_id;
         }
-        if (empty($data['syndico_entity_id']) && $condominium?->syndico_entity_id) {
+        if (empty($value('syndico_entity_id')) && $condominium?->syndico_entity_id) {
             $data['syndico_entity_id'] = (int) $condominium->syndico_entity_id;
         }
 
         return [
-            'code' => trim((string) ($data['code'] ?? '')) ?: null,
-            'title' => trim((string) ($data['title'] ?? '')) ?: null,
-            'type' => trim((string) $data['type']),
-            'category_id' => $data['category_id'] ?? null,
-            'template_id' => $data['template_id'] ?? null,
-            'client_id' => $data['client_id'] ?? null,
-            'condominium_id' => $data['condominium_id'] ?? null,
-            'syndico_entity_id' => $data['syndico_entity_id'] ?? null,
-            'unit_id' => $data['unit_id'] ?? null,
-            'proposal_id' => $data['proposal_id'] ?? null,
-            'process_id' => $data['process_id'] ?? null,
-            'status' => trim((string) $data['status']),
-            'start_date' => $data['start_date'] ?? null,
-            'end_date' => !empty($data['indefinite_term']) ? null : ($data['end_date'] ?? null),
-            'indefinite_term' => !empty($data['indefinite_term']),
-            'contract_value' => $this->renderService->moneyFromInput($data['contract_value'] ?? null),
-            'monthly_value' => $this->renderService->moneyFromInput($data['monthly_value'] ?? null),
-            'total_value' => $this->renderService->moneyFromInput($data['total_value'] ?? null),
-            'billing_type' => trim((string) ($data['billing_type'] ?? '')) ?: null,
-            'due_day' => $data['due_day'] ?? null,
-            'recurrence' => trim((string) ($data['recurrence'] ?? '')) ?: null,
-            'adjustment_index' => trim((string) ($data['adjustment_index'] ?? '')) ?: null,
-            'adjustment_periodicity' => trim((string) ($data['adjustment_periodicity'] ?? '')) ?: null,
-            'next_adjustment_date' => $data['next_adjustment_date'] ?? null,
-            'penalty_value' => $this->renderService->moneyFromInput($data['penalty_value'] ?? null),
-            'penalty_percentage' => $this->renderService->moneyFromInput($data['penalty_percentage'] ?? null),
-            'generate_financial_entries' => !empty($data['generate_financial_entries']),
-            'financial_account_id' => $data['financial_account_id'] ?? null,
-            'payment_method' => trim((string) ($data['payment_method'] ?? '')) ?: null,
-            'cost_center_future' => trim((string) ($data['cost_center_future'] ?? '')) ?: null,
-            'financial_category_future' => trim((string) ($data['financial_category_future'] ?? '')) ?: null,
-            'financial_notes' => trim((string) ($data['financial_notes'] ?? '')) ?: null,
-            'content_html' => $this->normalizedEditorHtml($data['content_html'] ?? null) ?: null,
-            'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
+            'code' => trim((string) ($value('code') ?? '')) ?: null,
+            'title' => trim((string) ($value('title') ?? '')) ?: null,
+            'type' => trim((string) $value('type')),
+            'category_id' => $value('category_id'),
+            'template_id' => $value('template_id'),
+            'client_id' => $data['client_id'] ?? $value('client_id'),
+            'condominium_id' => $condominiumId,
+            'syndico_entity_id' => $data['syndico_entity_id'] ?? $value('syndico_entity_id'),
+            'unit_id' => $unitId,
+            'proposal_id' => $value('proposal_id'),
+            'process_id' => $value('process_id'),
+            'status' => trim((string) $value('status')),
+            'start_date' => $value('start_date'),
+            'end_date' => $value('end_date') ?: null,
+            'indefinite_term' => $booleanValue('indefinite_term', false),
+            'contract_value' => $this->renderService->moneyFromInput($value('contract_value')),
+            'monthly_value' => $this->renderService->moneyFromInput($value('monthly_value')),
+            'total_value' => $this->renderService->moneyFromInput($value('total_value')),
+            'billing_type' => trim((string) ($value('billing_type') ?? '')) ?: null,
+            'installment_quantity' => ($value('installment_quantity') !== null && $value('installment_quantity') !== '')
+                ? max(1, (int) $value('installment_quantity'))
+                : null,
+            'due_day' => $value('due_day'),
+            'recurrence' => trim((string) ($value('recurrence') ?? '')) ?: null,
+            'adjustment_index' => trim((string) ($value('adjustment_index') ?? '')) ?: null,
+            'adjustment_periodicity' => trim((string) ($value('adjustment_periodicity') ?? '')) ?: null,
+            'next_adjustment_date' => $value('next_adjustment_date'),
+            'penalty_value' => $this->renderService->moneyFromInput($value('penalty_value')),
+            'penalty_percentage' => $this->renderService->moneyFromInput($value('penalty_percentage')),
+            'generate_financial_entries' => $booleanValue('generate_financial_entries', false),
+            'financial_account_id' => $value('financial_account_id'),
+            'payment_method' => trim((string) ($value('payment_method') ?? '')) ?: null,
+            'cost_center_future' => trim((string) ($value('cost_center_future') ?? '')) ?: null,
+            'financial_category_future' => trim((string) ($value('financial_category_future') ?? '')) ?: null,
+            'financial_notes' => trim((string) ($value('financial_notes') ?? '')) ?: null,
+            'content_html' => $this->normalizedEditorHtml($value('content_html')) ?: null,
+            'notes' => trim((string) ($value('notes') ?? '')) ?: null,
+            'responsible_user_id' => $value('responsible_user_id'),
         ];
+    }
+
+    private function applyConditionalContractPayload(array $payload, ?Contract $contract = null): array
+    {
+        $contractType = $this->normalizedValue($payload['type'] ?? null);
+        $typeChanged = $this->valueChanged($contract?->type, $payload['type'] ?? null);
+        $indefiniteChanged = $this->boolChanged($contract?->indefinite_term, $payload['indefinite_term'] ?? false);
+
+        if ($indefiniteChanged && !empty($payload['indefinite_term'])) {
+            $payload['end_date'] = null;
+        }
+
+        if ($contractType === $this->normalizedValue('Contrato de assessoria juridica condominial')) {
+            if (empty($payload['billing_type'])) {
+                $payload['billing_type'] = 'mensal';
+            }
+            if (empty($payload['recurrence'])) {
+                $payload['recurrence'] = 'mensal';
+            }
+        }
+
+        if ($typeChanged) {
+            if (in_array($contractType, [
+                $this->normalizedValue('Termo de acordo'),
+                $this->normalizedValue('Confissao de divida'),
+                $this->normalizedValue('Distrato'),
+            ], true)) {
+                $payload['adjustment_index'] = null;
+                $payload['adjustment_periodicity'] = null;
+                $payload['next_adjustment_date'] = null;
+            }
+
+            if ($contractType === $this->normalizedValue('Distrato')) {
+                $payload['generate_financial_entries'] = false;
+                $payload['recurrence'] = null;
+            }
+        }
+
+        $billingType = $this->normalizedValue($payload['billing_type'] ?? null);
+        $paymentMethod = $this->normalizedValue($payload['payment_method'] ?? null);
+        $status = $this->normalizedValue($payload['status'] ?? null);
+        $billingChanged = $this->valueChanged($contract?->billing_type, $payload['billing_type'] ?? null);
+        $paymentChanged = $this->valueChanged($contract?->payment_method, $payload['payment_method'] ?? null);
+
+        if ($billingType === 'unica') {
+            $payload['installment_quantity'] = 1;
+        }
+
+        if ($billingType === 'mensal' && empty($payload['recurrence'])) {
+            $payload['recurrence'] = 'mensal';
+        }
+
+        if ($billingChanged) {
+            if ($billingType === 'unica') {
+                $payload['monthly_value'] = null;
+                $payload['recurrence'] = null;
+                $payload['adjustment_index'] = null;
+                $payload['adjustment_periodicity'] = null;
+                $payload['next_adjustment_date'] = null;
+            } elseif ($billingType === 'parcelada') {
+                $payload['monthly_value'] = null;
+                $payload['recurrence'] = null;
+                $payload['adjustment_index'] = null;
+                $payload['adjustment_periodicity'] = null;
+                $payload['next_adjustment_date'] = null;
+            } elseif ($billingType === 'mensal') {
+                $payload['installment_quantity'] = null;
+                if (!empty($payload['indefinite_term'])) {
+                    $payload['total_value'] = null;
+                }
+            } elseif (in_array($billingType, ['honorarios_sobre_exito', 'sob_demanda'], true)) {
+                $payload['monthly_value'] = null;
+                $payload['due_day'] = null;
+                $payload['recurrence'] = null;
+                $payload['adjustment_index'] = null;
+                $payload['adjustment_periodicity'] = null;
+                $payload['next_adjustment_date'] = null;
+                $payload['installment_quantity'] = null;
+                $payload['generate_financial_entries'] = false;
+            }
+        }
+
+        if ($paymentChanged && in_array($paymentMethod, ['especie', 'dinheiro'], true)) {
+            $payload['financial_account_id'] = null;
+        }
+
+        if ($contractType === $this->normalizedValue('Contrato de assessoria juridica condominial') && $billingType === 'mensal') {
+            $payload['installment_quantity'] = null;
+        }
+
+        if (in_array($status, ['rescindido', 'cancelado', 'arquivado'], true)) {
+            $payload['generate_financial_entries'] = false;
+        }
+
+        if (in_array($billingType, ['honorarios_sobre_exito', 'sob_demanda'], true)) {
+            $payload['generate_financial_entries'] = false;
+        }
+
+        if ($contractType === $this->normalizedValue('Distrato')) {
+            $payload['recurrence'] = null;
+        }
+
+        return $payload;
+    }
+
+    private function contractSaveGuardResponse(Request $request, array $payload, ?Contract $contract = null): ?RedirectResponse
+    {
+        $errors = $this->contractBaseValidationErrors($payload);
+        if ($this->shouldEnforceStrictFinancialValidation($payload)) {
+            $errors = array_merge($errors, $this->contractFinancialService->validateFinancialData($payload));
+        }
+
+        if ($errors !== []) {
+            return back()
+                ->withInput()
+                ->with('error', 'Nao foi possivel salvar o contrato com as regras financeiras atuais. Revise os campos sinalizados abaixo.')
+                ->with('errors_list', array_values(array_unique($errors)));
+        }
+
+        if ($this->needsActiveWithoutFinancialConfirmation($payload) && !$request->boolean('confirm_active_without_financial')) {
+            return back()
+                ->withInput()
+                ->with('error', 'Confirme que deseja salvar este contrato como ativo/assinado sem gerar lancamentos automaticos no Financeiro 360.');
+        }
+
+        if ($this->needsExistingEntriesDecision($payload, $contract) && !in_array((string) $request->input('financial_entries_action', ''), ['maintain', 'recreate'], true)) {
+            return back()
+                ->withInput()
+                ->with('error', 'Escolha se deseja manter os lancamentos financeiros atuais ou recria-los antes de concluir a alteracao do contrato.');
+        }
+
+        return null;
+    }
+
+    private function contractBaseValidationErrors(array $payload): array
+    {
+        $errors = [];
+        $billingType = $this->normalizedValue($payload['billing_type'] ?? null);
+        $paymentMethod = $this->normalizedValue($payload['payment_method'] ?? null);
+        $installmentQuantity = (int) ($payload['installment_quantity'] ?? 0);
+        $penaltyValue = (float) ($payload['penalty_value'] ?? 0);
+        $penaltyPercentage = (float) ($payload['penalty_percentage'] ?? 0);
+
+        if ($penaltyValue > 0 && $penaltyPercentage > 0) {
+            $errors[] = 'Informe a multa em valor ou em percentual, nunca as duas ao mesmo tempo.';
+        }
+
+        if (!empty($payload['adjustment_index']) && empty($payload['adjustment_periodicity'])) {
+            $errors[] = 'Ao informar o indice de reajuste, a periodicidade de reajuste passa a ser obrigatoria.';
+        }
+
+        if ($billingType === 'parcelada' && $installmentQuantity < 2) {
+            $errors[] = 'A quantidade de parcelas deve ser de no minimo 2 quando a forma de cobranca for Parcelado.';
+        }
+
+        if ($billingType === 'unica' && $installmentQuantity > 1) {
+            $errors[] = 'A quantidade de parcelas deve permanecer igual a 1 quando a forma de cobranca for Parcela unica.';
+        }
+
+        if ($paymentMethod === 'boleto' && empty($payload['due_day'])) {
+            $errors[] = 'Ao selecionar Boleto, o dia de vencimento passa a ser obrigatorio.';
+        }
+
+        if ($paymentMethod === 'boleto' && $billingType === 'mensal' && empty($payload['recurrence'])) {
+            $errors[] = 'Contratos mensais com pagamento em boleto exigem recorrencia definida.';
+        }
+
+        if ($paymentMethod === 'cartao' && $billingType === 'parcelada' && $installmentQuantity < 2) {
+            $errors[] = 'Pagamentos em cartao parcelado exigem a quantidade de parcelas com valor minimo de 2.';
+        }
+
+        if ($paymentMethod === 'cheque' && !empty($payload['generate_financial_entries']) && $billingType === 'mensal') {
+            $errors[] = 'No fluxo atual, contratos mensais pagos por cheque nao podem gerar cobrancas automaticas recorrentes.';
+        }
+
+        return $errors;
+    }
+
+    private function shouldEnforceStrictFinancialValidation(array $payload): bool
+    {
+        return !empty($payload['generate_financial_entries'])
+            && in_array($this->normalizedValue($payload['status'] ?? null), ['ativo', 'assinado'], true);
+    }
+
+    private function needsActiveWithoutFinancialConfirmation(array $payload): bool
+    {
+        return in_array($this->normalizedValue($payload['status'] ?? null), ['ativo', 'assinado'], true)
+            && empty($payload['generate_financial_entries']);
+    }
+
+    private function needsExistingEntriesDecision(array $payload, ?Contract $contract = null): bool
+    {
+        if (!$contract) {
+            return false;
+        }
+
+        return !$contract->generate_financial_entries
+            && !empty($payload['generate_financial_entries'])
+            && in_array($this->normalizedValue($payload['status'] ?? null), ['ativo', 'assinado'], true)
+            && $this->contractFinancialService->hasFinancialEntries($contract);
+    }
+
+    private function syncContractFinancialEntriesAfterSave(Contract $contract, ?Contract $originalContract, int $userId, string $action): array
+    {
+        $result = ['created' => 0, 'skipped' => 0, 'deleted' => 0, 'mode' => null];
+
+        if (!$contract->generate_financial_entries || !in_array($contract->status, ['ativo', 'assinado'], true)) {
+            return $result;
+        }
+
+        if ($action === 'maintain' && $this->contractFinancialService->hasFinancialEntries($contract)) {
+            $result['mode'] = 'maintain';
+            return $result;
+        }
+
+        if ($action === 'recreate') {
+            $sync = $this->contractFinancialService->recreateFinancialEntries($contract, $userId);
+
+            return [
+                'created' => $sync['created']->count(),
+                'skipped' => $sync['skipped']->count(),
+                'deleted' => (int) ($sync['deleted'] ?? 0),
+                'mode' => 'recreate',
+            ];
+        }
+
+        if ($this->contractFinancialService->hasFinancialEntries($contract)) {
+            $result['mode'] = 'existing';
+            return $result;
+        }
+
+        $sync = $this->contractFinancialService->generateFinancialEntries($contract, $userId);
+
+        return [
+            'created' => $sync['created']->count(),
+            'skipped' => $sync['skipped']->count(),
+            'deleted' => (int) ($sync['deleted'] ?? 0),
+            'mode' => 'generate',
+        ];
+    }
+
+    private function contractFinancialSyncMessage(array $financialSync): string
+    {
+        $created = (int) ($financialSync['created'] ?? 0);
+        $skipped = (int) ($financialSync['skipped'] ?? 0);
+        $deleted = (int) ($financialSync['deleted'] ?? 0);
+        $mode = (string) ($financialSync['mode'] ?? '');
+
+        if ($mode === 'maintain') {
+            return ' Os lancamentos financeiros existentes foram mantidos sem duplicacao.';
+        }
+
+        if ($mode === 'existing') {
+            return ' O contrato ja possuia lancamentos financeiros vinculados, entao nenhuma duplicidade foi gerada.';
+        }
+
+        if ($mode === 'recreate') {
+            return ' Financeiro 360 atualizado: ' . $created . ' lancamento(s) criado(s), ' . $deleted . ' registro(s) anterior(es) removido(s) e ' . $skipped . ' item(ns) pulado(s).';
+        }
+
+        if ($mode === 'generate' && ($created > 0 || $skipped > 0)) {
+            return ' Financeiro 360: ' . $created . ' lancamento(s) criado(s) e ' . $skipped . ' pulado(s) por duplicidade.';
+        }
+
+        return '';
+    }
+
+    private function valueChanged(mixed $original, mixed $current): bool
+    {
+        return $this->normalizedValue($original) !== $this->normalizedValue($current);
+    }
+
+    private function boolChanged(mixed $original, mixed $current): bool
+    {
+        return (bool) $original !== (bool) $current;
+    }
+
+    private function normalizedValue(mixed $value): string
+    {
+        return Str::of(Str::ascii(trim((string) $value)))->lower()->squish()->toString();
     }
 
     private function normalizedEditorHtml(mixed $html): string
