@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AppSetting;
 use App\Models\CobrancaMonetaryIndexFactor;
 use App\Models\Demand;
+use App\Models\DemandCategory;
 use App\Models\DemandTag;
 use App\Models\FormaEnvio;
 use App\Models\ProcessCaseOption;
@@ -61,6 +62,7 @@ class ConfigController extends Controller
             'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
             'processOptionLabels' => $this->processOptionLabels(),
             'demandTags' => DemandTag::query()->withCount('demands')->orderBy('sort_order')->orderBy('name')->get(),
+            'demandCategories' => DemandCategory::query()->withCount('demands')->orderBy('sort_order')->orderBy('name')->get(),
             'demandTagSlaOptions' => DemandTag::slaOptions(),
             'demandStatusLabels' => Demand::statusLabels(),
             'tjesIndexStorageReady' => $tjesIndexStorageReady,
@@ -315,6 +317,35 @@ class ConfigController extends Controller
         $tag->delete();
 
         return back()->with('success', 'Tag de demanda excluida.');
+    }
+
+    public function storeDemandCategory(Request $request): RedirectResponse
+    {
+        $payload = $this->demandCategoryPayload($request);
+
+        DemandCategory::query()->create($payload);
+
+        return back()->with('success', 'Categoria de demanda cadastrada.');
+    }
+
+    public function updateDemandCategory(Request $request, DemandCategory $category): RedirectResponse
+    {
+        $payload = $this->demandCategoryPayload($request, $category);
+
+        $category->update($payload);
+
+        return back()->with('success', 'Categoria de demanda atualizada.');
+    }
+
+    public function deleteDemandCategory(DemandCategory $category): RedirectResponse
+    {
+        if ($category->demands()->exists()) {
+            return back()->with('error', 'Nao e possivel excluir categoria com demandas vinculadas. Reclassifique as demandas antes.');
+        }
+
+        $category->delete();
+
+        return back()->with('success', 'Categoria de demanda excluida.');
     }
 
     public function saveAutomation(Request $request): RedirectResponse
@@ -938,6 +969,43 @@ class ConfigController extends Controller
         }
 
         return $payload;
+    }
+
+    private function demandCategoryPayload(Request $request, ?DemandCategory $current = null): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => ['nullable', 'string', 'max:140'],
+            'color_hex' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'sort_order' => ['nullable', 'integer', 'min:-1000', 'max:10000'],
+            'is_active' => ['nullable'],
+        ]);
+
+        $slug = trim((string) ($data['slug'] ?? ''));
+        if ($slug === '') {
+            $slug = Str::slug((string) $data['name']);
+        }
+
+        if ($slug === '') {
+            $slug = Str::random(8);
+        }
+
+        $slugExists = DemandCategory::query()
+            ->where('slug', $slug)
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->exists();
+
+        if ($slugExists) {
+            throw ValidationException::withMessages(['slug' => 'Ja existe uma categoria de demanda com este identificador.']);
+        }
+
+        return [
+            'name' => trim((string) $data['name']),
+            'slug' => $slug,
+            'color_hex' => !empty($data['color_hex']) ? strtoupper((string) $data['color_hex']) : null,
+            'sort_order' => (int) $request->integer('sort_order'),
+            'is_active' => $request->boolean('is_active'),
+        ];
     }
 
     private function processOptionLabels(): array

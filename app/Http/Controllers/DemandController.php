@@ -155,7 +155,7 @@ class DemandController extends Controller
 
         return view('pages.demandas.create', [
             'title' => 'Nova demanda',
-            'categories' => DemandCategory::query()->active()->get(),
+            'categories' => $this->availableCategories(),
             'demandTags' => DemandTag::query()->active()->get(),
             'priorityLabels' => Demand::priorityLabels(),
             'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
@@ -289,7 +289,7 @@ class DemandController extends Controller
             'demand' => $demanda,
             'statusLabels' => Demand::statusLabels(),
             'priorityLabels' => Demand::priorityLabels(),
-            'categories' => DemandCategory::query()->active()->get(),
+            'categories' => $this->availableCategories($demanda),
             'demandTags' => DemandTag::query()->active()->get(),
             'users' => User::query()->active()->orderBy('name')->get(),
         ]);
@@ -558,6 +558,22 @@ class DemandController extends Controller
         }
 
         return $uploaded;
+    }
+
+    private function availableCategories(?Demand $demand = null)
+    {
+        return DemandCategory::query()
+            ->when(
+                $demand?->category_id,
+                fn ($query) => $query->where(function ($inner) use ($demand) {
+                    $inner->where('is_active', true)
+                        ->orWhereKey($demand->category_id);
+                }),
+                fn ($query) => $query->where('is_active', true)
+            )
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
     }
 
     private function normalizeUploadedFiles(mixed $files): array

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Administradora;
 use App\Models\AuditLog;
+use App\Models\ClientEntity;
 use App\Models\FormaEnvio;
 use App\Models\Proposal;
 use App\Models\ProposalAttachment;
@@ -14,19 +15,21 @@ use App\Services\ProposalDashboardService;
 use App\Services\ProposalService;
 use App\Support\AncoraAuth;
 use App\Support\SortableQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProposalController extends Controller
 {
-    private function formDependencies(): array
+    private function formDependencies(?Proposal $proposal = null): array
     {
         return [
-            'administradoras' => Administradora::query()->active()->get(),
+            'administradoras' => $this->proposalContactOptions($proposal),
             'servicos' => Servico::query()->active()->get(),
             'formasEnvio' => FormaEnvio::query()->active()->get(),
             'statusRetorno' => StatusRetorno::query()->active()->get(),
@@ -100,7 +103,7 @@ class ProposalController extends Controller
             'sortState' => $sortState,
             'totals' => $totals,
             'filterOptions' => [
-                'administradoras' => Administradora::query()->active()->get(),
+                'administradoras' => $this->proposalContactOptions(),
                 'servicos' => Servico::query()->active()->get(),
                 'formasEnvio' => FormaEnvio::query()->active()->get(),
                 'statusRetorno' => StatusRetorno::query()->active()->get(),
@@ -193,7 +196,7 @@ class ProposalController extends Controller
             'proposal' => $proposta,
             'action' => route('propostas.update', $proposta),
             'submitLabel' => 'Salvar alterações',
-        ], $this->formDependencies()));
+        ], $this->formDependencies($proposta)));
     }
 
     public function update(Request $request, Proposal $proposta): RedirectResponse
@@ -262,6 +265,117 @@ class ProposalController extends Controller
         $this->logAction($request, 'delete_attachment', $attachmentId, 'Exclusão de anexo PDF da proposta #' . $proposta->id);
         $this->recordHistory($proposta->id, $user->id, $user->email, 'attachment_delete', 'PDF removido da proposta.', ['attachment_id' => $attachmentId, 'original_name' => $originalName]);
         return back()->with('success', 'Anexo removido com sucesso.');
+    }
+
+    private function proposalContactOptions(?Proposal $proposal = null)
+    {
+        $this->syncProposalContactsFromClientEntities();
+
+        $query = Administradora::query()->active();
+
+        if (Schema::hasTable('administradoras') && Schema::hasColumn('administradoras', 'client_entity_id')) {
+            $query->whereNotNull('client_entity_id');
+        }
+
+        $items = $query->get();
+
+        if ($proposal?->administradora_id && !$items->contains('id', (int) $proposal->administradora_id)) {
+            $legacyItem = Administradora::query()->find($proposal->administradora_id);
+            if ($legacyItem) {
+                $items->push($legacyItem);
+            }
+        }
+
+        return $items->unique('id')->values();
+    }
+
+    private function syncProposalContactsFromClientEntities(): void
+    {
+        if (!Schema::hasTable('administradoras') || !Schema::hasColumn('administradoras', 'client_entity_id')) {
+            return;
+        }
+
+        $entities = $this->proposalContactEntities();
+
+        foreach ($entities as $index => $entity) {
+            Administradora::query()->updateOrCreate(
+                ['client_entity_id' => (int) $entity->id],
+                [
+                    'name' => trim((string) ($entity->display_name ?: $entity->legal_name ?: ('Contato #' . $entity->id))),
+                    'type' => trim((string) ($entity->role_tag ?: 'contato')) ?: 'contato',
+                    'contact_name' => trim((string) ($entity->display_name ?: $entity->legal_name ?: '')) ?: null,
+                    'phone' => $this->primaryContactValue($entity->phones_json),
+                    'email' => $this->primaryContactValue($entity->emails_json),
+                    'is_active' => (bool) ($entity->is_active ?? true),
+                    'sort_order' => ($index + 1) * 10,
+                ]
+            );
+        }
+
+        $entityIds = $entities->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        Administradora::query()
+            ->whereNotNull('client_entity_id')
+            ->when(
+                $entityIds !== [],
+                fn ($query) => $query->whereNotIn('client_entity_id', $entityIds),
+                fn ($query) => $query
+            )
+            ->update(['is_active' => false]);
+    }
+
+    private function proposalContactEntities()
+    {
+        return ClientEntity::query()
+            ->where(function (Builder $query): void {
+                $query->where('is_active', true)->orWhereNull('is_active');
+            })
+            ->orderBy('display_name')
+            ->get(['id', 'display_name', 'legal_name', 'role_tag', 'phones_json', 'emails_json', 'is_active'])
+            ->filter(fn (ClientEntity $entity) => $this->isProposalContactRole($entity->role_tag))
+            ->values();
+    }
+
+    private function isProposalContactRole(?string $roleTag): bool
+    {
+        $normalized = Str::of(Str::ascii((string) $roleTag))->lower()->squish()->toString();
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        foreach (['administradora', 'sindico', 'sindica'] as $keyword) {
+            if (str_contains($normalized, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function primaryContactValue(mixed $values): ?string
+    {
+        if (!is_array($values) || $values === []) {
+            return null;
+        }
+
+        foreach ($values as $item) {
+            if (is_array($item)) {
+                $value = trim((string) ($item['email'] ?? $item['phone'] ?? $item['value'] ?? ''));
+                if ($value !== '') {
+                    return Str::limit($value, 190, '');
+                }
+
+                continue;
+            }
+
+            $value = trim((string) $item);
+            if ($value !== '') {
+                return Str::limit($value, 190, '');
+            }
+        }
+
+        return null;
     }
 
     private function recordHistory(int $proposalId, int $userId, string $email, string $action, string $summary, array $payload = []): void

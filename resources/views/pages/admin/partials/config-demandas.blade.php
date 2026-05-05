@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Configuracao de Demandas</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Crie tags do kanban, defina cores, SLA e o que pode aparecer no Portal do Cliente.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Crie tags do kanban, mantenha as categorias da nova demanda e ajuste cores, SLA e visibilidade no Portal do Cliente.</p>
             </div>
             <a href="{{ route('demandas.kanban') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
                 <i class="fa-solid fa-table-columns"></i>
@@ -119,6 +119,79 @@
             @empty
                 <div class="rounded-2xl border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhuma tag cadastrada.</div>
             @endforelse
+        </div>
+
+        <div class="mt-8 border-t border-gray-200 pt-8 dark:border-gray-800">
+            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h4 class="text-base font-semibold text-gray-900 dark:text-white">Categorias da Demanda</h4>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Essas categorias aparecem no campo "Categoria" ao abrir ou editar demandas. Voce pode cadastrar novas quando precisar.</p>
+                </div>
+            </div>
+
+            <form method="post" action="{{ route('config.demand-categories.store') }}" class="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/40 p-4 dark:border-brand-800 dark:bg-brand-500/5">
+                @csrf
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <input name="name" placeholder="Nome da categoria" class="{{ $inputClass }} xl:col-span-2" required>
+                    <input name="slug" placeholder="Identificador opcional" class="{{ $inputClass }}">
+                    <div class="flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+                        <input type="color" name="color_hex" value="#465FFF" class="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0">
+                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Cor</span>
+                    </div>
+                    <input type="number" name="sort_order" value="0" placeholder="Ordem" class="{{ $inputClass }}">
+                    <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200 xl:col-span-2">
+                        <input type="checkbox" name="is_active" value="1" checked>
+                        Ativa
+                    </label>
+                </div>
+                <button class="{{ $buttonClass }} mt-4">Cadastrar categoria</button>
+            </form>
+
+            <div class="mt-6 max-h-[34rem] space-y-4 overflow-y-auto pr-2">
+                @forelse($demandCategories as $category)
+                    <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                        <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="h-4 w-4 rounded-full border border-gray-200 dark:border-gray-700" style="background-color: {{ $category->color_hex ?: '#CBD5E1' }}"></span>
+                                <div>
+                                    <div class="font-semibold text-gray-900 dark:text-white">{{ $category->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $category->slug }} · {{ $category->demands_count }} demanda(s)</div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-600 dark:bg-white/10 dark:text-gray-300">Ordem {{ $category->sort_order }}</span>
+                                <span class="rounded-full px-3 py-1 font-semibold {{ $category->is_active ? 'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-300' : 'bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-300' }}">{{ $category->is_active ? 'Ativa' : 'Inativa' }}</span>
+                            </div>
+                        </div>
+
+                        <form method="post" action="{{ route('config.demand-categories.update', $category) }}" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                            @csrf
+                            @method('PUT')
+                            <input name="name" value="{{ $category->name }}" class="{{ $inputClass }} xl:col-span-2" required>
+                            <input name="slug" value="{{ $category->slug }}" class="{{ $inputClass }}">
+                            <div class="flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+                                <input type="color" name="color_hex" value="{{ $category->color_hex ?: '#465FFF' }}" class="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0">
+                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ $category->color_hex ?: 'Sem cor' }}</span>
+                            </div>
+                            <input type="number" name="sort_order" value="{{ $category->sort_order }}" class="{{ $inputClass }}">
+                            <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200 xl:col-span-2">
+                                <input type="checkbox" name="is_active" value="1" @checked($category->is_active)>
+                                Ativa
+                            </label>
+                            <div class="flex gap-2 xl:col-span-5">
+                                <button class="{{ $buttonClass }}">Salvar categoria</button>
+                            </div>
+                        </form>
+
+                        <form method="post" action="{{ route('config.demand-categories.delete', $category) }}" class="mt-3">
+                            @csrf
+                            <button class="rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-600" onclick="return confirm('Excluir esta categoria de demanda?')">Excluir categoria</button>
+                        </form>
+                    </div>
+                @empty
+                    <div class="rounded-2xl border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhuma categoria cadastrada.</div>
+                @endforelse
+            </div>
         </div>
     </div>
 
