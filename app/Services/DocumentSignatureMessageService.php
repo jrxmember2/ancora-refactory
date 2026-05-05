@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Contract;
 use App\Models\CobrancaCase;
+use App\Models\ElectronicSignatureDocument;
 use App\Support\ContractSettings;
 use App\Support\Signatures\DocumentSignatureCatalog;
 use Carbon\Carbon;
@@ -70,6 +71,30 @@ class DocumentSignatureMessageService
             'os_numero' => (string) ($case->os_number ?: ''),
             'contrato_codigo' => '',
             'cidade' => (string) ($case->condominium?->address_json['city'] ?? ContractSettings::get('default_city', 'Vitoria')),
+            'data_atual' => Carbon::now()->locale('pt_BR')->translatedFormat('d \\d\\e F \\d\\e Y'),
+        ];
+
+        return $this->render($message, $variables);
+    }
+
+    public function renderForStandalone(string $message, ElectronicSignatureDocument $document): string
+    {
+        $document->loadMissing(['client', 'condominium']);
+
+        $variables = [
+            'documento_titulo' => (string) ($document->title ?: $document->original_name ?: 'Documento avulso'),
+            'tipo_documento' => (string) ($document->category ?: 'Documento avulso'),
+            'cliente_nome' => (string) ($document->client?->display_name ?: ''),
+            'condominio_nome' => (string) ($document->condominium?->name ?: ''),
+            'condominio_cidade' => (string) ($document->condominium?->address_json['city'] ?? ''),
+            'unidade_numero' => '',
+            'bloco_nome' => '',
+            'sindico_nome' => '',
+            'devedor_nome' => '',
+            'devedor_documento' => '',
+            'os_numero' => '',
+            'contrato_codigo' => '',
+            'cidade' => (string) ($document->condominium?->address_json['city'] ?? ContractSettings::get('default_city', 'Vitoria')),
             'data_atual' => Carbon::now()->locale('pt_BR')->translatedFormat('d \\d\\e F \\d\\e Y'),
         ];
 

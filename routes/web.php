@@ -17,6 +17,7 @@ use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemandController;
 use App\Http\Controllers\DocumentSignatureController;
+use App\Http\Controllers\ElectronicSignerController;
 use App\Http\Controllers\FinancialController;
 use App\Http\Controllers\FinancialExportController;
 use App\Http\Controllers\FinancialImportController;
@@ -237,6 +238,16 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/{contrato}/anexos/upload', [ContractController::class, 'uploadAttachment'])->name('contratos.attachments.upload')->middleware('ancora.route:contratos.attachments.upload');
         Route::get('/{contrato}/anexos/{attachment}/download', [ContractController::class, 'downloadAttachment'])->name('contratos.attachments.download')->middleware('ancora.route:contratos.attachments.download');
         Route::match(['post', 'delete'], '/{contrato}/anexos/{attachment}', [ContractController::class, 'deleteAttachment'])->name('contratos.attachments.delete')->middleware('ancora.route:contratos.attachments.delete');
+    });
+
+    Route::prefix('assinador-eletronico')->group(function () {
+        Route::get('/dashboard', [ElectronicSignerController::class, 'dashboard'])->name('assinador.dashboard')->middleware('ancora.route:assinador.dashboard');
+        Route::get('/', [ElectronicSignerController::class, 'index'])->name('assinador.index')->middleware('ancora.route:assinador.index');
+        Route::get('/nova', [ElectronicSignerController::class, 'create'])->name('assinador.create')->middleware('ancora.route:assinador.create');
+        Route::post('/', [ElectronicSignerController::class, 'store'])->name('assinador.store')->middleware('ancora.route:assinador.store');
+        Route::get('/documentos/{documento}', [ElectronicSignerController::class, 'show'])->name('assinador.show')->middleware('ancora.route:assinador.show');
+        Route::post('/assinaturas/{signature}/sincronizar', [ElectronicSignerController::class, 'sync'])->name('assinador.signatures.sync')->middleware('ancora.route:assinador.signatures.sync');
+        Route::get('/assinaturas/{signature}/download/{artifact}', [ElectronicSignerController::class, 'download'])->name('assinador.signatures.download')->middleware('ancora.route:assinador.signatures.download');
     });
 
     Route::prefix('financeiro')->group(function () {

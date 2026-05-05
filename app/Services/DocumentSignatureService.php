@@ -11,6 +11,7 @@ use App\Models\CobrancaCaseTimeline;
 use App\Models\DocumentSignatureEvent;
 use App\Models\DocumentSignatureRequest;
 use App\Models\DocumentSignatureSigner;
+use App\Models\ElectronicSignatureDocument;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -133,6 +134,43 @@ class DocumentSignatureService
         }
 
         $this->recordCaseTimeline($case, 'termo', 'Termo enviado para assinatura digital via Assinafy.', $user, now());
+
+        return $request->fresh(['signers', 'events', 'creator', 'updater']);
+    }
+
+    public function sendStandaloneDocument(ElectronicSignatureDocument $document, array $signers, User $user, ?string $message = null): DocumentSignatureRequest
+    {
+        if (!$this->assinafy->isConfigured()) {
+            throw new \RuntimeException('Configure a Assinafy antes de enviar: ' . implode(', ', $this->assinafy->missingConfig()) . '.');
+        }
+
+        $document->loadMissing(['client', 'condominium']);
+
+        $absolutePath = $this->standaloneAbsolutePath($document);
+        if (!$absolutePath) {
+            throw new \RuntimeException('O PDF do documento avulso nao foi localizado para envio a assinatura digital.');
+        }
+
+        $baseName = trim((string) ($document->title ?: pathinfo((string) $document->original_name, PATHINFO_FILENAME)));
+        if ($baseName === '') {
+            $baseName = 'documento-avulso-' . $document->id;
+        }
+
+        $request = $this->sendDocument(
+            $document,
+            $absolutePath,
+            $document->local_pdf_path,
+            Str::limit($baseName, 180, '') . '.pdf',
+            null,
+            $signers,
+            $user,
+            $message
+        );
+
+        $document->forceFill([
+            'status' => $request->status,
+            'updated_by' => $user->id,
+        ])->save();
 
         return $request->fresh(['signers', 'events', 'creator', 'updater']);
     }
@@ -531,6 +569,16 @@ class DocumentSignatureService
             return;
         }
 
+        if ($request->signable instanceof ElectronicSignatureDocument) {
+            $document = $request->signable;
+            $document->forceFill([
+                'status' => $request->status,
+                'updated_by' => $actor?->id ?: $request->updated_by ?: $request->created_by,
+            ])->save();
+
+            return;
+        }
+
         if (!$request->signable instanceof CobrancaCase) {
             return;
         }
@@ -589,6 +637,28 @@ class DocumentSignatureService
             'document_processing_failed' => 'failed',
             default => trim($status) !== '' ? trim($status) : 'draft',
         };
+    }
+
+    private function standaloneAbsolutePath(ElectronicSignatureDocument $document): ?string
+    {
+        $relativePath = trim(str_replace('\\', '/', (string) $document->local_pdf_path));
+        if ($relativePath === '') {
+            return null;
+        }
+
+        $candidates = [
+            storage_path('app/' . ltrim($relativePath, '/')),
+            storage_path('app/public/' . ltrim($relativePath, '/')),
+            public_path(ltrim($relativePath, '/')),
+        ];
+
+        foreach (array_unique($candidates) as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function signerMatches(DocumentSignatureSigner $signer, array $payload): bool

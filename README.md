@@ -128,3 +128,16 @@ Persistir pelo menos:
 
 Este pacote foi preparado estruturalmente, mas o build não foi executado neste ambiente porque aqui não havia Composer disponível.
 No deploy da VPS/EasyPanel, o `Dockerfile` resolve isso instalando Composer dependencies e assets do Vite.
+
+### Uploads do Assinador Eletronico
+
+Para o modulo `Assinador Eletronico` aceitar PDFs de ate `50 MB`, o ambiente precisa permitir:
+
+- `upload_max_filesize=50M`
+- `post_max_size=55M` ou `60M`
+- `memory_limit=256M` ou superior
+- `max_execution_time=300`
+
+Se houver Nginx ou proxy na frente da aplicacao, configure tambem:
+
+- `client_max_body_size 50M`

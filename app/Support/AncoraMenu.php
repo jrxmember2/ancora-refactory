@@ -90,6 +90,15 @@ class AncoraMenu
                             ['label' => 'Configuracoes', 'path' => route('contratos.settings.index')],
                         ],
                     ] : null,
+                    $has('assinador') ? [
+                        'label' => 'Assinador Eletronico',
+                        'icon' => 'fa-solid fa-signature',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('assinador.dashboard')],
+                            ['label' => 'Documentos', 'path' => route('assinador.index')],
+                            ['label' => 'Nova assinatura', 'path' => route('assinador.create')],
+                        ],
+                    ] : null,
                     $has('financeiro') ? [
                         'label' => 'Financeiro 360',
                         'icon' => 'fa-solid fa-chart-pie',
@@ -152,6 +161,7 @@ class AncoraMenu
                 'demandas' => 'Solicitacoes do Portal do Cliente com triagem e respostas do escritorio.',
                 'processos' => 'Controle processual com fases, anexos e sincronizacao DataJud.',
                 'contratos' => 'Templates, contratos, versionamento em PDF e historico documental do escritorio.',
+                'assinador' => 'Central de assinatura eletronica para contratos, termos de acordo e documentos avulsos.',
                 'financeiro' => 'ERP financeiro 360 com caixa, recebimentos, pagamentos, relatorios e integracao contratual.',
             ];
 
@@ -170,6 +180,7 @@ class AncoraMenu
                     'demandas' => route('demandas.dashboard'),
                     'processos' => route('processos.dashboard'),
                     'contratos' => route('contratos.dashboard'),
+                    'assinador' => route('assinador.dashboard'),
                     'financeiro' => route('financeiro.dashboard'),
                     default => '#',
                 },
@@ -182,6 +193,7 @@ class AncoraMenu
                     'demandas' => 'blue',
                     'processos' => 'brand',
                     'contratos' => 'blue',
+                    'assinador' => 'brand',
                     'financeiro' => 'success',
                     'config' => 'warning',
                     'logs' => 'gray',

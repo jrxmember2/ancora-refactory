@@ -206,6 +206,18 @@ class AncoraRouteCatalog
                     'contratos.restore' => 'Restaurar contrato da lixeira',
                 ],
             ],
+            'assinador' => [
+                'label' => 'Assinador Eletronico',
+                'routes' => [
+                    'assinador.dashboard' => 'Acessar dashboard do Assinador Eletronico',
+                    'assinador.index' => 'Listar documentos do Assinador Eletronico',
+                    'assinador.create' => 'Abrir nova assinatura avulsa',
+                    'assinador.store' => 'Enviar documento avulso para assinatura',
+                    'assinador.show' => 'Visualizar assinatura avulsa',
+                    'assinador.signatures.sync' => 'Sincronizar assinatura avulsa',
+                    'assinador.signatures.download' => 'Baixar artefatos da assinatura avulsa',
+                ],
+            ],
             'financeiro' => [
                 'label' => 'Financeiro 360',
                 'routes' => [

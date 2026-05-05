@@ -8,8 +8,10 @@ use App\Models\CobrancaCase;
 use App\Models\DocumentSignatureRequest;
 use App\Models\User;
 use App\Services\AssinafyService;
+use App\Services\DocumentSignatureDownloadService;
 use App\Services\DocumentSignatureMessageService;
 use App\Services\DocumentSignatureService;
+use App\Services\SignatureSignerService;
 use App\Support\AncoraAuth;
 use App\Support\ContractSettings;
 use App\Support\Signatures\DocumentSignatureCatalog;
@@ -28,6 +30,8 @@ class DocumentSignatureController extends Controller
         private readonly DocumentSignatureService $signatureService,
         private readonly AssinafyService $assinafyService,
         private readonly DocumentSignatureMessageService $messageService,
+        private readonly DocumentSignatureDownloadService $downloadService,
+        private readonly SignatureSignerService $signerService,
     ) {
     }
 
@@ -222,70 +226,7 @@ class DocumentSignatureController extends Controller
 
     private function normalizeSigners(Request $request): array
     {
-        $rows = collect($request->input('signers', []))
-            ->map(function ($row) {
-                $row = is_array($row) ? $row : [];
-
-                $phone = trim((string) ($row['phone'] ?? ''));
-                $document = trim((string) ($row['document_number'] ?? ''));
-
-                return [
-                    'name' => trim((string) ($row['name'] ?? '')),
-                    'email' => trim((string) ($row['email'] ?? '')),
-                    'phone' => $this->formatPhone($phone),
-                    'phone_digits' => $this->digits($phone),
-                    'document_number' => $this->formatDocument($document),
-                    'document_digits' => $this->digits($document),
-                    'role_label' => trim((string) ($row['role_label'] ?? '')),
-                ];
-            })
-            ->filter(fn (array $row) => collect($row)->filter(fn ($value) => $value !== '')->isNotEmpty())
-            ->values();
-
-        if ($rows->isEmpty()) {
-            throw ValidationException::withMessages([
-                'signers' => 'Informe ao menos um signatario.',
-            ]);
-        }
-
-        $errors = [];
-        foreach ($rows as $index => $row) {
-            $line = $index + 1;
-
-            if ($row['name'] === '') {
-                $errors['signers.' . $index . '.name'] = 'Informe o nome do signatario na linha ' . $line . '.';
-            }
-
-            if ($row['email'] === '') {
-                $errors['signers.' . $index . '.email'] = 'Informe o e-mail do signatario na linha ' . $line . '.';
-            } elseif (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
-                $errors['signers.' . $index . '.email'] = 'Informe um e-mail valido na linha ' . $line . '.';
-            }
-
-            if ($row['phone_digits'] !== '' && !in_array(strlen($row['phone_digits']), [10, 11, 12, 13], true)) {
-                $errors['signers.' . $index . '.phone'] = 'Informe um telefone celular valido na linha ' . $line . '.';
-            }
-
-            if ($row['document_digits'] !== '' && !in_array(strlen($row['document_digits']), [11, 14], true)) {
-                $errors['signers.' . $index . '.document_number'] = 'Informe um CPF ou CNPJ valido na linha ' . $line . '.';
-            }
-
-            if ($row['role_label'] === '') {
-                $errors['signers.' . $index . '.role_label'] = 'Selecione o papel no documento na linha ' . $line . '.';
-            }
-        }
-
-        if ($errors !== []) {
-            throw ValidationException::withMessages($errors);
-        }
-
-        return $rows
-            ->map(function (array $row) {
-                unset($row['phone_digits'], $row['document_digits']);
-
-                return $row;
-            })
-            ->all();
+        return $this->signerService->normalizeSigners($request);
     }
 
     private function normalizeContractMessage(Request $request, Contract $contract): ?string
@@ -330,9 +271,8 @@ class DocumentSignatureController extends Controller
             $rows->push($this->signerFromEntity($client, 'Signatario'));
         }
 
-        return $rows
-            ->filter()
-            ->unique(fn (array $row) => Str::lower($row['email']) . '|' . Str::lower($row['name']))
+        return $this->signerService
+            ->uniqueSigners($rows)
             ->values()
             ->whenEmpty(fn (Collection $collection) => $collection->push($this->blankSigner()))
             ->all();
@@ -351,48 +291,23 @@ class DocumentSignatureController extends Controller
             'phone' => $this->formatPhone($phone),
             'document_number' => $this->formatDocument($document),
             'role_label' => 'Devedor',
+            'order_index' => 1,
         ]];
     }
 
     private function signerFromEntity(ClientEntity $entity, string $roleLabel): array
     {
-        return [
-            'name' => trim((string) ($entity->display_name ?: $entity->legal_name ?: '')),
-            'email' => trim((string) collect($entity->emails_json ?? [])->pluck('email')->filter()->first()),
-            'phone' => $this->formatPhone((string) collect($entity->phones_json ?? [])->pluck('number')->filter()->first()),
-            'document_number' => $this->formatDocument((string) ($entity->cpf_cnpj ?: '')),
-            'role_label' => $roleLabel,
-        ];
+        return $this->signerService->signerFromEntity($entity, $roleLabel);
     }
 
     private function blankSigner(): array
     {
-        return [
-            'name' => '',
-            'email' => '',
-            'phone' => '',
-            'document_number' => '',
-            'role_label' => 'Signatario',
-        ];
+        return $this->signerService->blankSigner();
     }
 
     private function defaultSignerOptions(): array
     {
-        return collect(ContractSettings::jsonArray('assinafy_default_signers_json'))
-            ->map(function ($row) {
-                $row = is_array($row) ? $row : [];
-
-                return [
-                    'name' => trim((string) ($row['name'] ?? '')),
-                    'email' => trim((string) ($row['email'] ?? '')),
-                    'phone' => $this->formatPhone((string) ($row['phone'] ?? '')),
-                    'document_number' => $this->formatDocument((string) ($row['document_number'] ?? '')),
-                    'role_label' => trim((string) ($row['role_label'] ?? '')),
-                ];
-            })
-            ->filter(fn (array $row) => $row['name'] !== '' || $row['email'] !== '')
-            ->values()
-            ->all();
+        return $this->signerService->defaultSignerOptions();
     }
 
     private function digits(string $value): string
@@ -402,42 +317,12 @@ class DocumentSignatureController extends Controller
 
     private function formatPhone(string $value): string
     {
-        $digits = $this->digits($value);
-        if ($digits === '') {
-            return '';
-        }
-
-        if (strlen($digits) >= 12 && str_starts_with($digits, '55')) {
-            $digits = substr($digits, 2);
-        }
-
-        if (strlen($digits) === 11) {
-            return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $digits) ?: $digits;
-        }
-
-        if (strlen($digits) === 10) {
-            return preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $digits) ?: $digits;
-        }
-
-        return $digits;
+        return $this->signerService->formatPhone($value);
     }
 
     private function formatDocument(string $value): string
     {
-        $digits = $this->digits($value);
-        if ($digits === '') {
-            return '';
-        }
-
-        if (strlen($digits) === 11) {
-            return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $digits) ?: $digits;
-        }
-
-        if (strlen($digits) === 14) {
-            return preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $digits) ?: $digits;
-        }
-
-        return $digits;
+        return $this->signerService->formatDocument($value);
     }
 
     private function downloadArtifact(
@@ -446,37 +331,7 @@ class DocumentSignatureController extends Controller
         User $user,
         string $backUrl
     ): BinaryFileResponse|RedirectResponse {
-        $meta = match ($artifact) {
-            'original' => ['field' => 'local_pdf_path', 'filename' => trim((string) $signature->document_name) ?: 'documento-original.pdf'],
-            'signed' => ['field' => 'signed_pdf_path', 'filename' => 'documento-assinado.pdf'],
-            'certificate' => ['field' => 'certificate_pdf_path', 'filename' => 'certificado-assinatura.pdf'],
-            'bundle' => ['field' => 'bundle_pdf_path', 'filename' => 'pacote-assinatura.pdf'],
-            default => null,
-        };
-
-        if (!$meta) {
-            abort(404);
-        }
-
-        if (in_array($artifact, ['signed', 'certificate', 'bundle'], true) && trim((string) $signature->{$meta['field']}) === '') {
-            try {
-                $signature = $this->signatureService->syncRequest($signature, null, null, $user);
-            } catch (\Throwable $e) {
-                return redirect($backUrl)->with('error', 'Nao foi possivel preparar o download do documento assinado: ' . $e->getMessage());
-            }
-        }
-
-        $relativePath = trim((string) $signature->{$meta['field']});
-        if ($relativePath === '') {
-            return redirect($backUrl)->with('error', 'Este arquivo ainda nao esta disponivel para download.');
-        }
-
-        $path = storage_path('app/public/' . ltrim($relativePath, '/'));
-        if (!is_file($path)) {
-            return redirect($backUrl)->with('error', 'O arquivo solicitado nao foi localizado no servidor.');
-        }
-
-        return response()->download($path, $meta['filename']);
+        return $this->downloadService->downloadArtifact($signature, $artifact, $user, $backUrl);
     }
 
     private function agreementTermStorageReady(): bool
