@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.83',
-            'date' => '30/04/2026',
-            'label' => 'v1.83 - 30/04/2026',
+            'version' => 'v1.84',
+            'date' => '05/05/2026',
+            'label' => 'v1.84 - 05/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Importacao de processos ganha execucao parcial, relatorio de pendencias e reimportacao segura',
+                'items' => [
+                    'A previa de importacao de processos agora separa linhas prontas, pendentes e ignoradas, tratando numeros ja cadastrados como duplicidade segura para permitir reimportacoes sem quebrar o fluxo.',
+                    'Ao executar a rotina, o sistema passa a importar apenas o que estiver apto, manter na revisao somente o que ainda exige tratamento e liberar um CSV de pendencias no mesmo formato da importacao.',
+                    'O relatorio exportado volta limpo para nova importacao e as linhas que ja tiverem sido criadas passam a ser ignoradas automaticamente, evitando retrabalho e cadastro duplicado.',
+                ],
+            ],
+            [
+                'version' => 'v1.83',
+                'date' => '30/04/2026',
                 'title' => 'Importacao de inadimplencia ganha fila local de decisoes e aplicacao em lote',
                 'items' => [
                     'A tela de importacao de inadimplencia deixa de exigir refresh por linha em cada conflito e passa a guardar decisoes pendentes em fila local, permitindo revisar varias linhas antes de aplicar tudo de uma vez.',

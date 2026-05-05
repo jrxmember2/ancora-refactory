@@ -66,6 +66,7 @@ class AuditLogPresenter
             'processos.import.template' => 'Baixou modelo de importacao de processos',
             'processos.import.preview' => 'Gerou previa de importacao de processos',
             'processos.import.execute' => 'Importou processos',
+            'processos.import.report' => 'Exportou relatorio de pendencias da importacao de processos',
             'processos.phases.store' => 'Cadastrou fase do processo',
             'processos.attachments.upload' => 'Anexou arquivo no processo',
             'processos.attachments.delete' => 'Excluiu anexo do processo',

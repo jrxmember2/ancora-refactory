@@ -387,13 +387,9 @@ class ProcessController extends Controller
 
             $request->session()->put("process_import_previews.{$token}", $preview);
 
-            $message = ($preview['summary']['errors'] ?? 0) > 0
-                ? "Previa gerada com {$preview['summary']['errors']} pendencia(s). Corrija as linhas sinalizadas antes de executar."
-                : "Previa gerada com {$preview['summary']['ready']} processo(s) pronto(s) para importacao.";
-
             return redirect()->route('processos.import.index')
                 ->with('process_import_preview_token', $token)
-                ->with(($preview['summary']['errors'] ?? 0) > 0 ? 'error' : 'success', $message);
+                ->with(($preview['summary']['errors'] ?? 0) > 0 ? 'error' : 'success', $this->processImportPreviewMessage($preview));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
@@ -416,54 +412,56 @@ class ProcessController extends Controller
         $preview = $this->prepareProcessImportPreview($rows);
         $request->session()->put("process_import_previews.{$token}", $preview);
 
-        if (($preview['summary']['errors'] ?? 0) > 0) {
-            return redirect()->route('processos.import.index')
-                ->with('process_import_preview_token', $token)
-                ->with('error', 'A importacao nao foi executada porque ainda existem linhas invalidas ou duplicadas na previa.');
+        $readyRows = array_values(array_filter((array) $preview['rows'], static fn (array $row): bool => ($row['preview_status'] ?? '') === 'ready'));
+        $errorCount = (int) ($preview['summary']['errors'] ?? 0);
+        $ignoredCount = (int) ($preview['summary']['ignored'] ?? 0);
+
+        if ($readyRows === []) {
+            if ($errorCount > 0) {
+                return redirect()->route('processos.import.index')
+                    ->with('process_import_preview_token', $token)
+                    ->with('error', 'Nenhuma linha apta ficou pronta para importacao. Corrija as pendencias restantes ou baixe o relatorio para tratar depois.');
+            }
+
+            $request->session()->forget("process_import_previews.{$token}");
+
+            return redirect()->route('processos.import.index')->with(
+                $ignoredCount > 0 ? 'success' : 'error',
+                $ignoredCount > 0
+                    ? "Nenhum novo processo foi criado. {$ignoredCount} linha(s) ja correspondiam a processos existentes e foram ignoradas com seguranca."
+                    : 'Nenhuma linha apta foi encontrada na previa atual.'
+            );
         }
 
         $user = AncoraAuth::user($request);
 
         try {
-            $created = DB::transaction(function () use ($preview, $user) {
-                $created = 0;
+            $created = DB::transaction(fn () => $this->createProcessCasesFromImportRows($readyRows, $user?->id));
 
-                foreach ((array) $preview['rows'] as $row) {
-                    if (($row['preview_status'] ?? '') !== 'ready') {
-                        continue;
-                    }
-
-                    $payload = $this->payloadFromImportRow($row);
-                    $case = ProcessCase::query()->create($payload + [
-                        'created_by' => $user?->id,
-                        'updated_by' => $user?->id,
-                    ]);
-
-                    foreach ((array) ($row['phases'] ?? []) as $phase) {
-                        ProcessCasePhase::query()->create([
-                            'process_case_id' => $case->id,
-                            'phase_date' => $phase['phase_date'] ?? null,
-                            'phase_time' => $phase['phase_time'] ?? null,
-                            'description' => $phase['description'],
-                            'is_private' => (bool) ($phase['is_private'] ?? false),
-                            'is_reviewed' => (bool) ($phase['is_reviewed'] ?? false),
-                            'notes' => $phase['notes'] ?? null,
-                            'legal_opinion' => $phase['legal_opinion'] ?? null,
-                            'conference' => $phase['conference'] ?? null,
-                            'source' => 'manual',
-                            'created_by' => $user?->id,
-                        ]);
-                    }
-
-                    $created++;
+            $rows = array_map(function (array $row): array {
+                if (($row['preview_status'] ?? '') === 'ready') {
+                    $row['import_already_processed'] = true;
                 }
 
-                return $created;
-            });
+                return $row;
+            }, (array) $preview['rows']);
+
+            $preview = $this->prepareProcessImportPreview($rows);
+            $request->session()->put("process_import_previews.{$token}", $preview);
+
+            $remainingErrors = (int) ($preview['summary']['errors'] ?? 0);
+            $remainingIgnored = (int) ($preview['summary']['ignored'] ?? 0);
+
+            if ($remainingErrors > 0) {
+                return redirect()->route('processos.import.index')
+                    ->with('process_import_preview_token', $token)
+                    ->with('success', $this->processImportExecutionMessage($created, $remainingErrors, $remainingIgnored));
+            }
 
             $request->session()->forget("process_import_previews.{$token}");
 
-            return redirect()->route('processos.index')->with('success', "Importacao executada. {$created} processo(s) criado(s).");
+            return redirect()->route('processos.index')
+                ->with('success', $this->processImportExecutionMessage($created, 0, $remainingIgnored));
         } catch (\Throwable $e) {
             report($e);
 
@@ -471,6 +469,50 @@ class ProcessController extends Controller
                 ->with('process_import_preview_token', $token)
                 ->with('error', $e instanceof \RuntimeException ? $e->getMessage() : 'Nao foi possivel executar a importacao agora. Tente novamente.');
         }
+    }
+
+    public function importPendingReport(Request $request): StreamedResponse|RedirectResponse
+    {
+        $token = trim((string) $request->query('import_token', $request->session()->get('process_import_preview_token', '')));
+        $preview = $token !== '' ? $request->session()->get("process_import_previews.{$token}") : null;
+
+        if (!$preview || empty($preview['rows'])) {
+            return redirect()->route('processos.import.index')->with('error', 'A previa da importacao expirou. Gere uma nova analise antes de exportar as pendencias.');
+        }
+
+        $pendingRows = array_values(array_filter((array) $preview['rows'], static fn (array $row): bool => ($row['preview_status'] ?? '') === 'error'));
+        if ($pendingRows === []) {
+            return redirect()->route('processos.import.index')
+                ->with('process_import_preview_token', $token)
+                ->with('success', 'Nao ha pendencias para exportar na previa atual.');
+        }
+
+        $headers = $this->processImportPendingReportHeaders($pendingRows);
+        $filename = 'processos-importacao-pendencias-' . now()->format('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($headers, $pendingRows) {
+            $stream = fopen('php://output', 'w');
+            if (!$stream) {
+                return;
+            }
+
+            fwrite($stream, "\xEF\xBB\xBF");
+            fputcsv($stream, $headers, ';');
+
+            foreach ($pendingRows as $row) {
+                $reportRow = $this->buildProcessImportPendingReportRow($row);
+                $ordered = [];
+                foreach ($headers as $header) {
+                    $ordered[] = $reportRow[$header] ?? '';
+                }
+
+                fputcsv($stream, $ordered, ';');
+            }
+
+            fclose($stream);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function create(): View
@@ -1046,11 +1088,13 @@ class ProcessController extends Controller
             'total' => 0,
             'ready' => 0,
             'errors' => 0,
+            'ignored' => 0,
             'phases' => 0,
         ];
 
         foreach ($rows as $row) {
             $messages = [];
+            $alreadyProcessed = !empty($row['import_already_processed']);
             $processNumber = $this->formatProcessNumber((string) ($row['process_number'] ?? ''));
             $clientName = $this->normalizeWhitespace((string) ($row['client_name'] ?? ''));
             $adverseName = $this->normalizeWhitespace((string) ($row['adverse_name'] ?? ''));
@@ -1111,6 +1155,7 @@ class ProcessController extends Controller
                 $messages[] = 'Condominio do adverso nao encontrado.';
             }
 
+            $alreadyExists = false;
             if ($processNumber !== '') {
                 $duplicateKey = $this->processImportDuplicateKey($processNumber);
                 if (isset($seen[$duplicateKey])) {
@@ -1119,9 +1164,7 @@ class ProcessController extends Controller
                     $seen[$duplicateKey] = (int) ($row['row_number'] ?? 0);
                 }
 
-                if ($this->processNumberAlreadyExists($processNumber)) {
-                    $messages[] = 'Ja existe processo cadastrado com este numero.';
-                }
+                $alreadyExists = $this->processNumberAlreadyExists($processNumber);
             }
 
             $row['process_number'] = $processNumber;
@@ -1135,12 +1178,29 @@ class ProcessController extends Controller
             $row['adverse_condominium_name'] = $adverseCondominium?->name;
             $row['phases'] = $phases;
             $row['phase_count'] = count($phases);
-            $row['preview_status'] = $messages === [] ? 'ready' : 'error';
-            $row['messages'] = $messages;
+            $row['already_exists'] = $alreadyExists;
+            $row['import_already_processed'] = $alreadyProcessed;
+            $row['info_messages'] = [];
+
+            if ($alreadyProcessed || $alreadyExists) {
+                $row['preview_status'] = 'ignored';
+                $row['messages'] = [];
+                $row['info_messages'] = [$alreadyProcessed
+                    ? 'Esta linha ja foi importada nesta conferencia e agora sera ignorada para evitar duplicidade.'
+                    : 'Ja existe processo cadastrado com este numero. A linha sera ignorada na importacao.'
+                ];
+            } else {
+                $row['preview_status'] = $messages === [] ? 'ready' : 'error';
+                $row['messages'] = $messages;
+            }
 
             $preparedRows[] = $row;
             $summary['total']++;
-            $summary[$row['preview_status'] === 'ready' ? 'ready' : 'errors']++;
+            $summary[match ($row['preview_status']) {
+                'ready' => 'ready',
+                'ignored' => 'ignored',
+                default => 'errors',
+            }]++;
             $summary['phases'] += $row['phase_count'];
         }
 
@@ -1317,11 +1377,13 @@ class ProcessController extends Controller
         ];
     }
 
-    private function processImportPhaseHeaders(): array
+    private function processImportPhaseHeaders(int $maxGroups = 3): array
     {
         $headers = [];
 
-        for ($index = 1; $index <= 3; $index++) {
+        $maxGroups = max(1, $maxGroups);
+
+        for ($index = 1; $index <= $maxGroups; $index++) {
             foreach (['date', 'time', 'description', 'private', 'reviewed', 'notes', 'legal_opinion', 'conference'] as $field) {
                 $headers[] = "phase_{$index}_{$field}";
             }
@@ -1528,6 +1590,177 @@ class ProcessController extends Controller
         }
 
         return $query->exists();
+    }
+
+    private function processImportPreviewMessage(array $preview): string
+    {
+        $summary = $preview['summary'] ?? [];
+        $ready = (int) ($summary['ready'] ?? 0);
+        $errors = (int) ($summary['errors'] ?? 0);
+        $ignored = (int) ($summary['ignored'] ?? 0);
+
+        if ($errors > 0) {
+            return "Previa gerada com {$errors} pendencia(s). Corrija as linhas sinalizadas, importe o que ja estiver apto e exporte o restante se precisar tratar depois.";
+        }
+
+        if ($ready > 0 && $ignored > 0) {
+            return "Previa gerada com {$ready} processo(s) pronto(s) para importacao. Mais {$ignored} linha(s) ja serao ignoradas por corresponderem a processos existentes.";
+        }
+
+        if ($ready > 0) {
+            return "Previa gerada com {$ready} processo(s) pronto(s) para importacao.";
+        }
+
+        if ($ignored > 0) {
+            return "Previa gerada. As {$ignored} linha(s) desta analise ja correspondem a processos existentes e serao ignoradas com seguranca.";
+        }
+
+        return 'Previa gerada. Revise a analise antes de prosseguir.';
+    }
+
+    private function processImportExecutionMessage(int $created, int $remainingErrors, int $ignored): string
+    {
+        $message = $created > 0
+            ? "Importacao executada. {$created} processo(s) criado(s)."
+            : 'Nenhum novo processo foi criado.';
+
+        if ($ignored > 0) {
+            $message .= " {$ignored} linha(s) ficaram fora da nova importacao por ja estarem cadastradas ou por ja terem sido processadas nesta conferencia.";
+        }
+
+        if ($remainingErrors > 0) {
+            $message .= " Ainda restam {$remainingErrors} pendencia(s) na previa. Baixe o relatorio CSV ou continue a revisao para concluir o restante.";
+        }
+
+        return $message;
+    }
+
+    private function createProcessCasesFromImportRows(array $rows, ?int $userId): int
+    {
+        $created = 0;
+
+        foreach ($rows as $row) {
+            $payload = $this->payloadFromImportRow($row);
+            $case = ProcessCase::query()->create($payload + [
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ]);
+
+            foreach ((array) ($row['phases'] ?? []) as $phase) {
+                ProcessCasePhase::query()->create([
+                    'process_case_id' => $case->id,
+                    'phase_date' => $phase['phase_date'] ?? null,
+                    'phase_time' => $phase['phase_time'] ?? null,
+                    'description' => $phase['description'],
+                    'is_private' => (bool) ($phase['is_private'] ?? false),
+                    'is_reviewed' => (bool) ($phase['is_reviewed'] ?? false),
+                    'notes' => $phase['notes'] ?? null,
+                    'legal_opinion' => $phase['legal_opinion'] ?? null,
+                    'conference' => $phase['conference'] ?? null,
+                    'source' => 'manual',
+                    'created_by' => $userId,
+                ]);
+            }
+
+            $created++;
+        }
+
+        return $created;
+    }
+
+    private function processImportPendingReportHeaders(array $rows): array
+    {
+        $maxPhaseCount = max(
+            3,
+            collect($rows)
+                ->map(fn (array $row): int => count((array) ($row['phases'] ?? [])))
+                ->max() ?: 0
+        );
+
+        return array_merge(
+            $this->processImportTemplateHeaders(),
+            $this->processImportPhaseHeaders($maxPhaseCount),
+            ['source_row_number', 'import_review_status', 'import_review_messages']
+        );
+    }
+
+    private function buildProcessImportPendingReportRow(array $row): array
+    {
+        $reportRow = [];
+
+        foreach ($this->processImportTemplateHeaders() as $header) {
+            $reportRow[$header] = $this->processImportFieldForExport($header, $row);
+        }
+
+        foreach ((array) ($row['phases'] ?? []) as $index => $phase) {
+            $prefix = 'phase_' . ($index + 1) . '_';
+            $reportRow[$prefix . 'date'] = (string) ($phase['phase_date'] ?? '');
+            $reportRow[$prefix . 'time'] = $this->emptyToNull($phase['phase_time'] ?? null) ?: '';
+            $reportRow[$prefix . 'description'] = (string) ($phase['description'] ?? '');
+            $reportRow[$prefix . 'private'] = $this->formatExportedBooleanValue($phase['is_private'] ?? false);
+            $reportRow[$prefix . 'reviewed'] = $this->formatExportedBooleanValue($phase['is_reviewed'] ?? false);
+            $reportRow[$prefix . 'notes'] = (string) ($phase['notes'] ?? '');
+            $reportRow[$prefix . 'legal_opinion'] = (string) ($phase['legal_opinion'] ?? '');
+            $reportRow[$prefix . 'conference'] = (string) ($phase['conference'] ?? '');
+        }
+
+        $reportRow['source_row_number'] = (string) ($row['row_number'] ?? '');
+        $reportRow['import_review_status'] = 'pendente';
+        $reportRow['import_review_messages'] = implode(' ', $row['messages'] ?? ['Pendencia na linha.']);
+
+        return $reportRow;
+    }
+
+    private function processImportFieldForExport(string $header, array $row): string
+    {
+        return match ($header) {
+            'status' => $this->exportProcessImportOptionValue('status', (string) ($row['status_value'] ?? $row['status'] ?? '')),
+            'action_type' => $this->exportProcessImportOptionValue('action_type', (string) ($row['action_type'] ?? '')),
+            'process_type' => $this->exportProcessImportOptionValue('process_type', (string) ($row['process_type'] ?? '')),
+            'nature' => $this->exportProcessImportOptionValue('nature', (string) ($row['nature'] ?? '')),
+            'client_position' => $this->exportProcessImportOptionValue('client_position', (string) ($row['client_position'] ?? '')),
+            'adverse_position' => $this->exportProcessImportOptionValue('adverse_position', (string) ($row['adverse_position'] ?? '')),
+            'win_probability' => $this->exportProcessImportOptionValue('win_probability', (string) ($row['win_probability'] ?? '')),
+            'closure_type' => $this->exportProcessImportOptionValue('closure_type', (string) ($row['closure_type'] ?? '')),
+            'client_condominium' => $this->exportProcessImportCondominiumValue($row, 'client'),
+            'adverse_condominium' => $this->exportProcessImportCondominiumValue($row, 'adverse'),
+            'is_private' => $this->formatExportedBooleanValue($row['is_private'] ?? false),
+            'claim_amount', 'provisioned_amount', 'court_paid_amount', 'process_cost_amount', 'sentence_amount' => $this->formatExportedMoneyValue($row[$header] ?? null),
+            default => is_bool($row[$header] ?? null)
+                ? $this->formatExportedBooleanValue($row[$header] ?? false)
+                : (string) ($row[$header] ?? ''),
+        };
+    }
+
+    private function exportProcessImportOptionValue(string $group, string $value): string
+    {
+        return $this->resolveImportOptionName($group, $value) ?: trim($value);
+    }
+
+    private function exportProcessImportCondominiumValue(array $row, string $party): string
+    {
+        if (!empty($row["{$party}_condominium_ignore"])) {
+            return '';
+        }
+
+        $field = "{$party}_condominium";
+        $resolved = $this->resolveImportCondominium((string) ($row[$field] ?? ''));
+
+        return $resolved?->name ?: trim((string) ($row[$field] ?? ''));
+    }
+
+    private function formatExportedMoneyValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return number_format((float) $value, 2, ',', '.');
+    }
+
+    private function formatExportedBooleanValue(mixed $value): string
+    {
+        return (bool) $value ? 'sim' : 'nao';
     }
 
     private function normalizeCsvHeader(string $value): string

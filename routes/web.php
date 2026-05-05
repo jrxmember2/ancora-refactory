@@ -177,6 +177,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/importacao/modelo', [ProcessController::class, 'downloadImportTemplate'])->name('processos.import.template')->middleware('ancora.route:processos.import.template');
         Route::post('/importacao/preview', [ProcessController::class, 'importPreview'])->name('processos.import.preview')->middleware('ancora.route:processos.import.preview');
         Route::post('/importacao/executar', [ProcessController::class, 'importExecute'])->name('processos.import.execute')->middleware('ancora.route:processos.import.execute');
+        Route::get('/importacao/pendencias', [ProcessController::class, 'importPendingReport'])->name('processos.import.report')->middleware('ancora.route:processos.import.report');
         Route::get('/novo', [ProcessController::class, 'create'])->name('processos.create')->middleware('ancora.route:processos.create');
         Route::post('/store', [ProcessController::class, 'store'])->name('processos.store')->middleware('ancora.route:processos.store');
         Route::get('/{processo}', [ProcessController::class, 'show'])->name('processos.show')->middleware('ancora.route:processos.show');

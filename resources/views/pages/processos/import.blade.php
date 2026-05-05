@@ -63,15 +63,18 @@
             </div>
             <button class="{{ $buttonClass }}">Pre-visualizar</button>
         </div>
-        <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">Aceita CSV separado por virgula ou ponto e virgula. Processos com numero ja existente serao bloqueados na previa.</div>
+        <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">Aceita CSV separado por virgula ou ponto e virgula. Processos com numero ja existente serao sinalizados como ignorados para permitir reimportacao segura sem duplicidade.</div>
     </form>
 </div>
 
 @if(!empty($importPreview))
     @php
-        $previewSummary = $importPreview['summary'] ?? ['total' => 0, 'ready' => 0, 'errors' => 0, 'phases' => 0];
+        $previewSummary = $importPreview['summary'] ?? ['total' => 0, 'ready' => 0, 'errors' => 0, 'ignored' => 0, 'phases' => 0];
         $actionTypeOptions = $options['action_type'] ?? collect();
         $natureOptions = $options['nature'] ?? collect();
+        $executeLabel = ($previewSummary['errors'] ?? 0) > 0
+            ? (($previewSummary['ready'] ?? 0) > 0 ? 'Importar aptos e manter pendencias' : 'Aplicar correcoes e reavaliar')
+            : 'Executar importacao';
     @endphp
     <dialog id="process-import-preview-modal" class="fixed inset-0 m-auto max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900" data-auto-open>
         <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
@@ -82,10 +85,11 @@
                 </div>
                 <button type="button" onclick="document.getElementById('process-import-preview-modal').close()" class="rounded-full border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
             </div>
-            <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
                 <div class="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"><div class="text-xs uppercase tracking-[0.16em] text-gray-500">Linhas</div><div class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $previewSummary['total'] ?? 0 }}</div></div>
                 <div class="rounded-2xl border border-success-200 bg-success-50 px-4 py-3 dark:border-success-800 dark:bg-success-500/10"><div class="text-xs uppercase tracking-[0.16em] text-success-700 dark:text-success-300">Prontas</div><div class="mt-1 text-xl font-semibold text-success-700 dark:text-success-300">{{ $previewSummary['ready'] ?? 0 }}</div></div>
                 <div class="rounded-2xl border border-error-200 bg-error-50 px-4 py-3 dark:border-error-800 dark:bg-error-500/10"><div class="text-xs uppercase tracking-[0.16em] text-error-700 dark:text-error-300">Pendencias</div><div class="mt-1 text-xl font-semibold text-error-700 dark:text-error-300">{{ $previewSummary['errors'] ?? 0 }}</div></div>
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/50"><div class="text-xs uppercase tracking-[0.16em] text-gray-500">Ignoradas</div><div class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $previewSummary['ignored'] ?? 0 }}</div></div>
                 <div class="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-800 dark:bg-brand-500/10"><div class="text-xs uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">Fases</div><div class="mt-1 text-xl font-semibold text-brand-700 dark:text-brand-300">{{ $previewSummary['phases'] ?? 0 }}</div></div>
             </div>
         </div>
@@ -135,6 +139,13 @@
                             <td class="min-w-[320px] py-3 pr-4">
                                 @if(($row['preview_status'] ?? '') === 'ready')
                                     <span class="rounded-full bg-success-50 px-3 py-1 text-xs font-medium text-success-700 dark:bg-success-500/10 dark:text-success-300">Pronto para criar</span>
+                                @elseif(($row['preview_status'] ?? '') === 'ignored')
+                                    <div class="space-y-2">
+                                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">Sera ignorado</span>
+                                        <div class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
+                                            {{ implode(' ', $row['info_messages'] ?? ['Linha ignorada por duplicidade segura.']) }}
+                                        </div>
+                                    </div>
                                 @else
                                     <div class="rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-xs text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-300">{{ implode(' ', $rowMessages ?: ['Pendencia na linha.']) }}</div>
 
@@ -210,8 +221,11 @@
         </div>
 
             <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-5 dark:border-gray-800">
+                @if(($previewSummary['errors'] ?? 0) > 0)
+                    <a href="{{ route('processos.import.report', ['import_token' => $importPreviewToken]) }}" class="{{ $softButtonClass }}">Baixar relatorio de pendencias</a>
+                @endif
                 <button type="button" onclick="document.getElementById('process-import-preview-modal').close()" class="{{ $softButtonClass }}">Voltar e revisar</button>
-                <button class="{{ $buttonClass }} disabled:cursor-not-allowed disabled:opacity-50" @disabled(($previewSummary['ready'] ?? 0) === 0 && ($previewSummary['errors'] ?? 0) === 0)>Aplicar correcoes e executar importacao</button>
+                <button class="{{ $buttonClass }} disabled:cursor-not-allowed disabled:opacity-50" @disabled(($previewSummary['ready'] ?? 0) === 0 && ($previewSummary['errors'] ?? 0) === 0)>{{ $executeLabel }}</button>
             </div>
         </form>
     </dialog>
