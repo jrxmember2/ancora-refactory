@@ -559,7 +559,7 @@ class ConfigController extends Controller
 
     public function updateServico(Request $request, Servico $servico)
     {
-        $servico->update($this->servicoPayload($request));
+        $servico->update($this->servicoPayload($request, $servico));
         return $this->catalogResponse($request, 'Serviço atualizado.');
     }
 
@@ -577,7 +577,7 @@ class ConfigController extends Controller
 
     public function updateStatus(Request $request, StatusRetorno $status)
     {
-        $status->update($this->statusPayload($request));
+        $status->update($this->statusPayload($request, $status));
         return $this->catalogResponse($request, 'Status atualizado.');
     }
 
@@ -595,7 +595,7 @@ class ConfigController extends Controller
 
     public function updateFormaEnvio(Request $request, FormaEnvio $forma)
     {
-        $forma->update($this->formaPayload($request));
+        $forma->update($this->formaPayload($request, $forma));
         return $this->catalogResponse($request, 'Forma de envio atualizada.');
     }
 
@@ -842,7 +842,7 @@ class ConfigController extends Controller
         return asset(ltrim($fallback, '/'));
     }
 
-    private function servicoPayload(Request $request): array
+    private function servicoPayload(Request $request, ?Servico $servico = null): array
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -850,12 +850,16 @@ class ConfigController extends Controller
             'is_active' => ['nullable'],
             'sort_order' => ['nullable', 'integer'],
         ]);
-        $data['is_active'] = $request->boolean('is_active');
-        $data['sort_order'] = (int) $request->integer('sort_order');
+        $data['is_active'] = $request->has('is_active')
+            ? $request->boolean('is_active')
+            : ($servico?->is_active ?? true);
+        $data['sort_order'] = $request->filled('sort_order')
+            ? (int) $request->integer('sort_order')
+            : (int) ($servico?->sort_order ?? 0);
         return $data;
     }
 
-    private function statusPayload(Request $request): array
+    private function statusPayload(Request $request, ?StatusRetorno $status = null): array
     {
         $data = $request->validate([
             'system_key' => ['required', 'string', 'max:60'],
@@ -866,12 +870,16 @@ class ConfigController extends Controller
         $data['requires_closed_value'] = $request->boolean('requires_closed_value');
         $data['requires_refusal_reason'] = $request->boolean('requires_refusal_reason');
         $data['stop_followup_alert'] = $request->boolean('stop_followup_alert');
-        $data['is_active'] = $request->boolean('is_active');
-        $data['sort_order'] = (int) $request->integer('sort_order');
+        $data['is_active'] = $request->has('is_active')
+            ? $request->boolean('is_active')
+            : ($status?->is_active ?? true);
+        $data['sort_order'] = $request->filled('sort_order')
+            ? (int) $request->integer('sort_order')
+            : (int) ($status?->sort_order ?? 0);
         return $data;
     }
 
-    private function formaPayload(Request $request): array
+    private function formaPayload(Request $request, ?FormaEnvio $forma = null): array
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -879,8 +887,12 @@ class ConfigController extends Controller
             'color_hex' => ['required', 'string', 'max:7'],
             'sort_order' => ['nullable', 'integer'],
         ]);
-        $data['is_active'] = $request->boolean('is_active');
-        $data['sort_order'] = (int) $request->integer('sort_order');
+        $data['is_active'] = $request->has('is_active')
+            ? $request->boolean('is_active')
+            : ($forma?->is_active ?? true);
+        $data['sort_order'] = $request->filled('sort_order')
+            ? (int) $request->integer('sort_order')
+            : (int) ($forma?->sort_order ?? 0);
         return $data;
     }
 
