@@ -298,18 +298,22 @@ class ProposalController extends Controller
         $entities = $this->proposalContactEntities();
 
         foreach ($entities as $index => $entity) {
-            Administradora::query()->updateOrCreate(
-                ['client_entity_id' => (int) $entity->id],
-                [
-                    'name' => trim((string) ($entity->display_name ?: $entity->legal_name ?: ('Contato #' . $entity->id))),
-                    'type' => trim((string) ($entity->role_tag ?: 'contato')) ?: 'contato',
-                    'contact_name' => trim((string) ($entity->display_name ?: $entity->legal_name ?: '')) ?: null,
-                    'phone' => $this->primaryContactValue($entity->phones_json),
-                    'email' => $this->primaryContactValue($entity->emails_json),
-                    'is_active' => (bool) ($entity->is_active ?? true),
-                    'sort_order' => ($index + 1) * 10,
-                ]
-            );
+            $payload = $this->proposalContactPayload($entity, $index);
+            $record = $this->resolveProposalContactRecord($entity, $payload);
+
+            if ($record === null) {
+                continue;
+            }
+
+            $record->fill($payload);
+
+            if ((int) ($record->client_entity_id ?? 0) === 0) {
+                $record->client_entity_id = (int) $entity->id;
+            }
+
+            if ($record->isDirty()) {
+                $record->save();
+            }
         }
 
         $entityIds = $entities->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -351,6 +355,60 @@ class ProposalController extends Controller
         }
 
         return false;
+    }
+
+    private function proposalContactPayload(ClientEntity $entity, int $index): array
+    {
+        $name = trim((string) ($entity->display_name ?: $entity->legal_name ?: ('Contato #' . $entity->id)));
+
+        return [
+            'name' => $name,
+            'type' => $this->proposalContactType($entity->role_tag),
+            'contact_name' => $name !== '' ? $name : null,
+            'phone' => $this->primaryContactValue($entity->phones_json),
+            'email' => $this->primaryContactValue($entity->emails_json),
+            'is_active' => (bool) ($entity->is_active ?? true),
+            'sort_order' => ($index + 1) * 10,
+        ];
+    }
+
+    private function resolveProposalContactRecord(ClientEntity $entity, array $payload): ?Administradora
+    {
+        $record = Administradora::query()
+            ->where('client_entity_id', (int) $entity->id)
+            ->first();
+
+        if ($record) {
+            return $record;
+        }
+
+        $legacyRecord = Administradora::query()
+            ->where('name', $payload['name'])
+            ->where('type', $payload['type'])
+            ->orderByDesc('is_active')
+            ->orderBy('id')
+            ->first();
+
+        if (!$legacyRecord) {
+            return new Administradora(['client_entity_id' => (int) $entity->id]);
+        }
+
+        if ((int) ($legacyRecord->client_entity_id ?? 0) !== 0 && (int) $legacyRecord->client_entity_id !== (int) $entity->id) {
+            return null;
+        }
+
+        return $legacyRecord;
+    }
+
+    private function proposalContactType(?string $roleTag): string
+    {
+        $normalized = Str::of(Str::ascii((string) $roleTag))->lower()->squish()->toString();
+
+        if (str_contains($normalized, 'administradora')) {
+            return 'administradora';
+        }
+
+        return 'sindico';
     }
 
     private function primaryContactValue(mixed $values): ?string
