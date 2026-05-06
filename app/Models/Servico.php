@@ -8,7 +8,7 @@ class Servico extends Model
 {
     protected $table = 'servicos';
 
-    protected $fillable = ['name', 'description', 'is_active', 'sort_order'];
+    protected $fillable = ['name', 'description', 'is_active', 'sort_order', 'demand_category_id'];
 
     protected function casts(): array
     {
