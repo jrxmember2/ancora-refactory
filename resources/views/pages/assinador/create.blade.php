@@ -195,8 +195,7 @@
                 <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Variaveis disponiveis na mensagem</div>
                 <div class="mt-3 flex flex-wrap gap-2">
                     @foreach($messageVariableDefinitions as $variable)
-                        @php($token = '{{' . $variable['key'] . '}}')
-                        <span class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" title="{{ $variable['description'] }}">{{ $token }}</span>
+                        <span class="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200" title="{{ $variable['description'] }}">{{ '{{' . $variable['key'] . '}}' }}</span>
                     @endforeach
                 </div>
             </div>

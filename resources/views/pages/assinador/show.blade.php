@@ -98,7 +98,9 @@
 
         <div class="mt-5 space-y-4">
             @forelse($requests as $signature)
-                @php($signedCount = $signature->signers->where('completed', true)->count())
+                @php
+                    $signedCount = $signature->signers->where('completed', true)->count();
+                @endphp
                 <div class="rounded-2xl border border-gray-200 p-5 dark:border-gray-800">
                     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div class="space-y-3">
