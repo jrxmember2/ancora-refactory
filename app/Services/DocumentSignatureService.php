@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DocumentSignatureService
@@ -646,11 +647,20 @@ class DocumentSignatureService
             return null;
         }
 
-        $candidates = [
+        $candidates = [];
+
+        try {
+            $candidates[] = Storage::disk('local')->path($relativePath);
+        } catch (\Throwable) {
+            // Fallback para resolver manualmente o caminho quando o disk local nao expor path().
+        }
+
+        $candidates = array_merge($candidates, [
+            storage_path('app/private/' . ltrim($relativePath, '/')),
             storage_path('app/' . ltrim($relativePath, '/')),
             storage_path('app/public/' . ltrim($relativePath, '/')),
             public_path(ltrim($relativePath, '/')),
-        ];
+        ]);
 
         foreach (array_unique($candidates) as $candidate) {
             if (is_file($candidate)) {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DocumentSignatureRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -63,6 +64,12 @@ class DocumentSignatureDownloadService
 
         $candidates = [];
 
+        try {
+            $candidates[] = Storage::disk('local')->path($relativePath);
+        } catch (\Throwable) {
+            // Fallback manual abaixo cobre ambientes em que o disk local nao exponha path().
+        }
+
         if (Str::startsWith($relativePath, ['/storage/', 'storage/'])) {
             $storageRelative = preg_replace('#^/?storage/#', '', $relativePath) ?: '';
             if ($storageRelative !== '') {
@@ -72,6 +79,7 @@ class DocumentSignatureDownloadService
         } elseif (Str::startsWith($relativePath, ['/uploads/', 'uploads/'])) {
             $candidates[] = public_path(ltrim($relativePath, '/'));
         } else {
+            $candidates[] = storage_path('app/private/' . ltrim($relativePath, '/'));
             $candidates[] = storage_path('app/public/' . ltrim($relativePath, '/'));
             $candidates[] = storage_path('app/' . ltrim($relativePath, '/'));
             $candidates[] = public_path(ltrim($relativePath, '/'));
