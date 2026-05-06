@@ -14,6 +14,7 @@ use App\Models\Servico;
 use App\Models\StatusRetorno;
 use App\Models\SystemModule;
 use App\Models\User;
+use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
 use App\Support\AncoraRouteCatalog;
 use App\Support\AncoraSettings;
@@ -34,6 +35,7 @@ class ConfigController extends Controller
     public function index(): View
     {
         $this->ensureRoutePermissionsSynced();
+        $serviceCatalog = app(SharedServiceCatalogService::class);
         $routeCatalog = AncoraRouteCatalog::groups();
         $catalogRouteNames = array_keys(AncoraRouteCatalog::flat());
         $tjesIndexStorageReady = $this->tjesIndexStorageReady();
@@ -56,7 +58,7 @@ class ConfigController extends Controller
 
         return view('pages.admin.config', [
             'title' => 'Configurações',
-            'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
+            'servicos' => $serviceCatalog->mirroredServices(),
             'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
             'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
             'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
@@ -323,9 +325,10 @@ class ConfigController extends Controller
     {
         $payload = $this->demandCategoryPayload($request);
 
-        DemandCategory::query()->create($payload);
+        $category = DemandCategory::query()->create($payload);
+        app(SharedServiceCatalogService::class)->syncDemandCategory($category);
 
-        return back()->with('success', 'Categoria de demanda cadastrada.');
+        return back()->with('success', 'Servico cadastrado para Demandas e Propostas.');
     }
 
     public function updateDemandCategory(Request $request, DemandCategory $category): RedirectResponse
@@ -333,19 +336,21 @@ class ConfigController extends Controller
         $payload = $this->demandCategoryPayload($request, $category);
 
         $category->update($payload);
+        app(SharedServiceCatalogService::class)->syncDemandCategory($category->fresh());
 
-        return back()->with('success', 'Categoria de demanda atualizada.');
+        return back()->with('success', 'Servico atualizado para Demandas e Propostas.');
     }
 
     public function deleteDemandCategory(DemandCategory $category): RedirectResponse
     {
         if ($category->demands()->exists()) {
-            return back()->with('error', 'Nao e possivel excluir categoria com demandas vinculadas. Reclassifique as demandas antes.');
+            return back()->with('error', 'Nao e possivel excluir servico com demandas vinculadas. Reclassifique as demandas antes.');
         }
 
+        app(SharedServiceCatalogService::class)->releaseDemandCategory($category);
         $category->delete();
 
-        return back()->with('success', 'Categoria de demanda excluida.');
+        return back()->with('success', 'Servico excluido da lista compartilhada.');
     }
 
     public function saveAutomation(Request $request): RedirectResponse
@@ -538,8 +543,10 @@ class ConfigController extends Controller
     private function catalogResponse(Request $request, string $message)
     {
         if ($request->ajax() || $request->wantsJson()) {
+            $serviceCatalog = app(SharedServiceCatalogService::class);
+
             return view('pages.admin.partials.config-catalog', [
-                'servicos' => Servico::query()->orderBy('sort_order')->orderBy('name')->get(),
+                'servicos' => $serviceCatalog->mirroredServices(),
                 'statusRetorno' => StatusRetorno::query()->orderBy('sort_order')->orderBy('name')->get(),
                 'formasEnvio' => FormaEnvio::query()->orderBy('sort_order')->orderBy('name')->get(),
                 'processOptions' => ProcessCaseOption::query()->orderBy('group_key')->orderBy('sort_order')->orderBy('name')->get()->groupBy('group_key'),
@@ -553,19 +560,19 @@ class ConfigController extends Controller
 
     public function storeServico(Request $request)
     {
-        Servico::query()->create($this->servicoPayload($request));
+        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
         return $this->catalogResponse($request, 'Serviço cadastrado.');
     }
 
     public function updateServico(Request $request, Servico $servico)
     {
-        $servico->update($this->servicoPayload($request, $servico));
+        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
         return $this->catalogResponse($request, 'Serviço atualizado.');
     }
 
     public function deleteServico(Request $request, Servico $servico)
     {
-        $servico->delete();
+        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
         return $this->catalogResponse($request, 'Serviço excluído.');
     }
 
@@ -1007,8 +1014,17 @@ class ConfigController extends Controller
             ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
             ->exists();
 
+        $nameExists = DemandCategory::query()
+            ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower(trim((string) $data['name']))])
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->exists();
+
         if ($slugExists) {
-            throw ValidationException::withMessages(['slug' => 'Ja existe uma categoria de demanda com este identificador.']);
+            throw ValidationException::withMessages(['slug' => 'Ja existe um servico com este identificador.']);
+        }
+
+        if ($nameExists) {
+            throw ValidationException::withMessages(['name' => 'Ja existe um servico com este nome.']);
         }
 
         return [

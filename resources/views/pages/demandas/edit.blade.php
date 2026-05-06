@@ -33,7 +33,7 @@
 
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Servico</label>
                         <select name="category_id" required class="{{ $inputClass }}">
                             <option value="">Selecione</option>
                             @foreach($categories as $category)

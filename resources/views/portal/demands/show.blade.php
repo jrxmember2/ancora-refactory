@@ -10,7 +10,7 @@
     <div>
         <a href="{{ route('portal.demands.index') }}" class="text-sm font-semibold text-[#941415]">Voltar às solicitações</a>
         <h1 class="mt-2 text-3xl font-semibold text-gray-950">{{ $demand->subject }}</h1>
-        <p class="mt-2 text-sm text-gray-500">{{ $demand->protocol }} · {{ $demand->category?->name ?: 'Sem categoria' }}</p>
+        <p class="mt-2 text-sm text-gray-500">{{ $demand->protocol }} · {{ $demand->category?->name ?: 'Sem servico' }}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
         <span class="w-fit rounded-full bg-[#f7f2ec] px-4 py-2 text-sm font-semibold text-[#941415]">{{ $demand->publicStatusLabel() }}</span>
@@ -68,7 +68,7 @@
             <form method="post" action="{{ route('portal.demands.update', $demand) }}" class="mt-6 space-y-4">
                 @csrf
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Categoria</label>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Servico</label>
                     <select name="category_id" required class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]">
                         @foreach($categories as $category)
                             <option value="{{ $category->id }}" @selected((int) old('category_id', $demand->category_id) === (int) $category->id)>{{ $category->name }}</option>

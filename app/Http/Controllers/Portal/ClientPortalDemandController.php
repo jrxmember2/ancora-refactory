@@ -397,7 +397,7 @@ class ClientPortalDemandController extends Controller
         $changes = [];
 
         if ((int) $demand->category_id !== (int) $validated['category_id']) {
-            $changes[] = 'categoria de "' . ($demand->category?->name ?: 'sem categoria') . '" para "' . ($newCategoryName ?: 'sem categoria') . '"';
+            $changes[] = 'servico de "' . ($demand->category?->name ?: 'sem servico') . '" para "' . ($newCategoryName ?: 'sem servico') . '"';
         }
 
         if ((int) ($demand->client_condominium_id ?? 0) !== (int) ($selectedCondominiumId ?? 0)) {

@@ -113,9 +113,9 @@
                     </select>
                 </div>
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Servico</label>
                     <select name="category_id" class="{{ $inputClass }}">
-                        <option value="">Sem categoria</option>
+                        <option value="">Sem servico</option>
                         @foreach($categories as $category)
                             <option value="{{ $category->id }}" @selected((int) $demand->category_id === (int) $category->id)>{{ $category->name }}</option>
                         @endforeach

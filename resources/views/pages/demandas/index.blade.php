@@ -71,7 +71,7 @@
                         <td class="px-6 py-4 align-top">
                             <div class="font-semibold text-gray-900 dark:text-white">{{ $item->protocol }}</div>
                             <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">{{ $item->subject }}</div>
-                            <div class="mt-1 text-xs text-gray-500">{{ $item->category?->name ?: 'Sem categoria' }} - {{ $priorityLabels[$item->priority] ?? $item->priority }} - {{ $item->origin === 'portal' ? 'Portal do cliente' : 'Interna' }}</div>
+                            <div class="mt-1 text-xs text-gray-500">{{ $item->category?->name ?: 'Sem servico' }} - {{ $priorityLabels[$item->priority] ?? $item->priority }} - {{ $item->origin === 'portal' ? 'Portal do cliente' : 'Interna' }}</div>
                         </td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $item->clientName() }}</td>
                         <td class="px-6 py-4 align-top">

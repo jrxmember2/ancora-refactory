@@ -25,7 +25,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados da demanda</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assunto, mensagem inicial, categoria e anexos que vao abrir a demanda.</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assunto, mensagem inicial, servico e anexos que vao abrir a demanda.</p>
                     </div>
                     <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
                         <input type="checkbox" name="publish_to_portal" value="1" @checked(old('publish_to_portal'))>
@@ -35,7 +35,7 @@
 
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Servico</label>
                         <select name="category_id" required class="{{ $inputClass }}">
                             <option value="">Selecione</option>
                             @foreach($categories as $category)

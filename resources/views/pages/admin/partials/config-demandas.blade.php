@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Configuracao de Demandas</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Crie tags do kanban, mantenha as categorias da nova demanda e ajuste cores, SLA e visibilidade no Portal do Cliente.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Crie tags do kanban, mantenha os servicos usados em Demandas e Propostas e ajuste cores, SLA e visibilidade no Portal do Cliente.</p>
             </div>
             <a href="{{ route('demandas.kanban') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
                 <i class="fa-solid fa-table-columns"></i>
@@ -124,15 +124,15 @@
         <div class="mt-8 border-t border-gray-200 pt-8 dark:border-gray-800">
             <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <h4 class="text-base font-semibold text-gray-900 dark:text-white">Categorias da Demanda</h4>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Essas categorias aparecem no campo "Categoria" ao abrir ou editar demandas. Voce pode cadastrar novas quando precisar.</p>
+                    <h4 class="text-base font-semibold text-gray-900 dark:text-white">Servicos compartilhados</h4>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Esses servicos aparecem no campo "Servico" das Demandas e no campo "Servico" de Propostas. Voce pode cadastrar novos quando precisar.</p>
                 </div>
             </div>
 
             <form method="post" action="{{ route('config.demand-categories.store') }}" class="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/40 p-4 dark:border-brand-800 dark:bg-brand-500/5">
                 @csrf
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <input name="name" placeholder="Nome da categoria" class="{{ $inputClass }} xl:col-span-2" required>
+                    <input name="name" placeholder="Nome do servico" class="{{ $inputClass }} xl:col-span-2" required>
                     <input name="slug" placeholder="Identificador opcional" class="{{ $inputClass }}">
                     <div class="flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
                         <input type="color" name="color_hex" value="#465FFF" class="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0">
@@ -144,7 +144,7 @@
                         Ativa
                     </label>
                 </div>
-                <button class="{{ $buttonClass }} mt-4">Cadastrar categoria</button>
+                <button class="{{ $buttonClass }} mt-4">Cadastrar servico</button>
             </form>
 
             <div class="mt-6 max-h-[34rem] space-y-4 overflow-y-auto pr-2">
@@ -179,17 +179,17 @@
                                 Ativa
                             </label>
                             <div class="flex gap-2 xl:col-span-5">
-                                <button class="{{ $buttonClass }}">Salvar categoria</button>
+                                <button class="{{ $buttonClass }}">Salvar servico</button>
                             </div>
                         </form>
 
                         <form method="post" action="{{ route('config.demand-categories.delete', $category) }}" class="mt-3">
                             @csrf
-                            <button class="rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-600" onclick="return confirm('Excluir esta categoria de demanda?')">Excluir categoria</button>
+                            <button class="rounded-xl border border-error-300 px-4 py-3 text-sm font-medium text-error-600" onclick="return confirm('Excluir este servico compartilhado?')">Excluir servico</button>
                         </form>
                     </div>
                 @empty
-                    <div class="rounded-2xl border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhuma categoria cadastrada.</div>
+                    <div class="rounded-2xl border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhum servico cadastrado.</div>
                 @endforelse
             </div>
         </div>

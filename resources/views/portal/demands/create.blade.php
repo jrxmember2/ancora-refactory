@@ -9,7 +9,7 @@
         <form method="post" action="{{ route('portal.demands.store') }}" enctype="multipart/form-data" class="mt-6 space-y-5">
             @csrf
             <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700">Categoria</label>
+                <label class="mb-2 block text-sm font-medium text-gray-700">Servico</label>
                 <select name="category_id" required class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]">
                     <option value="">Selecione</option>
                     @foreach($categories as $category)

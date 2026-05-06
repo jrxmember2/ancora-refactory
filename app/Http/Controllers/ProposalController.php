@@ -13,6 +13,7 @@ use App\Models\Servico;
 use App\Models\StatusRetorno;
 use App\Services\ProposalDashboardService;
 use App\Services\ProposalService;
+use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
 use App\Support\SortableQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,9 +29,11 @@ class ProposalController extends Controller
 {
     private function formDependencies(?Proposal $proposal = null): array
     {
+        $serviceCatalog = app(SharedServiceCatalogService::class);
+
         return [
             'administradoras' => $this->proposalContactOptions($proposal),
-            'servicos' => Servico::query()->active()->get(),
+            'servicos' => $serviceCatalog->proposalServiceOptions($proposal?->service_id),
             'formasEnvio' => FormaEnvio::query()->active()->get(),
             'statusRetorno' => StatusRetorno::query()->active()->get(),
         ];
@@ -47,6 +50,8 @@ class ProposalController extends Controller
 
     public function index(Request $request): View
     {
+        $serviceCatalog = app(SharedServiceCatalogService::class);
+
         $query = Proposal::query()
             ->select('propostas.*')
             ->leftJoin('administradoras as proposal_admin_sort', 'proposal_admin_sort.id', '=', 'propostas.administradora_id')
@@ -104,7 +109,7 @@ class ProposalController extends Controller
             'totals' => $totals,
             'filterOptions' => [
                 'administradoras' => $this->proposalContactOptions(),
-                'servicos' => Servico::query()->active()->get(),
+                'servicos' => $serviceCatalog->proposalServiceOptions((int) $request->integer('service_id') ?: null),
                 'formasEnvio' => FormaEnvio::query()->active()->get(),
                 'statusRetorno' => StatusRetorno::query()->active()->get(),
                 'years' => DB::table('propostas')->selectRaw('DISTINCT proposal_year')->orderByDesc('proposal_year')->pluck('proposal_year'),
