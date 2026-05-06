@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -171,6 +172,26 @@ class DemandController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Demand $demanda): View
+    {
+        return view('pages.demandas.edit', [
+            'title' => 'Editar demanda',
+            'demand' => $demanda->load(['portalUser', 'condominium', 'entity', 'assignee', 'tag', 'category']),
+            'categories' => $this->availableCategories($demanda),
+            'demandTags' => DemandTag::query()->active()->get(),
+            'priorityLabels' => Demand::priorityLabels(),
+            'statusLabels' => Demand::statusLabels(),
+            'condominiums' => ClientCondominium::query()->orderBy('name')->get(),
+            'entities' => ClientEntity::query()->active()->get(),
+            'portalUsers' => ClientPortalUser::query()
+                ->active()
+                ->with(['entity', 'condominium', 'condominiums'])
+                ->orderBy('name')
+                ->get(),
+            'users' => User::query()->active()->orderBy('name')->get(),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $user = AncoraAuth::user($request);
@@ -298,39 +319,13 @@ class DemandController extends Controller
     public function update(Request $request, Demand $demanda): RedirectResponse
     {
         $user = AncoraAuth::user($request);
-        $validated = $request->validate([
-            'status' => ['required', 'string', 'max:40'],
-            'priority' => ['required', 'string', 'max:30'],
-            'category_id' => ['nullable', 'integer', 'exists:demand_categories,id'],
-            'demand_tag_id' => ['nullable', 'integer', 'exists:demand_tags,id'],
-            'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
-        ]);
+        abort_unless($user, 401);
 
-        $updates = [
-            'priority' => $validated['priority'],
-            'category_id' => $validated['category_id'] ?? null,
-            'assigned_user_id' => $validated['assigned_user_id'] ?? null,
-        ];
+        if ($request->input('form_context') === 'full_edit') {
+            return $this->updateDemandDetails($request, $demanda, $user);
+        }
 
-        $tag = !empty($validated['demand_tag_id'])
-            ? DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->first()
-            : null;
-
-        DB::transaction(function () use ($demanda, $updates, $validated, $tag, $user) {
-            $demanda->update($updates);
-
-            if ($tag) {
-                $this->applyTag($demanda->fresh(['tag']), $tag, $user, true);
-                return;
-            }
-
-            $demanda->update([
-                'status' => $validated['status'],
-                'closed_at' => in_array($validated['status'], ['concluida', 'cancelada'], true) ? ($demanda->closed_at ?: now()) : null,
-            ]);
-        });
-
-        return back()->with('success', 'Demanda atualizada.');
+        return $this->updateDemandManagement($request, $demanda, $user);
     }
 
     public function updateTag(Request $request, Demand $demanda): JsonResponse|RedirectResponse
@@ -428,6 +423,139 @@ class DemandController extends Controller
         abort_unless(is_file($path), 404);
 
         return response()->download($path, $attachment->original_name);
+    }
+
+    public function destroy(Request $request, Demand $demanda): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $directory = public_path('uploads/demandas/' . $demanda->id);
+        $protocol = $demanda->protocol;
+
+        DB::transaction(function () use ($demanda) {
+            $demanda->delete();
+        });
+
+        if (is_dir($directory)) {
+            File::deleteDirectory($directory);
+        }
+
+        return redirect()
+            ->route('demandas.index')
+            ->with('success', 'Demanda ' . $protocol . ' excluida com sucesso.');
+    }
+
+    private function updateDemandManagement(Request $request, Demand $demanda, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'max:40'],
+            'priority' => ['required', 'string', 'max:30'],
+            'category_id' => ['nullable', 'integer', 'exists:demand_categories,id'],
+            'demand_tag_id' => ['nullable', 'integer', 'exists:demand_tags,id'],
+            'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $updates = [
+            'priority' => $validated['priority'],
+            'category_id' => $validated['category_id'] ?? null,
+            'assigned_user_id' => $validated['assigned_user_id'] ?? null,
+        ];
+
+        $tag = !empty($validated['demand_tag_id'])
+            ? DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->first()
+            : null;
+
+        DB::transaction(function () use ($demanda, $updates, $validated, $tag, $user) {
+            $demanda->update($updates);
+
+            if ($tag) {
+                $this->applyTag($demanda->fresh(['tag']), $tag, $user, true);
+                return;
+            }
+
+            $demanda->update([
+                'demand_tag_id' => null,
+                'status' => $validated['status'],
+                'closed_at' => in_array($validated['status'], ['concluida', 'cancelada'], true) ? ($demanda->closed_at ?: now()) : null,
+                'sla_started_at' => null,
+                'sla_due_at' => null,
+            ]);
+        });
+
+        return back()->with('success', 'Demanda atualizada.');
+    }
+
+    private function updateDemandDetails(Request $request, Demand $demanda, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:demand_categories,id'],
+            'demand_tag_id' => ['nullable', 'integer', 'exists:demand_tags,id'],
+            'priority' => ['required', 'string', 'in:' . implode(',', array_keys(Demand::priorityLabels()))],
+            'status' => ['required', 'string', 'in:' . implode(',', array_keys(Demand::statusLabels()))],
+            'assigned_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
+            'client_entity_id' => ['nullable', 'integer', 'exists:client_entities,id'],
+            'client_portal_user_id' => ['nullable', 'integer', 'exists:client_portal_users,id'],
+            'subject' => ['required', 'string', 'max:180'],
+            'description' => ['required', 'string', 'max:12000'],
+        ]);
+
+        $portalUser = !empty($validated['client_portal_user_id'])
+            ? ClientPortalUser::query()
+                ->active()
+                ->with(['entity', 'condominium', 'condominiums'])
+                ->find($validated['client_portal_user_id'])
+            : null;
+
+        $selectedEntityId = !empty($validated['client_entity_id']) ? (int) $validated['client_entity_id'] : null;
+        $selectedCondominiumId = !empty($validated['client_condominium_id']) ? (int) $validated['client_condominium_id'] : null;
+
+        if ($portalUser) {
+            if (!$selectedEntityId && $portalUser->client_entity_id) {
+                $selectedEntityId = (int) $portalUser->client_entity_id;
+            }
+
+            if (!$selectedCondominiumId) {
+                $portalCondominiumIds = $portalUser->accessibleCondominiumIds();
+                if (count($portalCondominiumIds) === 1) {
+                    $selectedCondominiumId = (int) $portalCondominiumIds[0];
+                }
+            }
+        }
+
+        $tag = !empty($validated['demand_tag_id'])
+            ? DemandTag::query()->active()->whereKey($validated['demand_tag_id'])->first()
+            : null;
+
+        DB::transaction(function () use ($demanda, $validated, $selectedEntityId, $selectedCondominiumId, $portalUser, $tag, $user) {
+            $demanda->update([
+                'client_portal_user_id' => $portalUser?->id,
+                'client_entity_id' => $selectedEntityId,
+                'client_condominium_id' => $selectedCondominiumId,
+                'category_id' => (int) $validated['category_id'],
+                'subject' => $validated['subject'],
+                'description' => $validated['description'],
+                'priority' => $validated['priority'],
+                'assigned_user_id' => !empty($validated['assigned_user_id']) ? (int) $validated['assigned_user_id'] : null,
+            ]);
+
+            if ($tag) {
+                $this->applyTag($demanda->fresh(['tag']), $tag, $user, true);
+            } else {
+                $demanda->update([
+                    'demand_tag_id' => null,
+                    'status' => $validated['status'],
+                    'closed_at' => in_array($validated['status'], ['concluida', 'cancelada'], true) ? ($demanda->closed_at ?: now()) : null,
+                    'sla_started_at' => null,
+                    'sla_due_at' => null,
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('demandas.show', $demanda)
+            ->with('success', 'Demanda atualizada com sucesso.');
     }
 
     private function applyTag(Demand $demand, DemandTag $tag, ?User $user, bool $writeHistory): void
@@ -567,7 +695,7 @@ class DemandController extends Controller
                 $demand?->category_id,
                 fn ($query) => $query->where(function ($inner) use ($demand) {
                     $inner->where('is_active', true)
-                        ->orWhereKey($demand->category_id);
+                        ->orWhere('id', $demand->category_id);
                 }),
                 fn ($query) => $query->where('is_active', true)
             )

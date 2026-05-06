@@ -7,8 +7,30 @@
 
 @section('content')
 <x-ancora.section-header :title="$demand->protocol" :subtitle="$demand->subject">
-    <a href="{{ route('demandas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
+    <div class="flex flex-wrap gap-3">
+        <a href="{{ route('demandas.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
+        <a href="{{ route('demandas.edit', $demand) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Editar demanda</a>
+        <button type="button" onclick="document.getElementById('delete-demand-{{ $demand->id }}').showModal()" class="rounded-xl border border-error-300 bg-error-50 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-200">Excluir demanda</button>
+    </div>
 </x-ancora.section-header>
+
+<dialog id="delete-demand-{{ $demand->id }}" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <form method="post" action="{{ route('demandas.delete', $demand) }}" class="p-6">
+        @csrf
+        @method('DELETE')
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Excluir demanda</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">A demanda <strong>{{ $demand->protocol }}</strong> sera removida com a timeline e os anexos vinculados. Esta acao nao podera ser desfeita.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('delete-demand-{{ $demand->id }}').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('delete-demand-{{ $demand->id }}').close()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+            <button class="rounded-xl border border-error-300 bg-error-50 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-200">Excluir definitivamente</button>
+        </div>
+    </form>
+</dialog>
 
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr,360px]">
     <div class="space-y-6">
@@ -63,6 +85,7 @@
             <form method="post" action="{{ route('demandas.update', $demand) }}" class="mt-4 space-y-4">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="form_context" value="management">
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Tag / Kanban</label>
                     <select name="demand_tag_id" class="{{ $inputClass }}">

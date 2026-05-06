@@ -166,8 +166,10 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/', [DemandController::class, 'index'])->name('demandas.index')->middleware('ancora.route:demandas.index');
         Route::get('/nova', [DemandController::class, 'create'])->name('demandas.create')->middleware('ancora.route:demandas.create');
         Route::post('/store', [DemandController::class, 'store'])->name('demandas.store')->middleware('ancora.route:demandas.store');
+        Route::get('/{demanda}/editar', [DemandController::class, 'edit'])->name('demandas.edit')->middleware('ancora.route:demandas.edit');
         Route::get('/{demanda}', [DemandController::class, 'show'])->name('demandas.show')->middleware('ancora.route:demandas.show');
         Route::match(['post', 'put'], '/{demanda}', [DemandController::class, 'update'])->name('demandas.update')->middleware('ancora.route:demandas.update');
+        Route::match(['post', 'delete'], '/{demanda}/excluir', [DemandController::class, 'destroy'])->name('demandas.delete')->middleware('ancora.route:demandas.delete');
         Route::post('/{demanda}/tag', [DemandController::class, 'updateTag'])->name('demandas.tag.update')->middleware('ancora.route:demandas.tag.update');
         Route::post('/{demanda}/responder', [DemandController::class, 'reply'])->name('demandas.reply')->middleware('ancora.route:demandas.reply');
         Route::get('/{demanda}/anexos/{attachment}/download', [DemandController::class, 'downloadAttachment'])->name('demandas.attachments.download')->middleware('ancora.route:demandas.attachments.download');

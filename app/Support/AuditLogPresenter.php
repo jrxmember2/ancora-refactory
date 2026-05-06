@@ -74,6 +74,8 @@ class AuditLogPresenter
             'processos.datajud.schedule' => 'Executou sincronizacao agendada do DataJud',
 
             'demandas.update' => 'Atualizou demanda',
+            'demandas.edit' => 'Abriu edicao de demanda',
+            'demandas.delete' => 'Excluiu demanda',
             'demandas.tag.update' => 'Moveu demanda no kanban',
             'demandas.reply' => 'Respondeu demanda',
             'demandas.attachments.download' => 'Baixou anexo de demanda',

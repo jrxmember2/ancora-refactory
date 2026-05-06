@@ -86,7 +86,30 @@
                         </td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">{{ $item->assignee?->name ?: 'Nao atribuido' }}</td>
                         <td class="px-6 py-4 align-top text-sm text-gray-500">{{ $item->updated_at?->format('d/m/Y H:i') }}</td>
-                        <td class="px-6 py-4 align-top text-right"><a href="{{ route('demandas.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Abrir</a></td>
+                        <td class="px-6 py-4 align-top">
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <a href="{{ route('demandas.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Abrir</a>
+                                <a href="{{ route('demandas.edit', $item) }}" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:text-brand-200">Editar</a>
+                                <button type="button" onclick="document.getElementById('delete-demand-{{ $item->id }}').showModal()" class="rounded-lg border border-error-300 px-3 py-2 text-xs font-medium text-error-700 dark:border-error-800 dark:text-error-300">Excluir</button>
+                            </div>
+                            <dialog id="delete-demand-{{ $item->id }}" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+                                <form method="post" action="{{ route('demandas.delete', $item) }}" class="p-6">
+                                    @csrf
+                                    @method('DELETE')
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Excluir demanda</h3>
+                                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">A demanda <strong>{{ $item->protocol }}</strong> sera removida com a timeline e os anexos vinculados. Esta acao nao podera ser desfeita.</p>
+                                        </div>
+                                        <button type="button" onclick="document.getElementById('delete-demand-{{ $item->id }}').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+                                    </div>
+                                    <div class="mt-6 flex justify-end gap-3">
+                                        <button type="button" onclick="document.getElementById('delete-demand-{{ $item->id }}').close()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+                                        <button class="rounded-xl border border-error-300 bg-error-50 px-4 py-3 text-sm font-medium text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-200">Excluir definitivamente</button>
+                                    </div>
+                                </form>
+                            </dialog>
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="p-6"><x-ancora.empty-state icon="fa-solid fa-inbox" title="Sem demandas" subtitle="As demandas abertas no portal e as cadastradas internamente aparecerao aqui." /></td></tr>
