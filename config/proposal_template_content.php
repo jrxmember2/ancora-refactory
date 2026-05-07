@@ -31,7 +31,7 @@ return [
                     'Atualização e elaboração de regimento interno, convenção e manuais',
                     'Defesa e ajuizamento de ações cíveis, trabalhistas e administrativas',
                     'Elaboração de notificações e contranotificações de condôminos e terceiros',
-                    'Entre outros...',
+                    
                 ],
             ],
             [
