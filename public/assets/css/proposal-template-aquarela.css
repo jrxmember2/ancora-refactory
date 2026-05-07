@@ -538,13 +538,16 @@ body.proposal-print,
     border-radius: 7mm;
     box-shadow: 0 16px 20px rgba(0, 0, 0, 0.16);
     padding: 25mm 6mm 7mm;
+    float: left;
+    width: 92mm;
+    margin: 0 8mm 8mm 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .vb-services-grid {
-    margin-top: 11mm;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9mm 8mm;
+    margin-top: 7mm;
+    display: block;
 }
 
 .vb-services-grid--four .vb-service-card {
@@ -572,6 +575,16 @@ body.proposal-print,
 .vb-services-grid--four .vb-service-card:nth-child(4) {
     grid-column: 2;
     grid-row: 2;
+}
+
+.vb-services-grid::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.vb-services-grid .vb-service-card:nth-child(2n) {
+    margin-right: 0;
 }
 
 .vb-service-card__head {
@@ -1072,6 +1085,12 @@ body.proposal-print,
     font-size: 5.2mm;
     line-height: 1.42;
     word-break: break-word;
+}
+
+.vb-contact-item__value--email {
+    font-size: 4.3mm;
+    line-height: 1.28;
+    overflow-wrap: anywhere;
 }
 
 .vb-contact-card__logo {

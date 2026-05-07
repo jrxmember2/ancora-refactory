@@ -18,6 +18,16 @@ $services = $templateContent['services'] ?? [];
 $contactsCta = $templateContent['contacts_cta'] ?? [];
 $contactPhone = $branding['company_phone'] ?? '(27) 99603-4719';
 
+$serviceGroups = $services['groups'] ?? [];
+if (count($serviceGroups) === 4) {
+    $serviceGroups = [
+        $serviceGroups[0] ?? [],
+        $serviceGroups[2] ?? [],
+        $serviceGroups[1] ?? [],
+        $serviceGroups[3] ?? [],
+    ];
+}
+
 $investmentPageLogoUrl = $branding['logo_light'] ?? asset('imgs/logomarca.svg');
 $whoPageLogoUrl = $branding['logo_dark'] ?? asset('imgs/logomarca.svg');
 $contactPageLogoUrl = $branding['logo_dark'] ?? asset('imgs/logomarca.svg');
@@ -316,8 +326,8 @@ $pageCounter = 1;
 
         <div class="vb-page-title vb-page-title--red"><?= htmlspecialchars($services['title'] ?? 'Nossos serviços'); ?></div>
 
-        <div class="vb-services-grid <?= count($services['groups'] ?? []) === 4 ? 'vb-services-grid--four' : ''; ?>">
-            <?php foreach (($services['groups'] ?? []) as $group): ?>
+        <div class="vb-services-grid <?= count($serviceGroups) === 4 ? 'vb-services-grid--four' : ''; ?>">
+            <?php foreach ($serviceGroups as $group): ?>
                 <article class="vb-service-card">
                     <header class="vb-service-card__head">
                         <h3><?= htmlspecialchars($group['title'] ?? ''); ?></h3>
@@ -498,7 +508,7 @@ $pageCounter = 1;
                     <span class="vb-contact-item__icon vb-contact-item__icon--svg"><?= premium_contact_icon('email'); ?></span>
                     <div>
                         <div class="vb-contact-item__label">Email</div>
-                        <div class="vb-contact-item__value"><?= htmlspecialchars($branding['company_email']); ?></div>
+                        <div class="vb-contact-item__value vb-contact-item__value--email"><?= htmlspecialchars($branding['company_email']); ?></div>
                     </div>
                 </div>
 
