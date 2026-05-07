@@ -16,7 +16,7 @@
     </div>
 </x-ancora.section-header>
 
-<form method="post" action="{{ route('propostas.document.save', $proposta) }}" class="space-y-6" x-data="premiumOptionsForm()">
+<form method="post" action="{{ route('propostas.document.save', $proposta) }}" class="space-y-6" x-data="premiumOptionsForm()" x-init="init()">
     @csrf
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Identificação</h3>
@@ -79,8 +79,8 @@
                         </div>
                         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
                             <div><label class="mb-1.5 block text-sm font-medium">Rótulo do honorário</label><input :name="`options[${index}][fee_label]`" x-model="option.fee_label" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
-                            <div><label class="mb-1.5 block text-sm font-medium">Valor</label><input :name="`options[${index}][amount_value]`" x-model="option.amount_value" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
-                            <div><label class="mb-1.5 block text-sm font-medium">Valor por extenso</label><input :name="`options[${index}][amount_text]`" x-model="option.amount_text" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
+                            <div><label class="mb-1.5 block text-sm font-medium">Valor</label><input :name="`options[${index}][amount_value]`" x-model="option.amount_value" @input="handleAmountInput(option)" @blur="handleAmountBlur(option)" inputmode="decimal" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700"></div>
+                            <div><label class="mb-1.5 block text-sm font-medium">Valor por extenso</label><input :name="`options[${index}][amount_text]`" x-model="option.amount_text" readonly class="h-11 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300"></div>
                         </div>
                         <div><label class="mb-1.5 block text-sm font-medium">Forma de pagamento</label><textarea :name="`options[${index}][payment_terms]`" x-model="option.payment_terms" rows="3" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 dark:border-gray-700"></textarea></div>
                         <label class="flex items-center gap-2 text-sm"><input type="checkbox" :name="`options[${index}][is_recommended]`" value="1" x-model="option.is_recommended"> Marcar como opção recomendada</label>
@@ -101,17 +101,194 @@
 @push('scripts')
 <script>
 function premiumOptionsForm() {
+    const emptyOption = () => ({
+        title: '',
+        scope_title: '',
+        scope_html: '',
+        fee_label: '',
+        amount_value: '',
+        amount_text: '',
+        payment_terms: '',
+        is_recommended: false,
+    });
+
     return {
-        options: @json(old('options', $optionsData)),
+        options: [],
+        init() {
+            const initialOptions = @json(old('options', $optionsData));
+            this.options = (Array.isArray(initialOptions) ? initialOptions : [emptyOption()])
+                .map((option) => this.normalizeOption(option));
+
+            if (!this.options.length) {
+                this.options = [emptyOption()];
+            }
+        },
         addOption() {
-            this.options.push({ title: '', scope_title: '', scope_html: '', fee_label: '', amount_value: '', amount_text: '', payment_terms: '', is_recommended: false });
+            this.options.push(emptyOption());
         },
         removeOption(index) {
             if (this.options.length === 1) {
-                this.options[0] = { title: '', scope_title: '', scope_html: '', fee_label: '', amount_value: '', amount_text: '', payment_terms: '', is_recommended: false };
+                this.options[0] = emptyOption();
                 return;
             }
             this.options.splice(index, 1);
+        },
+        normalizeOption(option) {
+            const normalized = { ...emptyOption(), ...(option || {}) };
+            normalized.is_recommended = !!normalized.is_recommended;
+            normalized.amount_value = this.formatMoneyValue(normalized.amount_value);
+            normalized.amount_text = this.resolveAmountText(normalized.amount_value, normalized.amount_text);
+
+            return normalized;
+        },
+        handleAmountInput(option) {
+            option.amount_value = this.formatMoneyValue(option.amount_value);
+            option.amount_text = this.resolveAmountText(option.amount_value, option.amount_text);
+        },
+        handleAmountBlur(option) {
+            option.amount_value = this.formatMoneyValue(option.amount_value);
+            option.amount_text = this.resolveAmountText(option.amount_value, option.amount_text);
+        },
+        resolveAmountText(amountValue, fallback = '') {
+            const parsed = this.parseMoneyValue(amountValue);
+            if (parsed === null) {
+                return String(fallback || '').trim();
+            }
+
+            return this.moneyToWords(parsed);
+        },
+        parseMoneyValue(value) {
+            const raw = String(value || '').replace(/[^\d,.-]/g, '');
+            if (!raw) {
+                return null;
+            }
+
+            let normalized = raw;
+            if (normalized.includes(',') && normalized.includes('.')) {
+                normalized = normalized.replace(/\./g, '');
+            }
+
+            normalized = normalized.replace(',', '.');
+            const amount = Number(normalized);
+
+            if (!Number.isFinite(amount)) {
+                return null;
+            }
+
+            return Math.max(0, Math.round(amount * 100) / 100);
+        },
+        formatMoneyValue(value) {
+            const digits = String(value || '').replace(/\D+/g, '');
+            if (!digits) {
+                return '';
+            }
+
+            const amount = Number(digits) / 100;
+            return amount.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        },
+        moneyToWords(value) {
+            const integer = Math.floor(value);
+            const cents = Math.round((value - integer) * 100);
+
+            const integerWords = this.numberToWords(integer);
+            const centsWords = cents > 0 ? this.numberToWords(cents) : '';
+
+            let result = integer === 1 ? `${integerWords} real` : `${integerWords} reais`;
+            if (cents > 0) {
+                result += cents === 1 ? ` e ${centsWords} centavo` : ` e ${centsWords} centavos`;
+            }
+
+            return result.charAt(0).toUpperCase() + result.slice(1) + '.';
+        },
+        numberToWords(number) {
+            const units = ['', 'um', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+            const teens = {
+                10: 'dez',
+                11: 'onze',
+                12: 'doze',
+                13: 'treze',
+                14: 'quatorze',
+                15: 'quinze',
+                16: 'dezesseis',
+                17: 'dezessete',
+                18: 'dezoito',
+                19: 'dezenove',
+            };
+            const tens = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+            const hundreds = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+            if (number === 0) {
+                return 'zero';
+            }
+
+            if (number === 100) {
+                return 'cem';
+            }
+
+            const parts = [];
+            const millions = Math.floor(number / 1000000);
+            let remainder = number % 1000000;
+            const thousands = Math.floor(remainder / 1000);
+            remainder = remainder % 1000;
+
+            if (millions > 0) {
+                parts.push(millions === 1 ? 'um milhao' : `${this.numberToWords(millions)} milhoes`);
+            }
+
+            if (thousands > 0) {
+                parts.push(thousands === 1 ? 'mil' : `${this.numberToWords(thousands)} mil`);
+            }
+
+            if (remainder > 0) {
+                parts.push(this.numberBelowThousand(remainder, units, teens, tens, hundreds));
+            }
+
+            return this.joinWords(parts);
+        },
+        numberBelowThousand(number, units, teens, tens, hundreds) {
+            if (number === 100) {
+                return 'cem';
+            }
+
+            const parts = [];
+            const hundred = Math.floor(number / 100);
+            const rest = number % 100;
+
+            if (hundred > 0) {
+                parts.push(hundreds[hundred]);
+            }
+
+            if (rest >= 10 && rest <= 19) {
+                parts.push(teens[rest]);
+            } else {
+                const ten = Math.floor(rest / 10);
+                const unit = rest % 10;
+
+                if (ten > 0) {
+                    parts.push(tens[ten]);
+                }
+
+                if (unit > 0) {
+                    parts.push(units[unit]);
+                }
+            }
+
+            return this.joinWords(parts);
+        },
+        joinWords(parts) {
+            if (parts.length <= 1) {
+                return parts[0] || '';
+            }
+
+            if (parts.length === 2) {
+                return `${parts[0]} e ${parts[1]}`;
+            }
+
+            const last = parts.pop();
+            return `${parts.join(', ')} e ${last}`;
         }
     };
 }

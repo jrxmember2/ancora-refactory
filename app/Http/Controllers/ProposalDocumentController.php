@@ -6,15 +6,25 @@ use App\Models\Proposal;
 use App\Models\ProposalDocument;
 use App\Models\ProposalDocumentOption;
 use App\Models\ProposalTemplate;
+use App\Services\ContractRenderService;
+use App\Services\ProposalPremiumPdfService;
 use App\Services\ProposalRenderService;
 use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 class ProposalDocumentController extends Controller
 {
+    public function __construct(
+        private readonly ProposalPremiumPdfService $proposalPremiumPdfService,
+        private readonly ContractRenderService $contractRenderService,
+    ) {
+    }
+
     public function edit(Proposal $proposta): View|RedirectResponse
     {
         $document = ProposalDocument::query()->where('proposta_id', $proposta->id)->first();
@@ -73,6 +83,9 @@ class ProposalDocumentController extends Controller
                 if (trim((string) ($option['title'] ?? '')) === '') {
                     continue;
                 }
+
+                $amountValue = \App\Services\ProposalService::moneyToDb($option['amount_value'] ?? null);
+
                 ProposalDocumentOption::query()->create([
                     'proposal_document_id' => $document->id,
                     'sort_order' => (int) $index,
@@ -80,8 +93,8 @@ class ProposalDocumentController extends Controller
                     'scope_title' => trim((string) ($option['scope_title'] ?? '')) ?: null,
                     'scope_html' => trim((string) ($option['scope_html'] ?? '')) ?: null,
                     'fee_label' => trim((string) ($option['fee_label'] ?? '')) ?: null,
-                    'amount_value' => \App\Services\ProposalService::moneyToDb($option['amount_value'] ?? null),
-                    'amount_text' => trim((string) ($option['amount_text'] ?? '')) ?: null,
+                    'amount_value' => $amountValue,
+                    'amount_text' => $this->resolvedAmountText($amountValue, $option['amount_text'] ?? null),
                     'payment_terms' => trim((string) ($option['payment_terms'] ?? '')) ?: null,
                     'is_recommended' => !empty($option['is_recommended']),
                 ]);
@@ -100,12 +113,37 @@ class ProposalDocumentController extends Controller
         return view('pages.propostas.documentos.preview', ['title' => 'Preview da Proposta Premium', 'render' => $render, 'proposta' => $proposta]);
     }
 
-    public function print(Proposal $proposta): View|RedirectResponse
+    public function print(Proposal $proposta): BinaryFileResponse|RedirectResponse
     {
-        $render = ProposalRenderService::buildByPropostaId((int) $proposta->id);
-        if (!$render) {
+        if (!ProposalRenderService::buildByPropostaId((int) $proposta->id)) {
             return redirect()->route('propostas.document.edit', $proposta)->with('error', 'Salve o Documento Premium antes de gerar o PDF.');
         }
-        return view('pages.propostas.documentos.print', ['render' => $render, 'proposta' => $proposta]);
+
+        try {
+            $pdfPath = $this->proposalPremiumPdfService->generate($proposta);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('propostas.document.edit', $proposta)
+                ->with('error', 'Nao foi possivel gerar o PDF do documento premium: ' . $e->getMessage());
+        }
+
+        $response = response()->file($pdfPath, ['Content-Type' => 'application/pdf']);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $this->proposalPremiumPdfService->downloadFilename($proposta)
+        );
+
+        return $response->deleteFileAfterSend(true);
+    }
+
+    private function resolvedAmountText(?float $amountValue, mixed $fallback): ?string
+    {
+        if ($amountValue !== null) {
+            return $this->contractRenderService->moneyToWords($amountValue);
+        }
+
+        $text = trim((string) ($fallback ?? ''));
+
+        return $text !== '' ? $text : null;
     }
 }

@@ -34,11 +34,11 @@
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor da proposta</label>
-                <input type="text" name="proposal_total" value="{{ old('proposal_total', $proposal?->proposal_total) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
+                <input type="text" name="proposal_total" value="{{ old('proposal_total', $proposal?->proposal_total) }}" inputmode="decimal" data-proposal-money class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Valor fechado</label>
-                <input type="text" name="closed_total" value="{{ old('closed_total', $proposal?->closed_total) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
+                <input type="text" name="closed_total" value="{{ old('closed_total', $proposal?->closed_total) }}" inputmode="decimal" data-proposal-money class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Solicitante</label>
@@ -46,11 +46,11 @@
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
-                <input type="text" name="requester_phone" value="{{ old('requester_phone', $proposal?->requester_phone) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
+                <input type="text" name="requester_phone" value="{{ old('requester_phone', $proposal?->requester_phone) }}" inputmode="tel" autocomplete="tel" data-proposal-phone class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
-                <input type="email" name="contact_email" value="{{ old('contact_email', $proposal?->contact_email) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
+                <input type="email" name="contact_email" value="{{ old('contact_email', $proposal?->contact_email) }}" inputmode="email" autocomplete="email" spellcheck="false" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" />
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Forma de envio</label>
@@ -105,3 +105,75 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    function proposalDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
+
+    function proposalFormatMoney(input) {
+        if (!input) {
+            return;
+        }
+
+        const digits = proposalDigits(input.value);
+        if (!digits) {
+            input.value = '';
+            return;
+        }
+
+        const amount = Number(digits) / 100;
+        input.value = amount.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function proposalOnlyDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
+
+    function proposalFormatPhone(value) {
+        let digits = proposalOnlyDigits(value);
+
+        if (digits.length >= 12 && digits.startsWith('55')) {
+            digits = digits.slice(2);
+        }
+
+        digits = digits.slice(0, 11);
+
+        if (digits.length <= 2) return digits ? `(${digits}` : '';
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    }
+
+    document.querySelectorAll('[data-proposal-money]').forEach((input) => {
+        proposalFormatMoney(input);
+
+        input.addEventListener('input', () => {
+            proposalFormatMoney(input);
+        });
+
+        input.addEventListener('blur', () => {
+            proposalFormatMoney(input);
+        });
+    });
+
+    document.querySelectorAll('[data-proposal-phone]').forEach((input) => {
+        input.value = proposalFormatPhone(input.value);
+
+        input.addEventListener('input', () => {
+            input.value = proposalFormatPhone(input.value);
+        });
+
+        input.addEventListener('blur', () => {
+            input.value = proposalFormatPhone(input.value);
+        });
+    });
+});
+</script>
+@endpush
