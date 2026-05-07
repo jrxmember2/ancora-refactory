@@ -533,14 +533,14 @@ body.proposal-print,
 
 .vb-service-card {
     position: relative;
-    min-height: 91mm;
+    min-height: 85mm;
     background: #f3f3f3;
     border-radius: 7mm;
     box-shadow: 0 16px 20px rgba(0, 0, 0, 0.16);
-    padding: 25mm 6mm 7mm;
+    padding: 25mm 6mm 5mm;
     float: left;
     width: 92mm;
-    margin: 0 8mm 8mm 0;
+    margin: 0 8mm 6mm 0;
     page-break-inside: avoid;
     break-inside: avoid;
 }
