@@ -690,6 +690,19 @@ function refreshConfigSection(targetSelector, html) {
     }
 }
 
+function resolveAsyncFormAction(form, submitter) {
+    const override = submitter?.getAttribute('formaction');
+    if (override) {
+        return new URL(override, window.location.href).toString();
+    }
+
+    return form.action;
+}
+
+function resolveAsyncFormMethod(form, submitter) {
+    return (submitter?.getAttribute('formmethod') || form.method || 'POST').toUpperCase();
+}
+
 document.addEventListener('input', (event) => {
     if (event.target.matches('[data-phone-mask]')) {
         applyPhoneMask(event.target);
@@ -711,8 +724,8 @@ document.addEventListener('submit', async (event) => {
     if (!form) return;
     event.preventDefault();
     const submitter = event.submitter || form.querySelector('button[type="submit"], button:not([type])');
-    const action = submitter?.formAction || form.action;
-    const method = (submitter?.formMethod || form.method || 'POST').toUpperCase();
+    const action = resolveAsyncFormAction(form, submitter);
+    const method = resolveAsyncFormMethod(form, submitter);
     const targetSelector = form.dataset.refreshTarget;
     if (submitter) submitter.disabled = true;
     try {
@@ -746,8 +759,8 @@ document.addEventListener('submit', async (event) => {
     event.stopImmediatePropagation();
 
     const submitter = event.submitter || form.querySelector('button[type="submit"], button:not([type])');
-    const action = submitter?.formAction || form.action;
-    const method = (submitter?.formMethod || form.method || 'POST').toUpperCase();
+    const action = resolveAsyncFormAction(form, submitter);
+    const method = resolveAsyncFormMethod(form, submitter);
     const targetSelector = form.dataset.refreshTarget;
 
     if (submitter) submitter.disabled = true;

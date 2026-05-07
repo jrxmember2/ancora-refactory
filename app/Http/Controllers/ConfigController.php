@@ -560,19 +560,65 @@ class ConfigController extends Controller
 
     public function storeServico(Request $request)
     {
-        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
+        if (!Schema::hasTable('demand_categories')) {
+            Servico::query()->create($this->servicoPayload($request));
+            return $this->catalogResponse($request, 'Serviço cadastrado.');
+        }
+
+        $request->merge([
+            'slug' => trim((string) $request->input('slug')) !== '' ? $request->input('slug') : Str::slug((string) $request->input('name')),
+            'sort_order' => $request->input('sort_order', 0),
+            'is_active' => $request->has('is_active') ? $request->input('is_active') : '1',
+        ]);
+
+        $category = DemandCategory::query()->create($this->demandCategoryPayload($request));
+        app(SharedServiceCatalogService::class)->syncDemandCategory($category);
+
         return $this->catalogResponse($request, 'Serviço cadastrado.');
     }
 
     public function updateServico(Request $request, Servico $servico)
     {
-        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
+        $category = Schema::hasTable('demand_categories') && !empty($servico->demand_category_id)
+            ? DemandCategory::query()->find($servico->demand_category_id)
+            : null;
+
+        if (!$category) {
+            $servico->update($this->servicoPayload($request, $servico));
+            return $this->catalogResponse($request, 'Serviço atualizado.');
+        }
+
+        $request->merge([
+            'slug' => trim((string) $request->input('slug')) !== '' ? $request->input('slug') : ($category->slug ?: Str::slug((string) $request->input('name'))),
+            'sort_order' => $request->input('sort_order', $category->sort_order),
+            'is_active' => $request->has('is_active') ? $request->input('is_active') : ($category->is_active ? '1' : '0'),
+            'color_hex' => $request->input('color_hex', $category->color_hex),
+        ]);
+
+        $category->update($this->demandCategoryPayload($request, $category));
+        app(SharedServiceCatalogService::class)->syncDemandCategory($category->fresh());
+
         return $this->catalogResponse($request, 'Serviço atualizado.');
     }
 
     public function deleteServico(Request $request, Servico $servico)
     {
-        return back()->with('error', 'Os servicos de propostas agora sao gerenciados em Configuracoes > Demandas > Servicos.');
+        $category = Schema::hasTable('demand_categories') && !empty($servico->demand_category_id)
+            ? DemandCategory::query()->find($servico->demand_category_id)
+            : null;
+
+        if ($category) {
+            if ($category->demands()->exists()) {
+                return back()->with('error', 'Nao e possivel excluir servico com demandas vinculadas. Reclassifique as demandas antes.');
+            }
+
+            app(SharedServiceCatalogService::class)->releaseDemandCategory($category);
+            $category->delete();
+
+            return $this->catalogResponse($request, 'Serviço excluído.');
+        }
+
+        $servico->delete();
         return $this->catalogResponse($request, 'Serviço excluído.');
     }
 
