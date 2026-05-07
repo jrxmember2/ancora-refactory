@@ -46,7 +46,7 @@ return [
                 ],
             ],
             [
-                'title' => 'Para Administradoras, Terceirizadas e Síndicos Profissionais',
+                'title' => 'Para Administradoras, Terceirizadas e Síndicos',
                 'subtitle' => 'Padronização, prevenção de risco e suporte jurídico para a operação.',
                 'items' => [
                     'Check-up documental e auditoria jurídica',
