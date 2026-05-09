@@ -17,7 +17,7 @@
             <form action="{{ route('busca') }}" method="get" class="hidden xl:block">
                 <div class="relative">
                     <span class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar usuários, clientes, propostas..." class="h-11 w-[360px] rounded-xl border border-gray-200 bg-transparent py-2.5 pr-4 pl-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90">
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar clientes, condominios, cobrancas, processos, contratos..." class="h-11 w-[360px] rounded-xl border border-gray-200 bg-transparent py-2.5 pr-4 pl-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90">
                 </div>
             </form>
 

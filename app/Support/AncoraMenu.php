@@ -153,7 +153,7 @@ class AncoraMenu
             $descriptions = [
                 'dashboard' => 'Painel executivo consolidado do ecossistema Ancora.',
                 'propostas' => 'Fluxo completo comercial com proposta premium, anexos e follow-up.',
-                'busca' => 'Busca rapida entre usuarios, clientes e propostas.',
+                'busca' => 'Busca ampliada entre usuarios, clientes, condominios, cobrancas, demandas, processos, contratos, assinaturas e financeiro.',
                 'config' => 'Branding, usuarios, modulos e cadastros auxiliares.',
                 'logs' => 'Rastreabilidade e auditoria do sistema.',
                 'clientes' => 'Cadastro central de clientes avulsos e area condominial.',
