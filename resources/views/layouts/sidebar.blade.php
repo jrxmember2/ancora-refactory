@@ -1,6 +1,6 @@
 @php($currentPath = request()->path())
 <aside id="sidebar"
-    class="fixed top-0 left-0 z-99999 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900"
+    class="fixed top-0 left-0 z-99999 flex h-screen flex-col overflow-hidden border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900"
     x-data="{ openSubmenus: {}, isActive(path){ return window.location.pathname === path; }, toggleSubmenu(key){ this.openSubmenus[key] = !this.openSubmenus[key]; } }"
     :class="{ 'w-[290px]': $store.sidebar.isExpanded || $store.sidebar.isMobileOpen || $store.sidebar.isHovered, 'w-[90px]': !$store.sidebar.isExpanded && !$store.sidebar.isHovered, 'translate-x-0': $store.sidebar.isMobileOpen, '-translate-x-full xl:translate-x-0': !$store.sidebar.isMobileOpen }"
     @mouseenter="if(!$store.sidebar.isExpanded) $store.sidebar.setHovered(true)"
@@ -9,13 +9,13 @@
         <a href="{{ route('hub') }}" class="flex items-center gap-3 overflow-hidden self-center">
             <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_light'] ?? '/branding/logo-light.svg' }}" alt="Logo" class="w-auto dark:hidden" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
             <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" src="{{ $ancoraBrand['logo_dark'] ?? '/branding/logo-dark.svg' }}" alt="Logo" class="hidden w-auto dark:block" style="height: {{ max(24, (int) ($ancoraBrand['logo_height_desktop'] ?? 44)) }}px" />
-            <div x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen" class="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-theme-sm">
-                <i class="fa-solid fa-anchor text-lg"></i>
+            <div x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen" class="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-white">
+                <img src="{{ $ancoraBrand['favicon'] ?? '/favicon.svg' }}" alt="Favicon" class="h-7 w-7 object-contain" />
             </div>
         </a>
     </div>
 
-    <div class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto duration-300 ease-linear">
+    <div class="custom-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1 duration-300 ease-linear">
         <nav class="mb-6 flex flex-col gap-6">
             @foreach($ancoraMenuGroups as $groupIndex => $group)
                 <div>

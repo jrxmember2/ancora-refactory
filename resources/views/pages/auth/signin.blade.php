@@ -2,6 +2,7 @@
 
 @section('content')
 <div class="relative z-1 bg-white p-6 dark:bg-gray-900 sm:p-0">
+    @php($hubMarkAsset = asset('branding/ancora-hub-mark.svg'))
     <div class="relative flex h-screen w-full flex-col justify-center lg:flex-row dark:bg-gray-900">
         <div class="relative flex w-full flex-1 flex-col lg:w-1/2">
             <div class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4">
@@ -15,7 +16,7 @@
 
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">E-mail</label>
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="junior@serratech.br" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                        <input type="email" name="email" value="{{ old('email') }}" placeholder="email@ancorahub.com.br" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                     </div>
 
                     <div x-data="{ showPassword: false }">
@@ -36,7 +37,7 @@
                         <input type="checkbox" name="remember_for_12h" value="1" @checked(old('remember_for_12h')) class="mt-0.5 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
                         <span>
                             <span class="block font-medium text-gray-800 dark:text-white/90">Manter conectado por 12 horas</span>
-                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Sem marcar, a sessão expira após um período curto de inatividade.</span>
+                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Sem marcar, a sessao expira apos um periodo curto de inatividade.</span>
                         </span>
                     </label>
 
@@ -50,25 +51,46 @@
                         <span>Powered by Serratech</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                     </a>
-                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.49 - 25/04/2026' }}</div>
+                    <div class="pl-1 text-[9px] leading-none tracking-[0.14em] text-gray-400 dark:text-gray-500">{{ $ancoraVersion['label'] ?? 'v1.88 - 09/05/2026' }}</div>
                 </div>
             </div>
         </div>
 
-        <div class="relative hidden h-full w-full items-center overflow-hidden lg:grid lg:w-1/2 dark:bg-white/5 bg-brand-950">
+        <div class="relative hidden h-full w-full items-center overflow-hidden bg-brand-950 lg:grid lg:w-1/2 dark:bg-white/5">
             <x-common.common-grid-shape />
             <div class="relative z-10 mx-auto max-w-xl px-10 text-white">
-                <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/80">
-                    <i class="fa-solid fa-layer-group"></i>
-                    Ecossistema Âncora
+                <div class="inline-flex items-center gap-4 rounded-3xl border border-white/15 bg-white/10 px-5 py-4 shadow-theme-lg backdrop-blur-sm">
+                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-white p-3 shadow-theme-lg">
+                        <img src="{{ $hubMarkAsset }}" alt="Ancora Hub" class="h-full w-full object-contain" />
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.3em] text-white/70">Plataforma integrada</div>
+                        <div class="mt-2 text-3xl font-semibold leading-none">&Acirc;NCORA HUB</div>
+                    </div>
                 </div>
-                <h2 class="mt-6 text-3xl font-semibold leading-tight">Gestão jurídica e condominial em um único ambiente, com cadastros organizados, propostas profissionais e rotina mais fluida.</h2>
-                <p class="mt-4 text-base text-white/70">Estruture clientes, condomínios, unidades, documentos e permissões em uma base pensada para apoiar a operação do seu escritório.</p>
+                <h2 class="mt-6 text-3xl font-semibold leading-tight">Gestao juridica, condominial e financeira em um unico ambiente, do comercial ao assinador digital.</h2>
+                <p class="mt-4 max-w-xl text-base text-white/70">Centralize propostas, cobrancas, processos, demandas, contratos, portal do cliente e operacao financeira em uma base pronta para acompanhar o escritorio inteiro.</p>
                 <div class="mt-6 grid grid-cols-2 gap-3">
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Cadastros organizados</div><p class="mt-1 text-sm text-white/70">Clientes, síndicos, administradoras, unidades e documentos com mais clareza no dia a dia.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Propostas profissionais</div><p class="mt-1 text-sm text-white/70">Fluxo comercial com histórico, anexos e documento premium sem retrabalho.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Acesso controlado</div><p class="mt-1 text-sm text-white/70">Perfis, permissões e mais segurança para trabalhar em equipe.</p></div>
-                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm"><div class="text-lg font-semibold">Operação mais profissional</div><p class="mt-1 text-sm text-white/70">Mais organização, previsibilidade e valor percebido para o escritório.</p></div>
+                    <div class="rounded-2xl border border-white/30 bg-white p-4 text-brand-950 shadow-theme-lg">
+                        <div class="mb-2 inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-700">
+                            <i class="fa-solid fa-signature"></i>
+                            Destaque
+                        </div>
+                        <div class="text-lg font-semibold">Assinador digital</div>
+                        <p class="mt-1 text-sm text-brand-900/80">Contratos, termos e documentos avulsos em um fluxo unico de assinatura, sincronizacao e download.</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                        <div class="text-lg font-semibold">Financeiro 360</div>
+                        <p class="mt-1 text-sm text-white/70">Recebiveis, pagamentos, cobranca automatica e visao consolidada do caixa em um so lugar.</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                        <div class="text-lg font-semibold">Processos e cobrancas</div>
+                        <p class="mt-1 text-sm text-white/70">OS, acordos, importacoes, andamentos e controle juridico com rastreabilidade operacional.</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                        <div class="text-lg font-semibold">Portal e demandas</div>
+                        <p class="mt-1 text-sm text-white/70">Mensagens, SLA, atendimento ao cliente e acompanhamento de solicitacoes sem sair do sistema.</p>
+                    </div>
                 </div>
             </div>
 

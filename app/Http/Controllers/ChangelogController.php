@@ -9,15 +9,57 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.84',
-            'date' => '05/05/2026',
-            'label' => 'v1.84 - 05/05/2026',
+            'version' => 'v1.88',
+            'date' => '09/05/2026',
+            'label' => 'v1.88 - 09/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Branding do login e menu lateral refinados com historico consolidado no versionamento',
+                'items' => [
+                    'O menu lateral recolhido passa a usar o mesmo favicon configurado no branding, substituindo o icone generico e reforcando a identidade visual do sistema.',
+                    'A barra lateral ganha area scrollavel real quando o conteudo ultrapassar a altura util da tela, evitando perder modulos e atalhos em notebooks e resolucoes menores.',
+                    'A tela de login recebe o selo visual do Ancora Hub, placeholder institucional de e-mail, destaque para o assinador digital e cards atualizados para refletir os modulos principais da operacao.',
+                    'O versionamento passa a refletir tambem os ultimos ciclos consolidados a partir do historico real do projeto, incluindo assinador, servicos compartilhados e refinamentos do documento premium.',
+                ],
+            ],
+            [
+                'version' => 'v1.87',
+                'date' => '07/05/2026',
+                'title' => 'Documento premium ganha PDF real, mascaras e refinamentos de paginacao',
+                'items' => [
+                    'Campos monetarios e de contato do modulo Propostas passam a usar mascaras e validacoes mais aderentes ao uso real do formulario.',
+                    'Os valores por extenso do documento premium passam a ser preenchidos automaticamente com base no valor informado, reduzindo divergencia manual no material comercial.',
+                    'A geracao do PDF premium deixa de depender apenas da impressao do navegador e passa a usar renderizacao real com mPDF e contingencias mais robustas para manter o layout.',
+                    'As paginas Nossos servicos e Contatos recebem ajustes finos de conteudo e espacamento para evitar quebras ruins, estouro de indice e fragmentacao visual na exportacao.',
+                ],
+            ],
+            [
+                'version' => 'v1.86',
+                'date' => '06/05/2026',
+                'title' => 'Servicos passam a ser compartilhados entre Demandas e Propostas',
+                'items' => [
+                    'O catalogo de servicos usado nas Demandas vira a fonte oficial tambem para o modulo Propostas, reduzindo divergencia de nomenclatura entre atendimento e comercial.',
+                    'As telas de configuracao passam a sincronizar o espelho tecnico da tabela servicos sem quebrar as propostas antigas ja vinculadas ao modelo legado.',
+                    'O rotulo Categoria da Demanda evolui para Servico nas telas operacionais, aproximando a linguagem da rotina juridica e comercial.',
+                ],
+            ],
+            [
+                'version' => 'v1.85',
+                'date' => '05/05/2026',
+                'title' => 'Assinador eletronico centraliza assinaturas de contratos, cobrancas e documentos avulsos',
+                'items' => [
+                    'Nasce o modulo Assinador Eletronico como central unica para dashboard, listagem, sincronizacao e downloads de assinaturas digitais do sistema.',
+                    'Documentos avulsos passam a usar a mesma infraestrutura de assinatura ja aplicada a contratos e termos, sem duplicar integracao nem criar trilha paralela de eventos.',
+                    'Correcoes iniciais estabilizam upload, resolucao de arquivos privados e fluxo de visualizacao dos documentos assinaveis dentro do novo modulo.',
+                ],
+            ],
+            [
+                'version' => 'v1.84',
+                'date' => '05/05/2026',
                 'title' => 'Importacao de processos ganha execucao parcial, relatorio de pendencias e reimportacao segura',
                 'items' => [
                     'A previa de importacao de processos agora separa linhas prontas, pendentes e ignoradas, tratando numeros ja cadastrados como duplicidade segura para permitir reimportacoes sem quebrar o fluxo.',
