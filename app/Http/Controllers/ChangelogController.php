@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.92',
+            'version' => 'v1.93',
             'date' => '10/05/2026',
-            'label' => 'v1.92 - 10/05/2026',
+            'label' => 'v1.93 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Configuracoes ganham aba dedicada de Inteligencia Artificial na navegacao superior',
+                'items' => [
+                    'O acesso da Inteligencia Artificial deixa de aparecer dentro da area de Demandas e passa a ocupar um espaco proprio na faixa superior de Configuracoes, ao lado de Geral, Catalogos, Demandas e Usuarios e acesso.',
+                    'A nova aba de IA reaproveita a rota dedicada ja criada para a configuracao tecnica, mantendo a organizacao visual mais coerente sem alterar o funcionamento interno dos provedores.',
+                ],
+            ],
+            [
+                'version' => 'v1.92',
+                'date' => '10/05/2026',
                 'title' => 'Atalho da Inteligencia Artificial e reorganizado para a area de Demandas nas Configuracoes',
                 'items' => [
                     'O acesso rapido para a configuracao de Inteligencia Artificial sai da aba Geral e passa a ficar no topo da area de Demandas, deixando a navegacao mais coerente com tags, SLA e automacoes futuras.',

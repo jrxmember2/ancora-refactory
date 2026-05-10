@@ -17,23 +17,38 @@
             ['key' => 'catalogs', 'label' => 'Catalogos', 'icon' => 'fa-solid fa-list-check', 'description' => 'Servicos, status, processos e TJES'],
             ['key' => 'demands', 'label' => 'Demandas', 'icon' => 'fa-solid fa-table-columns', 'description' => 'Tags, cores e SLA'],
             ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
+            ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini e prompts', 'href' => route('config.ai.index')],
         ];
     @endphp
 
     <div class="rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
             @foreach($configTabs as $tab)
-                <button type="button" @click="openSection('{{ $tab['key'] }}')" :class="activeSection === '{{ $tab['key'] }}' ? 'border-brand-300 bg-brand-50 text-brand-700 shadow-sm dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200' : 'border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 dark:text-gray-300 dark:hover:border-gray-800 dark:hover:bg-white/[0.03]'" class="rounded-2xl border px-4 py-3 text-left transition">
-                    <span class="flex items-center gap-3">
-                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base shadow-theme-xs dark:bg-gray-900">
-                            <i class="{{ $tab['icon'] }}"></i>
+                @if(isset($tab['href']))
+                    <a href="{{ $tab['href'] }}" class="rounded-2xl border border-transparent px-4 py-3 text-left text-gray-600 transition hover:border-gray-200 hover:bg-gray-50 dark:text-gray-300 dark:hover:border-gray-800 dark:hover:bg-white/[0.03]">
+                        <span class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base shadow-theme-xs dark:bg-gray-900">
+                                <i class="{{ $tab['icon'] }}"></i>
+                            </span>
+                            <span>
+                                <span class="block text-sm font-semibold">{{ $tab['label'] }}</span>
+                                <span class="mt-0.5 block text-xs opacity-75">{{ $tab['description'] }}</span>
+                            </span>
                         </span>
-                        <span>
-                            <span class="block text-sm font-semibold">{{ $tab['label'] }}</span>
-                            <span class="mt-0.5 block text-xs opacity-75">{{ $tab['description'] }}</span>
+                    </a>
+                @else
+                    <button type="button" @click="openSection('{{ $tab['key'] }}')" :class="activeSection === '{{ $tab['key'] }}' ? 'border-brand-300 bg-brand-50 text-brand-700 shadow-sm dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200' : 'border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 dark:text-gray-300 dark:hover:border-gray-800 dark:hover:bg-white/[0.03]'" class="rounded-2xl border px-4 py-3 text-left transition">
+                        <span class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base shadow-theme-xs dark:bg-gray-900">
+                                <i class="{{ $tab['icon'] }}"></i>
+                            </span>
+                            <span>
+                                <span class="block text-sm font-semibold">{{ $tab['label'] }}</span>
+                                <span class="mt-0.5 block text-xs opacity-75">{{ $tab['description'] }}</span>
+                            </span>
                         </span>
-                    </span>
-                </button>
+                    </button>
+                @endif
             @endforeach
         </div>
     </div>
