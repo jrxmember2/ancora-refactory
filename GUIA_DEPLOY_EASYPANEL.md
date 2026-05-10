@@ -63,6 +63,29 @@ Crie persistência para:
 - `/var/www/html/public/assets/uploads`
 - `/var/www/html/public/branding`
 
+## 5.1. PermissÃµes dos volumes
+
+Como `storage` e os diretÃ³rios de upload ficam em volume persistente, permissÃµes antigas do host podem impedir o Laravel de recompilar views Blade e gravar cache/sessÃ£o. O container agora corrige isso automaticamente na inicializaÃ§Ã£o.
+
+Se o ambiente jÃ¡ estiver no ar e apresentar erro como `storage/framework/views ... Permission denied`, execute uma vez dentro do container:
+
+```bash
+mkdir -p /var/www/html/storage/framework/views \
+  /var/www/html/storage/framework/cache \
+  /var/www/html/storage/framework/sessions \
+  /var/www/html/storage/logs \
+  /var/www/html/bootstrap/cache \
+  /var/www/html/public/uploads \
+  /var/www/html/public/assets/uploads \
+  /var/www/html/public/branding \
+  /var/www/html/public/build
+
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/uploads /var/www/html/public/assets/uploads /var/www/html/public/branding /var/www/html/public/build
+chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/uploads /var/www/html/public/assets/uploads /var/www/html/public/branding /var/www/html/public/build
+```
+
+Depois disso, faÃ§a um novo deploy/build para que o ajuste automÃ¡tico passe a rodar em toda subida do serviÃ§o.
+
 ## 6. Primeiro acesso
 
 Acesse `/login` usando um usuário já existente da tabela `users`.

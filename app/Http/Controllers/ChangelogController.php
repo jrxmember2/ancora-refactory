@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.89',
+            'version' => 'v1.90',
             'date' => '10/05/2026',
-            'label' => 'v1.89 - 10/05/2026',
+            'label' => 'v1.90 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Deploy no EasyPanel passa a autocorrigir permissoes de storage e uploads na subida',
+                'items' => [
+                    'A inicializacao do container agora recria diretórios críticos de cache, sessão, views compiladas e uploads persistentes antes de subir o Apache.',
+                    'Permissões e ownership de storage, bootstrap/cache e pastas públicas persistentes passam a ser normalizados em runtime, evitando erro de Blade compilado com Permission denied após redeploy ou troca de volume.',
+                    'O guia de deploy do EasyPanel foi atualizado com o procedimento emergencial para ambientes já publicados que ainda estejam com o volume legado travado.',
+                ],
+            ],
+            [
+                'version' => 'v1.89',
+                'date' => '10/05/2026',
                 'title' => 'Documentos do condominio passam a confirmar arquivo e data antes do envio final',
                 'items' => [
                     'Os cards de Convencao condominial, Regimento interno e ATAs mantem a mesma estrutura visual, mas agora abrem um modal simples para confirmar arquivo e data do documento antes do submit principal do formulario.',

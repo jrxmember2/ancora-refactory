@@ -74,7 +74,8 @@ RUN touch .env \
         public/build \
     && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage \
     && php artisan package:discover --ansi \
-    && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding public/build
+    && chown -R www-data:www-data storage bootstrap/cache public/uploads public/assets/uploads public/branding public/build \
+    && chmod +x /var/www/html/scripts/start-container.sh
 
 EXPOSE 80
-CMD ["apache2-foreground"]
+CMD ["/var/www/html/scripts/start-container.sh"]
