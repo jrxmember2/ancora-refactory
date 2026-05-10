@@ -18,6 +18,7 @@ use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -706,9 +707,19 @@ class ClientsController extends Controller
         }
     }
 
-    private function storeAttachmentFiles(string $relatedType, int $relatedId, array $files, string $role, Request $request, ?string $labelPrefix = null): void
+    private function storeAttachmentFiles(
+        string $relatedType,
+        int $relatedId,
+        array $files,
+        string $role,
+        Request $request,
+        ?string $labelPrefix = null,
+        ?string $documentDate = null
+    ): void
     {
         $directory = 'clientes/' . $relatedType . '/' . $relatedId;
+        $normalizedDocumentDate = trim((string) $documentDate) !== '' ? trim((string) $documentDate) : null;
+        $supportsDocumentDate = $this->clientAttachmentHasDocumentDateColumn();
 
         foreach ($files as $file) {
             if (!$file instanceof UploadedFile || !$file->isValid()) {
@@ -734,7 +745,7 @@ class ClientsController extends Controller
 
             Storage::disk('public')->putFileAs($directory, $file, $stored);
 
-            ClientAttachment::query()->create([
+            $payload = [
                 'related_type' => $relatedType,
                 'related_id' => $relatedId,
                 'file_role' => $role,
@@ -744,7 +755,13 @@ class ClientsController extends Controller
                 'mime_type' => $mimeType ?: null,
                 'file_size' => $fileSize,
                 'uploaded_by' => AncoraAuth::user($request)?->id,
-            ]);
+            ];
+
+            if ($supportsDocumentDate) {
+                $payload['document_date'] = $normalizedDocumentDate;
+            }
+
+            ClientAttachment::query()->create($payload);
         }
     }
 
@@ -789,28 +806,79 @@ class ClientsController extends Controller
         $this->storeAttachmentFiles($relatedType, $relatedId, $files, $role, $request);
     }
 
-    private function uploadCondominiumDocuments(int $condominiumId, Request $request): void
+    private function validateCondominiumDocumentUpload(Request $request): void
     {
         $request->validate([
             'document_convention' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'document_convention_date' => ['nullable', 'date'],
             'document_regiment' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'document_regiment_date' => ['nullable', 'date'],
+            'document_atas' => ['nullable', 'array'],
             'document_atas.*' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp,doc,docx', 'max:20480'],
+            'document_atas_date' => ['nullable', 'date'],
         ]);
 
+        $messages = [];
+
+        if (!empty($this->normalizeUploadedFiles($request->file('document_convention'))) && !$request->filled('document_convention_date')) {
+            $messages['document_convention_date'] = 'Informe a data do documento da convenção condominial.';
+        }
+
+        if (!empty($this->normalizeUploadedFiles($request->file('document_regiment'))) && !$request->filled('document_regiment_date')) {
+            $messages['document_regiment_date'] = 'Informe a data do documento do regimento interno.';
+        }
+
+        if (!empty($this->normalizeUploadedFiles($request->file('document_atas'))) && !$request->filled('document_atas_date')) {
+            $messages['document_atas_date'] = 'Informe a data do documento da ATA.';
+        }
+
+        if (!empty($messages)) {
+            throw ValidationException::withMessages($messages);
+        }
+    }
+
+    private function uploadCondominiumDocuments(int $condominiumId, Request $request): void
+    {
         $conventionFiles = $this->normalizeUploadedFiles($request->file('document_convention'));
         if (!empty($conventionFiles)) {
-            $this->storeAttachmentFiles('condominium', $condominiumId, $conventionFiles, 'documento', $request, 'Convenção condominial');
+            $this->storeAttachmentFiles(
+                'condominium',
+                $condominiumId,
+                $conventionFiles,
+                'documento',
+                $request,
+                'Convenção condominial',
+                $request->input('document_convention_date')
+            );
         }
 
         $regimentFiles = $this->normalizeUploadedFiles($request->file('document_regiment'));
         if (!empty($regimentFiles)) {
-            $this->storeAttachmentFiles('condominium', $condominiumId, $regimentFiles, 'documento', $request, 'Regimento interno');
+            $this->storeAttachmentFiles(
+                'condominium',
+                $condominiumId,
+                $regimentFiles,
+                'documento',
+                $request,
+                'Regimento interno',
+                $request->input('document_regiment_date')
+            );
         }
 
         $ataFiles = $this->normalizeUploadedFiles($request->file('document_atas'));
         if (!empty($ataFiles)) {
-            $this->storeAttachmentFiles('condominium', $condominiumId, $ataFiles, 'documento', $request, 'ATA');
+            $this->storeAttachmentFiles(
+                'condominium',
+                $condominiumId,
+                $ataFiles,
+                'documento',
+                $request,
+                'ATA',
+                $request->input('document_atas_date')
+            );
         }
+
+        return;
     }
 
     private function validatePartyRequest(Request $request, string $prefix, string $label): array
@@ -906,6 +974,8 @@ class ClientsController extends Controller
     private function saveCondominium(Request $request, array $payload, ?ClientCondominium $existing, string $successMessage, string $timelineMessage): RedirectResponse
     {
         try {
+            $this->validateCondominiumDocumentUpload($request);
+
             $condo = DB::transaction(function () use ($payload, $existing, $request) {
                 if ($existing) {
                     $payload['created_by'] = $existing->created_by;
@@ -926,6 +996,8 @@ class ClientsController extends Controller
             return $existing
                 ? back()->with('success', $successMessage)
                 : redirect()->route('clientes.condominios.edit', $condo)->with('success', $successMessage);
+        } catch (ValidationException $e) {
+            return back()->withInput()->with('errors_list', $e->validator->errors()->all());
         } catch (\RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
@@ -1642,6 +1714,23 @@ class ClientsController extends Controller
             $errors[] = 'Informe o motivo da inativação.';
         }
         return $errors;
+    }
+
+    private function clientAttachmentHasDocumentDateColumn(): bool
+    {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        try {
+            $hasColumn = Schema::hasColumn('client_attachments', 'document_date');
+        } catch (\Throwable) {
+            $hasColumn = false;
+        }
+
+        return $hasColumn;
     }
 
     private function syncBlocks(ClientCondominium $condo, ?string $blocksText): void

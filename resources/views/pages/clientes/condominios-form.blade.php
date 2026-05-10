@@ -168,14 +168,14 @@
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Convenção condominial</label>
-                        <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                        <label @click.prevent="openDocumentModal('convention')" @keydown.enter.prevent="openDocumentModal('convention')" @keydown.space.prevent="openDocumentModal('convention')" tabindex="0" role="button" class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
-                            <input type="file" name="document_convention" class="sr-only" data-file-input>
+                            <input type="file" name="document_convention" class="sr-only" x-ref="documentConventionInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx">
+                            <input type="hidden" name="document_convention_date" value="{{ old('document_convention_date') }}" x-ref="documentConventionDateInput">
                         </label>
-                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
-                            {{ $groupedAttachments['convention']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
-                        </div>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="documentSelectionLabels.convention || 'Nenhum arquivo selecionado'">Nenhum arquivo selecionado</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-cloak x-show="documentSelectionDates.convention" x-text="'Data do documento: ' + formatBrazilianDate(documentSelectionDates.convention)"></div>
                         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB.</p>
 
                         @if($groupedAttachments['convention']->count())
@@ -183,6 +183,13 @@
                                 @foreach($groupedAttachments['convention'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="mt-1 text-gray-500 dark:text-gray-400">
+                                            @if($attachment->document_date)
+                                                Data do documento: {{ $attachment->document_date->format('d/m/Y') }}
+                                            @else
+                                                Data do documento n&atilde;o informada
+                                            @endif
+                                        </div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
@@ -195,14 +202,14 @@
 
                     <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Regimento interno</label>
-                        <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                        <label @click.prevent="openDocumentModal('regiment')" @keydown.enter.prevent="openDocumentModal('regiment')" @keydown.space.prevent="openDocumentModal('regiment')" tabindex="0" role="button" class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar arquivo</span>
-                            <input type="file" name="document_regiment" class="sr-only" data-file-input>
+                            <input type="file" name="document_regiment" class="sr-only" x-ref="documentRegimentInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx">
+                            <input type="hidden" name="document_regiment_date" value="{{ old('document_regiment_date') }}" x-ref="documentRegimentDateInput">
                         </label>
-                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
-                            {{ $groupedAttachments['regiment']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
-                        </div>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="documentSelectionLabels.regiment || 'Nenhum arquivo selecionado'">Nenhum arquivo selecionado</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-cloak x-show="documentSelectionDates.regiment" x-text="'Data do documento: ' + formatBrazilianDate(documentSelectionDates.regiment)"></div>
                         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB.</p>
 
                         @if($groupedAttachments['regiment']->count())
@@ -210,6 +217,13 @@
                                 @foreach($groupedAttachments['regiment'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="mt-1 text-gray-500 dark:text-gray-400">
+                                            @if($attachment->document_date)
+                                                Data do documento: {{ $attachment->document_date->format('d/m/Y') }}
+                                            @else
+                                                Data do documento n&atilde;o informada
+                                            @endif
+                                        </div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
@@ -222,14 +236,14 @@
 
                     <div data-file-preview>
                         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">ATAs</label>
-                        <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                        <label @click.prevent="openDocumentModal('atas')" @keydown.enter.prevent="openDocumentModal('atas')" @keydown.space.prevent="openDocumentModal('atas')" tabindex="0" role="button" class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             <span>Selecionar um ou mais arquivos</span>
-                            <input type="file" name="document_atas[]" multiple class="sr-only" data-file-input data-multiple>
+                            <input type="file" name="document_atas[]" multiple class="sr-only" x-ref="documentAtasInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx">
+                            <input type="hidden" name="document_atas_date" value="{{ old('document_atas_date') }}" x-ref="documentAtasDateInput">
                         </label>
-                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" data-file-name>
-                            {{ $groupedAttachments['atas']->pluck('original_name')->implode(', ') ?: 'Nenhum arquivo selecionado' }}
-                        </div>
+                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="documentSelectionLabels.atas || 'Nenhum arquivo selecionado'">Nenhum arquivo selecionado</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-cloak x-show="documentSelectionDates.atas" x-text="'Data do documento: ' + formatBrazilianDate(documentSelectionDates.atas)"></div>
                         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">PDF, imagem ou Word até 20 MB por arquivo.</p>
 
                         @if($groupedAttachments['atas']->count())
@@ -237,6 +251,13 @@
                                 @foreach($groupedAttachments['atas'] as $attachment)
                                     <div class="rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-800">
                                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $attachment->original_name }}</div>
+                                        <div class="mt-1 text-gray-500 dark:text-gray-400">
+                                            @if($attachment->document_date)
+                                                Data do documento: {{ $attachment->document_date->format('d/m/Y') }}
+                                            @else
+                                                Data do documento n&atilde;o informada
+                                            @endif
+                                        </div>
                                         <div class="mt-2 flex gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
@@ -358,6 +379,50 @@
             @endif
         </div>
     </div>
+
+    <div x-cloak x-show="documentModal.open" @keydown.escape.window="closeDocumentModal()" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+        <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" @click="closeDocumentModal()"></div>
+
+        <div class="relative z-10 w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="documentModal.title"></h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Selecione o arquivo e informe a data do documento antes de confirmar.</p>
+                </div>
+
+                <button type="button" @click="closeDocumentModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="mt-6 space-y-4">
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300" x-text="documentModal.multiple ? 'Arquivos' : 'Arquivo'"></label>
+                    <input
+                        type="file"
+                        x-ref="documentModalFileInput"
+                        :multiple="documentModal.multiple"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                        class="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-500 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-600 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100"
+                        @change="updateDocumentModalFileLabel()"
+                    >
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400" x-text="documentModal.fileLabel || 'Nenhum arquivo selecionado'"></p>
+                </div>
+
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Data do documento</label>
+                    <input type="date" x-ref="documentModalDateInput" x-model="documentModal.date" class="{{ $fieldClass }}">
+                </div>
+
+                <div x-cloak x-show="documentModal.error" class="rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-800/50 dark:bg-error-500/10 dark:text-error-200" x-text="documentModal.error"></div>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" @click="closeDocumentModal()" class="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Cancelar</button>
+                <button type="button" @click="confirmDocumentModal()" class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600">Enviar</button>
+            </div>
+        </div>
+    </div>
 </form>
 
 @foreach($attachments as $attachment)
@@ -389,13 +454,188 @@
 function condominiumForm(initialState) {
     return {
         inactive: !!initialState.inactive,
+        documentSelectionLabels: {
+            convention: '',
+            regiment: '',
+            atas: '',
+        },
+        documentSelectionDates: {
+            convention: '',
+            regiment: '',
+            atas: '',
+        },
+        documentModal: {
+            open: false,
+            type: null,
+            title: '',
+            multiple: false,
+            date: '',
+            fileLabel: '',
+            error: '',
+        },
         init() {
             this.maskCnpj();
             this.maskMoney('boletoFeeAmount');
             this.maskMoney('boletoCancellationFeeAmount');
+            this.$watch('documentModal.open', (value) => {
+                document.body.style.overflow = value ? 'hidden' : 'unset';
+            });
         },
         onlyDigits(value) {
             return String(value || '').replace(/\D/g, '');
+        },
+        documentConfig(type) {
+            const configs = {
+                convention: {
+                    title: 'Enviar Convenção Condominial',
+                    multiple: false,
+                    inputRef: 'documentConventionInput',
+                    dateRef: 'documentConventionDateInput',
+                },
+                regiment: {
+                    title: 'Enviar Regimento Interno',
+                    multiple: false,
+                    inputRef: 'documentRegimentInput',
+                    dateRef: 'documentRegimentDateInput',
+                },
+                atas: {
+                    title: 'Enviar ATA',
+                    multiple: true,
+                    inputRef: 'documentAtasInput',
+                    dateRef: 'documentAtasDateInput',
+                },
+            };
+
+            return configs[type] || null;
+        },
+        openDocumentModal(type) {
+            const config = this.documentConfig(type);
+            if (!config) return;
+
+            const dateInput = this.$refs[config.dateRef];
+            this.documentModal.type = type;
+            this.documentModal.title = config.title;
+            this.documentModal.multiple = config.multiple;
+            this.documentModal.date = dateInput?.value || this.documentSelectionDates[type] || '';
+            this.documentModal.fileLabel = '';
+            this.documentModal.error = '';
+            this.documentModal.open = true;
+
+            this.$nextTick(() => {
+                const fileInput = this.$refs.documentModalFileInput;
+                const modalDateInput = this.$refs.documentModalDateInput;
+
+                if (fileInput) {
+                    fileInput.value = '';
+                    fileInput.setCustomValidity('');
+                }
+
+                if (modalDateInput) {
+                    modalDateInput.setCustomValidity('');
+                }
+            });
+        },
+        closeDocumentModal() {
+            this.documentModal.open = false;
+            this.documentModal.error = '';
+            this.documentModal.fileLabel = '';
+
+            if (this.$refs.documentModalFileInput) {
+                this.$refs.documentModalFileInput.value = '';
+                this.$refs.documentModalFileInput.setCustomValidity('');
+            }
+
+            if (this.$refs.documentModalDateInput) {
+                this.$refs.documentModalDateInput.setCustomValidity('');
+            }
+        },
+        updateDocumentModalFileLabel() {
+            const files = Array.from(this.$refs.documentModalFileInput?.files || []);
+            this.documentModal.fileLabel = files.length ? this.buildFileLabel(files) : '';
+            this.documentModal.error = '';
+
+            if (this.$refs.documentModalFileInput) {
+                this.$refs.documentModalFileInput.setCustomValidity('');
+            }
+        },
+        confirmDocumentModal() {
+            const config = this.documentConfig(this.documentModal.type);
+            if (!config) return;
+
+            const modalFileInput = this.$refs.documentModalFileInput;
+            const modalDateInput = this.$refs.documentModalDateInput;
+            const targetInput = this.$refs[config.inputRef];
+            const targetDateInput = this.$refs[config.dateRef];
+            const selectedFiles = Array.from(modalFileInput?.files || []);
+            const currentFiles = Array.from(targetInput?.files || []);
+            const files = selectedFiles.length ? selectedFiles : currentFiles;
+            const date = String(this.documentModal.date || '').trim();
+
+            if (!files.length) {
+                const message = config.multiple ? 'Selecione um ou mais arquivos.' : 'Selecione um arquivo.';
+                this.documentModal.error = message;
+                if (modalFileInput) {
+                    modalFileInput.setCustomValidity(message);
+                    modalFileInput.reportValidity();
+                }
+                return;
+            }
+
+            if (!date) {
+                const message = 'Informe a data do documento.';
+                this.documentModal.error = message;
+                if (modalDateInput) {
+                    modalDateInput.setCustomValidity(message);
+                    modalDateInput.reportValidity();
+                }
+                return;
+            }
+
+            if (modalFileInput) {
+                modalFileInput.setCustomValidity('');
+            }
+
+            if (modalDateInput) {
+                modalDateInput.setCustomValidity('');
+            }
+
+            if (selectedFiles.length) {
+                this.applyFilesToInput(modalFileInput, targetInput);
+            }
+
+            if (targetDateInput) {
+                targetDateInput.value = date;
+            }
+
+            this.documentSelectionLabels[this.documentModal.type] = this.buildFileLabel(files);
+            this.documentSelectionDates[this.documentModal.type] = date;
+            this.closeDocumentModal();
+        },
+        applyFilesToInput(sourceInput, targetInput) {
+            if (!sourceInput || !targetInput) return;
+
+            if (typeof DataTransfer === 'undefined') {
+                targetInput.files = sourceInput.files;
+                return;
+            }
+
+            const dataTransfer = new DataTransfer();
+            Array.from(sourceInput.files || []).forEach((file) => dataTransfer.items.add(file));
+            targetInput.files = dataTransfer.files;
+        },
+        buildFileLabel(files) {
+            return files.map((file) => file.name).join(', ');
+        },
+        formatBrazilianDate(value) {
+            const normalized = String(value || '').trim();
+            if (!normalized) return '';
+
+            const parts = normalized.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+
+            return normalized;
         },
         formatMoneyValue(value) {
             const digits = this.onlyDigits(value);

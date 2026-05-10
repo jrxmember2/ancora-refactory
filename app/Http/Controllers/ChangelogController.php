@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.88',
-            'date' => '09/05/2026',
-            'label' => 'v1.88 - 09/05/2026',
+            'version' => 'v1.89',
+            'date' => '10/05/2026',
+            'label' => 'v1.89 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Documentos do condominio passam a confirmar arquivo e data antes do envio final',
+                'items' => [
+                    'Os cards de Convencao condominial, Regimento interno e ATAs mantem a mesma estrutura visual, mas agora abrem um modal simples para confirmar arquivo e data do documento antes do submit principal do formulario.',
+                    'Os anexos especificos do condominio passam a persistir a data do documento em coluna dedicada de client_attachments, preservando download, exclusao e os prefixos ja usados no nome dos arquivos.',
+                    'A listagem de documentos ja anexados passa a exibir a data do documento em formato brasileiro e sinaliza de forma segura quando o registro antigo ainda nao possui essa informacao.',
+                ],
+            ],
+            [
+                'version' => 'v1.88',
+                'date' => '09/05/2026',
                 'title' => 'Branding do login e menu lateral refinados com historico consolidado no versionamento',
                 'items' => [
                     'O menu lateral recolhido passa a usar o mesmo favicon configurado no branding, substituindo o icone generico e reforcando a identidade visual do sistema.',

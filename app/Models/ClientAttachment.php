@@ -17,6 +17,7 @@ class ClientAttachment extends Model
     {
         return [
             'created_at' => 'datetime',
+            'document_date' => 'date',
         ];
     }
 
