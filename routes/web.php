@@ -121,6 +121,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
     Route::post('/meus-dados/tema', [UserProfileController::class, 'updateTheme'])->name('profile.theme');
 
     Route::get('/config', [ConfigController::class, 'index'])->name('config.index')->middleware(['ancora.superadmin', 'ancora.route:config.index']);
+    Route::get('/config/ia', [ConfigController::class, 'ai'])->name('config.ai.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.index']);
+    Route::post('/config/ia/save', [ConfigController::class, 'saveAi'])->name('config.ai.save')->middleware(['ancora.superadmin', 'ancora.route:config.ai.save']);
+    Route::post('/config/ia/test', [ConfigController::class, 'testAi'])->name('config.ai.test')->middleware(['ancora.superadmin', 'ancora.route:config.ai.test']);
     Route::get('/config/automacao/documentacao', [ConfigController::class, 'automationDocumentation'])->name('config.automation.documentation')->middleware(['ancora.superadmin', 'ancora.route:config.automation.documentation']);
     Route::post('/config/automacao/save', [ConfigController::class, 'saveAutomation'])->name('config.automation.save')->middleware(['ancora.superadmin', 'ancora.route:config.automation.save']);
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);

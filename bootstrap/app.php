@@ -34,5 +34,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->dontFlash([
+            'current_password',
+            'password',
+            'password_confirmation',
+            'openai_api_key',
+            'gemini_api_key',
+        ]);
     })->create();

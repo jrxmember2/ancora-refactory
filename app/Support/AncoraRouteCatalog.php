@@ -20,6 +20,9 @@ class AncoraRouteCatalog
                 'label' => 'Configuracoes',
                 'routes' => [
                     'config.index' => 'Acessar configuracoes',
+                    'config.ai.index' => 'Acessar configuracoes de Inteligencia Artificial',
+                    'config.ai.save' => 'Salvar configuracoes de Inteligencia Artificial',
+                    'config.ai.test' => 'Testar conexao da Inteligencia Artificial',
                     'config.automation.documentation' => 'Abrir documentacao da automacao WhatsApp',
                     'config.automation.save' => 'Salvar configuracao da automacao WhatsApp',
                     'config.branding.save' => 'Salvar branding',

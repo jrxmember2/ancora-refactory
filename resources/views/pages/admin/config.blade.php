@@ -285,6 +285,20 @@
                 </form>
             </div>
 
+            <div class="rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-5 shadow-theme-xs dark:border-brand-800 dark:bg-brand-500/5">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">Nova area</div>
+                        <h3 class="mt-2 text-base font-semibold text-gray-900 dark:text-white">Inteligencia Artificial</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure provedor ativo, chaves, modelos e o teste central de conexao da camada de IA.</p>
+                    </div>
+                    <a href="{{ route('config.ai.index') }}" class="{{ $softButtonClass }} inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>Abrir configuracao de IA</span>
+                    </a>
+                </div>
+            </div>
+
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="billing-smtp-section">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">SMTP de cobrança</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Usado no botão de solicitação de boleto dentro da OS. Pode apontar para uma caixa distinta da conta padrão do sistema.</p>

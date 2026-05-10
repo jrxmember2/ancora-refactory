@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.90',
+            'version' => 'v1.91',
             'date' => '10/05/2026',
-            'label' => 'v1.90 - 10/05/2026',
+            'label' => 'v1.91 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Configuracoes ganham area dedicada para Inteligencia Artificial com OpenAI e Gemini',
+                'items' => [
+                    'Nasce a area de Inteligencia Artificial dentro de Configuracoes, com controles centrais para ativacao da camada de IA, provedor principal, parametros globais, aviso juridico e link padrao de orcamento.',
+                    'OpenAI e Gemini passam a ser configurados com chaves mascaradas e criptografadas em app_settings, incluindo campos separados para status, modelo de chat e modelo de embedding opcional.',
+                    'A integracao tecnica passa a ser centralizada em AiService e providers dedicados via Laravel HTTP Client, com botao de teste de conexao usando o provedor ativo sem acoplar futuras funcionalidades diretamente aos vendors.',
+                ],
+            ],
+            [
+                'version' => 'v1.90',
+                'date' => '10/05/2026',
                 'title' => 'Deploy no EasyPanel passa a autocorrigir permissoes de storage e uploads na subida',
                 'items' => [
                     'A inicializacao do container agora recria diretórios críticos de cache, sessão, views compiladas e uploads persistentes antes de subir o Apache.',
