@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.91',
+            'version' => 'v1.92',
             'date' => '10/05/2026',
-            'label' => 'v1.91 - 10/05/2026',
+            'label' => 'v1.92 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Atalho da Inteligencia Artificial e reorganizado para a area de Demandas nas Configuracoes',
+                'items' => [
+                    'O acesso rapido para a configuracao de Inteligencia Artificial sai da aba Geral e passa a ficar no topo da area de Demandas, deixando a navegacao mais coerente com tags, SLA e automacoes futuras.',
+                    'O botao de IA agora aparece ao lado do atalho do kanban, mantendo a tela principal de Configuracoes mais limpa sem alterar qualquer comportamento tecnico da integracao.',
+                ],
+            ],
+            [
+                'version' => 'v1.91',
+                'date' => '10/05/2026',
                 'title' => 'Configuracoes ganham area dedicada para Inteligencia Artificial com OpenAI e Gemini',
                 'items' => [
                     'Nasce a area de Inteligencia Artificial dentro de Configuracoes, com controles centrais para ativacao da camada de IA, provedor principal, parametros globais, aviso juridico e link padrao de orcamento.',

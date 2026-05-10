@@ -5,10 +5,16 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Configuracao de Demandas</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Crie tags do kanban, mantenha os servicos usados em Demandas e Propostas e ajuste cores, SLA e visibilidade no Portal do Cliente.</p>
             </div>
-            <a href="{{ route('demandas.kanban') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
-                <i class="fa-solid fa-table-columns"></i>
-                <span>Abrir kanban</span>
-            </a>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <a href="{{ route('config.ai.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>Abrir configuracao de IA</span>
+                </a>
+                <a href="{{ route('demandas.kanban') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Abrir kanban</span>
+                </a>
+            </div>
         </div>
 
         <form method="post" action="{{ route('config.demand-tags.store') }}" class="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/40 p-4 dark:border-brand-800 dark:bg-brand-500/5">
