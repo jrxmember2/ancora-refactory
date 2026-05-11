@@ -12,12 +12,17 @@ class AiKnowledgeBaseService
     {
         return AiDocumentChunk::query()
             ->with('globalDocument')
-            ->where('origin', 'global')
+            ->where(function ($query) {
+                $query
+                    ->where('source_type', 'global_document')
+                    ->orWhere('origin', 'global');
+            })
             ->where('is_active', true)
             ->whereHas('globalDocument', function ($query) {
                 $query->where('is_active', true)->where('processing_status', 'processed');
             })
             ->orderBy('ai_global_document_id')
+            ->orderBy('chunk_index')
             ->orderBy('chunk_order')
             ->limit($limit)
             ->get();
@@ -27,9 +32,18 @@ class AiKnowledgeBaseService
     public function activeCondominiumChunks(int $condominiumId, int $limit = 60): Collection
     {
         return AiDocumentChunk::query()
-            ->where('origin', 'condominium')
-            ->where('condominium_id', $condominiumId)
+            ->where(function ($query) {
+                $query
+                    ->where('source_type', 'condominium_attachment')
+                    ->orWhere('origin', 'condominium');
+            })
+            ->where(function ($query) use ($condominiumId) {
+                $query
+                    ->where('client_condominium_id', $condominiumId)
+                    ->orWhere('condominium_id', $condominiumId);
+            })
             ->where('is_active', true)
+            ->orderBy('chunk_index')
             ->orderBy('chunk_order')
             ->limit($limit)
             ->get();
@@ -56,8 +70,8 @@ class AiKnowledgeBaseService
 
         return $chunks
             ->map(function (AiDocumentChunk $chunk): string {
-                $prefix = trim((string) $chunk->reference_label);
-                $text = trim((string) $chunk->chunk_text);
+                $prefix = trim($chunk->effectiveTitle());
+                $text = trim($chunk->effectiveContent());
 
                 return $prefix !== ''
                     ? '[' . $prefix . "]\n" . $text

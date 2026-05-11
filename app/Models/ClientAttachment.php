@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AiDocumentCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,49 @@ class ClientAttachment extends Model
         return [
             'created_at' => 'datetime',
             'document_date' => 'date',
+            'ai_processed_at' => 'datetime',
         ];
+    }
+
+    public function extension(): string
+    {
+        $candidate = trim((string) pathinfo((string) ($this->stored_name ?: $this->original_name ?: $this->relative_path), PATHINFO_EXTENSION));
+
+        return strtolower($candidate);
+    }
+
+    public function isDocx(): bool
+    {
+        return $this->extension() === 'docx';
+    }
+
+    public function condominiumDocumentKind(): ?string
+    {
+        if ($this->related_type !== 'condominium') {
+            return null;
+        }
+
+        return AiDocumentCatalog::classifyCondominiumAttachmentName((string) $this->original_name);
+    }
+
+    public function canProcessForAi(): bool
+    {
+        return $this->condominiumDocumentKind() !== null && $this->isDocx();
+    }
+
+    public function aiProcessingStatusKey(): ?string
+    {
+        $value = trim((string) $this->ai_processing_status);
+        if ($value !== '') {
+            return $value;
+        }
+
+        return $this->canProcessForAi() ? AiDocumentCatalog::STATUS_PENDING : null;
+    }
+
+    public function aiProcessingStatusLabel(): string
+    {
+        return AiDocumentCatalog::processingStatusLabel($this->aiProcessingStatusKey());
     }
 
     public function publicUrl(): string

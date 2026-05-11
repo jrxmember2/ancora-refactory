@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY composer.json composer.lock ./
-RUN if grep -q '"mpdf/mpdf"' composer.json; then \
+RUN if grep -q '"phpoffice/phpword"' composer.json; then \
+        composer update mpdf/mpdf phpoffice/phpword --with-all-dependencies --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts; \
+    elif grep -q '"mpdf/mpdf"' composer.json; then \
         composer update mpdf/mpdf --with-all-dependencies --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts; \
     else \
         composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts; \

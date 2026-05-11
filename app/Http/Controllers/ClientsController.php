@@ -13,6 +13,8 @@ use App\Models\ClientUnitPartyHistory;
 use App\Models\Contract;
 use App\Models\CobrancaCase;
 use App\Models\AuditLog;
+use App\Services\Ai\AiCondominiumAttachmentProcessor;
+use App\Support\AiDocumentCatalog;
 use App\Support\AncoraAuth;
 use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
@@ -759,6 +761,18 @@ class ClientsController extends Controller
 
             if ($supportsDocumentDate) {
                 $payload['document_date'] = $normalizedDocumentDate;
+            }
+
+            if ($this->clientAttachmentSupportsAiProcessingColumns()) {
+                $documentKind = $relatedType === 'condominium'
+                    ? AiDocumentCatalog::classifyCondominiumAttachmentName($originalName)
+                    : null;
+
+                if ($documentKind !== null && $ext === 'docx') {
+                    $payload['ai_processing_status'] = AiDocumentCatalog::STATUS_PENDING;
+                    $payload['ai_processing_error'] = null;
+                    $payload['ai_processed_at'] = null;
+                }
             }
 
             ClientAttachment::query()->create($payload);
@@ -1630,12 +1644,29 @@ class ClientsController extends Controller
     public function attachmentDelete(ClientAttachment $attachment): RedirectResponse
     {
         $redirect = $this->attachmentReturnRedirect($attachment);
+        app(AiCondominiumAttachmentProcessor::class)->deactivateChunksForAttachment($attachment);
         $path = $attachment->absolutePath();
         if (is_string($path) && is_file($path)) {
             @unlink($path);
         }
         $attachment->delete();
         return $redirect->with('success', 'Anexo removido com sucesso.');
+    }
+
+    public function attachmentProcessAi(ClientAttachment $attachment, AiCondominiumAttachmentProcessor $processor): RedirectResponse
+    {
+        $redirect = $this->attachmentReturnRedirect($attachment);
+
+        try {
+            $result = $processor->process($attachment);
+        } catch (\Throwable $exception) {
+            return $redirect->with('error', 'Nao foi possivel processar este anexo para IA agora: ' . trim($exception->getMessage()));
+        }
+
+        return $redirect->with(
+            'success',
+            'Documento processado para IA com sucesso. ' . number_format((int) $result['chunks'], 0, ',', '.') . ' blocos pesquisaveis foram gerados.'
+        );
     }
 
     private function attachmentReturnRedirect(ClientAttachment $attachment): RedirectResponse
@@ -1731,6 +1762,25 @@ class ClientsController extends Controller
         }
 
         return $hasColumn;
+    }
+
+    private function clientAttachmentSupportsAiProcessingColumns(): bool
+    {
+        static $supportsColumns = null;
+
+        if ($supportsColumns !== null) {
+            return $supportsColumns;
+        }
+
+        try {
+            $supportsColumns = Schema::hasColumn('client_attachments', 'ai_processing_status')
+                && Schema::hasColumn('client_attachments', 'ai_processing_error')
+                && Schema::hasColumn('client_attachments', 'ai_processed_at');
+        } catch (\Throwable) {
+            $supportsColumns = false;
+        }
+
+        return $supportsColumns;
     }
 
     private function syncBlocks(ClientCondominium $condo, ?string $blocksText): void

@@ -1557,10 +1557,20 @@ class ConfigController extends Controller
 
     private function syncAiGlobalDocumentChunksMetadata(AiGlobalDocument $document): void
     {
-        $document->chunks()->update([
+        $payload = [
             'source_document_type' => (string) $document->document_type,
             'is_active' => (bool) $document->is_active,
-        ]);
+        ];
+
+        if (Schema::hasColumn('ai_document_chunks', 'document_kind')) {
+            $payload['document_kind'] = (string) $document->document_type;
+        }
+
+        if (Schema::hasColumn('ai_document_chunks', 'document_date')) {
+            $payload['document_date'] = $document->document_date?->toDateString();
+        }
+
+        $document->chunks()->update($payload);
     }
 
     private function setMany(array $items): void

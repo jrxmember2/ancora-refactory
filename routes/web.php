@@ -440,6 +440,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/config/types/store', [ClientsController::class, 'configTypeStore'])->name('clientes.config.types.store')->middleware('ancora.route:clientes.config.types.store');
 
         Route::get('/anexos/{attachment}/download', [ClientsController::class, 'attachmentDownload'])->name('clientes.attachments.download')->middleware('ancora.route:clientes.attachments.download');
+        Route::post('/anexos/{attachment}/processar-ia', [ClientsController::class, 'attachmentProcessAi'])->name('clientes.attachments.ai.process')->middleware('ancora.route:clientes.condominios.update');
         Route::match(['post', 'delete'], '/anexos/{attachment}', [ClientsController::class, 'attachmentDelete'])->name('clientes.attachments.delete')->middleware('ancora.route:clientes.attachments.delete');
     });
 

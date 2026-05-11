@@ -3,14 +3,17 @@
 namespace App\Services\Ai\Knowledge;
 
 use App\Models\AiGlobalDocument;
+use App\Services\Ai\DocumentChunker;
+use App\Services\Ai\DocumentTextExtractor;
+use App\Support\AiDocumentCatalog;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class AiGlobalDocumentProcessor
 {
     public function __construct(
-        private readonly DocxTextExtractor $extractor,
-        private readonly AiTextChunker $chunker,
+        private readonly DocumentTextExtractor $extractor,
+        private readonly DocumentChunker $chunker,
     ) {
     }
 
@@ -48,11 +51,17 @@ class AiGlobalDocumentProcessor
                 foreach ($chunks as $chunk) {
                     $document->chunks()->create([
                         'origin' => 'global',
-                        'source_type' => 'global_document',
+                        'source_type' => AiDocumentCatalog::SOURCE_GLOBAL_DOCUMENT,
                         'source_document_type' => (string) $document->document_type,
-                        'chunk_order' => (int) $chunk['chunk_order'],
+                        'chunk_order' => (int) $chunk['chunk_index'],
                         'reference_label' => $chunk['reference_label'],
-                        'chunk_text' => $chunk['chunk_text'],
+                        'chunk_text' => $chunk['content'],
+                        'document_kind' => (string) $document->document_type,
+                        'document_date' => $document->document_date?->toDateString(),
+                        'chunk_index' => (int) $chunk['chunk_index'],
+                        'title' => $chunk['title'],
+                        'content' => $chunk['content'],
+                        'searchable_content' => $chunk['searchable_content'],
                         'is_active' => (bool) $document->is_active,
                     ]);
                 }

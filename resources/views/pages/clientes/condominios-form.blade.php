@@ -12,14 +12,10 @@
         ?? request()->route('condominio');
 
     $groupedAttachments = [
-        'convention' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'Convenção condominial -')),
-        'regiment' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'Regimento interno -')),
-        'atas' => $attachments->filter(fn ($attachment) => str_starts_with($attachment->original_name, 'ATA -')),
-        'others' => $attachments->reject(fn ($attachment) =>
-            str_starts_with($attachment->original_name, 'Convenção condominial -')
-            || str_starts_with($attachment->original_name, 'Regimento interno -')
-            || str_starts_with($attachment->original_name, 'ATA -')
-        ),
+        'convention' => $attachments->filter(fn ($attachment) => $attachment->condominiumDocumentKind() === 'convention'),
+        'regiment' => $attachments->filter(fn ($attachment) => $attachment->condominiumDocumentKind() === 'regiment'),
+        'atas' => $attachments->filter(fn ($attachment) => $attachment->condominiumDocumentKind() === 'ata'),
+        'others' => $attachments->reject(fn ($attachment) => in_array($attachment->condominiumDocumentKind(), ['convention', 'regiment', 'ata'], true)),
     ];
 
     $fieldClass = 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-800 placeholder:text-gray-400 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100 dark:placeholder:text-gray-500';
@@ -190,8 +186,46 @@
                                                 Data do documento n&atilde;o informada
                                             @endif
                                         </div>
-                                        <div class="mt-2 flex gap-2">
+                                        @php
+                                            $aiStatusKey = $attachment->aiProcessingStatusKey();
+                                            $isAiCandidate = $attachment->condominiumDocumentKind() !== null;
+                                            $canProcessAi = $attachment->canProcessForAi();
+                                            $aiStatusClasses = match($aiStatusKey) {
+                                                'processed' => 'bg-success-100 text-success-700 dark:bg-success-500/15 dark:text-success-300',
+                                                'error' => 'bg-error-100 text-error-700 dark:bg-error-500/15 dark:text-error-300',
+                                                default => 'bg-warning-100 text-warning-700 dark:bg-warning-500/15 dark:text-warning-300',
+                                            };
+                                        @endphp
+                                        @if($isAiCandidate)
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                                <span class="rounded-full px-2.5 py-1 font-semibold {{ $canProcessAi ? $aiStatusClasses : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }}">
+                                                    {{ $canProcessAi ? $attachment->aiProcessingStatusLabel() : 'Sem processamento' }}
+                                                </span>
+                                                @if($attachment->ai_processed_at)
+                                                    <span class="text-gray-500 dark:text-gray-400">Ultimo processamento: {{ $attachment->ai_processed_at->format('d/m/Y H:i') }}</span>
+                                                @elseif($canProcessAi)
+                                                    <span class="text-gray-500 dark:text-gray-400">Aguardando processamento para IA</span>
+                                                @else
+                                                    <span class="text-gray-500 dark:text-gray-400">Nesta fase, somente DOCX entra no processamento de IA.</span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                        @if($attachment->ai_processing_error)
+                                            <div class="mt-2 rounded-lg border border-error-200 bg-error-50 px-2.5 py-2 text-[11px] text-error-700 dark:border-error-900/40 dark:bg-error-500/10 dark:text-error-300">
+                                                {{ $attachment->ai_processing_error }}
+                                            </div>
+                                        @endif
+                                        <div class="mt-2 flex flex-wrap gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
+                                            @if($canProcessAi)
+                                                <button type="submit" form="attachment-ai-process-{{ $attachment->id }}" class="rounded-md border border-brand-300 px-2 py-1 text-brand-600 dark:border-brand-700 dark:text-brand-300">
+                                                    {{ $aiStatusKey === 'processed' ? 'Reprocessar IA' : 'Processar para IA' }}
+                                                </button>
+                                            @elseif($isAiCandidate)
+                                                <button type="button" disabled class="cursor-not-allowed rounded-md border border-gray-200 px-2 py-1 text-gray-400 dark:border-gray-700 dark:text-gray-500">
+                                                    Somente DOCX
+                                                </button>
+                                            @endif
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
@@ -224,8 +258,46 @@
                                                 Data do documento n&atilde;o informada
                                             @endif
                                         </div>
-                                        <div class="mt-2 flex gap-2">
+                                        @php
+                                            $aiStatusKey = $attachment->aiProcessingStatusKey();
+                                            $isAiCandidate = $attachment->condominiumDocumentKind() !== null;
+                                            $canProcessAi = $attachment->canProcessForAi();
+                                            $aiStatusClasses = match($aiStatusKey) {
+                                                'processed' => 'bg-success-100 text-success-700 dark:bg-success-500/15 dark:text-success-300',
+                                                'error' => 'bg-error-100 text-error-700 dark:bg-error-500/15 dark:text-error-300',
+                                                default => 'bg-warning-100 text-warning-700 dark:bg-warning-500/15 dark:text-warning-300',
+                                            };
+                                        @endphp
+                                        @if($isAiCandidate)
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                                <span class="rounded-full px-2.5 py-1 font-semibold {{ $canProcessAi ? $aiStatusClasses : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }}">
+                                                    {{ $canProcessAi ? $attachment->aiProcessingStatusLabel() : 'Sem processamento' }}
+                                                </span>
+                                                @if($attachment->ai_processed_at)
+                                                    <span class="text-gray-500 dark:text-gray-400">Ultimo processamento: {{ $attachment->ai_processed_at->format('d/m/Y H:i') }}</span>
+                                                @elseif($canProcessAi)
+                                                    <span class="text-gray-500 dark:text-gray-400">Aguardando processamento para IA</span>
+                                                @else
+                                                    <span class="text-gray-500 dark:text-gray-400">Nesta fase, somente DOCX entra no processamento de IA.</span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                        @if($attachment->ai_processing_error)
+                                            <div class="mt-2 rounded-lg border border-error-200 bg-error-50 px-2.5 py-2 text-[11px] text-error-700 dark:border-error-900/40 dark:bg-error-500/10 dark:text-error-300">
+                                                {{ $attachment->ai_processing_error }}
+                                            </div>
+                                        @endif
+                                        <div class="mt-2 flex flex-wrap gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
+                                            @if($canProcessAi)
+                                                <button type="submit" form="attachment-ai-process-{{ $attachment->id }}" class="rounded-md border border-brand-300 px-2 py-1 text-brand-600 dark:border-brand-700 dark:text-brand-300">
+                                                    {{ $aiStatusKey === 'processed' ? 'Reprocessar IA' : 'Processar para IA' }}
+                                                </button>
+                                            @elseif($isAiCandidate)
+                                                <button type="button" disabled class="cursor-not-allowed rounded-md border border-gray-200 px-2 py-1 text-gray-400 dark:border-gray-700 dark:text-gray-500">
+                                                    Somente DOCX
+                                                </button>
+                                            @endif
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
@@ -258,8 +330,46 @@
                                                 Data do documento n&atilde;o informada
                                             @endif
                                         </div>
-                                        <div class="mt-2 flex gap-2">
+                                        @php
+                                            $aiStatusKey = $attachment->aiProcessingStatusKey();
+                                            $isAiCandidate = $attachment->condominiumDocumentKind() !== null;
+                                            $canProcessAi = $attachment->canProcessForAi();
+                                            $aiStatusClasses = match($aiStatusKey) {
+                                                'processed' => 'bg-success-100 text-success-700 dark:bg-success-500/15 dark:text-success-300',
+                                                'error' => 'bg-error-100 text-error-700 dark:bg-error-500/15 dark:text-error-300',
+                                                default => 'bg-warning-100 text-warning-700 dark:bg-warning-500/15 dark:text-warning-300',
+                                            };
+                                        @endphp
+                                        @if($isAiCandidate)
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                                <span class="rounded-full px-2.5 py-1 font-semibold {{ $canProcessAi ? $aiStatusClasses : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' }}">
+                                                    {{ $canProcessAi ? $attachment->aiProcessingStatusLabel() : 'Sem processamento' }}
+                                                </span>
+                                                @if($attachment->ai_processed_at)
+                                                    <span class="text-gray-500 dark:text-gray-400">Ultimo processamento: {{ $attachment->ai_processed_at->format('d/m/Y H:i') }}</span>
+                                                @elseif($canProcessAi)
+                                                    <span class="text-gray-500 dark:text-gray-400">Aguardando processamento para IA</span>
+                                                @else
+                                                    <span class="text-gray-500 dark:text-gray-400">Nesta fase, somente DOCX entra no processamento de IA.</span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                        @if($attachment->ai_processing_error)
+                                            <div class="mt-2 rounded-lg border border-error-200 bg-error-50 px-2.5 py-2 text-[11px] text-error-700 dark:border-error-900/40 dark:bg-error-500/10 dark:text-error-300">
+                                                {{ $attachment->ai_processing_error }}
+                                            </div>
+                                        @endif
+                                        <div class="mt-2 flex flex-wrap gap-2">
                                             <a href="{{ route('clientes.attachments.download', $attachment) }}" class="rounded-md bg-brand-500 px-2 py-1 text-white">Baixar</a>
+                                            @if($canProcessAi)
+                                                <button type="submit" form="attachment-ai-process-{{ $attachment->id }}" class="rounded-md border border-brand-300 px-2 py-1 text-brand-600 dark:border-brand-700 dark:text-brand-300">
+                                                    {{ $aiStatusKey === 'processed' ? 'Reprocessar IA' : 'Processar para IA' }}
+                                                </button>
+                                            @elseif($isAiCandidate)
+                                                <button type="button" disabled class="cursor-not-allowed rounded-md border border-gray-200 px-2 py-1 text-gray-400 dark:border-gray-700 dark:text-gray-500">
+                                                    Somente DOCX
+                                                </button>
+                                            @endif
                                             <button type="submit" form="attachment-delete-{{ $attachment->id }}" onclick="return confirm('Excluir este anexo?')" class="rounded-md border border-error-300 px-2 py-1 text-error-600 dark:text-error-300">Excluir</button>
                                         </div>
                                     </div>
@@ -429,6 +539,12 @@
     <form id="attachment-delete-{{ $attachment->id }}" method="post" action="{{ route('clientes.attachments.delete', $attachment) }}" class="hidden">
         @csrf
         @method('DELETE')
+    </form>
+@endforeach
+
+@foreach($attachments->filter(fn ($attachment) => $attachment->canProcessForAi()) as $attachment)
+    <form id="attachment-ai-process-{{ $attachment->id }}" method="post" action="{{ route('clientes.attachments.ai.process', $attachment) }}" class="hidden">
+        @csrf
     </form>
 @endforeach
 

@@ -9,15 +9,34 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.99',
-            'date' => '10/05/2026',
-            'label' => 'v1.99 - 10/05/2026',
+            'version' => 'v2.01',
+            'date' => '11/05/2026',
+            'label' => 'v2.01 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Fechamento do lock de dependencias da leitura DOCX para IA',
+                'items' => [
+                    'O composer.lock passa a refletir oficialmente a entrada de phpoffice/phpword e suas dependencias relacionadas, reduzindo divergencia entre o codigo versionado e o build realizado no EasyPanel.',
+                    'A fase de processamento DOCX dos documentos de condominio fica mais consistente para deploy, mantendo o ajuste do Dockerfile como contingencia segura para ambientes que ainda publiquem sem lock renovado localmente.',
+                ],
+            ],
+            [
+                'version' => 'v2.00',
+                'date' => '10/05/2026',
+                'title' => 'Condomínios ganham processamento DOCX para IA com blocos pesquisáveis e busca textual inicial',
+                'items' => [
+                    'Os documentos estruturados do condomínio passam a poder ser processados individualmente para IA direto nos cards de Convenção, Regimento e ATA, com status visível, reprocessamento e preservação do fluxo atual de upload, download e exclusão.',
+                    'A base de chunks de IA evolui de forma incremental para aceitar origem por anexo de condomínio, metadados de tipo e data do documento, conteúdo pesquisável e compatibilidade com a Base Legal Global já implantada.',
+                    'A fundação técnica do futuro Chat do Síndico passa a contar com extração DOCX centralizada, chunking genérico e busca textual simples priorizando condomínio, Convenção e Regimento antes de ATAs e da base global.',
+                ],
+            ],
+            [
+                'version' => 'v1.99',
+                'date' => '10/05/2026',
                 'title' => 'Hotfix do extrator DOCX da Base Legal Global para documentos menos padronizados',
                 'items' => [
                     'O processamento de DOCX da Base Legal Global passa a ler tambem comentarios, cabecalhos e rodapes do Word, aumentando a tolerancia com arquivos gerados por editores e conversores diferentes.',

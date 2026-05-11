@@ -41,6 +41,7 @@ class AuditLogPresenter
             'clientes.unidades.import.execute' => 'Importou unidades',
             'clientes.unidades.bulk-delete' => 'Excluiu unidades em massa',
             'clientes.config.types.store' => 'Criou configuração de cliente',
+            'clientes.attachments.ai.process' => 'Processou anexo de cliente para IA',
             'clientes.attachments.delete' => 'Excluiu anexo de cliente',
 
             'cobrancas.store' => 'Criou OS de cobrança',
