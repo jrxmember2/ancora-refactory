@@ -8,20 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('ai_document_chunks')) {
+            Schema::drop('ai_document_chunks');
+        }
+
         Schema::create('ai_document_chunks', function (Blueprint $table) {
             $table->id();
             $table->string('origin', 30);
             $table->string('source_type', 40)->nullable();
             $table->string('source_document_type', 40)->nullable();
             $table->foreignId('ai_global_document_id')->nullable()->constrained('ai_global_documents')->cascadeOnDelete();
-            $table->foreignId('client_attachment_id')->nullable()->constrained('client_attachments')->nullOnDelete();
-            $table->foreignId('condominium_id')->nullable()->constrained('client_condominiums')->nullOnDelete();
+            $table->unsignedInteger('client_attachment_id')->nullable();
+            $table->unsignedInteger('condominium_id')->nullable();
             $table->unsignedInteger('chunk_order')->default(1);
             $table->string('reference_label', 255)->nullable();
             $table->longText('chunk_text');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
+            $table->foreign('client_attachment_id', 'fk_ai_chunks_client_attachment')
+                ->references('id')->on('client_attachments')->nullOnDelete();
+            $table->foreign('condominium_id', 'fk_ai_chunks_condominium')
+                ->references('id')->on('client_condominiums')->nullOnDelete();
             $table->index(['origin', 'is_active']);
             $table->index(['ai_global_document_id', 'chunk_order']);
             $table->index(['condominium_id', 'origin', 'is_active']);

@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.96',
+            'version' => 'v1.97',
             'date' => '10/05/2026',
-            'label' => 'v1.96 - 10/05/2026',
+            'label' => 'v1.97 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix da migration de blocos de IA para compatibilidade com tabelas legadas de clientes',
+                'items' => [
+                    'A migration de ai_document_chunks deixa de usar foreignId para apontar client_attachments e client_condominiums, porque essas tabelas antigas usam chaves INT UNSIGNED em vez de BIGINT.',
+                    'O ajuste evita erro 3780 no MySQL durante o deploy da Base Legal Global e preserva compatibilidade com a estrutura real ja existente do modulo Clientes.',
+                ],
+            ],
+            [
+                'version' => 'v1.96',
+                'date' => '10/05/2026',
                 'title' => 'Base Legal Global nasce dentro da configuracao de IA com upload, processamento DOCX e blocos compartilhados',
                 'items' => [
                     'Configuracoes > Inteligencia Artificial ganha a nova area Base Legal Global para cadastrar documentos juridicos compartilhados, como Codigo Civil, com metadados, status, observacoes e ativacao individual.',
