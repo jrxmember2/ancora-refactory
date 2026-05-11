@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.98',
+            'version' => 'v1.99',
             'date' => '10/05/2026',
-            'label' => 'v1.98 - 10/05/2026',
+            'label' => 'v1.99 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix do extrator DOCX da Base Legal Global para documentos menos padronizados',
+                'items' => [
+                    'O processamento de DOCX da Base Legal Global passa a ler tambem comentarios, cabecalhos e rodapes do Word, aumentando a tolerancia com arquivos gerados por editores e conversores diferentes.',
+                    'Quando o XML interno do DOCX nao vier no formato mais amigavel ao parser estruturado, o sistema agora tenta um fallback bruto de limpeza de tags para recuperar o texto antes de desistir do processamento.',
+                ],
+            ],
+            [
+                'version' => 'v1.98',
+                'date' => '10/05/2026',
                 'title' => 'Hotfix final da migration de blocos de IA alinhado ao SQL legado real de clientes',
                 'items' => [
                     'A migration de ai_document_chunks passa a usar colunas INT assinadas para client_attachment_id e condominium_id, refletindo a estrutura real dos dumps e bancos legados do Ancora.',
