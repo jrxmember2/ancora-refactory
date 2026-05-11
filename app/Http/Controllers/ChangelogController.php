@@ -9,15 +9,35 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.93',
+            'version' => 'v1.95',
             'date' => '10/05/2026',
-            'label' => 'v1.93 - 10/05/2026',
+            'label' => 'v1.95 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Configuracao de IA passa a guiar melhor o usuario comum e refina catalogos oficiais',
+                'items' => [
+                    'A tela de IA reforca a UX para uso real: help tips em todos os campos principais, lista de modelos ordenada do mais basico ao mais forte, mensagem explicita de provedor unico e comportamento visual ativo/inativo mais claro.',
+                    'Os catalogos passam a refletir melhor os modelos oficiais atuais usados no produto, incluindo Gemini 3 e Gemini Embedding 2, sem misturar opcoes de audio, live ou image-only dentro de um fluxo pensado para chat textual do Portal.',
+                    'A configuracao de temperatura ganha aviso especifico para a familia Gemini 3, cuja documentacao recomenda manter o valor padrao em 1,0, enquanto o Portal continua sugerindo 0,20 como default juridico mais controlado.',
+                ],
+            ],
+            [
+                'version' => 'v1.94',
+                'date' => '10/05/2026',
+                'title' => 'Configuracao de IA fica mais guiada, segura e dificil de preencher errado',
+                'items' => [
+                    'A tela de Inteligencia Artificial ganha presets de temperatura, orientacao visual de limites de tokens, explicacoes por campo com ajuda contextual e defaults mais aderentes ao uso real do Portal do Cliente.',
+                    'OpenAI e Gemini passam a usar dropdowns fechados com modelos oficiais atuais mapeados em catalogo central, incluindo modelos de embedding e limites maximos por modelo para reduzir erro operacional.',
+                    'A regra de provedor unico fica explicita na interface: apenas um provedor pode ficar ativo por vez, com status visual ativo/inativo e salvamento coerente no backend.',
+                ],
+            ],
+            [
+                'version' => 'v1.93',
+                'date' => '10/05/2026',
                 'title' => 'Configuracoes ganham aba dedicada de Inteligencia Artificial na navegacao superior',
                 'items' => [
                     'O acesso da Inteligencia Artificial deixa de aparecer dentro da area de Demandas e passa a ocupar um espaco proprio na faixa superior de Configuracoes, ao lado de Geral, Catalogos, Demandas e Usuarios e acesso.',

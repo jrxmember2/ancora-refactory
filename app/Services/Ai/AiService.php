@@ -6,6 +6,7 @@ use App\Models\AppSetting;
 use App\Services\Ai\Providers\AiProviderInterface;
 use App\Services\Ai\Providers\GeminiProvider;
 use App\Services\Ai\Providers\OpenAiProvider;
+use App\Support\AiProviderCatalog;
 
 class AiService
 {
@@ -98,24 +99,25 @@ class AiService
 
     public function settings(?array $overrides = null): array
     {
+        $defaults = AiProviderCatalog::defaults();
         $base = [
             'ai_enabled' => AppSetting::getValue('ai_enabled', '0') === '1',
             'ai_active_provider' => $this->normalizeProvider(AppSetting::getValue('ai_active_provider', 'openai')),
-            'ai_default_temperature' => $this->toFloat(AppSetting::getValue('ai_default_temperature', '0.2'), 0.2),
-            'ai_default_max_tokens' => $this->toInt(AppSetting::getValue('ai_default_max_tokens', '1024'), 1024),
-            'ai_default_system_prompt' => (string) AppSetting::getValue('ai_default_system_prompt', ''),
-            'ai_default_legal_notice' => (string) AppSetting::getValue('ai_default_legal_notice', ''),
-            'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', ''),
+            'ai_default_temperature' => $this->toFloat(AppSetting::getValue('ai_default_temperature', $defaults['ai_default_temperature']), (float) $defaults['ai_default_temperature']),
+            'ai_default_max_tokens' => $this->toInt(AppSetting::getValue('ai_default_max_tokens', $defaults['ai_default_max_tokens']), (int) $defaults['ai_default_max_tokens']),
+            'ai_default_system_prompt' => (string) AppSetting::getValue('ai_default_system_prompt', $defaults['ai_default_system_prompt']),
+            'ai_default_legal_notice' => (string) AppSetting::getValue('ai_default_legal_notice', $defaults['ai_default_legal_notice']),
+            'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', $defaults['ai_default_budget_request_url']),
             'ai_old_document_alert_enabled' => AppSetting::getValue('ai_old_document_alert_enabled', '1') === '1',
-            'ai_old_document_alert_years' => $this->toInt(AppSetting::getValue('ai_old_document_alert_years', '5'), 5),
+            'ai_old_document_alert_years' => $this->toInt(AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years']), (int) $defaults['ai_old_document_alert_years']),
             'openai_enabled' => AppSetting::getValue('ai_openai_enabled', '1') === '1',
             'openai_api_key' => (string) AppSetting::getDecryptedValue('ai_openai_api_key', ''),
-            'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', 'gpt-4.1-mini'),
-            'openai_embedding_model' => (string) AppSetting::getValue('ai_openai_embedding_model', ''),
+            'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', $defaults['openai_chat_model']),
+            'openai_embedding_model' => (string) AppSetting::getValue('ai_openai_embedding_model', $defaults['openai_embedding_model']),
             'gemini_enabled' => AppSetting::getValue('ai_gemini_enabled', '1') === '1',
             'gemini_api_key' => (string) AppSetting::getDecryptedValue('ai_gemini_api_key', ''),
-            'gemini_chat_model' => (string) AppSetting::getValue('ai_gemini_chat_model', 'gemini-2.5-flash'),
-            'gemini_embedding_model' => (string) AppSetting::getValue('ai_gemini_embedding_model', ''),
+            'gemini_chat_model' => (string) AppSetting::getValue('ai_gemini_chat_model', $defaults['gemini_chat_model']),
+            'gemini_embedding_model' => (string) AppSetting::getValue('ai_gemini_embedding_model', $defaults['gemini_embedding_model']),
         ];
 
         if (!$overrides) {

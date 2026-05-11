@@ -19,6 +19,7 @@ use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
 use App\Support\AncoraRouteCatalog;
 use App\Support\AncoraSettings;
+use App\Support\AiProviderCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -108,6 +109,20 @@ class ConfigController extends Controller
         return view('pages.admin.config-ai', [
             'title' => 'Inteligencia Artificial',
             'settings' => $this->aiSettingsForView(),
+            'catalog' => [
+                'defaults' => AiProviderCatalog::defaults(),
+                'tooltips' => AiProviderCatalog::tooltips(),
+                'temperature_min' => AiProviderCatalog::temperatureMin(),
+                'temperature_max' => AiProviderCatalog::temperatureMax(),
+                'temperature_step' => AiProviderCatalog::temperatureStep(),
+                'temperature_presets' => AiProviderCatalog::temperaturePresets(),
+                'token_min' => AiProviderCatalog::tokenMin(),
+                'token_presets' => AiProviderCatalog::tokenPresets(),
+                'openai_chat_models' => AiProviderCatalog::openAiChatModels(),
+                'gemini_chat_models' => AiProviderCatalog::geminiChatModels(),
+                'openai_embedding_models' => AiProviderCatalog::openAiEmbeddingModels(),
+                'gemini_embedding_models' => AiProviderCatalog::geminiEmbeddingModels(),
+            ],
         ]);
     }
 
@@ -1197,27 +1212,28 @@ class ConfigController extends Controller
 
     private function aiSettingsForView(): array
     {
+        $defaults = AiProviderCatalog::defaults();
         $openAiKey = AppSetting::getDecryptedValue('ai_openai_api_key', '');
         $geminiKey = AppSetting::getDecryptedValue('ai_gemini_api_key', '');
 
         return [
             'ai_enabled' => AppSetting::getValue('ai_enabled', '0') === '1',
             'ai_active_provider' => trim((string) AppSetting::getValue('ai_active_provider', 'openai')) === 'gemini' ? 'gemini' : 'openai',
-            'ai_default_temperature' => (string) AppSetting::getValue('ai_default_temperature', '0.2'),
-            'ai_default_max_tokens' => (string) AppSetting::getValue('ai_default_max_tokens', '1024'),
-            'ai_default_system_prompt' => (string) AppSetting::getValue('ai_default_system_prompt', ''),
-            'ai_default_legal_notice' => (string) AppSetting::getValue('ai_default_legal_notice', ''),
-            'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', ''),
+            'ai_default_temperature' => (string) AppSetting::getValue('ai_default_temperature', $defaults['ai_default_temperature']),
+            'ai_default_max_tokens' => (string) AppSetting::getValue('ai_default_max_tokens', $defaults['ai_default_max_tokens']),
+            'ai_default_system_prompt' => (string) AppSetting::getValue('ai_default_system_prompt', $defaults['ai_default_system_prompt']),
+            'ai_default_legal_notice' => (string) AppSetting::getValue('ai_default_legal_notice', $defaults['ai_default_legal_notice']),
+            'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', $defaults['ai_default_budget_request_url']),
             'ai_old_document_alert_enabled' => AppSetting::getValue('ai_old_document_alert_enabled', '1') === '1',
-            'ai_old_document_alert_years' => (string) AppSetting::getValue('ai_old_document_alert_years', '5'),
+            'ai_old_document_alert_years' => (string) AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years']),
             'openai_enabled' => AppSetting::getValue('ai_openai_enabled', '1') === '1',
-            'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', 'gpt-4.1-mini'),
-            'openai_embedding_model' => (string) AppSetting::getValue('ai_openai_embedding_model', ''),
+            'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', $defaults['openai_chat_model']),
+            'openai_embedding_model' => (string) AppSetting::getValue('ai_openai_embedding_model', $defaults['openai_embedding_model']),
             'openai_api_key_masked' => $this->maskSecretValue($openAiKey),
             'openai_has_api_key' => trim($openAiKey) !== '',
             'gemini_enabled' => AppSetting::getValue('ai_gemini_enabled', '1') === '1',
-            'gemini_chat_model' => (string) AppSetting::getValue('ai_gemini_chat_model', 'gemini-2.5-flash'),
-            'gemini_embedding_model' => (string) AppSetting::getValue('ai_gemini_embedding_model', ''),
+            'gemini_chat_model' => (string) AppSetting::getValue('ai_gemini_chat_model', $defaults['gemini_chat_model']),
+            'gemini_embedding_model' => (string) AppSetting::getValue('ai_gemini_embedding_model', $defaults['gemini_embedding_model']),
             'gemini_api_key_masked' => $this->maskSecretValue($geminiKey),
             'gemini_has_api_key' => trim($geminiKey) !== '',
         ];
@@ -1228,26 +1244,25 @@ class ConfigController extends Controller
         return [
             'ai_enabled' => ['nullable'],
             'ai_active_provider' => ['required', Rule::in(['openai', 'gemini'])],
-            'ai_default_temperature' => [$testing ? 'nullable' : 'required', 'numeric', 'min:0', 'max:2'],
-            'ai_default_max_tokens' => [$testing ? 'nullable' : 'required', 'integer', 'min:1', 'max:32768'],
+            'ai_default_temperature' => [$testing ? 'nullable' : 'required', 'numeric', 'min:' . AiProviderCatalog::temperatureMin(), 'max:' . AiProviderCatalog::temperatureMax()],
+            'ai_default_max_tokens' => [$testing ? 'nullable' : 'required', 'integer', 'min:' . AiProviderCatalog::tokenMin(), 'max:272000'],
             'ai_default_system_prompt' => ['nullable', 'string', 'max:20000'],
             'ai_default_legal_notice' => ['nullable', 'string', 'max:12000'],
             'ai_default_budget_request_url' => ['nullable', 'url', 'max:500'],
             'ai_old_document_alert_enabled' => ['nullable'],
             'ai_old_document_alert_years' => [$testing ? 'nullable' : 'required', 'integer', 'min:1', 'max:100'],
-            'openai_enabled' => ['nullable'],
             'openai_api_key' => ['nullable', 'string', 'max:1000'],
-            'openai_chat_model' => ['nullable', 'string', 'max:190'],
-            'openai_embedding_model' => ['nullable', 'string', 'max:190'],
-            'gemini_enabled' => ['nullable'],
+            'openai_chat_model' => ['nullable', Rule::in(AiProviderCatalog::openAiChatModelIds())],
+            'openai_embedding_model' => ['nullable', Rule::in(AiProviderCatalog::openAiEmbeddingModelIds())],
             'gemini_api_key' => ['nullable', 'string', 'max:1000'],
-            'gemini_chat_model' => ['nullable', 'string', 'max:190'],
-            'gemini_embedding_model' => ['nullable', 'string', 'max:190'],
+            'gemini_chat_model' => ['nullable', Rule::in(AiProviderCatalog::geminiChatModelIds())],
+            'gemini_embedding_model' => ['nullable', Rule::in(AiProviderCatalog::geminiEmbeddingModelIds())],
         ];
     }
 
     private function aiSettingsFromRequest(Request $request, array $validated): array
     {
+        $defaults = AiProviderCatalog::defaults();
         $openAiApiKey = trim((string) ($validated['openai_api_key'] ?? ''));
         if ($openAiApiKey === '') {
             $openAiApiKey = (string) AppSetting::getDecryptedValue('ai_openai_api_key', '');
@@ -1258,29 +1273,33 @@ class ConfigController extends Controller
             $geminiApiKey = (string) AppSetting::getDecryptedValue('ai_gemini_api_key', '');
         }
 
+        $provider = trim((string) ($validated['ai_active_provider'] ?? 'openai')) === 'gemini' ? 'gemini' : 'openai';
+
         return [
             'ai_enabled' => $request->boolean('ai_enabled'),
-            'ai_active_provider' => trim((string) ($validated['ai_active_provider'] ?? 'openai')) === 'gemini' ? 'gemini' : 'openai',
-            'ai_default_temperature' => round((float) ($validated['ai_default_temperature'] ?? AppSetting::getValue('ai_default_temperature', '0.2')), 2),
-            'ai_default_max_tokens' => (int) ($validated['ai_default_max_tokens'] ?? AppSetting::getValue('ai_default_max_tokens', '1024')),
-            'ai_default_system_prompt' => trim((string) ($validated['ai_default_system_prompt'] ?? '')),
-            'ai_default_legal_notice' => trim((string) ($validated['ai_default_legal_notice'] ?? '')),
-            'ai_default_budget_request_url' => trim((string) ($validated['ai_default_budget_request_url'] ?? '')),
+            'ai_active_provider' => $provider,
+            'ai_default_temperature' => round((float) ($validated['ai_default_temperature'] ?? AppSetting::getValue('ai_default_temperature', $defaults['ai_default_temperature'])), 2),
+            'ai_default_max_tokens' => (int) ($validated['ai_default_max_tokens'] ?? AppSetting::getValue('ai_default_max_tokens', $defaults['ai_default_max_tokens'])),
+            'ai_default_system_prompt' => trim((string) ($validated['ai_default_system_prompt'] ?? $defaults['ai_default_system_prompt'])),
+            'ai_default_legal_notice' => trim((string) ($validated['ai_default_legal_notice'] ?? $defaults['ai_default_legal_notice'])),
+            'ai_default_budget_request_url' => trim((string) ($validated['ai_default_budget_request_url'] ?? $defaults['ai_default_budget_request_url'])),
             'ai_old_document_alert_enabled' => $request->boolean('ai_old_document_alert_enabled'),
-            'ai_old_document_alert_years' => (int) ($validated['ai_old_document_alert_years'] ?? AppSetting::getValue('ai_old_document_alert_years', '5')),
-            'openai_enabled' => $request->boolean('openai_enabled'),
+            'ai_old_document_alert_years' => (int) ($validated['ai_old_document_alert_years'] ?? AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years'])),
+            'openai_enabled' => $provider === 'openai',
             'openai_api_key' => $openAiApiKey,
-            'openai_chat_model' => trim((string) ($validated['openai_chat_model'] ?? '')),
-            'openai_embedding_model' => trim((string) ($validated['openai_embedding_model'] ?? '')),
-            'gemini_enabled' => $request->boolean('gemini_enabled'),
+            'openai_chat_model' => trim((string) ($validated['openai_chat_model'] ?? $defaults['openai_chat_model'])),
+            'openai_embedding_model' => trim((string) ($validated['openai_embedding_model'] ?? $defaults['openai_embedding_model'])),
+            'gemini_enabled' => $provider === 'gemini',
             'gemini_api_key' => $geminiApiKey,
-            'gemini_chat_model' => trim((string) ($validated['gemini_chat_model'] ?? '')),
-            'gemini_embedding_model' => trim((string) ($validated['gemini_embedding_model'] ?? '')),
+            'gemini_chat_model' => trim((string) ($validated['gemini_chat_model'] ?? $defaults['gemini_chat_model'])),
+            'gemini_embedding_model' => trim((string) ($validated['gemini_embedding_model'] ?? $defaults['gemini_embedding_model'])),
         ];
     }
 
     private function validateAiConfigurationForSave(array $settings): void
     {
+        $this->validateAiTokenLimitForProvider($settings);
+
         if (!$settings['ai_enabled']) {
             return;
         }
@@ -1288,10 +1307,6 @@ class ConfigController extends Controller
         $provider = $settings['ai_active_provider'];
 
         if ($provider === 'openai') {
-            if (!$settings['openai_enabled']) {
-                throw ValidationException::withMessages(['openai_enabled' => 'Ative a OpenAI antes de habilitar a IA com este provedor.']);
-            }
-
             if ($settings['openai_api_key'] === '') {
                 throw ValidationException::withMessages(['openai_api_key' => 'Informe a API Key da OpenAI para ativar este provedor.']);
             }
@@ -1301,10 +1316,6 @@ class ConfigController extends Controller
             }
 
             return;
-        }
-
-        if (!$settings['gemini_enabled']) {
-            throw ValidationException::withMessages(['gemini_enabled' => 'Ative a Gemini antes de habilitar a IA com este provedor.']);
         }
 
         if ($settings['gemini_api_key'] === '') {
@@ -1318,13 +1329,11 @@ class ConfigController extends Controller
 
     private function validateAiConfigurationForTest(array $settings): void
     {
+        $this->validateAiTokenLimitForProvider($settings);
+
         $provider = $settings['ai_active_provider'];
 
         if ($provider === 'openai') {
-            if (!$settings['openai_enabled']) {
-                throw ValidationException::withMessages(['openai_enabled' => 'Ative a OpenAI antes de testar a conexao.']);
-            }
-
             if ($settings['openai_api_key'] === '') {
                 throw ValidationException::withMessages(['openai_api_key' => 'Informe a API Key da OpenAI antes de testar a conexao.']);
             }
@@ -1336,16 +1345,39 @@ class ConfigController extends Controller
             return;
         }
 
-        if (!$settings['gemini_enabled']) {
-            throw ValidationException::withMessages(['gemini_enabled' => 'Ative a Gemini antes de testar a conexao.']);
-        }
-
         if ($settings['gemini_api_key'] === '') {
             throw ValidationException::withMessages(['gemini_api_key' => 'Informe a API Key da Gemini antes de testar a conexao.']);
         }
 
         if ($settings['gemini_chat_model'] === '') {
             throw ValidationException::withMessages(['gemini_chat_model' => 'Informe o modelo de chat da Gemini antes de testar a conexao.']);
+        }
+    }
+
+    private function validateAiTokenLimitForProvider(array $settings): void
+    {
+        $provider = $settings['ai_active_provider'];
+        $model = $provider === 'gemini'
+            ? (string) ($settings['gemini_chat_model'] ?? '')
+            : (string) ($settings['openai_chat_model'] ?? '');
+
+        if ($model === '') {
+            return;
+        }
+
+        $maxAllowed = AiProviderCatalog::maxOutputTokensFor($provider, $model);
+        $requested = (int) ($settings['ai_default_max_tokens'] ?? 0);
+
+        if ($requested < AiProviderCatalog::tokenMin()) {
+            throw ValidationException::withMessages([
+                'ai_default_max_tokens' => 'Use pelo menos ' . AiProviderCatalog::tokenMin() . ' tokens por resposta.',
+            ]);
+        }
+
+        if ($requested > $maxAllowed) {
+            throw ValidationException::withMessages([
+                'ai_default_max_tokens' => 'O modelo selecionado suporta no maximo ' . number_format($maxAllowed, 0, ',', '.') . ' tokens de saida.',
+            ]);
         }
     }
 
