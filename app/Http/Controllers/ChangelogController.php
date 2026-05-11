@@ -9,19 +9,20 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.01',
+            'version' => 'v2.02',
             'date' => '11/05/2026',
-            'label' => 'v2.01 - 11/05/2026',
+            'label' => 'v2.02 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Fechamento do lock de dependencias da leitura DOCX para IA',
+                'title' => 'Usuarios do Portal ganham controle mensal de acesso e consumo da IA',
                 'items' => [
-                    'O composer.lock passa a refletir oficialmente a entrada de phpoffice/phpword e suas dependencias relacionadas, reduzindo divergencia entre o codigo versionado e o build realizado no EasyPanel.',
-                    'A fase de processamento DOCX dos documentos de condominio fica mais consistente para deploy, mantendo o ajuste do Dockerfile como contingencia segura para ambientes que ainda publiquem sem lock renovado localmente.',
+                    'Cada usuario do Portal do Cliente passa a poder ter IA habilitada ou nao, com limite mensal customizado, contador de uso do mes atual, data do ultimo reset e observacao interna para controle comercial e operacional.',
+                    'O painel interno de usuarios do portal exibe e permite ajustar o resumo de uso da IA sem mexer no login externo, preservando o fluxo atual do Portal enquanto prepara o futuro Chat do Sindico.',
+                    'Nasce o servico central AiUsageLimiter junto com o comando ai:reset-monthly-usage, criando a base segura para validar disponibilidade, saldo de consultas, incremento apenas em resposta bem-sucedida e reset mensal via cron.',
                 ],
             ],
             [

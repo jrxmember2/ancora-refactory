@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClientCondominium;
 use App\Models\ClientEntity;
 use App\Models\ClientPortalUser;
+use App\Services\Ai\AiUsageLimiter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
 
 class ClientPortalUserController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AiUsageLimiter $aiUsageLimiter): View
     {
         $query = ClientPortalUser::query()->with(['entity', 'condominium', 'condominiums']);
 
@@ -29,9 +30,16 @@ class ClientPortalUserController extends Controller
             $query->where('is_active', $request->input('active') === '1');
         }
 
+        $items = $query->latest('id')->paginate(15)->withQueryString();
+        $items->getCollection()->transform(function (ClientPortalUser $portalUser) use ($aiUsageLimiter) {
+            $portalUser->ai_usage_status = $aiUsageLimiter->statusForUser($portalUser, false);
+
+            return $portalUser;
+        });
+
         return view('pages.clientes.portal.users', [
             'title' => 'Usuarios do portal',
-            'items' => $query->latest('id')->paginate(15)->withQueryString(),
+            'items' => $items,
             'filters' => $request->all(),
             'entities' => ClientEntity::query()->active()->get(),
             'condominiums' => ClientCondominium::query()->where('is_active', 1)->orderBy('name')->get(),
@@ -92,6 +100,10 @@ class ClientPortalUserController extends Controller
             'client_condominium_ids' => ['nullable', 'array'],
             'client_condominium_ids.*' => ['integer', 'distinct', 'exists:client_condominiums,id'],
             'password' => [$current ? 'nullable' : 'required', 'string', 'min:8'],
+            'ai_monthly_question_limit' => ['nullable', 'integer', 'min:0'],
+            'ai_questions_used_current_month' => ['nullable', 'integer', 'min:0'],
+            'ai_usage_reset_at' => ['nullable', 'date'],
+            'ai_internal_note' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $condominiumIds = collect($validated['client_condominium_ids'] ?? [])
@@ -103,6 +115,14 @@ class ClientPortalUserController extends Controller
 
         if ($condominiumIds === [] && !empty($validated['client_condominium_id'])) {
             $condominiumIds[] = (int) $validated['client_condominium_id'];
+        }
+
+        $usedQuestions = max(0, (int) ($validated['ai_questions_used_current_month'] ?? $current?->ai_questions_used_current_month ?? 0));
+        $limitInput = $validated['ai_monthly_question_limit'] ?? null;
+        $resetAt = $validated['ai_usage_reset_at'] ?? null;
+
+        if ($resetAt === null && $usedQuestions > 0) {
+            $resetAt = now()->toDateString();
         }
 
         return [
@@ -121,6 +141,11 @@ class ClientPortalUserController extends Controller
                 'can_view_demands' => $request->boolean('can_view_demands'),
                 'can_view_documents' => $request->boolean('can_view_documents'),
                 'can_view_financial_summary' => $request->boolean('can_view_financial_summary'),
+                'ai_enabled' => $request->boolean('ai_enabled'),
+                'ai_monthly_question_limit' => $limitInput === null || $limitInput === '' ? null : max(0, (int) $limitInput),
+                'ai_questions_used_current_month' => $usedQuestions,
+                'ai_usage_reset_at' => $resetAt,
+                'ai_internal_note' => filled($validated['ai_internal_note'] ?? null) ? trim((string) $validated['ai_internal_note']) : null,
             ],
             $condominiumIds,
         ];

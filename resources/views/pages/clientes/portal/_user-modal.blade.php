@@ -1,5 +1,6 @@
 @php
     $inputClass = 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
+    $textareaClass = 'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
     $labelClass = 'mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300';
     $selectedCondominiums = collect(old('client_condominium_ids', $portalUser?->accessibleCondominiumIds() ?? []))
         ->map(fn ($id) => (int) $id)
@@ -99,6 +100,42 @@
                         {{ $label }}
                     </label>
                 @endforeach
+            </div>
+        </div>
+
+        <div class="mt-6 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+            <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">IA do portal</div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                        <input type="hidden" name="ai_enabled" value="0">
+                        <input type="checkbox" name="ai_enabled" value="1" @checked((bool) old('ai_enabled', $portalUser?->ai_enabled ?? false))>
+                        IA habilitada
+                    </label>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Libera o futuro Chat do Sindico para este usuario quando a IA global tambem estiver ativa.</p>
+                </div>
+
+                <div>
+                    <label class="{{ $labelClass }}">Limite mensal de perguntas</label>
+                    <input type="number" name="ai_monthly_question_limit" min="0" value="{{ old('ai_monthly_question_limit', $portalUser?->ai_monthly_question_limit) }}" class="{{ $inputClass }}" placeholder="Em branco = ilimitado">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use zero para bloquear novas consultas mesmo com a IA habilitada.</p>
+                </div>
+
+                <div>
+                    <label class="{{ $labelClass }}">Perguntas utilizadas no mes atual</label>
+                    <input type="number" name="ai_questions_used_current_month" min="0" value="{{ old('ai_questions_used_current_month', $portalUser?->ai_questions_used_current_month ?? 0) }}" class="{{ $inputClass }}">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Campo editavel pelo administrador para ajustes manuais.</p>
+                </div>
+
+                <div>
+                    <label class="{{ $labelClass }}">Data do ultimo reset</label>
+                    <input type="date" name="ai_usage_reset_at" value="{{ old('ai_usage_reset_at', $portalUser?->ai_usage_reset_at?->format('Y-m-d')) }}" class="{{ $inputClass }}">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="{{ $labelClass }}">Observacao interna</label>
+                    <textarea name="ai_internal_note" rows="4" class="{{ $textareaClass }}" placeholder="Observacao visivel apenas no painel interno.">{{ old('ai_internal_note', $portalUser?->ai_internal_note) }}</textarea>
+                </div>
             </div>
         </div>
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Ai\AiUsageLimiter;
 use App\Services\ProcessDataJudService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -45,6 +46,24 @@ Artisan::command('processos:datajud-sync {--case=}', function () {
 
     return empty($summary['errors']) ? 0 : 1;
 })->purpose('Sincroniza movimentacoes de processos com a API publica do DataJud');
+
+Artisan::command('ai:reset-monthly-usage', function (AiUsageLimiter $limiter) {
+    $resetUsers = $limiter->resetEligibleActiveUsers();
+
+    if ($resetUsers === 0) {
+        $this->info('Nenhum usuario ativo do portal precisava de reset mensal neste momento.');
+
+        return 0;
+    }
+
+    $this->info(sprintf(
+        'Reset mensal de IA concluido para %d usuario(s) ativo(s) do portal em %s.',
+        $resetUsers,
+        now()->format('d/m/Y')
+    ));
+
+    return 0;
+})->purpose('Reseta o uso mensal de IA dos usuarios ativos do Portal do Cliente');
 
 Schedule::command('processos:datajud-sync')
     ->dailyAt('06:00')

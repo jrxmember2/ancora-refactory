@@ -52,6 +52,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                 @forelse($items as $item)
+                    @php($aiStatus = $item->ai_usage_status ?? null)
                     <tr>
                         <td class="px-6 py-4 align-top">
                             <div class="font-semibold text-gray-900 dark:text-white">{{ $item->name }}</div>
@@ -80,6 +81,27 @@
                         <td class="px-6 py-4 align-top">
                             <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $item->is_active ? 'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }}">{{ $item->is_active ? 'Ativo' : 'Inativo' }}</span>
                             <div class="mt-2 text-xs text-gray-500">Ultimo acesso: {{ $item->last_login_at?->format('d/m/Y H:i') ?: 'nunca' }}</div>
+                            <div class="mt-3 rounded-2xl border border-gray-100 bg-gray-50 px-3 py-3 text-xs text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded-full px-2.5 py-1 font-semibold {{ $item->ai_enabled ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }}">
+                                        {{ $item->ai_enabled ? 'IA habilitada' : 'IA desabilitada' }}
+                                    </span>
+                                    @if($aiStatus)
+                                        <span class="rounded-full px-2.5 py-1 font-semibold {{ $aiStatus['allowed'] ? 'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-300' : 'bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-300' }}">
+                                            {{ $aiStatus['allowed'] ? 'Disponivel' : 'Bloqueada' }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="mt-2">Limite mensal: {{ $item->ai_monthly_question_limit === null ? 'Ilimitado' : $item->ai_monthly_question_limit }}</div>
+                                <div class="mt-1">Usadas no mes: {{ $aiStatus['used'] ?? ($item->ai_questions_used_current_month ?? 0) }}</div>
+                                <div class="mt-1">Ultimo reset: {{ ($aiStatus['reset_at'] ?? $item->ai_usage_reset_at)?->format('d/m/Y') ?: 'nao informado' }}</div>
+                                @if($aiStatus)
+                                    <div class="mt-1">{{ $aiStatus['message'] }}</div>
+                                @endif
+                                @if(filled($item->ai_internal_note))
+                                    <div class="mt-2 text-gray-500 dark:text-gray-400">Obs. interna: {{ \Illuminate\Support\Str::limit($item->ai_internal_note, 90) }}</div>
+                                @endif
+                            </div>
                         </td>
                         <td class="px-6 py-4 align-top">
                             <div class="flex justify-end gap-2">
