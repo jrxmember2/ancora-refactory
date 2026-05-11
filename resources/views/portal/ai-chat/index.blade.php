@@ -317,6 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const formData = new FormData(form);
+        formData.set('question', question);
+
         setFeedback('');
         setSubmitting(true);
 
@@ -350,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: new FormData(form),
+                body: formData,
             });
 
             const payload = await response.json();

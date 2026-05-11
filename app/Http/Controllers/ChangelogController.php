@@ -9,20 +9,19 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.03',
+            'version' => 'v2.04',
             'date' => '11/05/2026',
-            'label' => 'v2.03 - 11/05/2026',
+            'label' => 'v2.04 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Portal do Cliente ganha o Chat do Sindico com contexto seguro por condominio',
+                'title' => 'Hotfix do envio da Nova Conversa no Chat do Sindico',
                 'items' => [
-                    'O Portal do Cliente passa a exibir o novo menu Chat do Sindico apenas quando a IA global estiver ativa e o usuario externo tiver acesso individual habilitado, preservando o isolamento de permissao por conta.',
-                    'As perguntas do sindico agora consultam somente os documentos processados do condominio em contexto, combinados com a Base Legal Global ativa, sempre passando por AiService, com contador mensal de uso e bloqueio de envio simultaneo.',
-                    'O historico das conversas nasce em tabelas proprias com mensagens e metadados de resposta, preparando uma trilha segura para o Chat do Sindico evoluir sem misturar conversas com demandas, anexos ou outras areas do portal.',
+                    'O frontend do Chat do Sindico passa a montar o FormData antes de desabilitar o campo de pergunta durante o loading, evitando que o navegador omita o textarea no POST.',
+                    'O ajuste elimina a validacao indevida "The question field is required." ao iniciar uma nova conversa ou enviar consultas pelo fluxo assíncrono do portal.',
                 ],
             ],
             [
