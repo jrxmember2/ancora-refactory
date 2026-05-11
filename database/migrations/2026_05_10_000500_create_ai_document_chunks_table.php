@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('source_type', 40)->nullable();
             $table->string('source_document_type', 40)->nullable();
             $table->foreignId('ai_global_document_id')->nullable()->constrained('ai_global_documents')->cascadeOnDelete();
-            $table->unsignedInteger('client_attachment_id')->nullable();
-            $table->unsignedInteger('condominium_id')->nullable();
+            $table->integer('client_attachment_id')->nullable();
+            $table->integer('condominium_id')->nullable();
             $table->unsignedInteger('chunk_order')->default(1);
             $table->string('reference_label', 255)->nullable();
             $table->longText('chunk_text');

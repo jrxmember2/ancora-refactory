@@ -9,15 +9,24 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.97',
+            'version' => 'v1.98',
             'date' => '10/05/2026',
-            'label' => 'v1.97 - 10/05/2026',
+            'label' => 'v1.98 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix final da migration de blocos de IA alinhado ao SQL legado real de clientes',
+                'items' => [
+                    'A migration de ai_document_chunks passa a usar colunas INT assinadas para client_attachment_id e condominium_id, refletindo a estrutura real dos dumps e bancos legados do Ancora.',
+                    'O ajuste elimina a incompatibilidade 3780 do MySQL ao referenciar client_attachments e client_condominiums durante o deploy da Base Legal Global.',
+                ],
+            ],
+            [
+                'version' => 'v1.97',
+                'date' => '10/05/2026',
                 'title' => 'Hotfix da migration de blocos de IA para compatibilidade com tabelas legadas de clientes',
                 'items' => [
                     'A migration de ai_document_chunks deixa de usar foreignId para apontar client_attachments e client_condominiums, porque essas tabelas antigas usam chaves INT UNSIGNED em vez de BIGINT.',
