@@ -8,6 +8,7 @@ use App\Models\ClientCondominium;
 use App\Models\ClientEntity;
 use App\Models\ClientUnit;
 use App\Models\CobrancaCase;
+use App\Models\CobrancaCaseContact;
 use App\Models\CobrancaCaseQuota;
 use App\Models\CobrancaImportBatch;
 use App\Models\CobrancaImportRow;
@@ -111,7 +112,62 @@ class CobrancaImportSafetyTest extends TestCase
         $this->assertSame(1, (int) data_get($batch->summary_json, 'processed.linked_cases'));
     }
 
-    private function createScenario(bool $withBlock = false): array
+    public function test_it_normalizes_the_phone_snapshot_and_request_contacts_before_saving_the_case(): void
+    {
+        $scenario = $this->createScenario(ownerPhones: [['number' => '(21) 97150-0821 ((27) 99948-9926)']]);
+        $controller = $this->app->make(CobrancaController::class);
+        $request = Request::create('/cobrancas/store', 'POST', [
+            'unit_id' => $scenario['unit']->id,
+            'phones' => [
+                ['label' => 'Principal', 'value' => '(21) 97150-0821 ((27) 99948-9926)', 'is_whatsapp' => '1'],
+            ],
+            'quotas' => [
+                ['reference_label' => '03/2026', 'due_date' => '2026-03-10', 'original_amount' => '1250,80'],
+            ],
+        ]);
+
+        [$payload, $errors, $snapshots, $repeaters] = $this->invokePrivate($controller, 'payloadFromRequest', [$request, null]);
+
+        $this->assertSame([], $errors);
+        $this->assertSame('(21) 97150-0821', $payload['debtor_phone_snapshot']);
+        $this->assertSame('(21) 97150-0821', $repeaters['phones'][0]['value']);
+        $this->assertStringContainsString('Joao Carlos Oliveira', (string) $snapshots['debtor_summary']);
+        $this->assertStringContainsString('390.533.447-05', (string) $snapshots['debtor_summary']);
+    }
+
+    public function test_it_extracts_multiple_owner_phones_during_import_but_keeps_a_single_snapshot(): void
+    {
+        $scenario = $this->createScenario(ownerPhones: [['number' => '(21) 97150-0821 ((27) 99948-9926)']]);
+        $batch = $this->createBatch($scenario['user']);
+        $row = $this->createImportRow($batch, [
+            'matched_unit_id' => $scenario['unit']->id,
+            'condominium_input' => $scenario['condominium']->name,
+            'unit_input' => $scenario['unit']->unit_number,
+            'owner_input' => $scenario['owner']->display_name,
+            'reference_input' => '03/2026',
+            'due_date_input' => '10/03/2026',
+            'amount_value' => 1250.80,
+            'status' => 'ready',
+        ]);
+
+        $controller = $this->app->make(CobrancaController::class);
+        $request = $this->authenticatedRequest($scenario['user']);
+
+        $case = $this->invokePrivate($controller, 'createCaseFromImportRow', [$row, $batch, $request, $scenario['user']->id]);
+
+        $this->assertSame('(21) 97150-0821', $case->debtor_phone_snapshot);
+        $this->assertSame(
+            ['(21) 97150-0821', '(27) 99948-9926'],
+            CobrancaCaseContact::query()
+                ->where('cobranca_case_id', $case->id)
+                ->where('contact_type', 'phone')
+                ->orderBy('id')
+                ->pluck('value')
+                ->all()
+        );
+    }
+
+    private function createScenario(bool $withBlock = false, array $ownerPhones = [['number' => '27999999999']]): array
     {
         $user = User::query()->create([
             'name' => 'Teste Importacao',
@@ -130,7 +186,7 @@ class CobrancaImportSafetyTest extends TestCase
             'display_name' => 'Joao Carlos Oliveira',
             'cpf_cnpj' => '390.533.447-05',
             'emails_json' => [['email' => 'joao@example.com']],
-            'phones_json' => [['number' => '27999999999']],
+            'phones_json' => $ownerPhones,
             'is_active' => true,
         ]);
 

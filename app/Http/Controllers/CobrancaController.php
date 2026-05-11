@@ -2995,7 +2995,7 @@ class CobrancaController extends Controller
             $name = trim((string) ($manual['name'] ?? ''));
             $document = trim((string) ($manual['document'] ?? ''));
             $email = trim((string) ($manual['email'] ?? ''));
-            $phone = trim((string) ($manual['phone'] ?? ''));
+            $phone = $this->normalizePhoneValue($manual['phone'] ?? null, 30);
             return [
                 'entity_id' => null,
                 'name' => $name,
@@ -3007,7 +3007,7 @@ class CobrancaController extends Controller
         }
 
         $primaryEmail = collect($entity->emails_json ?? [])->first()['email'] ?? null;
-        $primaryPhone = collect($entity->phones_json ?? [])->first()['number'] ?? null;
+        $primaryPhone = $this->primaryEntityPhone($entity);
         return [
             'entity_id' => $entity->id,
             'name' => (string) $entity->display_name,
@@ -3016,6 +3016,77 @@ class CobrancaController extends Controller
             'phone' => $primaryPhone,
             'summary' => $entity->display_name . ($entity->cpf_cnpj ? ' · ' . $entity->cpf_cnpj : ''),
         ];
+    }
+
+    private function primaryEntityPhone(?ClientEntity $entity): ?string
+    {
+        return collect($this->entityPhones($entity, 30))->first();
+    }
+
+    private function entityPhones(?ClientEntity $entity, int $maxLength = 40): array
+    {
+        return collect($entity?->phones_json ?? [])
+            ->flatMap(function ($row) use ($maxLength) {
+                $value = is_array($row) ? ($row['number'] ?? null) : (is_scalar($row) ? (string) $row : null);
+                return $this->extractPhoneValues($value, $maxLength);
+            })
+            ->filter(fn (?string $value) => $value !== null && $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function extractPhoneValues(mixed $value, int $maxLength = 40): array
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        preg_match_all('/(?:\+?55[\s.\-]*)?(?:\(?\d{2}\)?[\s.\-]*)?\d{4,5}(?:[\s.\-]?\d{4})/', $raw, $matches);
+        $values = collect($matches[0] ?? [])
+            ->map(fn ($match) => $this->normalizePhoneValue($match, $maxLength))
+            ->filter(fn (?string $phone) => $phone !== null && $phone !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($values !== []) {
+            return $values;
+        }
+
+        $singleValue = $this->normalizePhoneValue($raw, $maxLength);
+        return $singleValue ? [$singleValue] : [];
+    }
+
+    private function normalizePhoneValue(mixed $value, int $maxLength = 40): ?string
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        if (preg_match('/(?:\+?55[\s.\-]*)?(?:\(?\d{2}\)?[\s.\-]*)?\d{4,5}(?:[\s.\-]?\d{4})/', $raw, $matches) === 1) {
+            $raw = trim((string) ($matches[0] ?? $raw));
+        }
+
+        $digits = $this->digitsOnly($raw);
+        if (strlen($digits) >= 12 && str_starts_with($digits, '55')) {
+            $digits = substr($digits, 2);
+        }
+
+        if (strlen($digits) === 11) {
+            $formatted = preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $digits) ?: $digits;
+            return Str::limit($formatted, $maxLength, '');
+        }
+
+        if (strlen($digits) === 10) {
+            $formatted = preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $digits) ?: $digits;
+            return Str::limit($formatted, $maxLength, '');
+        }
+
+        $normalized = preg_replace('/\s+/', ' ', $raw) ?: $raw;
+        return Str::limit($normalized, $maxLength, '');
     }
 
     private function syncChildren(CobrancaCase $case, array $repeaters): void
@@ -3115,9 +3186,9 @@ class CobrancaController extends Controller
                 'owner_name' => (string) ($unit->owner?->display_name ?? ''),
                 'owner_document' => (string) ($unit->owner?->cpf_cnpj ?? ''),
                 'owner_email' => (string) ((collect($unit->owner?->emails_json ?? [])->first()['email'] ?? '')),
-                'owner_phone' => (string) ((collect($unit->owner?->phones_json ?? [])->first()['number'] ?? '')),
+                'owner_phone' => (string) ($this->primaryEntityPhone($unit->owner) ?? ''),
                 'owner_emails' => collect($unit->owner?->emails_json ?? [])->pluck('email')->filter()->values()->all(),
-                'owner_phones' => collect($unit->owner?->phones_json ?? [])->pluck('number')->filter()->values()->all(),
+                'owner_phones' => $this->entityPhones($unit->owner),
             ];
         }
 
@@ -3186,7 +3257,7 @@ class CobrancaController extends Controller
             'owner_name' => $unit?->owner?->display_name,
             'owner_document' => $unit?->owner?->cpf_cnpj,
             'owner_email' => collect($unit?->owner?->emails_json ?? [])->first()['email'] ?? null,
-            'owner_phone' => collect($unit?->owner?->phones_json ?? [])->first()['number'] ?? null,
+            'owner_phone' => $this->primaryEntityPhone($unit?->owner),
             'tenant_name' => $unit?->tenant?->display_name,
         ];
     }
@@ -3270,7 +3341,7 @@ class CobrancaController extends Controller
         return collect((array) $request->input('emails', []))
             ->map(function ($row, $index) {
                 $value = strtolower(trim((string) ($row['value'] ?? '')));
-                if ($value === '') {
+                if (($value ?? '') === '') {
                     return null;
                 }
                 return [
@@ -3287,13 +3358,13 @@ class CobrancaController extends Controller
     {
         return collect((array) $request->input('phones', []))
             ->map(function ($row, $index) {
-                $value = trim((string) ($row['value'] ?? ''));
-                if ($value === '') {
+                $value = $this->normalizePhoneValue($row['value'] ?? null, 40);
+                if (($value ?? '') === '') {
                     return null;
                 }
                 return [
                     'label' => trim((string) ($row['label'] ?? '')) ?: ($index === 0 ? 'Principal' : ''),
-                    'value' => Str::limit($value, 40, ''),
+                    'value' => $value,
                     'is_whatsapp' => !empty($row['is_whatsapp']),
                 ];
             })
@@ -4861,7 +4932,7 @@ class CobrancaController extends Controller
             'debtor_name_snapshot' => (string) $unit->owner->display_name,
             'debtor_document_snapshot' => $unit->owner->cpf_cnpj,
             'debtor_email_snapshot' => collect($unit->owner->emails_json ?? [])->first()['email'] ?? null,
-            'debtor_phone_snapshot' => collect($unit->owner->phones_json ?? [])->first()['number'] ?? null,
+            'debtor_phone_snapshot' => $this->primaryEntityPhone($unit->owner),
             'charge_type' => 'extrajudicial',
             'billing_status' => 'a_faturar',
             'situation' => 'processo_aberto',
@@ -4884,12 +4955,12 @@ class CobrancaController extends Controller
                 'created_at' => now(),
             ]);
         }
-        foreach (collect($unit->owner->phones_json ?? [])->pluck('number')->filter()->values() as $index => $phone) {
+        foreach ($this->entityPhones($unit->owner) as $index => $phone) {
             CobrancaCaseContact::query()->create([
                 'cobranca_case_id' => $case->id,
                 'contact_type' => 'phone',
                 'label' => $index === 0 ? 'Principal' : 'Telefone ' . ($index + 1),
-                'value' => Str::limit((string) $phone, 40, ''),
+                'value' => $phone,
                 'is_primary' => $index === 0,
                 'is_whatsapp' => true,
                 'created_at' => now(),
