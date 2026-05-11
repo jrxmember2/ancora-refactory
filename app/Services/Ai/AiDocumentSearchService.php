@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 class AiDocumentSearchService
 {
     /**
-     * @return array{question:string,terms:list<string>,condominium_chunks:Collection<int,AiDocumentChunk>,global_chunks:Collection<int,AiDocumentChunk>,documents:Collection<int,array<string,mixed>>}
+     * @return array{question:string,terms:list<string>,has_relevant_matches:bool,condominium_chunks:Collection<int,AiDocumentChunk>,global_chunks:Collection<int,AiDocumentChunk>,documents:Collection<int,array<string,mixed>>}
      */
     public function search(string $question, ?int $clientCondominiumId, int $limit = 10): array
     {
@@ -28,11 +28,15 @@ class AiDocumentSearchService
             ->take($limit)
             ->values();
 
-        $selectedChunks = $selected->pluck('chunk')->values();
+        $hasRelevantMatches = $selected->contains(fn (array $item) => (int) ($item['match_score'] ?? 0) > 0);
+        $selectedChunks = $hasRelevantMatches
+            ? $selected->pluck('chunk')->values()
+            : collect();
 
         return [
             'question' => $question,
             'terms' => $terms,
+            'has_relevant_matches' => $hasRelevantMatches,
             'condominium_chunks' => $selectedChunks
                 ->filter(fn (AiDocumentChunk $chunk) => $chunk->effectiveSourceType() === AiDocumentCatalog::SOURCE_CONDOMINIUM_ATTACHMENT)
                 ->values(),
@@ -41,6 +45,51 @@ class AiDocumentSearchService
                 ->values(),
             'documents' => $this->buildDocumentMetadata($selectedChunks),
         ];
+    }
+
+    public function hasKnowledgeBase(?int $clientCondominiumId): bool
+    {
+        return ($clientCondominiumId ? $this->hasCondominiumKnowledgeBase((int) $clientCondominiumId) : false)
+            || $this->hasGlobalKnowledgeBase();
+    }
+
+    public function hasCondominiumKnowledgeBase(int $clientCondominiumId): bool
+    {
+        return AiDocumentChunk::query()
+            ->where('is_active', true)
+            ->whereNotNull('client_attachment_id')
+            ->where(function ($query) {
+                $query
+                    ->where('source_type', AiDocumentCatalog::SOURCE_CONDOMINIUM_ATTACHMENT)
+                    ->orWhere('origin', 'condominium');
+            })
+            ->where(function ($query) use ($clientCondominiumId) {
+                $query
+                    ->where('client_condominium_id', $clientCondominiumId)
+                    ->orWhere('condominium_id', $clientCondominiumId);
+            })
+            ->exists();
+    }
+
+    public function hasGlobalKnowledgeBase(): bool
+    {
+        return AiDocumentChunk::query()
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query
+                    ->where('source_type', AiDocumentCatalog::SOURCE_GLOBAL_DOCUMENT)
+                    ->orWhere('origin', 'global');
+            })
+            ->where(function ($query) {
+                $query
+                    ->whereNull('ai_global_document_id')
+                    ->orWhereHas('globalDocument', function ($documentQuery) {
+                        $documentQuery
+                            ->where('is_active', true)
+                            ->where('processing_status', 'processed');
+                    });
+            })
+            ->exists();
     }
 
     private function queryCondominiumChunks(int $clientCondominiumId, array $terms, int $limit)
@@ -110,7 +159,7 @@ class AiDocumentSearchService
 
     /**
      * @param Collection<int,AiDocumentChunk> $chunks
-     * @return Collection<int,array{chunk:AiDocumentChunk,score:int}>
+     * @return Collection<int,array{chunk:AiDocumentChunk,score:int,match_score:int}>
      */
     private function scoreChunks(Collection $chunks, string $question, array $terms): Collection
     {
@@ -120,21 +169,26 @@ class AiDocumentSearchService
             ->map(function (AiDocumentChunk $chunk) use ($normalizedQuestion, $terms): array {
                 $searchable = $chunk->effectiveSearchableContent();
                 $score = AiDocumentCatalog::documentPriority($chunk->effectiveSourceType(), $chunk->effectiveDocumentKind());
+                $matchScore = 0;
 
                 foreach ($terms as $term) {
                     $matches = substr_count($searchable, $term);
                     if ($matches > 0) {
-                        $score += 30 + min($matches, 5) * 12;
+                        $increment = 30 + min($matches, 5) * 12;
+                        $score += $increment;
+                        $matchScore += $increment;
                     }
                 }
 
                 if ($normalizedQuestion !== '' && str_contains($searchable, $normalizedQuestion)) {
                     $score += 70;
+                    $matchScore += 70;
                 }
 
                 return [
                     'chunk' => $chunk,
                     'score' => $score,
+                    'match_score' => $matchScore,
                 ];
             })
             ->filter(fn (array $item) => $item['score'] > 0)

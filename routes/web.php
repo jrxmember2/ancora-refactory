@@ -24,6 +24,7 @@ use App\Http\Controllers\FinancialImportController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\Portal\ClientPortalAccountController;
+use App\Http\Controllers\Portal\ClientPortalAiChatController;
 use App\Http\Controllers\Portal\ClientPortalAuthController;
 use App\Http\Controllers\Portal\ClientPortalContextController;
 use App\Http\Controllers\Portal\ClientPortalCobrancaController;
@@ -66,6 +67,10 @@ Route::domain(config('app.client_portal_domain'))->name('portal.')->group(functi
         Route::post('/solicitacoes/{demand}/cancelar', [ClientPortalDemandController::class, 'cancel'])->name('demands.cancel');
         Route::post('/solicitacoes/{demand}/responder', [ClientPortalDemandController::class, 'reply'])->name('demands.reply');
         Route::get('/solicitacoes/{demand}/anexos/{attachment}/download', [ClientPortalDemandController::class, 'downloadAttachment'])->name('demands.attachments.download');
+
+        Route::get('/chat-sindico', [ClientPortalAiChatController::class, 'index'])->name('ai-chat.index');
+        Route::post('/chat-sindico/perguntar', [ClientPortalAiChatController::class, 'ask'])->name('ai-chat.ask');
+        Route::get('/chat-sindico/conversas/{conversation}', [ClientPortalAiChatController::class, 'show'])->name('ai-chat.show');
 
         Route::get('/minha-conta', [ClientPortalAccountController::class, 'edit'])->name('account');
         Route::post('/minha-conta/senha', [ClientPortalAccountController::class, 'updatePassword'])->name('account.password');

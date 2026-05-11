@@ -65,6 +65,11 @@ class ClientPortalUser extends Model
         return $this->hasMany(Demand::class, 'client_portal_user_id');
     }
 
+    public function aiChatConversations(): HasMany
+    {
+        return $this->hasMany(AiChatConversation::class, 'client_portal_user_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

@@ -32,4 +32,5 @@ class ClientCondominium extends Model
     public function blocks(): HasMany { return $this->hasMany(ClientBlock::class, 'condominium_id')->orderBy('sort_order')->orderBy('name'); }
     public function units(): HasMany { return $this->hasMany(ClientUnit::class, 'condominium_id'); }
     public function automationSessions(): HasMany { return $this->hasMany(AutomationSession::class, 'condominium_id'); }
+    public function aiChatConversations(): HasMany { return $this->hasMany(AiChatConversation::class, 'client_condominium_id'); }
 }

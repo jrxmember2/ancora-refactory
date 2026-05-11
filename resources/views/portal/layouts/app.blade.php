@@ -20,6 +20,7 @@
         $portalCondominiums = isset($clientPortalCondominiums) ? $clientPortalCondominiums : collect();
         $selectedCondominiumId = isset($clientPortalSelectedCondominiumId) ? $clientPortalSelectedCondominiumId : null;
         $selectedCondominium = isset($clientPortalSelectedCondominium) ? $clientPortalSelectedCondominium : null;
+        $aiMenuEnabled = isset($clientPortalAiMenuEnabled) ? (bool) $clientPortalAiMenuEnabled : false;
         $contextLabel = $selectedCondominium ? $selectedCondominium->name : ($portalUser ? $portalUser->displayClientName() : 'Area segura');
         $hasCondominiumSwitcher = $portalCondominiums->count() > 1;
         $portalNavItems = array_values(array_filter([
@@ -27,6 +28,7 @@
             ['route' => 'portal.processes.index', 'match' => 'portal.processes.*', 'label' => 'Processos', 'mobile' => 'Processos', 'icon' => 'fa-solid fa-scale-balanced', 'visible' => $canViewProcesses],
             ['route' => 'portal.cobrancas.index', 'match' => 'portal.cobrancas.*', 'label' => 'Cobrancas', 'mobile' => 'Cobrancas', 'icon' => 'fa-solid fa-money-bill-wave', 'visible' => $canViewCobrancas],
             ['route' => $canViewDemands ? 'portal.demands.index' : 'portal.demands.create', 'match' => 'portal.demands.*', 'label' => 'Solicitacoes', 'mobile' => 'Solicitacoes', 'icon' => 'fa-solid fa-inbox', 'visible' => ($canViewDemands || $canOpenDemands)],
+            ['route' => 'portal.ai-chat.index', 'match' => 'portal.ai-chat.*', 'label' => 'Chat do Sindico', 'mobile' => 'Chat', 'icon' => 'fa-solid fa-comments', 'visible' => $aiMenuEnabled],
             ['route' => 'portal.account', 'match' => 'portal.account', 'label' => 'Minha Conta', 'mobile' => 'Conta', 'icon' => 'fa-solid fa-user-shield', 'visible' => true],
         ], static function ($item) {
             return $item['visible'];

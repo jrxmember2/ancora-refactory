@@ -9,20 +9,20 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.02',
+            'version' => 'v2.03',
             'date' => '11/05/2026',
-            'label' => 'v2.02 - 11/05/2026',
+            'label' => 'v2.03 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Usuarios do Portal ganham controle mensal de acesso e consumo da IA',
+                'title' => 'Portal do Cliente ganha o Chat do Sindico com contexto seguro por condominio',
                 'items' => [
-                    'Cada usuario do Portal do Cliente passa a poder ter IA habilitada ou nao, com limite mensal customizado, contador de uso do mes atual, data do ultimo reset e observacao interna para controle comercial e operacional.',
-                    'O painel interno de usuarios do portal exibe e permite ajustar o resumo de uso da IA sem mexer no login externo, preservando o fluxo atual do Portal enquanto prepara o futuro Chat do Sindico.',
-                    'Nasce o servico central AiUsageLimiter junto com o comando ai:reset-monthly-usage, criando a base segura para validar disponibilidade, saldo de consultas, incremento apenas em resposta bem-sucedida e reset mensal via cron.',
+                    'O Portal do Cliente passa a exibir o novo menu Chat do Sindico apenas quando a IA global estiver ativa e o usuario externo tiver acesso individual habilitado, preservando o isolamento de permissao por conta.',
+                    'As perguntas do sindico agora consultam somente os documentos processados do condominio em contexto, combinados com a Base Legal Global ativa, sempre passando por AiService, com contador mensal de uso e bloqueio de envio simultaneo.',
+                    'O historico das conversas nasce em tabelas proprias com mensagens e metadados de resposta, preparando uma trilha segura para o Chat do Sindico evoluir sem misturar conversas com demandas, anexos ou outras areas do portal.',
                 ],
             ],
             [
