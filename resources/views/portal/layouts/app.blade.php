@@ -23,12 +23,13 @@
         $aiMenuEnabled = isset($clientPortalAiMenuEnabled) ? (bool) $clientPortalAiMenuEnabled : false;
         $contextLabel = $selectedCondominium ? $selectedCondominium->name : ($portalUser ? $portalUser->displayClientName() : 'Area segura');
         $hasCondominiumSwitcher = $portalCondominiums->count() > 1;
+        $isAiChatRoute = request()->routeIs('portal.ai-chat.*');
         $portalNavItems = array_values(array_filter([
             ['route' => 'portal.dashboard', 'match' => 'portal.dashboard', 'label' => 'Dashboard', 'mobile' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'visible' => true],
             ['route' => 'portal.processes.index', 'match' => 'portal.processes.*', 'label' => 'Processos', 'mobile' => 'Processos', 'icon' => 'fa-solid fa-scale-balanced', 'visible' => $canViewProcesses],
             ['route' => 'portal.cobrancas.index', 'match' => 'portal.cobrancas.*', 'label' => 'Cobrancas', 'mobile' => 'Cobrancas', 'icon' => 'fa-solid fa-money-bill-wave', 'visible' => $canViewCobrancas],
             ['route' => $canViewDemands ? 'portal.demands.index' : 'portal.demands.create', 'match' => 'portal.demands.*', 'label' => 'Solicitacoes', 'mobile' => 'Solicitacoes', 'icon' => 'fa-solid fa-inbox', 'visible' => ($canViewDemands || $canOpenDemands)],
-            ['route' => 'portal.ai-chat.index', 'match' => 'portal.ai-chat.*', 'label' => 'Chat do Sindico', 'mobile' => 'Chat', 'icon' => 'fa-solid fa-comments', 'visible' => $aiMenuEnabled],
+            ['route' => 'portal.ai-chat.index', 'match' => 'portal.ai-chat.*', 'label' => 'Leme', 'mobile' => 'Leme', 'icon' => 'fa-solid fa-comments', 'visible' => $aiMenuEnabled],
             ['route' => 'portal.account', 'match' => 'portal.account', 'label' => 'Minha Conta', 'mobile' => 'Conta', 'icon' => 'fa-solid fa-user-shield', 'visible' => true],
         ], static function ($item) {
             return $item['visible'];
@@ -61,6 +62,9 @@
                                         <form method="post" action="{{ route('portal.context.update') }}">
                                             @csrf
                                             <input type="hidden" name="client_condominium_id" value="all">
+                                            @if($isAiChatRoute)
+                                                <input type="hidden" name="redirect_to_ai_chat" value="1">
+                                            @endif
                                             <button class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-[#f7f2ec] {{ !$selectedCondominiumId ? 'font-semibold text-[#941415]' : 'text-gray-700' }}">
                                                 <span>Todos os condominios</span>
                                                 @if(!$selectedCondominiumId)
@@ -72,6 +76,9 @@
                                             <form method="post" action="{{ route('portal.context.update') }}">
                                                 @csrf
                                                 <input type="hidden" name="client_condominium_id" value="{{ $condominium->id }}">
+                                                @if($isAiChatRoute)
+                                                    <input type="hidden" name="redirect_to_ai_chat" value="1">
+                                                @endif
                                                 <button class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-[#f7f2ec] {{ (int) $selectedCondominiumId === (int) $condominium->id ? 'font-semibold text-[#941415]' : 'text-gray-700' }}">
                                                     <span class="truncate">{{ $condominium->name }}</span>
                                                     @if((int) $selectedCondominiumId === (int) $condominium->id)

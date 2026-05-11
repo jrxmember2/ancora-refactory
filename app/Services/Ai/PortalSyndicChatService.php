@@ -6,6 +6,8 @@ use App\Models\AiChatConversation;
 use App\Models\AiChatMessage;
 use App\Models\ClientCondominium;
 use App\Models\ClientPortalUser;
+use App\Support\AiDocumentCatalog;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,8 +15,8 @@ use RuntimeException;
 
 class PortalSyndicChatService
 {
-    public const MESSAGE_NO_DOCUMENTS = 'Ainda não há convenção, regimento ou base documental processada para consulta. Entre em contato com o escritório.';
-    public const MESSAGE_NO_RELEVANT_EXCERPT = 'Não encontrei previsão expressa nos documentos analisados para responder com segurança a essa pergunta.';
+    public const MESSAGE_NO_DOCUMENTS = 'Ainda nao ha convencao, regimento ou base documental processada para consulta. Entre em contato com o escritorio.';
+    public const MESSAGE_NO_RELEVANT_EXCERPT = 'Nao encontrei previsao expressa nos documentos analisados para responder com seguranca a essa pergunta.';
 
     public function __construct(
         private readonly AiDocumentSearchService $documentSearchService,
@@ -60,7 +62,7 @@ class PortalSyndicChatService
     ): array {
         $normalizedQuestion = trim($question);
         if ($normalizedQuestion === '') {
-            throw new RuntimeException('Digite uma pergunta para consultar o Chat do Síndico.');
+            throw new RuntimeException('Digite uma pergunta para consultar a Leme.');
         }
 
         if (!$this->hasKnowledgeBase((int) $condominium->id)) {
@@ -69,27 +71,30 @@ class PortalSyndicChatService
 
         $search = $this->documentSearchService->search($normalizedQuestion, (int) $condominium->id, 8);
         $usedRelevantChunks = (bool) ($search['has_relevant_matches'] ?? false);
+        $oldDocumentAlerts = $this->resolveOldDocumentAlerts(collect($search['documents'] ?? []));
 
         $aiResponse = $this->aiService->generate(
-            systemPrompt: $this->buildSystemPrompt($condominium, $usedRelevantChunks),
+            systemPrompt: $this->buildSystemPrompt($condominium, $usedRelevantChunks, $oldDocumentAlerts),
             userQuestion: $normalizedQuestion,
-            documentContext: $this->buildDocumentContext($search, $usedRelevantChunks),
+            documentContext: $this->buildDocumentContext($search, $usedRelevantChunks, $oldDocumentAlerts),
             temperature: null,
             maxTokens: null,
         );
 
         if (!$aiResponse->ok()) {
-            throw new RuntimeException($aiResponse->error ?: 'Não foi possível responder agora. Tente novamente em instantes.');
+            throw new RuntimeException($aiResponse->error ?: 'Nao foi possivel responder agora. Tente novamente em instantes.');
         }
 
         $assistantText = trim((string) $aiResponse->text);
         if ($assistantText === '') {
-            throw new RuntimeException('A IA não retornou uma resposta utilizável para esta pergunta.');
+            throw new RuntimeException('A IA nao retornou uma resposta utilizavel para esta pergunta.');
         }
 
         if (!$usedRelevantChunks) {
             $assistantText = self::MESSAGE_NO_RELEVANT_EXCERPT;
         }
+
+        $assistantText = $this->appendOldDocumentNotice($assistantText, $oldDocumentAlerts, $usedRelevantChunks);
 
         $savedConversation = null;
         $userMessage = null;
@@ -103,6 +108,7 @@ class PortalSyndicChatService
             $assistantText,
             $search,
             $aiResponse,
+            $oldDocumentAlerts,
             &$savedConversation,
             &$userMessage,
             &$assistantMessage,
@@ -149,6 +155,7 @@ class PortalSyndicChatService
                     'documents' => collect($search['documents'] ?? [])->values()->all(),
                     'terms' => $search['terms'] ?? [],
                     'used_relevant_chunks' => (bool) ($search['has_relevant_matches'] ?? false),
+                    'old_document_alerts' => $oldDocumentAlerts,
                 ],
             ]);
         });
@@ -163,7 +170,7 @@ class PortalSyndicChatService
         ];
     }
 
-    private function buildSystemPrompt(ClientCondominium $condominium, bool $usedRelevantChunks): string
+    private function buildSystemPrompt(ClientCondominium $condominium, bool $usedRelevantChunks, array $oldDocumentAlerts = []): string
     {
         $settings = $this->aiService->settings();
         $basePrompt = trim((string) ($settings['ai_default_system_prompt'] ?? ''));
@@ -172,26 +179,30 @@ class PortalSyndicChatService
 
         $instructions = [
             $basePrompt,
-            'Você é o Chat do Síndico do Portal do Cliente Âncora.',
-            'Responda sempre em português do Brasil, com clareza, tom profissional e objetividade.',
+            'Voce e Leme, a IA que ajuda o usuario a pilotar a gestao no Portal do Cliente Ancora.',
+            'Responda sempre em portugues do Brasil, com clareza, tom profissional e objetividade.',
             'Use somente os trechos documentais fornecidos pelo sistema para fundamentar a resposta.',
-            'Nunca invente cláusulas, artigos ou decisões que não apareçam nos documentos analisados.',
-            'Quando houver base do condomínio, priorize Convenção condominial, depois Regimento interno, depois ATAs e por fim Base Legal Global.',
-            'Se os documentos não trouxerem previsão expressa, diga isso com clareza e não conclua além do que está documentado.',
-            'Deixe claro quando a resposta vier apenas da Base Legal Global, sem apoio documental específico do condomínio.',
-            'Condomínio em análise: ' . trim((string) $condominium->name) . '.',
+            'Nunca invente clausulas, artigos ou decisoes que nao aparecam nos documentos analisados.',
+            'Quando houver base do condominio, priorize Convencao condominial, depois Regimento interno, depois ATAs e por fim Base Legal Global.',
+            'Se os documentos nao trouxerem previsao expressa, diga isso com clareza e nao conclua alem do que esta documentado.',
+            'Deixe claro quando a resposta vier apenas da Base Legal Global, sem apoio documental especifico do condominio.',
+            'Condominio em analise: ' . trim((string) $condominium->name) . '.',
         ];
 
         if (!$usedRelevantChunks) {
-            $instructions[] = 'Nenhum trecho relevante foi localizado na busca. Responda informando que não encontrou previsão expressa nos documentos analisados.';
+            $instructions[] = 'Nenhum trecho relevante foi localizado na busca. Responda informando que nao encontrou previsao expressa nos documentos analisados.';
+        }
+
+        if ($oldDocumentAlerts !== []) {
+            $instructions[] = 'Quando um documento do condominio usado na resposta estiver antigo pela regua configurada, responda a pergunta normalmente e tambem recomende, de forma objetiva, revisao ou atualizacao documental com o escritorio.';
         }
 
         if ($legalNotice !== '') {
-            $instructions[] = 'Aviso jurídico padrão: ' . $legalNotice;
+            $instructions[] = 'Aviso juridico padrao: ' . $legalNotice;
         }
 
         if ($budgetUrl !== '') {
-            $instructions[] = 'Se o usuário pedir ampliação de plano ou orçamento, mencione este link apenas se fizer sentido: ' . $budgetUrl;
+            $instructions[] = 'Se o usuario pedir ampliacao de plano ou orcamento, mencione este link apenas se fizer sentido: ' . $budgetUrl;
         }
 
         return collect($instructions)
@@ -200,13 +211,13 @@ class PortalSyndicChatService
             ->implode("\n\n");
     }
 
-    private function buildDocumentContext(array $search, bool $usedRelevantChunks): string
+    private function buildDocumentContext(array $search, bool $usedRelevantChunks, array $oldDocumentAlerts = []): string
     {
         if (!$usedRelevantChunks) {
-            return 'Nenhum trecho relevante foi encontrado nos documentos processados do condomínio e da Base Legal Global para esta pergunta.';
+            return 'Nenhum trecho relevante foi encontrado nos documentos processados do condominio e da Base Legal Global para esta pergunta.';
         }
 
-        return collect()
+        $chunksText = collect()
             ->concat($search['condominium_chunks'] ?? collect())
             ->concat($search['global_chunks'] ?? collect())
             ->map(function ($chunk): string {
@@ -220,10 +231,143 @@ class PortalSyndicChatService
             })
             ->filter()
             ->implode("\n\n----------------\n\n");
+
+        $oldDocumentsContext = $this->buildOldDocumentContext($oldDocumentAlerts);
+
+        if ($oldDocumentsContext === '') {
+            return $chunksText;
+        }
+
+        return $oldDocumentsContext . "\n\n================\n\n" . $chunksText;
     }
 
     private function conversationTitle(string $question): string
     {
         return Str::limit($question, 90, '...');
+    }
+
+    /** @return array<int,array{document_kind:string,label:string,date_br:string,date_iso:string,year:string,age_years:int,threshold_years:int,title:string}> */
+    private function resolveOldDocumentAlerts(Collection $documents): array
+    {
+        $settings = $this->aiService->settings();
+        if (!(bool) ($settings['ai_old_document_alert_enabled'] ?? false)) {
+            return [];
+        }
+
+        $thresholdYears = max(1, (int) ($settings['ai_old_document_alert_years'] ?? 5));
+        $cutoffDate = now()->subYears($thresholdYears);
+
+        return $documents
+            ->map(function ($document) use ($cutoffDate, $thresholdYears): ?array {
+                $sourceType = trim((string) data_get($document, 'source_type'));
+                if ($sourceType !== AiDocumentCatalog::SOURCE_CONDOMINIUM_ATTACHMENT) {
+                    return null;
+                }
+
+                $documentDate = trim((string) data_get($document, 'document_date'));
+                if ($documentDate === '') {
+                    return null;
+                }
+
+                try {
+                    $parsedDate = Carbon::parse($documentDate)->startOfDay();
+                } catch (\Throwable) {
+                    return null;
+                }
+
+                if ($parsedDate->gt($cutoffDate)) {
+                    return null;
+                }
+
+                $documentKind = trim((string) data_get($document, 'document_kind'));
+                $label = trim((string) data_get($document, 'document_kind_label'));
+                if ($label === '') {
+                    $label = AiDocumentCatalog::documentKindLabel($documentKind);
+                }
+
+                return [
+                    'document_kind' => $documentKind,
+                    'label' => $label,
+                    'date_br' => $parsedDate->format('d/m/Y'),
+                    'date_iso' => $parsedDate->toDateString(),
+                    'year' => $parsedDate->format('Y'),
+                    'age_years' => now()->diffInYears($parsedDate),
+                    'threshold_years' => $thresholdYears,
+                    'title' => trim((string) data_get($document, 'title')),
+                ];
+            })
+            ->filter()
+            ->unique(fn (array $item) => implode('|', [
+                $item['document_kind'],
+                $item['date_iso'],
+                $item['title'],
+            ]))
+            ->sortBy(fn (array $item) => match ($item['document_kind']) {
+                'convention' => 1,
+                'regiment' => 2,
+                'ata' => 3,
+                default => 9,
+            })
+            ->values()
+            ->all();
+    }
+
+    private function buildOldDocumentContext(array $oldDocumentAlerts): string
+    {
+        if ($oldDocumentAlerts === []) {
+            return '';
+        }
+
+        $thresholdYears = (int) ($oldDocumentAlerts[0]['threshold_years'] ?? 5);
+        $lines = collect($oldDocumentAlerts)
+            ->map(fn (array $item) => '- ' . $item['label'] . ' | data ' . $item['date_br'] . ' | idade aproximada de ' . $item['age_years'] . ' anos')
+            ->implode("\n");
+
+        return 'ALERTA DE DOCUMENTOS ANTIGOS DO CONDOMINIO (regua atual: ' . $thresholdYears . " anos)\n"
+            . $lines
+            . "\nUse essa informacao para orientar revisao ou atualizacao documental quando ela fizer sentido para a resposta.";
+    }
+
+    private function appendOldDocumentNotice(string $assistantText, array $oldDocumentAlerts, bool $usedRelevantChunks): string
+    {
+        if (!$usedRelevantChunks || $oldDocumentAlerts === []) {
+            return $assistantText;
+        }
+
+        $normalizedAnswer = Str::of(Str::ascii($assistantText))->lower()->toString();
+        $alreadyMentionsUpdate = Str::contains($normalizedAnswer, [
+            'revisao',
+            'revisar',
+            'atualizacao',
+            'atualizar',
+            'documento antigo',
+            'documentos antigos',
+        ]);
+
+        if ($alreadyMentionsUpdate) {
+            return $assistantText;
+        }
+
+        $thresholdYears = (int) ($oldDocumentAlerts[0]['threshold_years'] ?? 5);
+
+        if (count($oldDocumentAlerts) === 1) {
+            $document = $oldDocumentAlerts[0];
+
+            return rtrim($assistantText) . "\n\n"
+                . 'Observacao da Leme: a ' . Str::lower($document['label']) . ' consultada e de ' . $document['year']
+                . ' e ja ultrapassa a regua configurada de ' . $thresholdYears
+                . ' anos para documento antigo. Vale considerar uma revisao ou atualizacao com o escritorio para manter a base documental do condominio mais segura e atualizada.';
+        }
+
+        $documentsList = collect($oldDocumentAlerts)
+            ->map(fn (array $document) => $document['label'] . ' (' . $document['date_br'] . ')')
+            ->implode('; ');
+
+        return rtrim($assistantText) . "\n\n"
+            . 'Observacao da Leme: os seguintes documentos consultados ja ultrapassam a regua configurada de '
+            . $thresholdYears
+            . ' anos para documento antigo: '
+            . $documentsList
+            . '. Vale considerar uma revisao ou atualizacao com o escritorio para manter a documentacao do condominio alinhada e mais segura.';
     }
 }

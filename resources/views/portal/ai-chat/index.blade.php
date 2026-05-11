@@ -14,15 +14,20 @@
 <section class="rounded-[2rem] bg-[#941415] p-6 text-white shadow-xl shadow-[#941415]/20 sm:p-8">
     <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Inteligencia Artificial</p>
-            <h1 class="mt-3 text-3xl font-semibold">Chat do Sindico</h1>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Leme</p>
+            <h1 class="mt-3 text-3xl font-semibold">A IA que ajuda o usuario a pilotar a gestao</h1>
             <p class="mt-2 max-w-3xl text-sm text-white/80 sm:text-base">
-                Consulte Convenção, Regimento, ATAs e Base Legal Global com o mesmo contexto seguro do seu condomínio.
+                Consulte Convencao, Regimento, ATAs e Base Legal Global com o mesmo contexto seguro do seu condominio.
             </p>
         </div>
-        <div class="rounded-3xl border border-white/20 bg-white/10 px-5 py-4 text-sm text-white/90">
-            <div class="font-semibold">Condominio em foco</div>
-            <div class="mt-1">{{ $activeCondominiumName ?: 'Selecione um condominio para iniciar.' }}</div>
+        <div class="flex flex-col gap-3 lg:items-end">
+            <a href="{{ route('portal.ai-chat.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white px-4 py-3 text-sm font-semibold text-[#941415] transition hover:bg-[#fdf1f1]">
+                <i class="fa-solid fa-plus mr-2"></i>Novo chat
+            </a>
+            <div class="rounded-3xl border border-white/20 bg-white/10 px-5 py-4 text-sm text-white/90">
+                <div class="font-semibold">Condominio em foco</div>
+                <div class="mt-1">{{ $activeCondominiumName ?: 'Selecione um condominio para iniciar.' }}</div>
+            </div>
         </div>
     </div>
 </section>
@@ -32,20 +37,25 @@
         <div class="border-b border-[#eadfd5] px-5 py-4 sm:px-6">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-950">{{ $activeConversation?->displayTitle() ?: 'Nova conversa' }}</h2>
+                    <h2 class="text-lg font-semibold text-gray-950">{{ $activeConversation?->displayTitle() ?: 'Novo chat' }}</h2>
                     <p class="mt-1 text-sm text-gray-500">
-                        {{ $usageMessage !== '' ? $usageMessage : 'Envie uma pergunta para consultar a base documental do condomínio.' }}
+                        {{ $usageMessage !== '' ? $usageMessage : 'Envie uma pergunta para consultar a base documental do condominio com a Leme.' }}
                     </p>
                 </div>
-                @if($activeConversation && $activeCondominiumName)
-                    <span class="inline-flex w-fit rounded-full bg-[#f7f2ec] px-3 py-1 text-xs font-semibold text-[#941415]">{{ $activeCondominiumName }}</span>
-                @endif
+                <div class="flex flex-wrap items-center gap-2">
+                    @if($activeConversation && $activeCondominiumName)
+                        <span class="inline-flex w-fit rounded-full bg-[#f7f2ec] px-3 py-1 text-xs font-semibold text-[#941415]">{{ $activeCondominiumName }}</span>
+                    @endif
+                    <a href="{{ route('portal.ai-chat.index') }}" class="inline-flex items-center justify-center rounded-full border border-[#eadfd5] bg-white px-3 py-1.5 text-xs font-semibold text-[#941415] transition hover:border-[#941415]/40 hover:bg-[#fdf8f4]">
+                        <i class="fa-solid fa-plus mr-1.5"></i>Novo chat
+                    </a>
+                </div>
             </div>
         </div>
 
         @if($conversationUsesDifferentCondominium && $activeCondominiumName)
             <div class="border-b border-warning-200 bg-warning-50 px-5 py-4 text-sm text-warning-700 sm:px-6">
-                Esta conversa usa o contexto de <strong>{{ $activeCondominiumName }}</strong>, mesmo que o seletor do topo esteja em outro condomínio.
+                Esta conversa usa o contexto de <strong>{{ $activeCondominiumName }}</strong>. Se quiser trocar para o condominio selecionado no topo, clique em <strong>Novo chat</strong>.
             </div>
         @endif
 
@@ -68,9 +78,9 @@
                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#941415] text-white">
                             <i class="fa-solid fa-comments text-xl"></i>
                         </div>
-                        <h3 class="mt-4 text-lg font-semibold text-gray-950">Pronto para consultar a base do condomínio</h3>
+                        <h3 class="mt-4 text-lg font-semibold text-gray-950">A Leme esta pronta para ajudar na gestao do condominio</h3>
                         <p class="mt-2 text-sm text-gray-500">
-                            Pergunte sobre regras da Convenção, do Regimento, ATAs recentes ou fundamentos da Base Legal Global.
+                            Pergunte sobre regras da Convencao, do Regimento, ATAs recentes ou fundamentos da Base Legal Global.
                         </p>
 
                         <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -121,7 +131,7 @@
                             name="question"
                             rows="2"
                             maxlength="4000"
-                            placeholder="Digite sua pergunta sobre Convenção, Regimento, ATAs ou Base Legal Global..."
+                            placeholder="Digite sua pergunta para a Leme sobre Convencao, Regimento, ATAs ou Base Legal Global..."
                             class="min-h-[56px] w-full rounded-2xl border border-gray-200 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-[#941415] focus:ring-4 focus:ring-[#941415]/10 {{ $chatCanSubmit ? '' : 'cursor-not-allowed bg-gray-100 text-gray-500' }}"
                             @disabled(!$chatCanSubmit)
                         >{{ old('question') }}</textarea>
@@ -138,7 +148,7 @@
 
                     <div class="flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            Use perguntas objetivas para melhorar a busca dos trechos mais relevantes.
+                            Use perguntas objetivas para ajudar a Leme a localizar os trechos mais relevantes.
                         </div>
                         <div id="usageStatusText" class="font-medium text-[#941415]">
                             {{ $usageMessage }}
@@ -169,13 +179,13 @@
         </section>
 
         <section class="{{ $cardClass }} p-5">
-            <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#941415]">Historico recente</h3>
+            <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#941415]">Historico recente da Leme</h3>
             <div class="mt-4 space-y-3">
                 @forelse($recentConversations as $conversation)
                     <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="block rounded-2xl border px-4 py-3 transition {{ $activeConversation && (int) $activeConversation->id === (int) $conversation->id ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
                         <div class="text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
                         <div class="mt-1 text-xs text-gray-500">
-                            {{ $conversation->condominium?->name ?: 'Sem condominio' }} · {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                            {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
                         </div>
                     </a>
                 @empty

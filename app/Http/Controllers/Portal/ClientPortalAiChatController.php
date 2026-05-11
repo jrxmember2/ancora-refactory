@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AiChatConversation;
 use App\Models\ClientCondominium;
 use App\Models\ClientPortalUser;
+use App\Services\Ai\AiService;
 use App\Services\Ai\AiUsageLimiter;
 use App\Services\Ai\PortalSyndicChatService;
 use App\Support\ClientPortalAuth;
@@ -60,7 +61,7 @@ class ClientPortalAiChatController extends Controller
 
         $chatContext = $this->resolveChatContext($request, $portalUser, $conversation);
         if ($chatContext['needs_condominium_selection']) {
-            return $this->chatErrorResponse($request, 'Selecione um condomínio no topo do portal para iniciar o Chat do Síndico.', 422);
+            return $this->chatErrorResponse($request, 'Selecione um condominio no topo do portal para iniciar um novo chat com a Leme.', 422);
         }
 
         $usageStatus = $this->usageLimiter->statusForUser($portalUser, true);
@@ -70,7 +71,7 @@ class ClientPortalAiChatController extends Controller
 
         $condominium = $chatContext['active_condominium'];
         if (!$condominium instanceof ClientCondominium) {
-            return $this->chatErrorResponse($request, 'Não foi possível identificar o condomínio desta conversa.', 422);
+            return $this->chatErrorResponse($request, 'Nao foi possivel identificar o condominio desta conversa.', 422);
         }
 
         $lock = Cache::lock('portal-ai-chat:' . $portalUser->id, 30);
@@ -127,7 +128,7 @@ class ClientPortalAiChatController extends Controller
         } catch (\RuntimeException $exception) {
             return $this->chatErrorResponse($request, trim($exception->getMessage()), 422);
         } catch (\Throwable $exception) {
-            return $this->chatErrorResponse($request, 'Não foi possível processar sua consulta agora. Tente novamente em instantes.', 500);
+            return $this->chatErrorResponse($request, 'Nao foi possivel processar sua consulta agora. Tente novamente em instantes.', 500);
         } finally {
             optional($lock)->release();
         }
@@ -147,15 +148,15 @@ class ClientPortalAiChatController extends Controller
         if (!$usageStatus['allowed']) {
             $disabledReason = $usageStatus['message'];
         } elseif ($chatContext['needs_condominium_selection']) {
-            $disabledReason = 'Selecione um condomínio no topo do portal para iniciar o Chat do Síndico.';
+            $disabledReason = 'Selecione um condominio no topo do portal para iniciar um novo chat com a Leme.';
         } elseif (!($activeCondominium instanceof ClientCondominium)) {
-            $disabledReason = 'Não foi possível identificar o condomínio desta conversa.';
+            $disabledReason = 'Nao foi possivel identificar o condominio desta conversa.';
         } elseif ($activeCondominium instanceof ClientCondominium && !$hasKnowledgeBase) {
             $disabledReason = PortalSyndicChatService::MESSAGE_NO_DOCUMENTS;
         }
 
         return view('portal.ai-chat.index', [
-            'title' => 'Chat do Síndico',
+            'title' => 'Leme',
             'portalUser' => $portalUser,
             'activeConversation' => $activeConversation,
             'activeMessages' => $activeConversation?->messages ?? collect(),
@@ -170,10 +171,10 @@ class ClientPortalAiChatController extends Controller
             'chatCanSubmit' => $disabledReason === null,
             'legalNotice' => trim((string) ($this->chatServiceSettings()['ai_default_legal_notice'] ?? '')),
             'sampleQuestions' => [
-                'A convenção permite locação por temporada neste condomínio?',
-                'O regimento interno fala sobre barulho após as 22h?',
-                'Há alguma ATA recente tratando de obras ou rateio extraordinário?',
-                'O Código Civil prevê deveres específicos do síndico sobre prestação de contas?',
+                'A convencao permite locacao por temporada neste condominio?',
+                'O regimento interno fala sobre barulho apos as 22h?',
+                'Ha alguma ATA recente tratando de obras ou rateio extraordinario?',
+                'O Codigo Civil preve deveres especificos do sindico sobre prestacao de contas?',
             ],
         ]);
     }
@@ -218,7 +219,7 @@ class ClientPortalAiChatController extends Controller
 
     private function chatErrorResponse(Request $request, string $message, int $status): JsonResponse|RedirectResponse
     {
-        $normalized = trim($message) !== '' ? trim($message) : 'Não foi possível concluir sua solicitação.';
+        $normalized = trim($message) !== '' ? trim($message) : 'Nao foi possivel concluir sua solicitacao.';
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -232,6 +233,6 @@ class ClientPortalAiChatController extends Controller
 
     private function chatServiceSettings(): array
     {
-        return app(\App\Services\Ai\AiService::class)->settings();
+        return app(AiService::class)->settings();
     }
 }

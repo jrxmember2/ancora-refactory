@@ -18,6 +18,12 @@ class ClientPortalContextController extends Controller
         $value = trim((string) $request->input('client_condominium_id', ''));
         ClientPortalContext::select($request, $user, $value === 'all' ? null : (int) $value);
 
-        return back()->with('success', $value === 'all' ? 'Visualizacao geral selecionada.' : 'Condominio selecionado no portal.');
+        $message = $value === 'all' ? 'Visualizacao geral selecionada.' : 'Condominio selecionado no portal.';
+
+        if ($request->boolean('redirect_to_ai_chat')) {
+            return redirect()->route('portal.ai-chat.index')->with('success', $message);
+        }
+
+        return back()->with('success', $message);
     }
 }
