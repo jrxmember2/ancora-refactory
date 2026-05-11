@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiGlobalDocument;
 use App\Models\AppSetting;
 use App\Models\CobrancaMonetaryIndexFactor;
 use App\Models\Demand;
@@ -15,18 +16,23 @@ use App\Models\StatusRetorno;
 use App\Models\SystemModule;
 use App\Models\User;
 use App\Services\Ai\AiService;
+use App\Services\Ai\Knowledge\AiGlobalDocumentProcessor;
 use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
+use App\Support\AiLegalDocumentCatalog;
 use App\Support\AncoraRouteCatalog;
 use App\Support\AncoraSettings;
 use App\Support\AiProviderCatalog;
+use Illuminate\Http\BinaryFileResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -122,6 +128,28 @@ class ConfigController extends Controller
                 'gemini_chat_models' => AiProviderCatalog::geminiChatModels(),
                 'openai_embedding_models' => AiProviderCatalog::openAiEmbeddingModels(),
                 'gemini_embedding_models' => AiProviderCatalog::geminiEmbeddingModels(),
+            ],
+        ]);
+    }
+
+    public function aiLegalBase(): View
+    {
+        $this->ensureRoutePermissionsSynced();
+
+        return view('pages.admin.config-ai-legal-base', [
+            'title' => 'Base Legal Global',
+            'documents' => AiGlobalDocument::query()
+                ->with('creator')
+                ->withCount('chunks')
+                ->orderByDesc('is_active')
+                ->orderByDesc('document_date')
+                ->orderByDesc('id')
+                ->get(),
+            'catalog' => [
+                'document_types' => AiLegalDocumentCatalog::documentTypes(),
+                'processing_statuses' => AiLegalDocumentCatalog::processingStatuses(),
+                'processable_extension' => AiLegalDocumentCatalog::processableExtension(),
+                'accepted_extensions' => AiLegalDocumentCatalog::acceptedExtensions(),
             ],
         ]);
     }
@@ -420,6 +448,92 @@ class ConfigController extends Controller
         return redirect()
             ->route('config.ai.index')
             ->with('success', 'Configuracoes de Inteligencia Artificial atualizadas com sucesso.');
+    }
+
+    public function storeAiGlobalDocument(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->aiGlobalDocumentValidationRules());
+        $file = $request->file('document_file');
+
+        if (!$file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'document_file' => 'Envie um arquivo DOCX ou PDF para cadastrar a Base Legal Global.',
+            ]);
+        }
+
+        $stored = $this->storeAiGlobalDocumentFile($file);
+
+        AiGlobalDocument::query()->create([
+            'name' => trim((string) $validated['name']),
+            'document_type' => trim((string) $validated['document_type']),
+            'document_date' => Carbon::parse((string) $validated['document_date'])->toDateString(),
+            'original_name' => $stored['original_name'],
+            'stored_name' => $stored['stored_name'],
+            'relative_path' => $stored['relative_path'],
+            'mime_type' => $stored['mime_type'],
+            'file_size' => $stored['file_size'],
+            'processing_status' => 'pending',
+            'processing_error' => null,
+            'is_active' => $request->boolean('is_active'),
+            'observation' => trim((string) ($validated['observation'] ?? '')) ?: null,
+            'created_by' => AncoraAuth::user($request)?->id,
+        ]);
+
+        $message = $stored['extension'] === AiLegalDocumentCatalog::processableExtension()
+            ? 'Documento global cadastrado com sucesso. Agora voce ja pode clicar em Processar documento.'
+            : 'Documento global cadastrado com sucesso. Nesta fase, apenas DOCX entra no processamento de IA.';
+
+        return redirect()
+            ->route('config.ai.legal-base.index')
+            ->with('success', $message);
+    }
+
+    public function updateAiGlobalDocument(Request $request, AiGlobalDocument $document): RedirectResponse
+    {
+        $validated = $request->validate($this->aiGlobalDocumentValidationRules(true));
+
+        $document->forceFill([
+            'name' => trim((string) $validated['name']),
+            'document_type' => trim((string) $validated['document_type']),
+            'document_date' => Carbon::parse((string) $validated['document_date'])->toDateString(),
+            'is_active' => $request->boolean('is_active'),
+            'observation' => trim((string) ($validated['observation'] ?? '')) ?: null,
+        ])->save();
+
+        $this->syncAiGlobalDocumentChunksMetadata($document);
+
+        return redirect()
+            ->route('config.ai.legal-base.index')
+            ->with('success', 'Metadados do documento global atualizados com sucesso.');
+    }
+
+    public function downloadAiGlobalDocument(AiGlobalDocument $document): BinaryFileResponse
+    {
+        $path = $document->absolutePath();
+        abort_unless(is_string($path) && is_file($path), 404, 'Arquivo nao encontrado.');
+
+        return response()->download($path, $document->original_name);
+    }
+
+    public function processAiGlobalDocument(AiGlobalDocument $document, AiGlobalDocumentProcessor $processor): RedirectResponse
+    {
+        if (!$document->isDocx()) {
+            return redirect()
+                ->route('config.ai.legal-base.index')
+                ->with('error', 'Somente arquivos DOCX podem ser processados nesta fase da Base Legal Global.');
+        }
+
+        try {
+            $result = $processor->process($document);
+        } catch (Exception $exception) {
+            return redirect()
+                ->route('config.ai.legal-base.index')
+                ->with('error', 'Nao foi possivel processar o documento agora: ' . trim($exception->getMessage()));
+        }
+
+        return redirect()
+            ->route('config.ai.legal-base.index')
+            ->with('success', 'Documento processado com sucesso. ' . number_format((int) $result['chunks'], 0, ',', '.') . ' blocos pesquisaveis foram gerados.');
     }
 
     public function testAi(Request $request, AiService $aiService): JsonResponse
@@ -1239,6 +1353,18 @@ class ConfigController extends Controller
         ];
     }
 
+    private function aiGlobalDocumentValidationRules(bool $updating = false): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:180'],
+            'document_type' => ['required', Rule::in(AiLegalDocumentCatalog::documentTypeKeys())],
+            'document_date' => ['required', 'date'],
+            'document_file' => [$updating ? 'nullable' : 'required', 'file', 'mimes:docx,pdf', 'max:20480'],
+            'is_active' => ['nullable'],
+            'observation' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
     private function aiValidationRules(bool $testing = false): array
     {
         return [
@@ -1406,6 +1532,35 @@ class ConfigController extends Controller
         return mb_substr($normalized, 0, 4)
             . str_repeat('*', max($length - 8, 4))
             . mb_substr($normalized, -4);
+    }
+
+    /**
+     * @return array{original_name:string,stored_name:string,relative_path:string,mime_type:?string,file_size:?int,extension:string}
+     */
+    private function storeAiGlobalDocumentFile(UploadedFile $file): array
+    {
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: 'bin'));
+        $storedName = 'legal-base-' . now()->format('Ymd-His') . '-' . Str::random(10) . '.' . $extension;
+        $directory = 'ai/global-documents';
+
+        Storage::disk('public')->putFileAs($directory, $file, $storedName);
+
+        return [
+            'original_name' => Str::limit((string) $file->getClientOriginalName(), 250, ''),
+            'stored_name' => $storedName,
+            'relative_path' => $directory . '/' . $storedName,
+            'mime_type' => Str::limit((string) $file->getClientMimeType(), 120, '') ?: null,
+            'file_size' => $file->getSize() ?: null,
+            'extension' => $extension,
+        ];
+    }
+
+    private function syncAiGlobalDocumentChunksMetadata(AiGlobalDocument $document): void
+    {
+        $document->chunks()->update([
+            'source_document_type' => (string) $document->document_type,
+            'is_active' => (bool) $document->is_active,
+        ]);
     }
 
     private function setMany(array $items): void

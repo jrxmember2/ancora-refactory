@@ -17,7 +17,7 @@
             ['key' => 'catalogs', 'label' => 'Catalogos', 'icon' => 'fa-solid fa-list-check', 'description' => 'Servicos, status, processos e TJES'],
             ['key' => 'demands', 'label' => 'Demandas', 'icon' => 'fa-solid fa-table-columns', 'description' => 'Tags, cores e SLA'],
             ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
-            ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini e prompts', 'href' => route('config.ai.index')],
+            ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini, prompts e base legal', 'href' => route('config.ai.index')],
         ];
     @endphp
 

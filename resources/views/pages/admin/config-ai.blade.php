@@ -33,6 +33,10 @@
             <i class="fa-solid fa-arrow-left"></i>
             <span>Voltar para Configuracoes</span>
         </a>
+        <a href="{{ route('config.ai.legal-base.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced"></i>
+            <span>Base Legal Global</span>
+        </a>
     </div>
 
     <form id="ai-config-form" method="post" action="{{ route('config.ai.save') }}" class="space-y-6">
@@ -381,6 +385,20 @@
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">O que e embedding?</h3>
                     <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Embedding e uma forma de transformar texto em vetores numericos para comparar significado. Em pratica, isso serve para busca semantica, ranking de documentos, recuperacao de contexto e respostas mais bem fundamentadas.</p>
                     <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Nesta fase o chat principal ainda nao depende disso para funcionar, mas ja deixamos o campo pronto e preconfigurado para a proxima etapa do modulo de IA.</p>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Base Legal Global</h3>
+                            <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Aqui ficam documentos juridicos globais, como Codigo Civil, para compor a base compartilhada do Chat do Sindico.</p>
+                        </div>
+                        <i class="fa-solid fa-scale-balanced text-lg text-brand-500"></i>
+                    </div>
+                    <a href="{{ route('config.ai.legal-base.index') }}" class="{{ $softButtonClass }} mt-4 inline-flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Abrir Base Legal Global</span>
+                    </a>
                 </div>
 
                 <div class="rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-6 shadow-theme-xs dark:border-brand-800 dark:bg-brand-500/5">

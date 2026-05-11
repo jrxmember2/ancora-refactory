@@ -124,6 +124,11 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
     Route::get('/config/ia', [ConfigController::class, 'ai'])->name('config.ai.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.index']);
     Route::post('/config/ia/save', [ConfigController::class, 'saveAi'])->name('config.ai.save')->middleware(['ancora.superadmin', 'ancora.route:config.ai.save']);
     Route::post('/config/ia/test', [ConfigController::class, 'testAi'])->name('config.ai.test')->middleware(['ancora.superadmin', 'ancora.route:config.ai.test']);
+    Route::get('/config/ia/base-legal-global', [ConfigController::class, 'aiLegalBase'])->name('config.ai.legal-base.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.index']);
+    Route::post('/config/ia/base-legal-global', [ConfigController::class, 'storeAiGlobalDocument'])->name('config.ai.legal-base.store')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.store']);
+    Route::match(['post', 'put'], '/config/ia/base-legal-global/{document}', [ConfigController::class, 'updateAiGlobalDocument'])->name('config.ai.legal-base.update')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.update']);
+    Route::post('/config/ia/base-legal-global/{document}/processar', [ConfigController::class, 'processAiGlobalDocument'])->name('config.ai.legal-base.process')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.process']);
+    Route::get('/config/ia/base-legal-global/{document}/download', [ConfigController::class, 'downloadAiGlobalDocument'])->name('config.ai.legal-base.download')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.download']);
     Route::get('/config/automacao/documentacao', [ConfigController::class, 'automationDocumentation'])->name('config.automation.documentation')->middleware(['ancora.superadmin', 'ancora.route:config.automation.documentation']);
     Route::post('/config/automacao/save', [ConfigController::class, 'saveAutomation'])->name('config.automation.save')->middleware(['ancora.superadmin', 'ancora.route:config.automation.save']);
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);

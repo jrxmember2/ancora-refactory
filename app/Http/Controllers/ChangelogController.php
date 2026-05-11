@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v1.95',
+            'version' => 'v1.96',
             'date' => '10/05/2026',
-            'label' => 'v1.95 - 10/05/2026',
+            'label' => 'v1.96 - 10/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Base Legal Global nasce dentro da configuracao de IA com upload, processamento DOCX e blocos compartilhados',
+                'items' => [
+                    'Configuracoes > Inteligencia Artificial ganha a nova area Base Legal Global para cadastrar documentos juridicos compartilhados, como Codigo Civil, com metadados, status, observacoes e ativacao individual.',
+                    'Documentos globais passam a ser armazenados em tabela propria e podem ser processados para extrair texto de arquivos DOCX e gerar blocos pesquisaveis em estrutura generica de chunks pronta para conviver com futuras bases por condominio.',
+                    'A fundacao tecnica do Chat do Sindico passa a contar com servico de consulta da base global e de blocos por condominio, mantendo a origem claramente identificada e sem misturar documentos compartilhados com documentos especificos.',
+                ],
+            ],
+            [
+                'version' => 'v1.95',
+                'date' => '10/05/2026',
                 'title' => 'Configuracao de IA passa a guiar melhor o usuario comum e refina catalogos oficiais',
                 'items' => [
                     'A tela de IA reforca a UX para uso real: help tips em todos os campos principais, lista de modelos ordenada do mais basico ao mais forte, mensagem explicita de provedor unico e comportamento visual ativo/inativo mais claro.',
