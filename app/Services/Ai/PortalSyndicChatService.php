@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Models\AiChatConversation;
 use App\Models\AiChatMessage;
+use App\Models\AiChatMessageSource;
 use App\Models\ClientCondominium;
 use App\Models\ClientPortalUser;
 use App\Support\AiDocumentCatalog;
@@ -17,6 +18,7 @@ class PortalSyndicChatService
 {
     public const MESSAGE_NO_DOCUMENTS = 'Ainda nao ha convencao, regimento ou base documental processada para consulta. Entre em contato com o escritorio.';
     public const MESSAGE_NO_RELEVANT_EXCERPT = 'Nao encontrei previsao expressa nos documentos analisados para responder com seguranca a essa pergunta.';
+    public const MESSAGE_GENERIC_ERROR = 'Nao foi possivel processar sua consulta agora. Tente novamente em instantes.';
 
     public function __construct(
         private readonly AiDocumentSearchService $documentSearchService,
@@ -73,101 +75,88 @@ class PortalSyndicChatService
         $usedRelevantChunks = (bool) ($search['has_relevant_matches'] ?? false);
         $oldDocumentAlerts = $this->resolveOldDocumentAlerts(collect($search['documents'] ?? []));
 
-        $aiResponse = $this->aiService->generate(
-            systemPrompt: $this->buildSystemPrompt($condominium, $usedRelevantChunks, $oldDocumentAlerts),
-            userQuestion: $normalizedQuestion,
-            documentContext: $this->buildDocumentContext($search, $usedRelevantChunks, $oldDocumentAlerts),
-            temperature: null,
-            maxTokens: null,
+        [$savedConversation, $userMessage] = $this->openConversationAndStoreUserMessage(
+            portalUser: $portalUser,
+            condominium: $condominium,
+            conversation: $conversation,
+            normalizedQuestion: $normalizedQuestion,
         );
 
-        if (!$aiResponse->ok()) {
-            throw new RuntimeException($aiResponse->error ?: 'Nao foi possivel responder agora. Tente novamente em instantes.');
+        $aiResponse = null;
+
+        try {
+            $aiResponse = $this->aiService->generate(
+                systemPrompt: $this->buildSystemPrompt($condominium, $usedRelevantChunks, $oldDocumentAlerts),
+                userQuestion: $normalizedQuestion,
+                documentContext: $this->buildDocumentContext($search, $usedRelevantChunks, $oldDocumentAlerts),
+                temperature: null,
+                maxTokens: null,
+            );
+
+            if (!$aiResponse->ok()) {
+                throw new RuntimeException($aiResponse->error ?: 'Nao foi possivel responder agora. Tente novamente em instantes.');
+            }
+
+            $assistantText = trim((string) $aiResponse->text);
+            if ($assistantText === '') {
+                throw new RuntimeException('A IA nao retornou uma resposta utilizavel para esta pergunta.');
+            }
+
+            if (!$usedRelevantChunks) {
+                $assistantText = self::MESSAGE_NO_RELEVANT_EXCERPT;
+            }
+
+            $assistantText = $this->appendOldDocumentNotice($assistantText, $oldDocumentAlerts, $usedRelevantChunks);
+
+            $assistantMessage = $this->persistAssistantMessage(
+                conversation: $savedConversation,
+                userMessage: $userMessage,
+                search: $search,
+                aiResponse: $aiResponse,
+                content: $assistantText,
+                usedRelevantChunks: $usedRelevantChunks,
+                oldDocumentAlerts: $oldDocumentAlerts,
+                status: $aiResponse->status,
+                errorMessage: null,
+            );
+
+            return [
+                'conversation' => $savedConversation->fresh(['condominium']),
+                'user_message' => $userMessage->fresh(),
+                'assistant_message' => $assistantMessage,
+                'ai_response' => $aiResponse,
+                'search' => $search,
+                'used_relevant_chunks' => $usedRelevantChunks,
+            ];
+        } catch (\Throwable $exception) {
+            $displayError = $exception instanceof RuntimeException
+                ? trim($exception->getMessage())
+                : self::MESSAGE_GENERIC_ERROR;
+
+            $failureResponse = $aiResponse ?: AiResponse::failure(
+                provider: $this->resolvedProviderFromSettings(),
+                model: $this->resolvedModelFromSettings(),
+                error: $displayError,
+            );
+
+            $this->persistAssistantMessage(
+                conversation: $savedConversation,
+                userMessage: $userMessage,
+                search: $search,
+                aiResponse: $failureResponse,
+                content: $displayError !== '' ? $displayError : self::MESSAGE_GENERIC_ERROR,
+                usedRelevantChunks: $usedRelevantChunks,
+                oldDocumentAlerts: $oldDocumentAlerts,
+                status: 'error',
+                errorMessage: trim($exception->getMessage()) !== '' ? trim($exception->getMessage()) : $displayError,
+            );
+
+            if ($exception instanceof RuntimeException) {
+                throw $exception;
+            }
+
+            throw new RuntimeException($displayError, previous: $exception);
         }
-
-        $assistantText = trim((string) $aiResponse->text);
-        if ($assistantText === '') {
-            throw new RuntimeException('A IA nao retornou uma resposta utilizavel para esta pergunta.');
-        }
-
-        if (!$usedRelevantChunks) {
-            $assistantText = self::MESSAGE_NO_RELEVANT_EXCERPT;
-        }
-
-        $assistantText = $this->appendOldDocumentNotice($assistantText, $oldDocumentAlerts, $usedRelevantChunks);
-
-        $savedConversation = null;
-        $userMessage = null;
-        $assistantMessage = null;
-
-        DB::transaction(function () use (
-            $portalUser,
-            $condominium,
-            $conversation,
-            $normalizedQuestion,
-            $assistantText,
-            $search,
-            $aiResponse,
-            $oldDocumentAlerts,
-            &$savedConversation,
-            &$userMessage,
-            &$assistantMessage,
-        ): void {
-            $savedConversation = $conversation ?: AiChatConversation::query()->create([
-                'client_portal_user_id' => (int) $portalUser->id,
-                'client_condominium_id' => (int) $condominium->id,
-                'title' => $this->conversationTitle($normalizedQuestion),
-                'status' => 'active',
-                'last_message_at' => now(),
-                'last_provider' => $aiResponse->provider,
-                'last_model' => $aiResponse->model,
-            ]);
-
-            $savedConversation->forceFill([
-                'client_condominium_id' => (int) $condominium->id,
-                'title' => trim((string) $savedConversation->title) !== '' ? $savedConversation->title : $this->conversationTitle($normalizedQuestion),
-                'last_message_at' => now(),
-                'last_provider' => $aiResponse->provider,
-                'last_model' => $aiResponse->model,
-            ])->save();
-
-            $userMessage = $savedConversation->messages()->create([
-                'role' => 'user',
-                'content' => $normalizedQuestion,
-                'status' => 'success',
-                'meta_json' => [
-                    'client_condominium_id' => (int) $condominium->id,
-                    'client_condominium_name' => $condominium->name,
-                ],
-            ]);
-
-            $assistantMessage = $savedConversation->messages()->create([
-                'role' => 'assistant',
-                'content' => $assistantText,
-                'status' => $aiResponse->status,
-                'provider' => $aiResponse->provider,
-                'model' => $aiResponse->model,
-                'source_chunks_count' => count(($search['condominium_chunks'] ?? collect())->all()) + count(($search['global_chunks'] ?? collect())->all()),
-                'token_estimate' => $aiResponse->tokenEstimate,
-                'input_tokens' => $aiResponse->inputTokens,
-                'output_tokens' => $aiResponse->outputTokens,
-                'meta_json' => [
-                    'documents' => collect($search['documents'] ?? [])->values()->all(),
-                    'terms' => $search['terms'] ?? [],
-                    'used_relevant_chunks' => (bool) ($search['has_relevant_matches'] ?? false),
-                    'old_document_alerts' => $oldDocumentAlerts,
-                ],
-            ]);
-        });
-
-        return [
-            'conversation' => $savedConversation,
-            'user_message' => $userMessage,
-            'assistant_message' => $assistantMessage,
-            'ai_response' => $aiResponse,
-            'search' => $search,
-            'used_relevant_chunks' => $usedRelevantChunks,
-        ];
     }
 
     private function buildSystemPrompt(ClientCondominium $condominium, bool $usedRelevantChunks, array $oldDocumentAlerts = []): string
@@ -244,6 +233,167 @@ class PortalSyndicChatService
     private function conversationTitle(string $question): string
     {
         return Str::limit($question, 90, '...');
+    }
+
+    /** @return array{0:AiChatConversation,1:AiChatMessage} */
+    private function openConversationAndStoreUserMessage(
+        ClientPortalUser $portalUser,
+        ClientCondominium $condominium,
+        ?AiChatConversation $conversation,
+        string $normalizedQuestion,
+    ): array {
+        return DB::transaction(function () use ($portalUser, $condominium, $conversation, $normalizedQuestion): array {
+            $savedConversation = $conversation ?: AiChatConversation::query()->create([
+                'client_portal_user_id' => (int) $portalUser->id,
+                'client_condominium_id' => (int) $condominium->id,
+                'title' => $this->conversationTitle($normalizedQuestion),
+                'status' => 'active',
+                'last_message_at' => now(),
+            ]);
+
+            $savedConversation->forceFill([
+                'client_condominium_id' => (int) $condominium->id,
+                'title' => trim((string) $savedConversation->title) !== '' ? $savedConversation->title : $this->conversationTitle($normalizedQuestion),
+                'status' => trim((string) $savedConversation->status) !== '' ? $savedConversation->status : 'active',
+                'last_message_at' => now(),
+            ])->save();
+
+            $userMessage = $savedConversation->messages()->create([
+                'role' => 'user',
+                'content' => $normalizedQuestion,
+                'status' => 'success',
+                'meta_json' => [
+                    'question' => $normalizedQuestion,
+                    'client_condominium_id' => (int) $condominium->id,
+                    'client_condominium_name' => $condominium->name,
+                ],
+            ]);
+
+            return [$savedConversation, $userMessage];
+        });
+    }
+
+    private function persistAssistantMessage(
+        AiChatConversation $conversation,
+        AiChatMessage $userMessage,
+        array $search,
+        AiResponse $aiResponse,
+        string $content,
+        bool $usedRelevantChunks,
+        array $oldDocumentAlerts,
+        string $status,
+        ?string $errorMessage,
+    ): AiChatMessage {
+        $assistantMessage = DB::transaction(function () use (
+            $conversation,
+            $userMessage,
+            $search,
+            $aiResponse,
+            $content,
+            $usedRelevantChunks,
+            $oldDocumentAlerts,
+            $status,
+            $errorMessage,
+        ): AiChatMessage {
+            $conversation->forceFill([
+                'last_message_at' => now(),
+                'last_provider' => trim((string) $aiResponse->provider) !== '' ? $aiResponse->provider : $conversation->last_provider,
+                'last_model' => trim((string) $aiResponse->model) !== '' ? $aiResponse->model : $conversation->last_model,
+            ])->save();
+
+            $assistantMessage = $conversation->messages()->create([
+                'role' => 'assistant',
+                'content' => trim($content) !== '' ? trim($content) : self::MESSAGE_GENERIC_ERROR,
+                'status' => trim($status) !== '' ? trim($status) : $aiResponse->status,
+                'provider' => $aiResponse->provider ?: null,
+                'model' => $aiResponse->model ?: null,
+                'source_chunks_count' => $this->selectedChunks($search)->count(),
+                'token_estimate' => $aiResponse->tokenEstimate,
+                'input_tokens' => $aiResponse->inputTokens,
+                'output_tokens' => $aiResponse->outputTokens,
+                'tokens_total' => $this->resolveTokensTotal($aiResponse),
+                'error' => $errorMessage,
+                'error_message' => $errorMessage,
+                'meta_json' => [
+                    'question' => $userMessage->content,
+                    'user_message_id' => (int) $userMessage->id,
+                    'documents' => collect($search['documents'] ?? [])->values()->all(),
+                    'terms' => $search['terms'] ?? [],
+                    'used_relevant_chunks' => $usedRelevantChunks,
+                    'old_document_alerts' => $oldDocumentAlerts,
+                ],
+            ]);
+
+            $this->syncMessageSources($assistantMessage, $search);
+
+            return $assistantMessage;
+        });
+
+        return $assistantMessage->fresh([
+            'conversation.portalUser.entity',
+            'conversation.condominium',
+            'sources.chunk',
+            'sources.clientAttachment',
+            'sources.globalDocument',
+        ]);
+    }
+
+    private function syncMessageSources(AiChatMessage $assistantMessage, array $search): void
+    {
+        $chunks = $this->selectedChunks($search);
+        if ($chunks->isEmpty()) {
+            return;
+        }
+
+        $assistantMessage->sources()->delete();
+
+        $payload = $chunks
+            ->map(function ($chunk) use ($assistantMessage): array {
+                $attachment = $chunk->clientAttachment;
+                $globalDocument = $chunk->globalDocument;
+
+                return [
+                    'ai_chat_message_id' => (int) $assistantMessage->id,
+                    'source_type' => $chunk->effectiveSourceType(),
+                    'client_attachment_id' => $chunk->client_attachment_id ?: null,
+                    'ai_global_document_id' => $chunk->ai_global_document_id ?: null,
+                    'chunk_id' => (int) $chunk->id,
+                    'document_title' => $attachment?->original_name ?: $globalDocument?->name ?: $chunk->effectiveTitle(),
+                    'document_kind' => $chunk->effectiveDocumentKind() ?: null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->unique(fn (array $item) => implode('|', [
+                (string) $item['source_type'],
+                (string) ($item['client_attachment_id'] ?? 0),
+                (string) ($item['ai_global_document_id'] ?? 0),
+                (string) ($item['chunk_id'] ?? 0),
+            ]))
+            ->values()
+            ->all();
+
+        if ($payload !== []) {
+            AiChatMessageSource::query()->insert($payload);
+        }
+    }
+
+    private function selectedChunks(array $search): Collection
+    {
+        return collect()
+            ->concat($search['condominium_chunks'] ?? collect())
+            ->concat($search['global_chunks'] ?? collect())
+            ->unique('id')
+            ->values();
+    }
+
+    private function resolveTokensTotal(AiResponse $aiResponse): ?int
+    {
+        if ($aiResponse->inputTokens !== null || $aiResponse->outputTokens !== null) {
+            return (int) (($aiResponse->inputTokens ?? 0) + ($aiResponse->outputTokens ?? 0));
+        }
+
+        return $aiResponse->tokenEstimate !== null ? (int) $aiResponse->tokenEstimate : null;
     }
 
     /** @return array<int,array{document_kind:string,label:string,date_br:string,date_iso:string,year:string,age_years:int,threshold_years:int,title:string}> */
@@ -369,5 +519,24 @@ class PortalSyndicChatService
             . ' anos para documento antigo: '
             . $documentsList
             . '. Vale considerar uma revisao ou atualizacao com o escritorio para manter a documentacao do condominio alinhada e mais segura.';
+    }
+
+    private function resolvedProviderFromSettings(): string
+    {
+        $settings = $this->aiService->settings();
+
+        return strtolower(trim((string) ($settings['ai_active_provider'] ?? 'openai'))) === 'gemini'
+            ? 'gemini'
+            : 'openai';
+    }
+
+    private function resolvedModelFromSettings(?string $provider = null): string
+    {
+        $settings = $this->aiService->settings();
+        $providerKey = $provider ?: $this->resolvedProviderFromSettings();
+
+        return $providerKey === 'gemini'
+            ? trim((string) ($settings['gemini_chat_model'] ?? ''))
+            : trim((string) ($settings['openai_chat_model'] ?? ''));
     }
 }

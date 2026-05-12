@@ -9,20 +9,20 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.05',
+            'version' => 'v2.06',
             'date' => '11/05/2026',
-            'label' => 'v2.05 - 11/05/2026',
+            'label' => 'v2.06 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
-                'title' => 'Leme ganha nome proprio, novo chat e alerta comercial para documento antigo',
+                'title' => 'Historico, fontes e auditoria do Chat do Sindico entram na camada administrativa de IA',
                 'items' => [
-                    'O chat do portal passa a se apresentar como Leme, com identidade mais clara na navegacao, no cabecalho e na experiencia da conversa.',
-                    'A Leme agora reforca a recomendacao de revisao ou atualizacao documental quando a resposta usar Convencao, Regimento ou ATA antigos segundo a regua configurada em Inteligencia Artificial.',
-                    'A tela ganha botao de Novo chat e a troca de condominio no cabecalho passa a recarregar imediatamente o chat no contexto do condominio selecionado.',
+                    'As consultas da Leme passam a gravar historico auditavel por conversa e mensagem, com tokens totais, status, erro, marcacoes internas e vinculo com o usuario e o condominio do portal.',
+                    'Uma nova tabela de fontes por mensagem passa a registrar os chunks e documentos usados em cada resposta, preservando a origem entre anexos do condominio e Base Legal Global.',
+                    'Configuracoes > Inteligencia Artificial ganha a nova area Historico de Consultas, com filtros por condominio, usuario, provedor, modelo, status, periodo e palavra-chave, alem de detalhe administrativo com documentos usados e notas internas.',
                     'O ajuste elimina a validacao indevida "The question field is required." ao iniciar uma nova conversa ou enviar consultas pelo fluxo assíncrono do portal.',
                 ],
             ],

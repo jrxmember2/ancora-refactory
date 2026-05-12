@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiChatMessage;
 use App\Models\AiGlobalDocument;
 use App\Models\AppSetting;
 use App\Models\CobrancaMonetaryIndexFactor;
+use App\Models\ClientCondominium;
 use App\Models\Demand;
 use App\Models\DemandCategory;
 use App\Models\DemandTag;
@@ -15,6 +17,7 @@ use App\Models\Servico;
 use App\Models\StatusRetorno;
 use App\Models\SystemModule;
 use App\Models\User;
+use App\Models\ClientPortalUser;
 use App\Services\Ai\AiService;
 use App\Services\Ai\Knowledge\AiGlobalDocumentProcessor;
 use App\Services\SharedServiceCatalogService;
@@ -152,6 +155,199 @@ class ConfigController extends Controller
                 'accepted_extensions' => AiLegalDocumentCatalog::acceptedExtensions(),
             ],
         ]);
+    }
+
+    public function aiChatHistory(Request $request): View
+    {
+        $this->ensureRoutePermissionsSynced();
+
+        $filters = [
+            'client_condominium_id' => $request->filled('client_condominium_id') ? (int) $request->input('client_condominium_id') : null,
+            'client_portal_user_id' => $request->filled('client_portal_user_id') ? (int) $request->input('client_portal_user_id') : null,
+            'provider' => trim((string) $request->input('provider', '')),
+            'model' => trim((string) $request->input('model', '')),
+            'status' => trim((string) $request->input('status', '')),
+            'period_from' => trim((string) $request->input('period_from', '')),
+            'period_to' => trim((string) $request->input('period_to', '')),
+            'keyword' => trim((string) $request->input('keyword', '')),
+        ];
+
+        $query = AiChatMessage::query()
+            ->with([
+                'conversation.portalUser.entity',
+                'conversation.condominium',
+                'sources',
+            ])
+            ->whereIn('role', ['assistant', 'system'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        if ($filters['client_condominium_id']) {
+            $query->whereHas('conversation', function ($conversationQuery) use ($filters) {
+                $conversationQuery->where('client_condominium_id', $filters['client_condominium_id']);
+            });
+        }
+
+        if ($filters['client_portal_user_id']) {
+            $query->whereHas('conversation', function ($conversationQuery) use ($filters) {
+                $conversationQuery->where('client_portal_user_id', $filters['client_portal_user_id']);
+            });
+        }
+
+        if ($filters['provider'] !== '') {
+            $query->where('provider', $filters['provider']);
+        }
+
+        if ($filters['model'] !== '') {
+            $query->where('model', $filters['model']);
+        }
+
+        if ($filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['period_from'] !== '') {
+            $query->whereDate('created_at', '>=', $filters['period_from']);
+        }
+
+        if ($filters['period_to'] !== '') {
+            $query->whereDate('created_at', '<=', $filters['period_to']);
+        }
+
+        if ($filters['keyword'] !== '') {
+            $term = $filters['keyword'];
+            $query->where(function ($inner) use ($term) {
+                $inner
+                    ->where('content', 'like', "%{$term}%")
+                    ->orWhere('error_message', 'like', "%{$term}%")
+                    ->orWhere('meta_json', 'like', "%{$term}%")
+                    ->orWhereHas('conversation', function ($conversationQuery) use ($term) {
+                        $conversationQuery
+                            ->where('title', 'like', "%{$term}%")
+                            ->orWhereHas('portalUser', function ($userQuery) use ($term) {
+                                $userQuery
+                                    ->where('name', 'like', "%{$term}%")
+                                    ->orWhere('login_key', 'like', "%{$term}%")
+                                    ->orWhere('email', 'like', "%{$term}%");
+                            })
+                            ->orWhereHas('condominium', function ($condominiumQuery) use ($term) {
+                                $condominiumQuery->where('name', 'like', "%{$term}%");
+                            })
+                            ->orWhereHas('messages', function ($messageQuery) use ($term) {
+                                $messageQuery
+                                    ->where('role', 'user')
+                                    ->where('content', 'like', "%{$term}%");
+                            });
+                    })
+                    ->orWhereHas('sources', function ($sourceQuery) use ($term) {
+                        $sourceQuery
+                            ->where('document_title', 'like', "%{$term}%")
+                            ->orWhere('document_kind', 'like', "%{$term}%");
+                    });
+            });
+        }
+
+        $summaryQuery = clone $query;
+        $messages = $query->paginate(20)->withQueryString();
+
+        return view('pages.admin.config-ai-chat-history', [
+            'title' => 'Historico de Consultas',
+            'items' => $messages,
+            'filters' => $filters,
+            'condominiums' => ClientCondominium::query()
+                ->whereHas('aiChatConversations')
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'portalUsers' => ClientPortalUser::query()
+                ->with('entity')
+                ->whereHas('aiChatConversations')
+                ->orderBy('name')
+                ->get(),
+            'providers' => AiChatMessage::query()
+                ->whereNotNull('provider')
+                ->distinct()
+                ->orderBy('provider')
+                ->pluck('provider'),
+            'models' => AiChatMessage::query()
+                ->whereNotNull('model')
+                ->distinct()
+                ->orderBy('model')
+                ->pluck('model'),
+            'statusOptions' => [
+                'success' => 'Sucesso',
+                'completed' => 'Concluida',
+                'error' => 'Erro',
+            ],
+            'summary' => [
+                'total' => (clone $summaryQuery)->count(),
+                'errors' => (clone $summaryQuery)->where('status', 'error')->count(),
+                'flagged' => (clone $summaryQuery)->where(function ($flaggedQuery) {
+                    $flaggedQuery
+                        ->where('is_relevant', true)
+                        ->orWhere('requires_legal_review', true)
+                        ->orWhere('is_faq_candidate', true);
+                })->count(),
+            ],
+        ]);
+    }
+
+    public function aiChatHistoryShow(AiChatMessage $message): View
+    {
+        $this->ensureRoutePermissionsSynced();
+        abort_unless(in_array($message->role, ['assistant', 'system'], true), 404);
+
+        $message->load([
+            'conversation.portalUser.entity',
+            'conversation.condominium',
+            'conversation.messages',
+            'sources.chunk',
+            'sources.clientAttachment',
+            'sources.globalDocument',
+        ]);
+
+        return view('pages.admin.config-ai-chat-history-show', [
+            'title' => 'Consulta de IA',
+            'message' => $message,
+            'question' => $message->questionText(),
+            'documentSources' => $message->sources
+                ->groupBy(fn ($source) => implode('|', [
+                    $source->source_type,
+                    (string) ($source->client_attachment_id ?? 0),
+                    (string) ($source->ai_global_document_id ?? 0),
+                    trim((string) $source->document_title),
+                    trim((string) $source->document_kind),
+                ]))
+                ->map(function ($group) {
+                    $first = $group->first();
+                    $chunkIds = $group->pluck('chunk_id')->filter()->unique()->values()->all();
+
+                    return [
+                        'source' => $first,
+                        'chunks_used' => $chunkIds,
+                    ];
+                })
+                ->values(),
+        ]);
+    }
+
+    public function updateAiChatHistoryReview(Request $request, AiChatMessage $message): RedirectResponse
+    {
+        abort_unless(in_array($message->role, ['assistant', 'system'], true), 404);
+
+        $validated = $request->validate([
+            'internal_note' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $message->update([
+            'is_relevant' => $request->boolean('is_relevant'),
+            'requires_legal_review' => $request->boolean('requires_legal_review'),
+            'is_faq_candidate' => $request->boolean('is_faq_candidate'),
+            'internal_note' => filled($validated['internal_note'] ?? null) ? trim((string) $validated['internal_note']) : null,
+        ]);
+
+        return redirect()
+            ->route('config.ai.chat-history.show', $message)
+            ->with('success', 'Marcacoes da consulta atualizadas com sucesso.');
     }
 
     public function saveBranding(Request $request): RedirectResponse

@@ -33,6 +33,10 @@
             <i class="fa-solid fa-arrow-left"></i>
             <span>Voltar para Configuracoes</span>
         </a>
+        <a href="{{ route('config.ai.chat-history.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
+            <i class="fa-solid fa-timeline"></i>
+            <span>Historico de Consultas</span>
+        </a>
         <a href="{{ route('config.ai.legal-base.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
             <i class="fa-solid fa-scale-balanced"></i>
             <span>Base Legal Global</span>

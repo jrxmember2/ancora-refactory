@@ -16,6 +16,10 @@
             <i class="fa-solid fa-arrow-left"></i>
             <span>Voltar para IA</span>
         </a>
+        <a href="{{ route('config.ai.chat-history.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
+            <i class="fa-solid fa-timeline"></i>
+            <span>Historico de Consultas</span>
+        </a>
         <a href="{{ route('config.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
             <i class="fa-solid fa-sliders"></i>
             <span>Voltar para Configuracoes</span>
