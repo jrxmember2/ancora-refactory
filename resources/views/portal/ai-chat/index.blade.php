@@ -5,6 +5,7 @@
     $activeConversationId = $activeConversation?->id;
     $activeCondominiumName = $activeCondominium?->name;
     $usageMessage = $usageStatus['message'] ?? '';
+    $commercialAlertDocuments = collect($commercialAlert['documents'] ?? []);
     $assistantMetaDocuments = static function ($message) {
         return collect($message->meta_json['documents'] ?? [])->take(4);
     };
@@ -68,6 +69,42 @@
         @if($legalNotice)
             <div class="border-b border-[#eadfd5] bg-[#fdf8f4] px-5 py-4 text-xs text-gray-600 sm:px-6">
                 <span class="font-semibold text-[#941415]">Aviso juridico:</span> {{ $legalNotice }}
+            </div>
+        @endif
+
+        @if($commercialAlert)
+            <div class="border-b border-[#f3d9b4] bg-[#fff7ed] px-5 py-4 sm:px-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-[#9a3412]">
+                            <i class="fa-solid fa-file-shield"></i>
+                            <span>Revisao documental recomendada</span>
+                        </div>
+                        <p class="mt-2 text-sm leading-6 text-[#7c2d12]">
+                            {{ $commercialAlert['message'] }}
+                        </p>
+
+                        @if($commercialAlertDocuments->isNotEmpty())
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                @foreach($commercialAlertDocuments as $document)
+                                    <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#9a3412]">
+                                        {{ $document['label'] ?? 'Documento' }}{{ !empty($document['date_br']) ? ' | ' . $document['date_br'] : '' }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    @if(!empty($commercialAlert['action_url']))
+                        <a
+                            href="{{ $commercialAlert['action_url'] }}"
+                            class="inline-flex shrink-0 items-center justify-center rounded-2xl bg-[#941415] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7e1111]"
+                            @if(!empty($commercialAlert['action_target_blank'])) target="_blank" rel="noopener noreferrer" @endif
+                        >
+                            <i class="fa-solid fa-file-signature mr-2"></i>{{ $commercialAlert['button_label'] ?? 'Solicitar orcamento de atualizacao' }}
+                        </a>
+                    @endif
+                </div>
             </div>
         @endif
 

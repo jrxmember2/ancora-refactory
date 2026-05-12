@@ -110,6 +110,8 @@ class AiService
             'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', $defaults['ai_default_budget_request_url']),
             'ai_old_document_alert_enabled' => AppSetting::getValue('ai_old_document_alert_enabled', '1') === '1',
             'ai_old_document_alert_years' => $this->toInt(AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years']), (int) $defaults['ai_old_document_alert_years']),
+            'ai_old_document_alert_message' => (string) AppSetting::getValue('ai_old_document_alert_message', $defaults['ai_old_document_alert_message']),
+            'ai_old_document_alert_button_destination' => (string) AppSetting::getValue('ai_old_document_alert_button_destination', $defaults['ai_old_document_alert_button_destination']),
             'openai_enabled' => AppSetting::getValue('ai_openai_enabled', '1') === '1',
             'openai_api_key' => (string) AppSetting::getDecryptedValue('ai_openai_api_key', ''),
             'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', $defaults['openai_chat_model']),
@@ -132,6 +134,10 @@ class AiService
         $merged['ai_default_temperature'] = $this->toFloat($merged['ai_default_temperature'] ?? 0.2, 0.2);
         $merged['ai_default_max_tokens'] = $this->toInt($merged['ai_default_max_tokens'] ?? 1024, 1024);
         $merged['ai_old_document_alert_years'] = $this->toInt($merged['ai_old_document_alert_years'] ?? 5, 5);
+        $merged['ai_old_document_alert_button_destination'] = array_key_exists(
+            (string) ($merged['ai_old_document_alert_button_destination'] ?? ''),
+            AiProviderCatalog::oldDocumentAlertDestinations()
+        ) ? (string) $merged['ai_old_document_alert_button_destination'] : 'portal_demand_prefill';
 
         return $merged;
     }

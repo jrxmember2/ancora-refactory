@@ -29,6 +29,12 @@ class ClientPortalDemandController extends Controller
         abort_unless($user && ($user->can_view_demands || $user->can_open_demands), 403);
 
         $selectedCondominiumId = ClientPortalContext::selectedCondominiumId($request, $user);
+        $accessibleCondominiumIds = $user->accessibleCondominiumIds();
+        $requestedCondominiumId = (int) $request->query('client_condominium_id', 0);
+
+        if ($requestedCondominiumId > 0 && in_array($requestedCondominiumId, $accessibleCondominiumIds, true)) {
+            $selectedCondominiumId = $requestedCondominiumId;
+        }
 
         $query = $access->scopeDemands(Demand::query(), $user, $selectedCondominiumId)->with(['category', 'tag']);
         if (!$user->can_view_demands) {
@@ -65,6 +71,10 @@ class ClientPortalDemandController extends Controller
             'categories' => DemandCategory::query()->active()->get(),
             'condominiums' => $user->accessibleCondominiums(),
             'selectedCondominiumId' => $selectedCondominiumId,
+            'prefill' => [
+                'subject' => Str::limit(trim((string) $request->query('subject', '')), 180, ''),
+                'description' => Str::limit(trim((string) $request->query('description', '')), 12000, ''),
+            ],
         ]);
     }
 

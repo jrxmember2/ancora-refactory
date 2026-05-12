@@ -35,11 +35,11 @@
             @endif
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700">Assunto</label>
-                <input name="subject" value="{{ old('subject') }}" required maxlength="180" class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]" placeholder="Resumo da solicitação">
+                <input name="subject" value="{{ old('subject', $prefill['subject'] ?? '') }}" required maxlength="180" class="h-12 w-full rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-[#941415]" placeholder="Resumo da solicitação">
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700">Descrição</label>
-                <textarea name="description" rows="7" required class="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#941415]" placeholder="Descreva o contexto, prazo e documentos relacionados">{{ old('description') }}</textarea>
+                <textarea name="description" rows="7" required class="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#941415]" placeholder="Descreva o contexto, prazo e documentos relacionados">{{ old('description', $prefill['description'] ?? '') }}</textarea>
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700">Anexos</label>

@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Models\AiChatConversation;
 use App\Models\AiChatMessage;
 use App\Models\AiChatMessageSource;
+use App\Models\ClientAttachment;
 use App\Models\ClientCondominium;
 use App\Models\ClientPortalUser;
 use App\Support\AiDocumentCatalog;
@@ -46,6 +47,42 @@ class PortalSyndicChatService
         return $this->documentSearchService->hasKnowledgeBase($clientCondominiumId);
     }
 
+    /** @return array<string,mixed>|null */
+    public function resolveCommercialAlertForPortal(ClientPortalUser $portalUser, ?ClientCondominium $condominium): ?array
+    {
+        if (!$condominium instanceof ClientCondominium) {
+            return null;
+        }
+
+        $settings = $this->aiService->settings();
+        if (!(bool) ($settings['ai_old_document_alert_enabled'] ?? false)) {
+            return null;
+        }
+
+        $documents = $this->resolveOutdatedCondominiumDocuments($condominium, $settings);
+        if ($documents['outdated'] === []) {
+            return null;
+        }
+
+        $action = $this->resolveCommercialAlertAction(
+            portalUser: $portalUser,
+            condominium: $condominium,
+            settings: $settings,
+            documents: $documents['outdated'],
+        );
+
+        return [
+            'message' => $this->buildCommercialAlertMessage($settings, $documents['outdated']),
+            'documents' => $documents['outdated'],
+            'missing_document_dates' => $documents['missing_dates'],
+            'threshold_years' => max(1, (int) ($settings['ai_old_document_alert_years'] ?? 5)),
+            'button_label' => 'Solicitar orcamento de atualizacao',
+            'action_url' => $action['url'],
+            'action_target_blank' => $action['target_blank'],
+            'action_kind' => $action['kind'],
+        ];
+    }
+
     /**
      * @return array{
      *     conversation:AiChatConversation,
@@ -74,6 +111,7 @@ class PortalSyndicChatService
         $search = $this->documentSearchService->search($normalizedQuestion, (int) $condominium->id, 8);
         $usedRelevantChunks = (bool) ($search['has_relevant_matches'] ?? false);
         $oldDocumentAlerts = $this->resolveOldDocumentAlerts(collect($search['documents'] ?? []));
+        $portalDocumentAudit = $this->resolveOutdatedCondominiumDocuments($condominium, $this->aiService->settings());
 
         [$savedConversation, $userMessage] = $this->openConversationAndStoreUserMessage(
             portalUser: $portalUser,
@@ -116,6 +154,7 @@ class PortalSyndicChatService
                 content: $assistantText,
                 usedRelevantChunks: $usedRelevantChunks,
                 oldDocumentAlerts: $oldDocumentAlerts,
+                portalDocumentAudit: $portalDocumentAudit,
                 status: $aiResponse->status,
                 errorMessage: null,
             );
@@ -147,6 +186,7 @@ class PortalSyndicChatService
                 content: $displayError !== '' ? $displayError : self::MESSAGE_GENERIC_ERROR,
                 usedRelevantChunks: $usedRelevantChunks,
                 oldDocumentAlerts: $oldDocumentAlerts,
+                portalDocumentAudit: $portalDocumentAudit,
                 status: 'error',
                 errorMessage: trim($exception->getMessage()) !== '' ? trim($exception->getMessage()) : $displayError,
             );
@@ -281,6 +321,7 @@ class PortalSyndicChatService
         string $content,
         bool $usedRelevantChunks,
         array $oldDocumentAlerts,
+        array $portalDocumentAudit,
         string $status,
         ?string $errorMessage,
     ): AiChatMessage {
@@ -292,6 +333,7 @@ class PortalSyndicChatService
             $content,
             $usedRelevantChunks,
             $oldDocumentAlerts,
+            $portalDocumentAudit,
             $status,
             $errorMessage,
         ): AiChatMessage {
@@ -321,6 +363,10 @@ class PortalSyndicChatService
                     'terms' => $search['terms'] ?? [],
                     'used_relevant_chunks' => $usedRelevantChunks,
                     'old_document_alerts' => $oldDocumentAlerts,
+                    'portal_commercial_alert' => [
+                        'outdated_documents' => $portalDocumentAudit['outdated'] ?? [],
+                        'missing_document_dates' => $portalDocumentAudit['missing_dates'] ?? [],
+                    ],
                 ],
             ]);
 
@@ -430,6 +476,10 @@ class PortalSyndicChatService
                 }
 
                 $documentKind = trim((string) data_get($document, 'document_kind'));
+                if (!in_array($documentKind, ['convention', 'regiment'], true)) {
+                    return null;
+                }
+
                 $label = trim((string) data_get($document, 'document_kind_label'));
                 if ($label === '') {
                     $label = AiDocumentCatalog::documentKindLabel($documentKind);
@@ -538,5 +588,209 @@ class PortalSyndicChatService
         return $providerKey === 'gemini'
             ? trim((string) ($settings['gemini_chat_model'] ?? ''))
             : trim((string) ($settings['openai_chat_model'] ?? ''));
+    }
+
+    /** @return array{outdated:array<int,array<string,mixed>>,missing_dates:array<int,array<string,mixed>>} */
+    private function resolveOutdatedCondominiumDocuments(ClientCondominium $condominium, array $settings): array
+    {
+        $thresholdYears = max(1, (int) ($settings['ai_old_document_alert_years'] ?? 5));
+        $cutoffDate = now()->subYears($thresholdYears)->startOfDay();
+        $latestByKind = [];
+
+        $attachments = ClientAttachment::query()
+            ->where('related_type', 'condominium')
+            ->where('related_id', (int) $condominium->id)
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($attachments as $attachment) {
+            $kind = $attachment->condominiumDocumentKind();
+            if (!in_array($kind, ['convention', 'regiment'], true) || isset($latestByKind[$kind])) {
+                continue;
+            }
+
+            $latestByKind[$kind] = $attachment;
+        }
+
+        $outdated = [];
+        $missingDates = [];
+
+        foreach (['convention', 'regiment'] as $kind) {
+            $attachment = $latestByKind[$kind] ?? null;
+            if (!$attachment instanceof ClientAttachment) {
+                continue;
+            }
+
+            $parsedDate = $this->normalizeAttachmentDocumentDate($attachment->document_date);
+            if (!$parsedDate instanceof Carbon) {
+                $missingDates[] = [
+                    'document_kind' => $kind,
+                    'label' => AiDocumentCatalog::documentKindLabel($kind),
+                    'title' => trim((string) ($attachment->original_name ?: '')),
+                    'client_attachment_id' => (int) $attachment->id,
+                ];
+
+                continue;
+            }
+
+            if ($parsedDate->gt($cutoffDate)) {
+                continue;
+            }
+
+            $outdated[] = [
+                'document_kind' => $kind,
+                'label' => AiDocumentCatalog::documentKindLabel($kind),
+                'title' => trim((string) ($attachment->original_name ?: '')),
+                'date_br' => $parsedDate->format('d/m/Y'),
+                'date_iso' => $parsedDate->toDateString(),
+                'year' => $parsedDate->format('Y'),
+                'age_years' => now()->diffInYears($parsedDate),
+                'threshold_years' => $thresholdYears,
+                'client_attachment_id' => (int) $attachment->id,
+            ];
+        }
+
+        return [
+            'outdated' => collect($outdated)
+                ->sortBy(fn (array $item) => $item['document_kind'] === 'convention' ? 1 : 2)
+                ->values()
+                ->all(),
+            'missing_dates' => collect($missingDates)
+                ->sortBy(fn (array $item) => $item['document_kind'] === 'convention' ? 1 : 2)
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function normalizeAttachmentDocumentDate(mixed $value): ?Carbon
+    {
+        if ($value instanceof Carbon) {
+            return $value->copy()->startOfDay();
+        }
+
+        $candidate = trim((string) $value);
+        if ($candidate === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($candidate)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function buildCommercialAlertMessage(array $settings, array $documents): string
+    {
+        $thresholdYears = max(1, (int) ($settings['ai_old_document_alert_years'] ?? 5));
+        $template = trim((string) ($settings['ai_old_document_alert_message'] ?? ''));
+
+        if ($template === '') {
+            $template = 'Atencao: identificamos que a convencao ou o regimento interno deste condominio possui mais de :years anos. Recomendamos a revisao do documento para adequacao as necessidades atuais do condominio, boas praticas de gestao e legislacao aplicavel.';
+        }
+
+        $labels = collect($documents)
+            ->map(fn (array $document) => Str::lower(trim((string) ($document['label'] ?? ''))))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $documentsLabel = match ($labels->count()) {
+            0 => 'convencao ou o regimento interno',
+            1 => $labels->first(),
+            2 => $labels->get(0) . ' e o ' . $labels->get(1),
+            default => 'convencao ou regimento interno',
+        };
+
+        return str_replace(
+            [':years', ':documents'],
+            [(string) $thresholdYears, $documentsLabel],
+            $template
+        );
+    }
+
+    /** @return array{kind:?string,url:?string,target_blank:bool} */
+    private function resolveCommercialAlertAction(
+        ClientPortalUser $portalUser,
+        ClientCondominium $condominium,
+        array $settings,
+        array $documents,
+    ): array {
+        $preferredDestination = $this->normalizeCommercialAlertDestination((string) ($settings['ai_old_document_alert_button_destination'] ?? ''));
+        $budgetUrl = trim((string) ($settings['ai_default_budget_request_url'] ?? ''));
+        $portalDemandUrl = $this->portalDemandPrefillUrl($portalUser, $condominium, $documents, max(1, (int) ($settings['ai_old_document_alert_years'] ?? 5)));
+
+        if ($preferredDestination === 'budget_url' && $budgetUrl !== '') {
+            return [
+                'kind' => 'budget_url',
+                'url' => $budgetUrl,
+                'target_blank' => true,
+            ];
+        }
+
+        if ($preferredDestination === 'portal_demand_prefill' && $portalDemandUrl !== null) {
+            return [
+                'kind' => 'portal_demand_prefill',
+                'url' => $portalDemandUrl,
+                'target_blank' => false,
+            ];
+        }
+
+        if ($portalDemandUrl !== null) {
+            return [
+                'kind' => 'portal_demand_prefill',
+                'url' => $portalDemandUrl,
+                'target_blank' => false,
+            ];
+        }
+
+        if ($budgetUrl !== '') {
+            return [
+                'kind' => 'budget_url',
+                'url' => $budgetUrl,
+                'target_blank' => true,
+            ];
+        }
+
+        return [
+            'kind' => null,
+            'url' => null,
+            'target_blank' => false,
+        ];
+    }
+
+    private function normalizeCommercialAlertDestination(string $value): string
+    {
+        return $value === 'budget_url' ? 'budget_url' : 'portal_demand_prefill';
+    }
+
+    private function portalDemandPrefillUrl(
+        ClientPortalUser $portalUser,
+        ClientCondominium $condominium,
+        array $documents,
+        int $thresholdYears,
+    ): ?string {
+        if (!$portalUser->can_open_demands) {
+            return null;
+        }
+
+        $contactLine = trim((string) ($portalUser->email ?: $portalUser->login_key ?: ''));
+        $documentLines = collect($documents)
+            ->map(fn (array $document) => '- ' . $document['label'] . ': ' . $document['date_br'] . ' (idade aproximada de ' . $document['age_years'] . ' anos)')
+            ->implode("\n");
+
+        $description = collect([
+            'Solicito orcamento para revisao e atualizacao documental do condominio ' . trim((string) $condominium->name) . '.',
+            'Usuario do portal: ' . trim((string) $portalUser->name) . ($contactLine !== '' ? ' | contato: ' . $contactLine : ''),
+            'Documentos sinalizados pela Leme:',
+            $documentLines,
+            'Motivo: documentos acima da regua configurada de ' . $thresholdYears . ' anos no Chat do Sindico.',
+        ])->filter()->implode("\n\n");
+
+        return route('portal.demands.create', [
+            'client_condominium_id' => (int) $condominium->id,
+            'subject' => 'Solicitacao de orcamento para atualizacao documental',
+            'description' => $description,
+        ]);
     }
 }

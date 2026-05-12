@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.06',
+            'version' => 'v2.07',
             'date' => '11/05/2026',
-            'label' => 'v2.06 - 11/05/2026',
+            'label' => 'v2.07 - 11/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Leme ganha alerta comercial discreto para convencao e regimento antigos no Portal',
+                'items' => [
+                    'O Chat do Sindico passa a verificar a Convencao condominial e o Regimento interno atuais do condominio usando document_date e a regua configurada em Configuracoes > Inteligencia Artificial.',
+                    'Quando um desses documentos ultrapassa a quantidade de anos definida, a Leme exibe um card comercial discreto e responsivo com recomendacao de revisao documental e CTA configuravel para abrir uma solicitacao no portal ou usar o link padrao de orcamento.',
+                    'Se a data do documento atual nao estiver informada, o sindico nao e incomodado no portal e a ausencia fica registrada no historico administrativo da consulta para acompanhamento interno.',
+                ],
+            ],
+            [
+                'version' => 'v2.06',
+                'date' => '11/05/2026',
                 'title' => 'Historico, fontes e auditoria do Chat do Sindico entram na camada administrativa de IA',
                 'items' => [
                     'As consultas da Leme passam a gravar historico auditavel por conversa e mensagem, com tokens totais, status, erro, marcacoes internas e vinculo com o usuario e o condominio do portal.',

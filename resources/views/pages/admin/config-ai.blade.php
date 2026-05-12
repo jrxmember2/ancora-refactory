@@ -232,6 +232,33 @@
                                 <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
                             @enderror
                         </div>
+
+                        <div>
+                            <label class="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <span>Destino do botao do alerta</span>
+                                <x-ancora.help-tip :text="$catalog['tooltips']['ai_old_document_alert_button_destination']" />
+                            </label>
+                            <select name="ai_old_document_alert_button_destination" class="{{ $inputClass }}">
+                                @foreach($catalog['old_document_alert_destinations'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('ai_old_document_alert_button_destination', $settings['ai_old_document_alert_button_destination']) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('ai_old_document_alert_button_destination')
+                                <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <span>Texto do alerta comercial</span>
+                                <x-ancora.help-tip :text="$catalog['tooltips']['ai_old_document_alert_message']" />
+                            </label>
+                            <textarea name="ai_old_document_alert_message" rows="4" class="{{ $textareaClass }}" placeholder="Texto exibido quando a convencao ou o regimento estiverem antigos.">{{ old('ai_old_document_alert_message', $settings['ai_old_document_alert_message']) }}</textarea>
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Voce pode usar <code>:years</code> para inserir automaticamente a regua configurada em anos.</p>
+                            @error('ai_old_document_alert_message')
+                                <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
                 </div>
 

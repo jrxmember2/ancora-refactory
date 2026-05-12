@@ -7,6 +7,8 @@
     $portalUser = $message->conversation?->portalUser;
     $condominium = $message->conversation?->condominium;
     $fallbackDocuments = collect($message->meta_json['documents'] ?? []);
+    $commercialAlertMeta = $message->meta_json['portal_commercial_alert'] ?? [];
+    $missingDocumentDates = collect($commercialAlertMeta['missing_document_dates'] ?? []);
 @endphp
 
 @section('content')
@@ -119,6 +121,20 @@
                 @else
                     <div class="mt-5 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
                         Nenhuma fonte documental foi registrada para esta consulta.
+                    </div>
+                @endif
+
+                @if($missingDocumentDates->isNotEmpty())
+                    <div class="mt-5 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-4 text-sm text-warning-700 dark:border-warning-900/30 dark:bg-warning-500/10 dark:text-warning-200">
+                        <div class="font-semibold">Datas documentais nao informadas</div>
+                        <p class="mt-2 text-xs leading-6">A Leme nao exibiu alerta comercial para o sindico porque alguns documentos atuais do condominio estao sem <code>document_date</code>.</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @foreach($missingDocumentDates as $document)
+                                <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-warning-700 dark:bg-white/10 dark:text-warning-100">
+                                    {{ $document['label'] ?? 'Documento do condominio' }}
+                                </span>
+                            @endforeach
+                        </div>
                     </div>
                 @endif
             </div>

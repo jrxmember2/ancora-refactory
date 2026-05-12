@@ -131,6 +131,7 @@ class ConfigController extends Controller
                 'gemini_chat_models' => AiProviderCatalog::geminiChatModels(),
                 'openai_embedding_models' => AiProviderCatalog::openAiEmbeddingModels(),
                 'gemini_embedding_models' => AiProviderCatalog::geminiEmbeddingModels(),
+                'old_document_alert_destinations' => AiProviderCatalog::oldDocumentAlertDestinations(),
             ],
         ]);
     }
@@ -620,6 +621,8 @@ class ConfigController extends Controller
             'ai_default_budget_request_url' => [$settings['ai_default_budget_request_url'], 'Link padrao para solicitacao de orcamento'],
             'ai_old_document_alert_enabled' => [$settings['ai_old_document_alert_enabled'] ? '1' : '0', 'Indica se o alerta de documento antigo deve ficar ativo na IA'],
             'ai_old_document_alert_years' => [(string) $settings['ai_old_document_alert_years'], 'Quantidade de anos para considerar um documento antigo'],
+            'ai_old_document_alert_message' => [$settings['ai_old_document_alert_message'], 'Texto exibido no alerta comercial do Chat do Sindico para documentos antigos'],
+            'ai_old_document_alert_button_destination' => [$settings['ai_old_document_alert_button_destination'], 'Destino do botao do alerta comercial do Chat do Sindico'],
             'ai_openai_enabled' => [$settings['openai_enabled'] ? '1' : '0', 'Indica se a integracao OpenAI esta habilitada'],
             'ai_openai_chat_model' => [$settings['openai_chat_model'], 'Modelo principal de chat da OpenAI'],
             'ai_openai_embedding_model' => [$settings['openai_embedding_model'], 'Modelo de embedding da OpenAI'],
@@ -1523,8 +1526,10 @@ class ConfigController extends Controller
     private function aiSettingsForView(): array
     {
         $defaults = AiProviderCatalog::defaults();
+        $alertDestinations = AiProviderCatalog::oldDocumentAlertDestinations();
         $openAiKey = AppSetting::getDecryptedValue('ai_openai_api_key', '');
         $geminiKey = AppSetting::getDecryptedValue('ai_gemini_api_key', '');
+        $storedAlertDestination = trim((string) AppSetting::getValue('ai_old_document_alert_button_destination', $defaults['ai_old_document_alert_button_destination']));
 
         return [
             'ai_enabled' => AppSetting::getValue('ai_enabled', '0') === '1',
@@ -1536,6 +1541,10 @@ class ConfigController extends Controller
             'ai_default_budget_request_url' => (string) AppSetting::getValue('ai_default_budget_request_url', $defaults['ai_default_budget_request_url']),
             'ai_old_document_alert_enabled' => AppSetting::getValue('ai_old_document_alert_enabled', '1') === '1',
             'ai_old_document_alert_years' => (string) AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years']),
+            'ai_old_document_alert_message' => (string) AppSetting::getValue('ai_old_document_alert_message', $defaults['ai_old_document_alert_message']),
+            'ai_old_document_alert_button_destination' => array_key_exists($storedAlertDestination, $alertDestinations)
+                ? $storedAlertDestination
+                : $defaults['ai_old_document_alert_button_destination'],
             'openai_enabled' => AppSetting::getValue('ai_openai_enabled', '1') === '1',
             'openai_chat_model' => (string) AppSetting::getValue('ai_openai_chat_model', $defaults['openai_chat_model']),
             'openai_embedding_model' => (string) AppSetting::getValue('ai_openai_embedding_model', $defaults['openai_embedding_model']),
@@ -1573,6 +1582,8 @@ class ConfigController extends Controller
             'ai_default_budget_request_url' => ['nullable', 'url', 'max:500'],
             'ai_old_document_alert_enabled' => ['nullable'],
             'ai_old_document_alert_years' => [$testing ? 'nullable' : 'required', 'integer', 'min:1', 'max:100'],
+            'ai_old_document_alert_message' => ['nullable', 'string', 'max:4000'],
+            'ai_old_document_alert_button_destination' => ['nullable', Rule::in(array_keys(AiProviderCatalog::oldDocumentAlertDestinations()))],
             'openai_api_key' => ['nullable', 'string', 'max:1000'],
             'openai_chat_model' => ['nullable', Rule::in(AiProviderCatalog::openAiChatModelIds())],
             'openai_embedding_model' => ['nullable', Rule::in(AiProviderCatalog::openAiEmbeddingModelIds())],
@@ -1585,6 +1596,7 @@ class ConfigController extends Controller
     private function aiSettingsFromRequest(Request $request, array $validated): array
     {
         $defaults = AiProviderCatalog::defaults();
+        $alertDestinations = AiProviderCatalog::oldDocumentAlertDestinations();
         $openAiApiKey = trim((string) ($validated['openai_api_key'] ?? ''));
         if ($openAiApiKey === '') {
             $openAiApiKey = (string) AppSetting::getDecryptedValue('ai_openai_api_key', '');
@@ -1596,6 +1608,10 @@ class ConfigController extends Controller
         }
 
         $provider = trim((string) ($validated['ai_active_provider'] ?? 'openai')) === 'gemini' ? 'gemini' : 'openai';
+        $alertButtonDestination = trim((string) ($validated['ai_old_document_alert_button_destination'] ?? $defaults['ai_old_document_alert_button_destination']));
+        if (!array_key_exists($alertButtonDestination, $alertDestinations)) {
+            $alertButtonDestination = $defaults['ai_old_document_alert_button_destination'];
+        }
 
         return [
             'ai_enabled' => $request->boolean('ai_enabled'),
@@ -1607,6 +1623,8 @@ class ConfigController extends Controller
             'ai_default_budget_request_url' => trim((string) ($validated['ai_default_budget_request_url'] ?? $defaults['ai_default_budget_request_url'])),
             'ai_old_document_alert_enabled' => $request->boolean('ai_old_document_alert_enabled'),
             'ai_old_document_alert_years' => (int) ($validated['ai_old_document_alert_years'] ?? AppSetting::getValue('ai_old_document_alert_years', $defaults['ai_old_document_alert_years'])),
+            'ai_old_document_alert_message' => trim((string) ($validated['ai_old_document_alert_message'] ?? $defaults['ai_old_document_alert_message'])),
+            'ai_old_document_alert_button_destination' => $alertButtonDestination,
             'openai_enabled' => $provider === 'openai',
             'openai_api_key' => $openAiApiKey,
             'openai_chat_model' => trim((string) ($validated['openai_chat_model'] ?? $defaults['openai_chat_model'])),

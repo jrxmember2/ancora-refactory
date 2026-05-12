@@ -13,6 +13,8 @@ class AiProviderCatalog
             'ai_default_legal_notice' => 'Esta resposta tem carater informativo e nao substitui analise juridica individual pela equipe responsavel.',
             'ai_default_budget_request_url' => '',
             'ai_old_document_alert_years' => '5',
+            'ai_old_document_alert_message' => 'Atencao: identificamos que a convencao ou o regimento interno deste condominio possui mais de :years anos. Recomendamos a revisao do documento para adequacao as necessidades atuais do condominio, boas praticas de gestao e legislacao aplicavel.',
+            'ai_old_document_alert_button_destination' => 'portal_demand_prefill',
             'openai_chat_model' => 'gpt-5.4-mini',
             'openai_embedding_model' => 'text-embedding-3-small',
             'gemini_chat_model' => 'gemini-2.5-flash',
@@ -118,12 +120,23 @@ class AiProviderCatalog
             'ai_default_budget_request_url' => 'Link padrao para direcionar o cliente quando a conversa precisar virar solicitacao comercial ou atendimento humano.',
             'ai_old_document_alert_enabled' => 'Mantem uma regra pronta para avisar quando documentos do cliente estiverem desatualizados para uso da IA.',
             'ai_old_document_alert_years' => 'Numero de anos usados para marcar um documento como antigo.',
+            'ai_old_document_alert_message' => 'Texto usado no card comercial do Chat do Sindico quando a convencao ou o regimento interno ultrapassar a regua configurada. Voce pode usar :years para inserir automaticamente a quantidade de anos.',
+            'ai_old_document_alert_button_destination' => 'Define para onde o botao do alerta comercial deve levar o sindico: abrir uma nova solicitacao no portal ou usar o link padrao de orcamento.',
             'openai_api_key' => 'Chave secreta da OpenAI. Ela e gravada criptografada e nao aparece por completo depois de salva.',
             'openai_chat_model' => 'Modelo de chat usado quando o provedor ativo for OpenAI. A lista foi fechada com modelos oficiais de texto compativeis com o AiService, sem audio, realtime ou imagem pura.',
             'openai_embedding_model' => 'Modelo usado para transformar textos em vetores numericos para busca semantica, recuperacao de contexto e ranking de documentos.',
             'gemini_api_key' => 'Chave secreta da Gemini API. Ela e gravada criptografada e nao aparece por completo depois de salva.',
             'gemini_chat_model' => 'Modelo de chat usado quando o provedor ativo for Gemini. A lista foi fechada com modelos oficiais de texto compativeis com o AiService, evitando audio, live, TTS e image-only.',
             'gemini_embedding_model' => 'Modelo de embedding do Gemini API para preparar busca semantica e recuperacao de trechos relevantes no futuro.',
+        ];
+    }
+
+    /** @return array<string,string> */
+    public static function oldDocumentAlertDestinations(): array
+    {
+        return [
+            'portal_demand_prefill' => 'Abrir nova solicitacao no portal',
+            'budget_url' => 'Abrir link padrao de orcamento',
         ];
     }
 

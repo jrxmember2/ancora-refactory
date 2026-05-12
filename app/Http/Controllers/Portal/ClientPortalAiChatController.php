@@ -143,6 +143,9 @@ class ClientPortalAiChatController extends Controller
         $hasKnowledgeBase = $activeCondominium instanceof ClientCondominium
             ? $this->chatService->hasKnowledgeBase((int) $activeCondominium->id)
             : false;
+        $commercialAlert = $activeCondominium instanceof ClientCondominium
+            ? $this->chatService->resolveCommercialAlertForPortal($portalUser, $activeCondominium)
+            : null;
 
         $disabledReason = null;
         if (!$usageStatus['allowed']) {
@@ -167,6 +170,7 @@ class ClientPortalAiChatController extends Controller
             'needsCondominiumSelection' => $chatContext['needs_condominium_selection'],
             'conversationUsesDifferentCondominium' => $chatContext['conversation_uses_different_condominium'],
             'hasKnowledgeBase' => $hasKnowledgeBase,
+            'commercialAlert' => $commercialAlert,
             'chatDisabledReason' => $disabledReason,
             'chatCanSubmit' => $disabledReason === null,
             'legalNotice' => trim((string) ($this->chatServiceSettings()['ai_default_legal_notice'] ?? '')),
