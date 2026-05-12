@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.08',
+            'version' => 'v2.09',
             'date' => '12/05/2026',
-            'label' => 'v2.08 - 12/05/2026',
+            'label' => 'v2.09 - 12/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'API publica mobile valida a instancia do Portal do Cliente para o app Android',
+                'items' => [
+                    'A API ganha os endpoints publicos /api/mobile/health e /api/mobile/instance-info para que o aplicativo Android valide se a URL informada pertence a uma instancia Ancora com Portal do Cliente disponivel.',
+                    'O retorno do endpoint de instancia reaproveita branding e contatos ja existentes, expondo apenas dados seguros como nome, URLs do portal, logo, cor principal, suporte e versao, sem vazar usuarios, clientes, chaves ou informacoes internas.',
+                    'Quando o Portal do Cliente nao puder ser resolvido pela instancia, a resposta agora volta em JSON amigavel com success false e mensagem objetiva, sem stack trace para o app consumidor.',
+                ],
+            ],
+            [
+                'version' => 'v2.08',
+                'date' => '12/05/2026',
                 'title' => 'Portal do Cliente fica pronto para mobile forte e primeira camada PWA segura',
                 'items' => [
                     'O Portal do Cliente ganha base PWA com manifest dedicado do dominio do portal, icones proprios, meta tags mobile e service worker conservador que cacheia apenas assets estaticos, sem tocar no conteudo sensivel do chat ou em requisicoes autenticadas.',
