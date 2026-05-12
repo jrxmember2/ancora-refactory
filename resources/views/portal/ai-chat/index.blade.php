@@ -11,6 +11,24 @@
     };
 @endphp
 
+@push('head')
+<style>
+    .portal-chat-shell{min-height:calc(var(--portal-vh,100dvh) - 15rem)}
+    .portal-chat-messages{scroll-behavior:smooth;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+    .portal-chat-composer{position:sticky;bottom:0;z-index:5}
+    .portal-chat-textarea{min-height:4.75rem;max-height:11rem;resize:none}
+    .portal-chat-send{width:100%;min-height:3.75rem}
+    .portal-chat-sidepanel summary{list-style:none;cursor:pointer}
+    .portal-chat-sidepanel summary::-webkit-details-marker{display:none}
+    @media (max-width: 1023px){
+        .portal-chat-shell{min-height:calc(var(--portal-vh,100dvh) - 12rem)}
+    }
+    @media (min-width: 640px){
+        .portal-chat-send{width:auto;min-width:10.625rem}
+    }
+</style>
+@endpush
+
 @section('content')
 <section class="rounded-[2rem] bg-[#941415] p-6 text-white shadow-xl shadow-[#941415]/20 sm:p-8">
     <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -108,8 +126,58 @@
             </div>
         @endif
 
-        <div class="flex flex-col" style="min-height: calc(100dvh - 15rem);">
-            <div id="chatMessages" class="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
+        <div class="portal-chat-shell flex flex-col">
+            <div class="border-b border-[#eadfd5] bg-[#fcfaf7] px-4 py-3 sm:px-6 xl:hidden">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <details class="portal-chat-sidepanel rounded-2xl border border-[#eadfd5] bg-white">
+                        <summary class="flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-gray-900">
+                            <span><i class="fa-solid fa-clock-rotate-left mr-2 text-[#941415]"></i>Historico recente</span>
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+                        </summary>
+                        <div class="border-t border-[#eadfd5] px-3 py-3">
+                            <div class="space-y-3">
+                                @forelse($recentConversations as $conversation)
+                                    <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="block rounded-2xl border px-4 py-3 transition {{ $activeConversation && (int) $activeConversation->id === (int) $conversation->id ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
+                                        <div class="text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
+                                        <div class="mt-1 text-xs text-gray-500">
+                                            {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                                        </div>
+                                    </a>
+                                @empty
+                                    <div class="rounded-2xl border border-dashed border-[#eadfd5] bg-[#fdf8f4] px-4 py-4 text-sm text-gray-500">
+                                        Nenhuma conversa registrada ainda.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="portal-chat-sidepanel rounded-2xl border border-[#eadfd5] bg-white">
+                        <summary class="flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-gray-900">
+                            <span><i class="fa-solid fa-compass mr-2 text-[#941415]"></i>Contexto atual</span>
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+                        </summary>
+                        <div class="border-t border-[#eadfd5] px-4 py-4">
+                            <dl class="space-y-3 text-sm text-gray-600">
+                                <div>
+                                    <dt class="font-semibold text-gray-900">Condominio</dt>
+                                    <dd class="mt-1">{{ $activeCondominiumName ?: 'Nenhum selecionado' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-gray-900">Base documental</dt>
+                                    <dd class="mt-1">{{ $hasKnowledgeBase ? 'Pronta para consulta' : 'Aguardando processamento' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-gray-900">Consultas neste mes</dt>
+                                    <dd class="mt-1">{{ $usageMessage !== '' ? $usageMessage : 'Sem informacao de consumo.' }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <div id="chatMessages" class="portal-chat-messages flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
                 @if($activeMessages->isEmpty())
                     <div id="emptyState" class="rounded-3xl border border-dashed border-[#eadfd5] bg-[#fdf8f4] p-6 text-center">
                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#941415] text-white">
@@ -154,7 +222,7 @@
                 @endif
             </div>
 
-            <div class="border-t border-[#eadfd5] bg-white/95 px-4 py-4 backdrop-blur sm:px-6" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+            <div class="portal-chat-composer border-t border-[#eadfd5] bg-white/95 px-4 py-4 backdrop-blur sm:px-6" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
                 <div id="chatFeedback" class="mb-3 hidden rounded-2xl border px-4 py-3 text-sm"></div>
 
                 <form id="chatForm" method="post" action="{{ route('portal.ai-chat.ask') }}" class="space-y-3">
@@ -169,14 +237,16 @@
                             rows="2"
                             maxlength="4000"
                             placeholder="Digite sua pergunta para a Leme sobre Convencao, Regimento, ATAs ou Base Legal Global..."
-                            class="min-h-[56px] w-full rounded-2xl border border-gray-200 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-[#941415] focus:ring-4 focus:ring-[#941415]/10 {{ $chatCanSubmit ? '' : 'cursor-not-allowed bg-gray-100 text-gray-500' }}"
+                            class="portal-chat-textarea w-full rounded-2xl border border-gray-200 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-[#941415] focus:ring-4 focus:ring-[#941415]/10 {{ $chatCanSubmit ? '' : 'cursor-not-allowed bg-gray-100 text-gray-500' }}"
+                            enterkeyhint="send"
+                            autocomplete="off"
                             @disabled(!$chatCanSubmit)
                         >{{ old('question') }}</textarea>
 
                         <button
                             type="submit"
                             id="chatSubmitButton"
-                            class="inline-flex h-14 items-center justify-center rounded-2xl bg-[#941415] px-6 text-sm font-semibold text-white transition hover:bg-[#7e1111] disabled:cursor-not-allowed disabled:bg-gray-300 sm:min-w-[170px]"
+                            class="portal-chat-send inline-flex h-14 items-center justify-center rounded-2xl bg-[#941415] px-6 text-sm font-semibold text-white transition hover:bg-[#7e1111] disabled:cursor-not-allowed disabled:bg-gray-300"
                             @disabled(!$chatCanSubmit)
                         >
                             <i class="fa-solid fa-paper-plane mr-2"></i>Enviar
@@ -196,7 +266,7 @@
         </div>
     </section>
 
-    <aside class="space-y-6">
+    <aside class="hidden xl:block xl:space-y-6">
         <section class="{{ $cardClass }} p-5">
             <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#941415]">Contexto atual</h3>
             <dl class="mt-4 space-y-3 text-sm text-gray-600">
@@ -247,6 +317,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const usageStatusText = document.getElementById('usageStatusText');
     const emptyState = document.getElementById('emptyState');
     let isSubmitting = false;
+
+    const autoResizeTextarea = () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 176)}px`;
+    };
+
+    const scrollComposerIntoView = () => {
+        window.requestAnimationFrame(() => {
+            form.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        });
+    };
 
     const escapeHtml = (value) => {
         return String(value ?? '')
@@ -325,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isSubmitting = submitting;
         submitButton.disabled = submitting || submitButton.dataset.locked === '1';
         textarea.disabled = submitting || textarea.dataset.locked === '1';
+        submitButton.setAttribute('aria-busy', submitting ? 'true' : 'false');
         submitButton.innerHTML = submitting
             ? '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Consultando...'
             : '<i class="fa-solid fa-paper-plane mr-2"></i>Enviar';
@@ -344,10 +426,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             textarea.value = button.getAttribute('data-sample-question') || '';
+            autoResizeTextarea();
             textarea.focus();
+            scrollComposerIntoView();
         });
     });
 
+    textarea.addEventListener('input', autoResizeTextarea);
+    textarea.addEventListener('focus', () => {
+        autoResizeTextarea();
+        scrollComposerIntoView();
+    });
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            if (document.activeElement === textarea) {
+                scrollComposerIntoView();
+                scrollToBottom();
+            }
+        });
+    }
+
+    autoResizeTextarea();
     scrollToBottom();
 
     form.addEventListener('submit', async (event) => {
@@ -386,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="max-w-[92%] rounded-3xl border border-[#eadfd5] bg-[#fdf8f4] px-4 py-3 text-gray-800 shadow-sm sm:max-w-[80%]">
                     <div class="flex items-center gap-2 text-sm text-gray-600">
                         <span class="inline-flex h-2.5 w-2.5 rounded-full bg-[#941415] animate-pulse"></span>
-                        Processando sua consulta...
+                        A Leme esta analisando sua pergunta e cruzando os documentos relevantes...
                     </div>
                 </div>
             </div>
@@ -432,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             textarea.value = '';
+            autoResizeTextarea();
             setFeedback('Resposta gerada com sucesso.', 'success');
             scrollToBottom();
         } catch (error) {

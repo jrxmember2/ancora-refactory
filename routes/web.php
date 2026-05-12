@@ -30,6 +30,7 @@ use App\Http\Controllers\Portal\ClientPortalContextController;
 use App\Http\Controllers\Portal\ClientPortalCobrancaController;
 use App\Http\Controllers\Portal\ClientPortalDashboardController;
 use App\Http\Controllers\Portal\ClientPortalDemandController;
+use App\Http\Controllers\Portal\ClientPortalPwaController;
 use App\Http\Controllers\Portal\ClientPortalProcessController;
 use App\Http\Controllers\ProcessController;
 use App\Http\Controllers\ProcessNotificationController;
@@ -40,6 +41,9 @@ use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::domain(config('app.client_portal_domain'))->name('portal.')->group(function () {
+    Route::get('/manifest.json', [ClientPortalPwaController::class, 'manifest'])->name('pwa.manifest');
+    Route::get('/portal-sw.js', [ClientPortalPwaController::class, 'serviceWorker'])->name('pwa.service-worker');
+
     Route::middleware('portal.guest')->group(function () {
         Route::get('/login', [ClientPortalAuthController::class, 'loginForm'])->name('login');
         Route::post('/login', [ClientPortalAuthController::class, 'login'])->name('login.store');

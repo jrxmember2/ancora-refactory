@@ -2,9 +2,10 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ $title ?? 'Recuperar acesso' }} | {{ $ancoraBrand['app_name'] ?? 'Âncora' }}</title>
     @include('layouts.partials.asset-loader')
+    @include('portal.partials.pwa-head')
 </head>
 <body class="flex min-h-screen items-center justify-center bg-[#f7f2ec] px-6">
     <div class="max-w-xl rounded-3xl border border-[#eadfd5] bg-white p-8 shadow-sm">

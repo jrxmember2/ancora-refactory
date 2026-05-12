@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.07',
-            'date' => '11/05/2026',
-            'label' => 'v2.07 - 11/05/2026',
+            'version' => 'v2.08',
+            'date' => '12/05/2026',
+            'label' => 'v2.08 - 12/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Portal do Cliente fica pronto para mobile forte e primeira camada PWA segura',
+                'items' => [
+                    'O Portal do Cliente ganha base PWA com manifest dedicado do dominio do portal, icones proprios, meta tags mobile e service worker conservador que cacheia apenas assets estaticos, sem tocar no conteudo sensivel do chat ou em requisicoes autenticadas.',
+                    'A experiencia mobile da Leme evolui com composer mais confortavel, botao grande de envio, historico e contexto acessiveis em paineis expandidos no celular, rolagem mais suave e melhor comportamento quando o teclado virtual abre.',
+                    'O portal passa a ter navegacao inferior amigavel em telas pequenas, melhor compatibilidade com WebView e preparacao mais segura para uma futura etapa de empacotamento como APK sem implementar o APK agora.',
+                ],
+            ],
+            [
+                'version' => 'v2.07',
+                'date' => '11/05/2026',
                 'title' => 'Leme ganha alerta comercial discreto para convencao e regimento antigos no Portal',
                 'items' => [
                     'O Chat do Sindico passa a verificar a Convencao condominial e o Regimento interno atuais do condominio usando document_date e a regua configurada em Configuracoes > Inteligencia Artificial.',

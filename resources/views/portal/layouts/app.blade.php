@@ -2,15 +2,34 @@
 <html lang="pt-BR" class="h-full">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Portal do Cliente' }} | {{ $ancoraBrand['app_name'] ?? 'Ancora' }}</title>
     @include('layouts.partials.asset-loader')
+    @include('portal.partials.pwa-head')
     <link rel="icon" href="{{ $ancoraBrand['favicon'] ?? '/favicon.ico' }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+        [x-cloak]{display:none!important}
+        :root{--portal-vh:100dvh}
+        .portal-body{min-height:var(--portal-vh,100dvh)}
+        .portal-header{position:sticky;top:0;z-index:40}
+        .portal-main-shell{padding-bottom:2rem}
+        .portal-mobile-nav{display:none}
+        @media (max-width: 1023px){
+            .portal-main-shell{padding-bottom:calc(6.75rem + env(safe-area-inset-bottom))}
+            .portal-mobile-nav{display:block;position:fixed;left:.75rem;right:.75rem;bottom:calc(.75rem + env(safe-area-inset-bottom));z-index:60}
+            .portal-mobile-nav-track{display:grid;grid-template-columns:repeat(var(--portal-mobile-nav-count),minmax(0,1fr));gap:.5rem;border:1px solid #eadfd5;border-radius:1.5rem;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(61,22,22,.12);padding:.5rem}
+            .portal-mobile-nav-link{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:.3rem;border-radius:1rem;padding:.65rem .4rem;color:#6b7280;font-size:.72rem;font-weight:600;line-height:1.05;text-align:center;transition:all .2s ease}
+            .portal-mobile-nav-link i{font-size:1rem}
+            .portal-mobile-nav-link.is-active{background:#941415;color:#fff;box-shadow:0 10px 18px rgba(148,20,21,.22)}
+            .portal-mobile-nav-link:not(.is-active){background:transparent}
+            .portal-mobile-nav-link:active{transform:scale(.98)}
+        }
+    </style>
+    @stack('head')
 </head>
-<body class="min-h-screen bg-[#f7f2ec] text-gray-900">
+<body class="portal-body min-h-screen bg-[#f7f2ec] text-gray-900">
     @php
         $portalUser = $clientPortalUser ?? ($portalUser ?? null);
         $canViewProcesses = $portalUser ? (bool) $portalUser->can_view_processes : false;
@@ -37,7 +56,7 @@
     @endphp
 
     <div class="min-h-screen">
-        <header class="border-b border-[#eadfd5] bg-white/90 backdrop-blur">
+        <header class="portal-header border-b border-[#eadfd5] bg-white/90 backdrop-blur">
             <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
                 <div class="flex min-w-0 items-center gap-3">
                     <a href="{{ route('portal.dashboard') }}" class="shrink-0">
@@ -110,16 +129,9 @@
                     <button class="rounded-xl border border-[#eadfd5] bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-[#941415] hover:text-[#941415]">Sair</button>
                 </form>
             </div>
-            <div class="border-t border-[#eadfd5] px-4 py-3 lg:hidden">
-                <div class="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
-                    @foreach($portalNavItems as $item)
-                        <a href="{{ route($item['route']) }}" class="whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium {{ request()->routeIs($item['match']) ? 'bg-[#941415] text-white' : 'bg-white text-gray-600' }}">{{ $item['mobile'] }}</a>
-                    @endforeach
-                </div>
-            </div>
         </header>
 
-        <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <main class="portal-main-shell mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
             @if(session('success'))
                 <div class="mb-6 rounded-2xl border border-success-200 bg-success-50 px-5 py-4 text-sm text-success-700">{{ session('success') }}</div>
             @endif
@@ -131,6 +143,19 @@
             @endif
             @yield('content')
         </main>
+
+        @if($portalNavItems !== [])
+            <nav class="portal-mobile-nav lg:hidden" aria-label="Navegacao principal do portal">
+                <div class="portal-mobile-nav-track" style="--portal-mobile-nav-count: {{ max(1, count($portalNavItems)) }};">
+                    @foreach($portalNavItems as $item)
+                        <a href="{{ route($item['route']) }}" class="portal-mobile-nav-link {{ request()->routeIs($item['match']) ? 'is-active' : '' }}">
+                            <i class="{{ $item['icon'] }}"></i>
+                            <span>{{ $item['mobile'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </nav>
+        @endif
     </div>
     @stack('scripts')
 </body>
