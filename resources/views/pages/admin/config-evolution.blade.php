@@ -201,9 +201,10 @@
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Estas tags ficam prontas para a fase de disparo dos modulos.</p>
                     <div class="mt-4 space-y-3">
                         @foreach($templateVariables as $variable)
+                            @php($token = '{{' . $variable['key'] . '}}')
                             <div class="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <code class="rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-800 dark:text-gray-100">{{ '{{' . $variable['key'] . '}}' }}</code>
+                                    <code class="rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-800 dark:text-gray-100">{{ $token }}</code>
                                     <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $variable['label'] }}</span>
                                 </div>
                                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $variable['modules'] }}</p>
