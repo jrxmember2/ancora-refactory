@@ -1652,37 +1652,28 @@ class ConfigController extends Controller
 
     private function evolutionSettingsForView(EvolutionApiService $evolutionApiService): array
     {
-        $apiKey = AppSetting::getDecryptedValue('evolution_api_key', '');
-        $token = trim((string) AppSetting::getValue('evolution_webhook_token', ''));
+        $storedSettings = $evolutionApiService->currentSettings();
+        $apiKey = (string) ($storedSettings['evolution_api_key'] ?? '');
+        $token = trim((string) ($storedSettings['evolution_webhook_token'] ?? ''));
         if ($token === '') {
             $token = Str::random(48);
         }
 
-        $storedEvents = json_decode((string) AppSetting::getValue('evolution_webhook_events_json', '[]'), true);
-        $allowedEvents = $this->evolutionWebhookEventValues();
-        $events = collect(is_array($storedEvents) ? $storedEvents : [])
-            ->map(fn ($event) => trim((string) $event))
-            ->filter(fn ($event) => in_array($event, $allowedEvents, true))
-            ->values()
-            ->all();
-
-        if ($events === []) {
-            $events = EvolutionApiService::defaultWebhookEvents();
-        }
-
         $settings = [
-            'evolution_enabled' => AppSetting::getValue('evolution_enabled', '0') === '1',
-            'evolution_base_url' => rtrim((string) AppSetting::getValue('evolution_base_url', ''), '/'),
-            'evolution_instance_name' => (string) AppSetting::getValue('evolution_instance_name', ''),
+            'evolution_enabled' => (bool) ($storedSettings['evolution_enabled'] ?? false),
+            'evolution_base_url' => rtrim((string) ($storedSettings['evolution_base_url'] ?? ''), '/'),
+            'evolution_instance_name' => (string) ($storedSettings['evolution_instance_name'] ?? ''),
             'evolution_api_key_masked' => $this->maskSecretValue($apiKey),
             'evolution_has_api_key' => trim($apiKey) !== '',
-            'evolution_webhook_enabled' => AppSetting::getValue('evolution_webhook_enabled', '1') === '1',
-            'evolution_webhook_by_events' => AppSetting::getValue('evolution_webhook_by_events', '0') === '1',
+            'evolution_webhook_enabled' => (bool) ($storedSettings['evolution_webhook_enabled'] ?? true),
+            'evolution_webhook_by_events' => (bool) ($storedSettings['evolution_webhook_by_events'] ?? false),
             'evolution_webhook_token' => $token,
-            'evolution_webhook_events' => $events,
-            'evolution_message_dispatch_delay_ms' => (int) AppSetting::getValue('evolution_message_dispatch_delay_ms', (string) EvolutionApiService::defaultDispatchDelayMs()),
-            'evolution_template_process_update' => (string) AppSetting::getValue('evolution_template_process_update', EvolutionApiService::defaultProcessTemplate()),
-            'evolution_template_collection_notice' => (string) AppSetting::getValue('evolution_template_collection_notice', EvolutionApiService::defaultCollectionTemplate()),
+            'evolution_webhook_events' => (array) ($storedSettings['evolution_webhook_events'] ?? EvolutionApiService::defaultWebhookEvents()),
+            'evolution_message_dispatch_delay_ms' => (int) ($storedSettings['evolution_message_dispatch_delay_ms'] ?? EvolutionApiService::defaultDispatchDelayMs()),
+            'evolution_template_process_update' => (string) ($storedSettings['evolution_template_process_update'] ?? EvolutionApiService::defaultProcessTemplate()),
+            'evolution_template_collection_notice' => (string) ($storedSettings['evolution_template_collection_notice'] ?? EvolutionApiService::defaultCollectionTemplate()),
+            'evolution_template_collection_email_subject' => (string) ($storedSettings['evolution_template_collection_email_subject'] ?? EvolutionApiService::defaultCollectionEmailSubjectTemplate()),
+            'evolution_template_collection_email_body' => (string) ($storedSettings['evolution_template_collection_email_body'] ?? EvolutionApiService::defaultCollectionEmailBodyTemplate()),
             'webhook_base_url' => url('/api/integrations/evolution/webhook'),
         ];
 
@@ -1741,6 +1732,8 @@ class ConfigController extends Controller
             'evolution_message_dispatch_delay_ms' => [$testing ? 'nullable' : 'required', 'integer', 'min:0', 'max:600000'],
             'evolution_template_process_update' => ['nullable', 'string', 'max:4000'],
             'evolution_template_collection_notice' => ['nullable', 'string', 'max:4000'],
+            'evolution_template_collection_email_subject' => ['nullable', 'string', 'max:255'],
+            'evolution_template_collection_email_body' => ['nullable', 'string', 'max:20000'],
         ];
 
         if ($sendingTestMessage) {
@@ -1832,6 +1825,8 @@ class ConfigController extends Controller
             'evolution_message_dispatch_delay_ms' => (int) ($validated['evolution_message_dispatch_delay_ms'] ?? AppSetting::getValue('evolution_message_dispatch_delay_ms', (string) EvolutionApiService::defaultDispatchDelayMs())),
             'evolution_template_process_update' => trim((string) ($validated['evolution_template_process_update'] ?? AppSetting::getValue('evolution_template_process_update', EvolutionApiService::defaultProcessTemplate()))),
             'evolution_template_collection_notice' => trim((string) ($validated['evolution_template_collection_notice'] ?? AppSetting::getValue('evolution_template_collection_notice', EvolutionApiService::defaultCollectionTemplate()))),
+            'evolution_template_collection_email_subject' => trim((string) ($validated['evolution_template_collection_email_subject'] ?? AppSetting::getValue('evolution_template_collection_email_subject', EvolutionApiService::defaultCollectionEmailSubjectTemplate()))),
+            'evolution_template_collection_email_body' => trim((string) ($validated['evolution_template_collection_email_body'] ?? AppSetting::getValue('evolution_template_collection_email_body', EvolutionApiService::defaultCollectionEmailBodyTemplate()))),
         ];
     }
 
@@ -1851,6 +1846,8 @@ class ConfigController extends Controller
         if ($includeTemplates) {
             $items['evolution_template_process_update'] = [$settings['evolution_template_process_update'], 'Template padrao de notificacao WhatsApp para atualizacao de processo'];
             $items['evolution_template_collection_notice'] = [$settings['evolution_template_collection_notice'], 'Template padrao de notificacao WhatsApp para cobranca'];
+            $items['evolution_template_collection_email_subject'] = [$settings['evolution_template_collection_email_subject'], 'Assunto padrao do e-mail de notificacao de cobranca'];
+            $items['evolution_template_collection_email_body'] = [$settings['evolution_template_collection_email_body'], 'Corpo padrao do e-mail de notificacao de cobranca'];
         }
 
         $this->setMany($items);

@@ -17,6 +17,7 @@ class ProcessCase extends Model
         return [
             'opened_at' => 'date',
             'is_private' => 'boolean',
+            'push_automatic' => 'boolean',
             'claim_amount' => 'decimal:2',
             'claim_amount_date' => 'date',
             'provisioned_amount' => 'decimal:2',

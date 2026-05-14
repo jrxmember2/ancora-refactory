@@ -78,6 +78,10 @@
                         'Advogado do adverso' => $case->adverse_lawyer ?: 'Nao informado',
                     ];
 
+                    if ($pushAutomaticAvailable ?? false) {
+                        $mainDetails['Push automatico'] = $case->push_automatic ? 'Ativado' : 'Desativado';
+                    }
+
                     if (filled($case->judging_body)) {
                         $mainDetails[$judgingBodyLabel] = $case->judging_body;
                     }

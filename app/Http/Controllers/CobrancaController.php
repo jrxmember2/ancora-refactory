@@ -20,6 +20,7 @@ use App\Models\CobrancaImportBatch;
 use App\Models\CobrancaImportRow;
 use App\Models\CobrancaMonetaryUpdate;
 use App\Models\CobrancaMonetaryUpdateItem;
+use App\Services\CobrancaCollectionNotificationService;
 use App\Services\CobrancaAgreementTermService;
 use App\Services\CobrancaMonetaryUpdateService;
 use App\Support\AncoraAuth;
@@ -1233,7 +1234,7 @@ class CobrancaController extends Controller
         return redirect()->route('cobrancas.show', $case)->with('success', 'OS de cobrança criada com sucesso.');
     }
 
-    public function show(CobrancaCase $cobranca): View
+    public function show(CobrancaCase $cobranca, CobrancaCollectionNotificationService $collectionNotificationService): View
     {
         $boletoRequestStorageReady = $this->boletoRequestStorageReady();
         $signatureStorageReady = $this->signatureStorageReady();
@@ -1265,6 +1266,8 @@ class CobrancaController extends Controller
             $cobranca->load(['monetaryUpdates.items']);
         }
 
+        $collectionNotificationState = $collectionNotificationService->canOpenModal($cobranca);
+
         return view('pages.cobrancas.show', [
             'title' => 'OS ' . $cobranca->os_number,
             'case' => $cobranca,
@@ -1279,6 +1282,8 @@ class CobrancaController extends Controller
             'billingAdminEmails' => $this->billingAdminEmails($cobranca->condominium?->administradora),
             'preferredBoletoUpdateId' => $this->preferredMonetaryUpdate($cobranca)?->id,
             'boletoMailSubject' => $this->boletoMailSubject($cobranca),
+            'collectionNotificationState' => $collectionNotificationState,
+            'collectionNotificationPreview' => $collectionNotificationService->preview($cobranca),
             'signatureStorageReady' => $signatureStorageReady,
         ]);
     }
@@ -2479,6 +2484,62 @@ class CobrancaController extends Controller
         }
 
         return redirect()->route('cobrancas.show', $cobranca)->with('success', $successMessage);
+    }
+
+    public function sendCollectionNotification(Request $request, CobrancaCase $cobranca, CobrancaCollectionNotificationService $notificationService): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'email_values' => ['nullable', 'array'],
+            'email_values.*' => ['string', 'max:190'],
+            'phone_values' => ['nullable', 'array'],
+            'phone_values.*' => ['string', 'max:40'],
+        ]);
+
+        try {
+            $result = $notificationService->send(
+                $cobranca,
+                (array) ($validated['email_values'] ?? []),
+                (array) ($validated['phone_values'] ?? []),
+                $user
+            );
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->withInput()
+                ->with('error', 'Nao foi possivel enviar a notificacao de inadimplencia: ' . $e->getMessage())
+                ->with('open_collection_notification_modal', true);
+        }
+
+        $totalSent = (int) ($result['emails_sent'] ?? 0) + (int) ($result['phones_sent'] ?? 0);
+        $phoneFailures = count((array) ($result['phone_failures'] ?? []));
+
+        if ($totalSent === 0) {
+            return redirect()
+                ->route('cobrancas.show', $cobranca)
+                ->withInput()
+                ->with('error', 'Nenhuma notificacao foi enviada. Revise os destinatarios e a configuracao dos canais.')
+                ->with('open_collection_notification_modal', true);
+        }
+
+        $parts = [];
+        if ((int) ($result['emails_selected'] ?? 0) > 0) {
+            $parts[] = 'e-mail ' . (int) ($result['emails_sent'] ?? 0) . '/' . (int) ($result['emails_selected'] ?? 0);
+        }
+        if ((int) ($result['phones_selected'] ?? 0) > 0) {
+            $parts[] = 'WhatsApp ' . (int) ($result['phones_sent'] ?? 0) . '/' . (int) ($result['phones_selected'] ?? 0);
+        }
+
+        $message = 'Notificacao de inadimplencia enviada: ' . implode(' · ', $parts) . '.';
+        if ($phoneFailures > 0) {
+            $message .= ' ' . $phoneFailures . ' numero(s) falharam no WhatsApp.';
+        }
+
+        $this->logAction($request, 'send_cobranca_collection_notification', $cobranca->id, 'Notificacao de inadimplencia enviada para a OS ' . $cobranca->os_number . '.');
+
+        return redirect()->route('cobrancas.show', $cobranca)->with('success', $message);
     }
 
     public function showEmailHistory(CobrancaCase $cobranca, CobrancaCaseEmailHistory $history): Response

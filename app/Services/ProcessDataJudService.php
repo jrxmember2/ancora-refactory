@@ -12,6 +12,11 @@ use Illuminate\Support\Str;
 
 class ProcessDataJudService
 {
+    public function __construct(
+        private readonly ProcessAutoNotificationService $processAutoNotificationService,
+    ) {
+    }
+
     public function syncAll(): array
     {
         $summary = ['checked' => 0, 'updated' => 0, 'created' => 0, 'refreshed' => 0, 'skipped' => 0, 'errors' => []];
@@ -88,6 +93,10 @@ class ProcessDataJudService
             $hits = data_get($payload, 'hits.hits', []);
             $created = 0;
             $refreshed = 0;
+            $notificationsSent = 0;
+            $notificationFailures = [];
+            $hadPreviousSync = $case->last_datajud_sync_at !== null;
+            $createdPhases = [];
             $fingerprint = sha1(json_encode($hits, JSON_UNESCAPED_UNICODE));
 
             foreach ($hits as $hit) {
@@ -123,7 +132,7 @@ class ProcessDataJudService
                         $phase->update($payload);
                         $refreshed++;
                     } else {
-                        ProcessCasePhase::query()->create($payload + [
+                        $createdPhases[] = ProcessCasePhase::query()->create($payload + [
                             'process_case_id' => $case->id,
                             'datajud_movement_id' => $movementId,
                             'legal_opinion' => null,
@@ -140,6 +149,17 @@ class ProcessDataJudService
                 'datajud_last_hash' => $fingerprint,
             ]);
 
+            if ($hadPreviousSync) {
+                foreach ($createdPhases as $createdPhase) {
+                    $notification = $this->processAutoNotificationService->notifyPhase($case, $createdPhase);
+                    if (($notification['status'] ?? '') === 'sent') {
+                        $notificationsSent++;
+                    } elseif (($notification['status'] ?? '') === 'failed') {
+                        $notificationFailures[] = (string) ($notification['message'] ?? 'erro desconhecido');
+                    }
+                }
+            }
+
             if ($created > 0 || $refreshed > 0) {
                 $this->dataJudLogger()->info('Processo sincronizado com movimentos do DataJud.', [
                     'process_case_id' => $case->id,
@@ -147,10 +167,19 @@ class ProcessDataJudService
                     'court' => $courtAlias,
                     'created' => $created,
                     'refreshed' => $refreshed,
+                    'notifications_sent' => $notificationsSent,
+                    'notification_failures' => count($notificationFailures),
                 ]);
             }
 
-            return ['skipped' => false, 'created' => $created, 'refreshed' => $refreshed, 'error' => null];
+            return [
+                'skipped' => false,
+                'created' => $created,
+                'refreshed' => $refreshed,
+                'notifications_sent' => $notificationsSent,
+                'notification_failures' => $notificationFailures,
+                'error' => null,
+            ];
         } catch (\Throwable $e) {
             $this->dataJudLogger()->error('Excecao ao sincronizar processo no DataJud.', [
                 'process_case_id' => $case->id,

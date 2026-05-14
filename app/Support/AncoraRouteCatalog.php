@@ -144,6 +144,7 @@ class AncoraRouteCatalog
                     'cobrancas.attachments.download' => 'Baixar anexo do GED da cobranca',
                     'cobrancas.attachments.delete' => 'Excluir anexo do GED da cobranca',
                     'cobrancas.boleto.request' => 'Solicitar boletos para a administradora',
+                    'cobrancas.notifications.send' => 'Enviar notificacao de inadimplencia da OS',
                     'cobrancas.signatures.create' => 'Abrir envio de termo para assinatura digital',
                     'cobrancas.signatures.store' => 'Enviar termo para assinatura digital',
                     'cobrancas.signatures.sync' => 'Sincronizar assinatura digital da OS',

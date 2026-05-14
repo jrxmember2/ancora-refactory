@@ -404,6 +404,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::match(['post', 'put'], '/{cobranca}', [CobrancaController::class, 'update'])->name('cobrancas.update')->middleware('ancora.route:cobrancas.update');
         Route::match(['post', 'delete'], '/{cobranca}/excluir', [CobrancaController::class, 'destroy'])->name('cobrancas.delete')->middleware('ancora.route:cobrancas.delete');
         Route::post('/{cobranca}/solicitar-boleto', [CobrancaController::class, 'requestBoleto'])->name('cobrancas.boleto.request')->middleware('ancora.route:cobrancas.boleto.request');
+        Route::post('/{cobranca}/notificar-inadimplencia', [CobrancaController::class, 'sendCollectionNotification'])->name('cobrancas.notifications.send')->middleware('ancora.route:cobrancas.notifications.send');
         Route::get('/{cobranca}/emails/{history}', [CobrancaController::class, 'showEmailHistory'])->name('cobrancas.email-history.show')->middleware('ancora.route:cobrancas.email-history.show');
         Route::get('/{cobranca}/emails/{history}/anexo', [CobrancaController::class, 'downloadEmailHistoryAttachment'])->name('cobrancas.email-history.download')->middleware('ancora.route:cobrancas.email-history.download');
         Route::post('/{cobranca}/andamentos', [CobrancaController::class, 'addTimeline'])->name('cobrancas.timeline.store')->middleware('ancora.route:cobrancas.timeline.store');

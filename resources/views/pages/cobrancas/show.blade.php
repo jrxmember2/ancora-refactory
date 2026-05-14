@@ -5,6 +5,8 @@
     $monetaryUpdates = ($monetaryStorageReady ?? false) ? $case->monetaryUpdates : collect();
     $defaultMonetaryFinalDate = now()->endOfMonth()->format('Y-m-d');
     $boletoEmailHistories = $case->relationLoaded('emailHistories') ? $case->emailHistories : collect();
+    $collectionEmailDefaults = old('email_values', collect(data_get($collectionNotificationState ?? [], 'catalog.emails', []))->pluck('value')->values()->all());
+    $collectionPhoneDefaults = old('phone_values', collect(data_get($collectionNotificationState ?? [], 'catalog.phones', []))->pluck('value')->values()->all());
 @endphp
 <x-ancora.section-header :title="'OS '.$case->os_number" subtitle="Acompanhe o histórico completo da cobrança, GED, quotas, parcelas e payload operacional.">
     <div class="flex flex-wrap gap-3">
@@ -23,6 +25,11 @@
             <span title="{{ $boletoRequestError }}" class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Solicitar Boleto</span>
         @else
             <button type="button" id="open-boleto-request-modal" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 hover:bg-success-100 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Solicitar Boleto</button>
+        @endif
+        @if(data_get($collectionNotificationState ?? [], 'available'))
+            <button type="button" id="open-collection-notification-modal" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Notificar InadimplÃªncia</button>
+        @else
+            <span title="{{ data_get($collectionNotificationState ?? [], 'reason') }}" class="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-medium text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500">Notificar InadimplÃªncia</span>
         @endif
         @if($signatureStorageReady ?? false)
             <a href="{{ route('cobrancas.signatures.create', $case) }}" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Assinatura digital</a>
@@ -344,6 +351,9 @@
                                     <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] {{ $sendStatusClasses }}">
                                         {{ $history->send_status === 'sent' ? 'Enviado' : ($history->send_status === 'failed' ? 'Falhou' : 'Pendente') }}
                                     </span>
+                                    <span class="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-600 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300">
+                                        {{ $history->attachment_relative_path ? 'SolicitaÃ§Ã£o de boleto' : 'NotificaÃ§Ã£o de inadimplÃªncia' }}
+                                    </span>
                                     <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] {{ $imapStatusClasses }}">
                                         IMAP {{ match ($history->imap_status) {
                                             'mirrored' => 'espelhado',
@@ -376,7 +386,7 @@
                         </div>
                     </div>
                 @empty
-                    <x-ancora.empty-state icon="fa-solid fa-envelope-open-text" title="Sem envios registrados" subtitle="Os disparos de solicitação de boleto aparecerão aqui para auditoria da OS." />
+                    <x-ancora.empty-state icon="fa-solid fa-envelope-open-text" title="Sem envios registrados" subtitle="Os disparos de boleto e as notificações de inadimplência aparecerão aqui para auditoria da OS." />
                 @endforelse
             </div>
         </div>
@@ -449,6 +459,108 @@
         <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
             <button type="button" id="cancel-boleto-request-modal" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
             <button type="submit" class="rounded-xl bg-success-600 px-4 py-3 text-sm font-medium text-white hover:bg-success-700">Enviar solicitação</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="collection-notification-modal" class="fixed inset-0 m-auto w-[96vw] max-w-4xl overflow-hidden rounded-3xl border border-gray-200 bg-white p-0 text-left shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+    <form method="post" action="{{ route('cobrancas.notifications.send', $case) }}" class="flex flex-col">
+        @csrf
+        <div class="border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notificar Inadimplência</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Selecione os proprietários que receberão e-mail e WhatsApp com base nos templates configurados em EvolutionAPI.</p>
+                </div>
+                <button type="button" id="close-collection-notification-modal" class="rounded-xl border border-gray-200 px-4 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+            </div>
+        </div>
+
+        <div class="grid gap-6 px-6 py-6 lg:grid-cols-[1fr,1fr]">
+            <div class="space-y-5">
+                <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="flex flex-wrap gap-3 text-xs">
+                        <span class="rounded-full border px-3 py-1 {{ data_get($collectionNotificationState, 'channels.email_enabled') ? 'border-success-200 bg-success-50 text-success-700 dark:border-success-800/70 dark:bg-success-500/10 dark:text-success-300' : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300' }}">
+                            E-mail {{ data_get($collectionNotificationState, 'channels.email_enabled') ? 'ativo' : 'indisponível' }}
+                        </span>
+                        <span class="rounded-full border px-3 py-1 {{ data_get($collectionNotificationState, 'channels.whatsapp_enabled') ? 'border-success-200 bg-success-50 text-success-700 dark:border-success-800/70 dark:bg-success-500/10 dark:text-success-300' : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300' }}">
+                            WhatsApp {{ data_get($collectionNotificationState, 'channels.whatsapp_enabled') ? 'ativo' : 'indisponível' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">E-mails dos proprietários</h4>
+                    <div class="mt-3 space-y-3">
+                        @forelse(data_get($collectionNotificationState, 'catalog.emails', []) as $recipient)
+                            <label class="flex items-start gap-3 rounded-xl border border-gray-100 px-3 py-3 text-sm dark:border-gray-800">
+                                <input type="checkbox" name="email_values[]" value="{{ $recipient['value'] }}" class="mt-1 rounded border-gray-300 text-brand-500" @checked(in_array($recipient['value'], (array) $collectionEmailDefaults, true)) @disabled(!data_get($collectionNotificationState, 'channels.email_enabled'))>
+                                <span class="min-w-0">
+                                    <span class="block font-medium text-gray-900 dark:text-white">{{ $recipient['value'] }}</span>
+                                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $recipient['label'] }} · {{ $recipient['source'] }}</span>
+                                </span>
+                            </label>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhum e-mail elegível encontrado na OS ou no cadastro do proprietário.</div>
+                        @endforelse
+                    </div>
+                    @error('email_values')
+                        <p class="mt-3 text-xs text-error-600 dark:text-error-300">{{ $message }}</p>
+                    @enderror
+                    @error('email_values.*')
+                        <p class="mt-3 text-xs text-error-600 dark:text-error-300">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">WhatsApp dos proprietários</h4>
+                    <div class="mt-3 space-y-3">
+                        @forelse(data_get($collectionNotificationState, 'catalog.phones', []) as $recipient)
+                            <label class="flex items-start gap-3 rounded-xl border border-gray-100 px-3 py-3 text-sm dark:border-gray-800">
+                                <input type="checkbox" name="phone_values[]" value="{{ $recipient['value'] }}" class="mt-1 rounded border-gray-300 text-brand-500" @checked(in_array($recipient['value'], (array) $collectionPhoneDefaults, true)) @disabled(!data_get($collectionNotificationState, 'channels.whatsapp_enabled'))>
+                                <span class="min-w-0">
+                                    <span class="block font-medium text-gray-900 dark:text-white">{{ $recipient['display'] }}</span>
+                                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ $recipient['label'] }} · {{ $recipient['source'] }}</span>
+                                </span>
+                            </label>
+                        @empty
+                            <div class="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Nenhum WhatsApp elegível encontrado na OS ou no cadastro do proprietário.</div>
+                        @endforelse
+                    </div>
+                    @error('phone_values')
+                        <p class="mt-3 text-xs text-error-600 dark:text-error-300">{{ $message }}</p>
+                    @enderror
+                    @error('phone_values.*')
+                        <p class="mt-3 text-xs text-error-600 dark:text-error-300">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="space-y-5">
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Prévia do assunto do e-mail</div>
+                    <div class="mt-3 rounded-xl border border-gray-100 px-4 py-3 text-sm font-medium text-gray-900 dark:border-gray-800 dark:text-white">{{ $collectionNotificationPreview['subject'] }}</div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Prévia do corpo do e-mail</div>
+                    <div class="mt-3 whitespace-pre-line rounded-xl border border-gray-100 px-4 py-4 text-sm leading-6 text-gray-700 dark:border-gray-800 dark:text-gray-200">{{ $collectionNotificationPreview['body'] }}</div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                    <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Observações do disparo</div>
+                    <ul class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                        <li>Os e-mails serão enviados pelo SMTP de cobrança e gravados no histórico desta OS.</li>
+                        <li>O WhatsApp usa o template padrão da EvolutionAPI e respeita o delay configurado em milissegundos.</li>
+                        <li>Se a OS estiver em <strong>apto para notificar</strong>, o envio move o estágio para <strong>notificado</strong>.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+            <button type="button" id="cancel-collection-notification-modal" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Cancelar</button>
+            <button type="submit" class="rounded-xl bg-brand-600 px-4 py-3 text-sm font-medium text-white hover:bg-brand-700">Enviar notificação</button>
         </div>
     </form>
 </dialog>
@@ -641,6 +753,24 @@
     closeButtons.forEach((button) => button.addEventListener('click', () => modal.close()));
 
     if (@json(session('open_boleto_request_modal') || $errors->has('monetary_update_id'))) {
+        modal.showModal();
+    }
+})();
+
+(() => {
+    const modal = document.getElementById('collection-notification-modal');
+    if (!modal) return;
+
+    const openButton = document.getElementById('open-collection-notification-modal');
+    const closeButtons = [
+        document.getElementById('close-collection-notification-modal'),
+        document.getElementById('cancel-collection-notification-modal'),
+    ].filter(Boolean);
+
+    openButton?.addEventListener('click', () => modal.showModal());
+    closeButtons.forEach((button) => button.addEventListener('click', () => modal.close()));
+
+    if (@json(session('open_collection_notification_modal') || $errors->has('email_values') || $errors->has('email_values.*') || $errors->has('phone_values') || $errors->has('phone_values.*'))) {
         modal.showModal();
     }
 })();

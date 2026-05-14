@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AppSetting;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,43 @@ class EvolutionApiService
     public static function defaultDispatchDelayMs(): int
     {
         return 3000;
+    }
+
+    public function currentSettings(): array
+    {
+        $processTemplate = trim((string) AppSetting::getValue('evolution_template_process_update', ''));
+        $collectionTemplate = trim((string) AppSetting::getValue('evolution_template_collection_notice', ''));
+        $collectionEmailSubject = trim((string) AppSetting::getValue('evolution_template_collection_email_subject', ''));
+        $collectionEmailBody = trim((string) AppSetting::getValue('evolution_template_collection_email_body', ''));
+
+        return [
+            'evolution_enabled' => AppSetting::getValue('evolution_enabled', '0') === '1',
+            'evolution_base_url' => rtrim((string) AppSetting::getValue('evolution_base_url', ''), '/'),
+            'evolution_instance_name' => (string) AppSetting::getValue('evolution_instance_name', ''),
+            'evolution_api_key' => (string) AppSetting::getDecryptedValue('evolution_api_key', ''),
+            'evolution_webhook_enabled' => AppSetting::getValue('evolution_webhook_enabled', '1') === '1',
+            'evolution_webhook_by_events' => AppSetting::getValue('evolution_webhook_by_events', '0') === '1',
+            'evolution_webhook_token' => (string) AppSetting::getValue('evolution_webhook_token', ''),
+            'evolution_webhook_events' => $this->storedWebhookEvents(),
+            'evolution_message_dispatch_delay_ms' => (int) AppSetting::getValue('evolution_message_dispatch_delay_ms', (string) static::defaultDispatchDelayMs()),
+            'evolution_template_process_update' => $processTemplate !== '' ? $processTemplate : NotificationTemplateService::defaultProcessWhatsappTemplate(),
+            'evolution_template_collection_notice' => $collectionTemplate !== '' ? $collectionTemplate : NotificationTemplateService::defaultCollectionWhatsappTemplate(),
+            'evolution_template_collection_email_subject' => $collectionEmailSubject !== '' ? $collectionEmailSubject : NotificationTemplateService::defaultCollectionEmailSubject(),
+            'evolution_template_collection_email_body' => $collectionEmailBody !== '' ? $collectionEmailBody : NotificationTemplateService::defaultCollectionEmailBody(),
+        ];
+    }
+
+    public function hasReadyConfiguration(?array $settings = null): bool
+    {
+        $settings ??= $this->currentSettings();
+
+        if (!($settings['evolution_enabled'] ?? false)) {
+            return false;
+        }
+
+        return trim((string) ($settings['evolution_base_url'] ?? '')) !== ''
+            && trim((string) ($settings['evolution_instance_name'] ?? '')) !== ''
+            && trim((string) ($settings['evolution_api_key'] ?? '')) !== '';
     }
 
     public static function availableWebhookEvents(): array
@@ -61,44 +99,27 @@ class EvolutionApiService
 
     public static function messageVariableDefinitions(): array
     {
-        return [
-            ['key' => 'condominio_nome', 'label' => 'Nome do condominio', 'modules' => 'Processos e cobranca'],
-            ['key' => 'unidade_numero', 'label' => 'Numero da unidade', 'modules' => 'Processos e cobranca'],
-            ['key' => 'bloco_nome', 'label' => 'Nome do bloco', 'modules' => 'Processos e cobranca'],
-            ['key' => 'vencimento', 'label' => 'Data(s) de vencimento', 'modules' => 'Cobranca'],
-            ['key' => 'cliente_nome', 'label' => 'Nome do cliente/contato', 'modules' => 'Processos'],
-            ['key' => 'devedor_nome', 'label' => 'Nome do devedor', 'modules' => 'Cobranca'],
-            ['key' => 'processo_numero', 'label' => 'Numero do processo', 'modules' => 'Processos'],
-            ['key' => 'ultimo_andamento', 'label' => 'Ultimo andamento', 'modules' => 'Processos'],
-            ['key' => 'andamento_data', 'label' => 'Data do andamento', 'modules' => 'Processos'],
-            ['key' => 'os_numero', 'label' => 'Numero da OS', 'modules' => 'Cobranca'],
-        ];
+        return NotificationTemplateService::variableDefinitions();
     }
 
     public static function defaultProcessTemplate(): string
     {
-        return implode("\n", [
-            'Ola, {{cliente_nome}}.',
-            'Foi registrado um novo andamento no processo {{processo_numero}} do condominio {{condominio_nome}}.',
-            '',
-            'Unidade: {{unidade_numero}}',
-            'Bloco: {{bloco_nome}}',
-            'Atualizacao: {{ultimo_andamento}}',
-            'Data: {{andamento_data}}',
-        ]);
+        return NotificationTemplateService::defaultProcessWhatsappTemplate();
     }
 
     public static function defaultCollectionTemplate(): string
     {
-        return implode("\n", [
-            'Ola, {{devedor_nome}}.',
-            'Identificamos pendencias vinculadas ao condominio {{condominio_nome}}.',
-            '',
-            'Unidade: {{unidade_numero}}',
-            'Bloco: {{bloco_nome}}',
-            'Vencimento(s): {{vencimento}}',
-            'OS: {{os_numero}}',
-        ]);
+        return NotificationTemplateService::defaultCollectionWhatsappTemplate();
+    }
+
+    public static function defaultCollectionEmailSubjectTemplate(): string
+    {
+        return NotificationTemplateService::defaultCollectionEmailSubject();
+    }
+
+    public static function defaultCollectionEmailBodyTemplate(): string
+    {
+        return NotificationTemplateService::defaultCollectionEmailBody();
     }
 
     public function webhookUrl(array $settings): string
@@ -155,16 +176,21 @@ class EvolutionApiService
 
     public function sendTestMessage(array $settings, string $number, string $message): array
     {
+        return $this->sendTextMessage($settings, $number, $message);
+    }
+
+    public function sendTextMessage(array $settings, string $number, string $message): array
+    {
         $this->assertConfigured($settings);
 
         $normalizedNumber = $this->normalizePhoneNumber($number);
         if ($normalizedNumber === '' || strlen($normalizedNumber) < 10) {
-            throw new \RuntimeException('Informe um numero de teste com DDI, usando apenas numeros.');
+            throw new \RuntimeException('Informe um numero com DDI, usando apenas numeros.');
         }
 
         $text = trim($message);
         if ($text === '') {
-            throw new \RuntimeException('Informe a mensagem que sera enviada no teste.');
+            throw new \RuntimeException('Informe a mensagem que sera enviada.');
         }
 
         $response = $this->request($settings)->post('/message/sendText/' . rawurlencode((string) $settings['evolution_instance_name']), [
@@ -175,10 +201,10 @@ class EvolutionApiService
         ]);
 
         if (!$response->successful()) {
-            throw new \RuntimeException($this->extractErrorMessage($response, 'Nao foi possivel enviar a mensagem de teste pela EvolutionAPI.'));
+            throw new \RuntimeException($this->extractErrorMessage($response, 'Nao foi possivel enviar a mensagem pela EvolutionAPI.'));
         }
 
-        $payload = $this->decodeArray($response, 'Resposta invalida ao enviar a mensagem de teste.');
+        $payload = $this->decodeArray($response, 'Resposta invalida ao enviar a mensagem pela EvolutionAPI.');
 
         return [
             'status' => (string) (data_get($payload, 'status') ?: 'PENDING'),
@@ -250,9 +276,29 @@ class EvolutionApiService
         return rtrim(trim($value), '/');
     }
 
+    private function storedWebhookEvents(): array
+    {
+        $storedEvents = json_decode((string) AppSetting::getValue('evolution_webhook_events_json', '[]'), true);
+        $allowedEvents = collect(static::availableWebhookEvents())->pluck('value')->values()->all();
+        $events = collect(is_array($storedEvents) ? $storedEvents : [])
+            ->map(fn ($event) => trim((string) $event))
+            ->filter(fn ($event) => in_array($event, $allowedEvents, true))
+            ->values()
+            ->all();
+
+        return $events !== [] ? $events : static::defaultWebhookEvents();
+    }
+
     private function normalizePhoneNumber(string $value): string
     {
-        return preg_replace('/\D+/', '', $value) ?: '';
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        $length = strlen($digits);
+
+        if ($length === 10 || $length === 11) {
+            return '55' . $digits;
+        }
+
+        return $digits;
     }
 
     private function decodeArray(Response $response, string $fallbackMessage): array

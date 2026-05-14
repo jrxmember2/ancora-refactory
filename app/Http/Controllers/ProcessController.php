@@ -8,6 +8,7 @@ use App\Models\ProcessCase;
 use App\Models\ProcessCaseAttachment;
 use App\Models\ProcessCaseOption;
 use App\Models\ProcessCasePhase;
+use App\Services\ProcessAutoNotificationService;
 use App\Services\ProcessDataJudService;
 use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
@@ -525,6 +526,7 @@ class ProcessController extends Controller
             'options' => $this->optionsForForms(),
             'entities' => $this->entitiesForLookup(),
             'condominiums' => $this->condominiumsForLookup(),
+            'pushAutomaticAvailable' => $this->processHasPushAutomaticColumn(),
         ]);
     }
 
@@ -574,6 +576,7 @@ class ProcessController extends Controller
             'case' => $processo,
             'activeTab' => in_array($request->query('tab'), ['fases', 'anexos'], true) ? $request->query('tab') : 'resumo',
             'openPhase' => $request->boolean('open_phase'),
+            'pushAutomaticAvailable' => $this->processHasPushAutomaticColumn(),
         ]);
     }
 
@@ -589,6 +592,7 @@ class ProcessController extends Controller
             'options' => $this->optionsForForms(),
             'entities' => $this->entitiesForLookup(),
             'condominiums' => $this->condominiumsForLookup(),
+            'pushAutomaticAvailable' => $this->processHasPushAutomaticColumn(),
         ]);
     }
 
@@ -624,7 +628,7 @@ class ProcessController extends Controller
         return redirect()->route('processos.index')->with('success', 'Processo excluido.');
     }
 
-    public function storePhase(Request $request, ProcessCase $processo): RedirectResponse
+    public function storePhase(Request $request, ProcessCase $processo, ProcessAutoNotificationService $notificationService): RedirectResponse
     {
         $this->authorizeProcessAccess($request, $processo);
         $user = AncoraAuth::user($request);
@@ -652,9 +656,17 @@ class ProcessController extends Controller
         ]);
 
         $uploaded = $this->storeAttachments($request, $processo, $phase, 'andamento');
+        $notification = $notificationService->notifyPhase($processo, $phase);
+
+        $message = 'Fase cadastrada.' . ($uploaded > 0 ? " {$uploaded} arquivo(s) anexado(s)." : '');
+        if (($notification['status'] ?? '') === 'sent') {
+            $message .= ' Push automatico enviado para ' . ($notification['recipient_name'] ?: $notification['phone']) . '.';
+        } elseif (($notification['status'] ?? '') === 'failed') {
+            $message .= ' O andamento foi salvo, mas o push automatico falhou: ' . Str::limit((string) ($notification['message'] ?? 'erro desconhecido'), 140, '') . '.';
+        }
 
         return redirect()->route('processos.show', ['processo' => $processo, 'tab' => 'fases'])
-            ->with('success', 'Fase cadastrada.' . ($uploaded > 0 ? " {$uploaded} arquivo(s) anexado(s)." : ''));
+            ->with('success', $message);
     }
 
     public function uploadAttachment(Request $request, ProcessCase $processo): RedirectResponse
@@ -700,8 +712,16 @@ class ProcessController extends Controller
             return back()->with('error', 'DataJud: ' . $result['error']);
         }
 
+        $message = 'DataJud sincronizado. Movimentos novos: ' . ($result['created'] ?? 0) . ' · movimentos atualizados: ' . ($result['refreshed'] ?? 0) . '.';
+        if (($result['notifications_sent'] ?? 0) > 0) {
+            $message .= ' Push automatico enviado em ' . (int) $result['notifications_sent'] . ' andamento(s).';
+        }
+        if (!empty($result['notification_failures'])) {
+            $message .= ' Houve falha em ' . count((array) $result['notification_failures']) . ' push(es) automaticos.';
+        }
+
         return redirect()->route('processos.show', ['processo' => $processo, 'tab' => 'fases'])
-            ->with('success', 'DataJud sincronizado. Movimentos novos: ' . ($result['created'] ?? 0) . ' · movimentos atualizados: ' . ($result['refreshed'] ?? 0) . '.');
+            ->with('success', $message);
     }
 
     private function payloadFromRequest(Request $request, ?ProcessCase $current): array
@@ -719,6 +739,7 @@ class ProcessController extends Controller
             'adverse_lawyer' => ['nullable', 'string', 'max:160'],
             'judging_body' => ['nullable', 'string', 'max:190'],
             'notes' => ['nullable', 'string'],
+            'push_automatic' => ['nullable'],
             'claim_amount_date' => ['nullable', 'date'],
             'provisioned_amount_date' => ['nullable', 'date'],
             'court_paid_amount_date' => ['nullable', 'date'],
@@ -781,6 +802,10 @@ class ProcessController extends Controller
             $payload['judging_body'] = $this->normalizeWhitespace((string) ($validated['judging_body'] ?? '')) ?: null;
         }
 
+        if ($this->processHasPushAutomaticColumn()) {
+            $payload['push_automatic'] = $request->boolean('push_automatic');
+        }
+
         if ($this->processHasAdverseCondominiumColumn()) {
             $payload['adverse_condominium_id'] = $adverseCondominiumId ?: null;
         }
@@ -809,6 +834,9 @@ class ProcessController extends Controller
             'nature_option_id' => old('nature_option_id', $case?->nature_option_id),
             'judging_body' => old('judging_body', $case?->judging_body),
             'is_private' => old('is_private', $case?->is_private),
+            'push_automatic' => $this->processHasPushAutomaticColumn()
+                ? old('push_automatic', $case?->push_automatic)
+                : false,
             'claim_amount' => old('claim_amount', $this->moneyForInput($case?->claim_amount)),
             'claim_amount_date' => old('claim_amount_date', $case?->claim_amount_date?->format('Y-m-d')),
             'provisioned_amount' => old('provisioned_amount', $this->moneyForInput($case?->provisioned_amount)),
@@ -840,12 +868,18 @@ class ProcessController extends Controller
     {
         $entities = ClientEntity::query()
             ->where('is_active', 1)
+            ->orderByRaw("CASE WHEN profile_scope = 'avulso' THEN 0 WHEN profile_scope = 'contato' THEN 1 ELSE 2 END")
             ->orderBy('display_name')
-            ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj'])
+            ->get(['id', 'display_name', 'legal_name', 'cpf_cnpj', 'profile_scope', 'role_tag'])
             ->map(fn (ClientEntity $entity) => (object) [
                 'display_name' => $entity->display_name,
                 'legal_name' => $entity->legal_name,
                 'cpf_cnpj' => $entity->cpf_cnpj,
+                'lookup_hint' => trim(implode(' · ', array_filter([
+                    $entity->profile_scope === 'avulso' ? 'Cliente avulso' : ($entity->role_tag ?: 'Entidade'),
+                    $entity->cpf_cnpj,
+                    $entity->legal_name,
+                ]))),
             ]);
 
         $condominiums = ClientCondominium::query()
@@ -856,6 +890,10 @@ class ProcessController extends Controller
                 'display_name' => $condominium->name,
                 'legal_name' => 'Condominio',
                 'cpf_cnpj' => $condominium->cnpj,
+                'lookup_hint' => trim(implode(' · ', array_filter([
+                    'Condominio',
+                    $condominium->cnpj,
+                ]))),
             ]);
 
         return $entities
@@ -882,6 +920,7 @@ class ProcessController extends Controller
         $digits = preg_replace('/\D+/', '', $name);
 
         return ClientEntity::query()
+            ->where('is_active', 1)
             ->where(function ($query) use ($name, $digits) {
                 $query->where('display_name', $name)
                     ->orWhere('legal_name', $name);
@@ -889,6 +928,7 @@ class ProcessController extends Controller
                     $query->orWhereRaw("REPLACE(REPLACE(REPLACE(cpf_cnpj, '.', ''), '-', ''), '/', '') = ?", [$digits]);
                 }
             })
+            ->orderByRaw("CASE WHEN profile_scope = 'avulso' THEN 0 WHEN profile_scope = 'contato' THEN 1 ELSE 2 END")
             ->orderBy('display_name')
             ->first();
     }
@@ -938,6 +978,21 @@ class ProcessController extends Controller
 
         try {
             return $hasColumn = Schema::hasColumn('process_cases', 'judging_body');
+        } catch (\Throwable) {
+            return $hasColumn = false;
+        }
+    }
+
+    private function processHasPushAutomaticColumn(): bool
+    {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        try {
+            return $hasColumn = Schema::hasColumn('process_cases', 'push_automatic');
         } catch (\Throwable) {
             return $hasColumn = false;
         }

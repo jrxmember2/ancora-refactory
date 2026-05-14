@@ -26,7 +26,7 @@
 
     <datalist id="process-entities">
         @foreach($entities as $entity)
-            <option value="{{ $entity->display_name }}">{{ $entity->cpf_cnpj }} {{ $entity->legal_name }}</option>
+            <option value="{{ $entity->display_name }}">{{ $entity->lookup_hint ?: trim(($entity->cpf_cnpj ?? '') . ' ' . ($entity->legal_name ?? '')) }}</option>
         @endforeach
     </datalist>
 
@@ -36,11 +36,20 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Principal</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Dados essenciais do processo e partes envolvidas.</p>
             </div>
-            <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
-                <input type="checkbox" name="is_private" value="1" @checked((bool) ($formData['is_private'] ?? false))>
-                Particular
-                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 dark:bg-gray-800" title="Processos particulares aparecem somente para o responsavel, para quem cadastrou e para superadmins.">?</span>
-            </label>
+            <div class="flex flex-wrap justify-end gap-2">
+                @if($pushAutomaticAvailable ?? false)
+                    <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                        <input type="checkbox" name="push_automatic" value="1" @checked((bool) ($formData['push_automatic'] ?? false))>
+                        Push automatico
+                        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 dark:bg-gray-800" title="Quando houver novo andamento, o sistema tenta enviar WhatsApp automaticamente para o cliente avulso ou para o sindico do condominio vinculado.">?</span>
+                    </label>
+                @endif
+                <label class="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+                    <input type="checkbox" name="is_private" value="1" @checked((bool) ($formData['is_private'] ?? false))>
+                    Particular
+                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 dark:bg-gray-800" title="Processos particulares aparecem somente para o responsavel, para quem cadastrou e para superadmins.">?</span>
+                </label>
+            </div>
         </div>
 
         <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -117,7 +126,7 @@
                         <option value="{{ $condominium->id }}" @selected((int) ($formData['client_condominium_id'] ?? 0) === (int) $condominium->id)>{{ $condominium->name }}{{ $condominium->cnpj ? ' - '.$condominium->cnpj : '' }}</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use este campo para liberar a visualizacao segura do processo no Portal do Cliente do condominio.</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use este campo para liberar a visualizacao segura do processo no Portal do Cliente do condominio. Se ficar como "Nao vincular", o push automatico usa o telefone do cliente avulso.</p>
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Adverso</label>

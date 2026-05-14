@@ -170,7 +170,7 @@
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                     <div>
                         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Templates de mensagem</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Os modulos futuros de Processos e Cobranca vao buscar estes textos como padrao para disparos no WhatsApp.</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Processos vai usar o template de WhatsApp. Cobranca vai usar o template de WhatsApp e tambem o template de e-mail com assunto e corpo variaveis.</p>
                     </div>
 
                     <div class="mt-5 space-y-5">
@@ -190,6 +190,32 @@
                             @error('evolution_template_collection_notice')
                                 <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
                             @enderror
+                        </div>
+
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Template de e-mail para Cobranca</h4>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">O sistema renderiza as variaveis abaixo tanto no assunto quanto no corpo antes de enviar para os proprietarios das unidades.</p>
+                            </div>
+
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Assunto do e-mail</label>
+                                    <input name="evolution_template_collection_email_subject" value="{{ old('evolution_template_collection_email_subject', $settings['evolution_template_collection_email_subject']) }}" class="{{ $inputClass }}" placeholder="Inadimplencia - @{{condominio_nome}} - Unidade @{{unidade_numero}}">
+                                    @error('evolution_template_collection_email_subject')
+                                        <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Corpo do e-mail</label>
+                                    <textarea name="evolution_template_collection_email_body" rows="10" class="{{ $textareaClass }}" placeholder="Texto usado no e-mail de inadimplencia.">{{ old('evolution_template_collection_email_body', $settings['evolution_template_collection_email_body']) }}</textarea>
+                                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Sugestao: use <code>@{{cotas_vencidas}}</code> em uma linha isolada para listar todas as cotas vencidas da OS.</p>
+                                    @error('evolution_template_collection_email_body')
+                                        <p class="mt-2 text-xs text-error-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
