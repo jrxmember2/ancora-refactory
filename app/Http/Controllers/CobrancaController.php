@@ -111,13 +111,13 @@ class CobrancaController extends Controller
         ]);
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, CobrancaCollectionNotificationService $collectionNotificationService): View
     {
         $query = CobrancaCase::query()
             ->select('cobranca_cases.*')
             ->leftJoin('client_condominiums as cobranca_condominium_sort', 'cobranca_condominium_sort.id', '=', 'cobranca_cases.condominium_id')
             ->leftJoin('client_units as cobranca_unit_sort', 'cobranca_unit_sort.id', '=', 'cobranca_cases.unit_id')
-            ->with(['condominium', 'block', 'unit'])
+            ->with(['condominium', 'block', 'unit.owner', 'contacts'])
             ->withCount(['contacts', 'quotas', 'attachments']);
 
         if ($term = trim((string) $request->input('q', ''))) {
@@ -155,6 +155,10 @@ class CobrancaController extends Controller
         ], 'created_at', 'desc');
 
         $items = $query->paginate(max(10, min(100, (int) $request->integer('per_page', 15))))->withQueryString();
+        $batchNotificationStates = [];
+        foreach ($items as $item) {
+            $batchNotificationStates[$item->id] = $collectionNotificationService->eligibilityState($item);
+        }
 
         return view('pages.cobrancas.index', [
             'title' => 'Cobranças',
@@ -162,6 +166,9 @@ class CobrancaController extends Controller
             'filters' => $request->all(),
             'filterOptions' => $this->filterOptions(),
             'sortState' => $sortState,
+            'batchNotificationChannels' => $collectionNotificationService->channelStatus(),
+            'batchNotificationEligibleCount' => collect($batchNotificationStates)->where('available', true)->count(),
+            'batchNotificationStates' => $batchNotificationStates,
         ]);
     }
 
@@ -2540,6 +2547,168 @@ class CobrancaController extends Controller
         $this->logAction($request, 'send_cobranca_collection_notification', $cobranca->id, 'Notificacao de inadimplencia enviada para a OS ' . $cobranca->os_number . '.');
 
         return redirect()->route('cobrancas.show', $cobranca)->with('success', $message);
+    }
+
+    public function sendCollectionNotificationBatch(Request $request, CobrancaCollectionNotificationService $notificationService): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'case_ids' => ['required', 'array', 'min:1'],
+            'case_ids.*' => ['integer'],
+        ]);
+
+        $sendEmail = $request->boolean('send_email');
+        $sendWhatsapp = $request->boolean('send_whatsapp');
+
+        if (!$sendEmail && !$sendWhatsapp) {
+            return back()
+                ->withInput()
+                ->withErrors(['batch_channels' => 'Selecione ao menos um canal para o disparo em lote.'])
+                ->with('open_collection_batch_notification_modal', true);
+        }
+
+        $selectedIds = collect((array) ($validated['case_ids'] ?? []))
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn ($value) => $value > 0)
+            ->unique()
+            ->values();
+
+        $cases = CobrancaCase::query()
+            ->with(['condominium', 'block', 'unit.owner', 'contacts'])
+            ->whereIn('id', $selectedIds->all())
+            ->get()
+            ->keyBy('id');
+
+        $summary = [
+            'selected_cases' => $selectedIds->count(),
+            'sent_cases' => 0,
+            'partial_cases' => 0,
+            'failed_cases' => 0,
+            'skipped_cases' => 0,
+            'emails_selected' => 0,
+            'emails_sent' => 0,
+            'phones_selected' => 0,
+            'phones_sent' => 0,
+            'phone_failures' => 0,
+        ];
+        $issues = [];
+        $whatsappDelayOffsetMs = 0;
+
+        foreach ($selectedIds as $caseId) {
+            /** @var CobrancaCase|null $case */
+            $case = $cases->get($caseId);
+
+            if (!$case) {
+                $summary['skipped_cases']++;
+                $issues[] = 'OS ID ' . $caseId . ': registro nao encontrado para o disparo.';
+                continue;
+            }
+
+            $state = $notificationService->eligibilityState($case);
+            $caseSendEmail = $sendEmail && $state['can_email'];
+            $caseSendWhatsapp = $sendWhatsapp && $state['can_whatsapp'];
+
+            if (!$caseSendEmail && !$caseSendWhatsapp) {
+                $summary['skipped_cases']++;
+                $channelIssues = [];
+                if ($sendEmail && !$state['can_email']) {
+                    $channelIssues[] = 'e-mail indisponivel';
+                }
+                if ($sendWhatsapp && !$state['can_whatsapp']) {
+                    $channelIssues[] = 'WhatsApp indisponivel';
+                }
+
+                $issues[] = 'OS ' . $case->os_number . ': '
+                    . ($channelIssues !== [] ? implode(' e ', $channelIssues) : ($state['reason'] ?? 'sem destinatarios aptos'))
+                    . '.';
+                continue;
+            }
+
+            try {
+                $result = $notificationService->sendToAllRecipients(
+                    $case,
+                    $caseSendEmail,
+                    $caseSendWhatsapp,
+                    $user,
+                    $whatsappDelayOffsetMs
+                );
+            } catch (\Throwable $e) {
+                $summary['failed_cases']++;
+                $issues[] = 'OS ' . $case->os_number . ': ' . $e->getMessage();
+                continue;
+            }
+
+            $whatsappDelayOffsetMs = (int) ($result['next_whatsapp_delay_offset_ms'] ?? $whatsappDelayOffsetMs);
+
+            $summary['emails_selected'] += (int) ($result['emails_selected'] ?? 0);
+            $summary['emails_sent'] += (int) ($result['emails_sent'] ?? 0);
+            $summary['phones_selected'] += (int) ($result['phones_selected'] ?? 0);
+            $summary['phones_sent'] += (int) ($result['phones_sent'] ?? 0);
+            $summary['phone_failures'] += count((array) ($result['phone_failures'] ?? []));
+
+            $selectedRecipients = (int) ($result['emails_selected'] ?? 0) + (int) ($result['phones_selected'] ?? 0);
+            $sentRecipients = (int) ($result['emails_sent'] ?? 0) + (int) ($result['phones_sent'] ?? 0);
+
+            if ($sentRecipients === 0) {
+                $summary['failed_cases']++;
+                $issues[] = 'OS ' . $case->os_number . ': nenhum envio foi concluido.';
+                continue;
+            }
+
+            if ($sentRecipients < $selectedRecipients || count((array) ($result['phone_failures'] ?? [])) > 0) {
+                $summary['partial_cases']++;
+                $issues[] = 'OS ' . $case->os_number . ': envio parcial. E-mail '
+                    . (int) ($result['emails_sent'] ?? 0) . '/' . (int) ($result['emails_selected'] ?? 0)
+                    . ' e WhatsApp '
+                    . (int) ($result['phones_sent'] ?? 0) . '/' . (int) ($result['phones_selected'] ?? 0) . '.';
+                continue;
+            }
+
+            $summary['sent_cases']++;
+        }
+
+        $issueList = collect($issues)->take(8)->values()->all();
+        if (count($issues) > count($issueList)) {
+            $issueList[] = '... e mais ' . (count($issues) - count($issueList)) . ' OS.';
+        }
+
+        $successfulCases = $summary['sent_cases'] + $summary['partial_cases'];
+        if ($successfulCases === 0) {
+            return back()
+                ->withInput()
+                ->with('error', 'Nenhuma notificacao em lote foi enviada. Revise os canais, as OS selecionadas e os destinatarios.')
+                ->with('errors_list', $issueList)
+                ->with('open_collection_batch_notification_modal', true);
+        }
+
+        $message = 'Disparo em lote concluido: '
+            . $successfulCases . '/' . $summary['selected_cases'] . ' OS com envio'
+            . ($summary['partial_cases'] > 0 ? ', ' . $summary['partial_cases'] . ' parcial(is)' : '')
+            . ($summary['skipped_cases'] > 0 ? ', ' . $summary['skipped_cases'] . ' pulada(s)' : '')
+            . ($summary['failed_cases'] > 0 ? ', ' . $summary['failed_cases'] . ' com falha' : '')
+            . '. E-mail ' . $summary['emails_sent'] . '/' . $summary['emails_selected']
+            . ' e WhatsApp ' . $summary['phones_sent'] . '/' . $summary['phones_selected'] . '.';
+
+        if ($summary['phone_failures'] > 0) {
+            $message .= ' ' . $summary['phone_failures'] . ' numero(s) falharam no WhatsApp.';
+        }
+
+        $this->logAction(
+            $request,
+            'send_cobranca_collection_notification_batch',
+            0,
+            'Notificacao de inadimplencia em lote para ' . $summary['selected_cases'] . ' OS(s).'
+        );
+
+        $redirect = redirect()->back()->with('success', $message);
+
+        if ($issueList !== []) {
+            $redirect->with('errors_list', $issueList);
+        }
+
+        return $redirect;
     }
 
     public function showEmailHistory(CobrancaCase $cobranca, CobrancaCaseEmailHistory $history): Response

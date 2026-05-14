@@ -388,6 +388,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/importacao/{batch}/processar', [CobrancaController::class, 'importProcess'])->name('cobrancas.import.process')->middleware('ancora.route:cobrancas.import.process');
         Route::get('/faturamento', [CobrancaController::class, 'billingReport'])->name('cobrancas.billing.report')->middleware('ancora.route:cobrancas.billing.report');
         Route::get('/faturamento/pdf', [CobrancaController::class, 'billingReportPdf'])->name('cobrancas.billing.report.pdf')->middleware('ancora.route:cobrancas.billing.report.pdf');
+        Route::post('/notificacoes/lote', [CobrancaController::class, 'sendCollectionNotificationBatch'])->name('cobrancas.notifications.batch')->middleware('ancora.route:cobrancas.notifications.send');
         Route::get('/{cobranca}/termo-acordo', [CobrancaController::class, 'agreementEdit'])->name('cobrancas.agreement.edit')->middleware('ancora.route:cobrancas.agreement.edit');
         Route::post('/{cobranca}/termo-acordo', [CobrancaController::class, 'agreementSave'])->name('cobrancas.agreement.save')->middleware('ancora.route:cobrancas.agreement.save');
         Route::get('/{cobranca}/termo-acordo/pdf', [CobrancaController::class, 'agreementPrint'])->name('cobrancas.agreement.pdf')->middleware('ancora.route:cobrancas.agreement.pdf');

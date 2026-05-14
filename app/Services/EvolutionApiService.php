@@ -179,7 +179,7 @@ class EvolutionApiService
         return $this->sendTextMessage($settings, $number, $message);
     }
 
-    public function sendTextMessage(array $settings, string $number, string $message): array
+    public function sendTextMessage(array $settings, string $number, string $message, ?int $delayMs = null): array
     {
         $this->assertConfigured($settings);
 
@@ -196,7 +196,7 @@ class EvolutionApiService
         $response = $this->request($settings)->post('/message/sendText/' . rawurlencode((string) $settings['evolution_instance_name']), [
             'number' => $normalizedNumber,
             'text' => $text,
-            'delay' => max(0, (int) ($settings['evolution_message_dispatch_delay_ms'] ?? static::defaultDispatchDelayMs())),
+            'delay' => max(0, (int) ($delayMs ?? 0)),
             'linkPreview' => false,
         ]);
 

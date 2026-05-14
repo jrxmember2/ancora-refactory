@@ -118,6 +118,18 @@ class CobrancaCollectionNotificationService
 
     public function canOpenModal(CobrancaCase $case): array
     {
+        $state = $this->eligibilityState($case);
+
+        return [
+            'available' => $state['available'],
+            'reason' => $state['reason'],
+            'catalog' => $state['catalog'],
+            'channels' => $state['channels'],
+        ];
+    }
+
+    public function eligibilityState(CobrancaCase $case): array
+    {
         $catalog = $this->recipientCatalog($case);
         $channels = $this->channelStatus();
 
@@ -126,15 +138,17 @@ class CobrancaCollectionNotificationService
 
         return [
             'available' => $hasEmailPath || $hasWhatsappPath,
-            'reason' => $hasEmailPath || $hasWhatsappPath
-                ? null
-                : 'Cadastre e-mail/WhatsApp do proprietario e configure ao menos um canal de envio.',
+            'can_email' => $hasEmailPath,
+            'can_whatsapp' => $hasWhatsappPath,
             'catalog' => $catalog,
             'channels' => $channels,
+            'email_count' => count($catalog['emails']),
+            'phone_count' => count($catalog['phones']),
+            'reason' => $this->eligibilityReason($channels, $catalog, $hasEmailPath, $hasWhatsappPath),
         ];
     }
 
-    public function send(CobrancaCase $case, array $selectedEmails, array $selectedPhones, ?User $user): array
+    public function send(CobrancaCase $case, array $selectedEmails, array $selectedPhones, ?User $user, int $whatsappDelayOffsetMs = 0): array
     {
         $case->loadMissing([
             'condominium',
@@ -184,6 +198,7 @@ class CobrancaCollectionNotificationService
         $emailBodyText = $this->templateService->render($emailBodyTemplate, $variables);
         $emailBodyHtml = $this->templateService->collectionEmailHtml($emailSubject, $emailBodyText);
         $whatsappMessage = $this->templateService->render($whatsappTemplate, $variables);
+        $whatsappDelayStepMs = max(0, (int) ($settings['evolution_message_dispatch_delay_ms'] ?? EvolutionApiService::defaultDispatchDelayMs()));
 
         $emailResult = null;
         $whatsappResults = [];
@@ -227,9 +242,14 @@ class CobrancaCollectionNotificationService
                 throw new \RuntimeException('Configure a EvolutionAPI antes de enviar a notificacao por WhatsApp.');
             }
 
-            foreach ($phones as $phone) {
+            foreach ($phones as $index => $phone) {
                 try {
-                    $response = $this->evolutionApiService->sendTextMessage($settings, $phone, $whatsappMessage);
+                    $response = $this->evolutionApiService->sendTextMessage(
+                        $settings,
+                        $phone,
+                        $whatsappMessage,
+                        $whatsappDelayOffsetMs + ($whatsappDelayStepMs * $index)
+                    );
                     $whatsappResults[] = [
                         'value' => $phone,
                         'status' => 'sent',
@@ -293,6 +313,45 @@ class CobrancaCollectionNotificationService
             'phones_selected' => count($phones),
             'phones_sent' => $phonesSent,
             'phone_failures' => collect($whatsappResults)->where('status', 'failed')->values()->all(),
+            'next_whatsapp_delay_offset_ms' => $whatsappDelayOffsetMs + ($whatsappDelayStepMs * count($phones)),
         ];
+    }
+
+    public function sendToAllRecipients(CobrancaCase $case, bool $sendEmail, bool $sendWhatsapp, ?User $user, int $whatsappDelayOffsetMs = 0): array
+    {
+        $catalog = $this->recipientCatalog($case);
+
+        return $this->send(
+            $case,
+            $sendEmail ? collect($catalog['emails'])->pluck('value')->values()->all() : [],
+            $sendWhatsapp ? collect($catalog['phones'])->pluck('value')->values()->all() : [],
+            $user,
+            $whatsappDelayOffsetMs
+        );
+    }
+
+    private function eligibilityReason(array $channels, array $catalog, bool $hasEmailPath, bool $hasWhatsappPath): ?string
+    {
+        if ($hasEmailPath || $hasWhatsappPath) {
+            return null;
+        }
+
+        if (!$channels['email_enabled'] && !$channels['whatsapp_enabled']) {
+            return 'Configure o SMTP de cobranca ou a EvolutionAPI antes de notificar.';
+        }
+
+        if ($catalog['emails'] === [] && $catalog['phones'] === []) {
+            return 'Cadastre e-mail ou WhatsApp do proprietario/OS antes de notificar.';
+        }
+
+        if ($channels['email_enabled'] && $catalog['emails'] === [] && !$channels['whatsapp_enabled']) {
+            return 'Nao ha e-mails disponiveis para esta OS.';
+        }
+
+        if ($channels['whatsapp_enabled'] && $catalog['phones'] === [] && !$channels['email_enabled']) {
+            return 'Nao ha WhatsApp disponivel para esta OS.';
+        }
+
+        return 'Revise os destinatarios e a configuracao dos canais antes de notificar.';
     }
 }
