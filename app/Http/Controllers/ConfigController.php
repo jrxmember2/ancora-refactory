@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\ClientPortalUser;
 use App\Services\Ai\AiService;
 use App\Services\Ai\Knowledge\AiGlobalDocumentProcessor;
+use App\Services\EvolutionApiService;
 use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
 use App\Support\AiLegalDocumentCatalog;
@@ -133,6 +134,18 @@ class ConfigController extends Controller
                 'gemini_embedding_models' => AiProviderCatalog::geminiEmbeddingModels(),
                 'old_document_alert_destinations' => AiProviderCatalog::oldDocumentAlertDestinations(),
             ],
+        ]);
+    }
+
+    public function evolution(EvolutionApiService $evolutionApiService): View
+    {
+        $this->ensureRoutePermissionsSynced();
+
+        return view('pages.admin.config-evolution', [
+            'title' => 'EvolutionAPI',
+            'settings' => $this->evolutionSettingsForView($evolutionApiService),
+            'webhookEvents' => EvolutionApiService::availableWebhookEvents(),
+            'templateVariables' => EvolutionApiService::messageVariableDefinitions(),
         ]);
     }
 
@@ -757,6 +770,85 @@ class ConfigController extends Controller
             'provider' => $response->provider,
             'model' => $response->model,
             'tokens' => $response->tokenEstimate,
+        ]);
+    }
+
+    public function saveEvolution(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->evolutionValidationRules());
+        $settings = $this->evolutionSettingsFromRequest($request, $validated);
+        $this->validateEvolutionConfigurationForSave($settings);
+        $this->persistEvolutionSettings($settings, true);
+
+        return redirect()
+            ->route('config.evolution.index')
+            ->with('success', 'Configuracoes da EvolutionAPI atualizadas com sucesso.');
+    }
+
+    public function testEvolution(Request $request, EvolutionApiService $evolutionApiService): JsonResponse
+    {
+        $validated = $request->validate($this->evolutionValidationRules(testing: true));
+        $settings = $this->evolutionSettingsFromRequest($request, $validated);
+        $this->validateEvolutionConfigurationForRemoteAction($settings);
+
+        $result = $evolutionApiService->testConnection($settings);
+        $webhook = $result['webhook'] ?? null;
+
+        $message = 'Conexao com a EvolutionAPI funcionando. Instancia '
+            . $result['instance_name']
+            . ' em estado '
+            . strtoupper((string) $result['state'])
+            . '.';
+
+        if (is_array($webhook)) {
+            $message .= ' Webhook remoto ' . (!empty($webhook['enabled']) ? 'ativo' : 'inativo') . '.';
+        } else {
+            $message .= ' Nenhum webhook remoto localizado para esta instancia.';
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'state' => $result['state'],
+            'instance_name' => $result['instance_name'],
+            'webhook' => $webhook,
+        ]);
+    }
+
+    public function syncEvolutionWebhook(Request $request, EvolutionApiService $evolutionApiService): JsonResponse
+    {
+        $validated = $request->validate($this->evolutionValidationRules(testing: true));
+        $settings = $this->evolutionSettingsFromRequest($request, $validated);
+        $this->validateEvolutionConfigurationForRemoteAction($settings);
+
+        $result = $evolutionApiService->syncWebhook($settings);
+        $this->persistEvolutionSettings($settings, false);
+        $remoteWebhook = $result['remote_webhook'] ?? null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Webhook sincronizado com sucesso na EvolutionAPI.',
+            'remote_webhook' => $remoteWebhook,
+            'payload' => $result['payload'] ?? [],
+        ]);
+    }
+
+    public function sendEvolutionTestMessage(Request $request, EvolutionApiService $evolutionApiService): JsonResponse
+    {
+        $validated = $request->validate($this->evolutionValidationRules(testing: true, sendingTestMessage: true));
+        $settings = $this->evolutionSettingsFromRequest($request, $validated);
+        $this->validateEvolutionConfigurationForRemoteAction($settings);
+
+        $result = $evolutionApiService->sendTestMessage(
+            $settings,
+            (string) ($validated['test_number'] ?? ''),
+            (string) ($validated['test_message'] ?? '')
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mensagem de teste enviada com status ' . strtoupper((string) ($result['status'] ?? 'PENDING')) . '.',
+            'result' => $result,
         ]);
     }
 
@@ -1558,6 +1650,47 @@ class ConfigController extends Controller
         ];
     }
 
+    private function evolutionSettingsForView(EvolutionApiService $evolutionApiService): array
+    {
+        $apiKey = AppSetting::getDecryptedValue('evolution_api_key', '');
+        $token = trim((string) AppSetting::getValue('evolution_webhook_token', ''));
+        if ($token === '') {
+            $token = Str::random(48);
+        }
+
+        $storedEvents = json_decode((string) AppSetting::getValue('evolution_webhook_events_json', '[]'), true);
+        $allowedEvents = $this->evolutionWebhookEventValues();
+        $events = collect(is_array($storedEvents) ? $storedEvents : [])
+            ->map(fn ($event) => trim((string) $event))
+            ->filter(fn ($event) => in_array($event, $allowedEvents, true))
+            ->values()
+            ->all();
+
+        if ($events === []) {
+            $events = EvolutionApiService::defaultWebhookEvents();
+        }
+
+        $settings = [
+            'evolution_enabled' => AppSetting::getValue('evolution_enabled', '0') === '1',
+            'evolution_base_url' => rtrim((string) AppSetting::getValue('evolution_base_url', ''), '/'),
+            'evolution_instance_name' => (string) AppSetting::getValue('evolution_instance_name', ''),
+            'evolution_api_key_masked' => $this->maskSecretValue($apiKey),
+            'evolution_has_api_key' => trim($apiKey) !== '',
+            'evolution_webhook_enabled' => AppSetting::getValue('evolution_webhook_enabled', '1') === '1',
+            'evolution_webhook_by_events' => AppSetting::getValue('evolution_webhook_by_events', '0') === '1',
+            'evolution_webhook_token' => $token,
+            'evolution_webhook_events' => $events,
+            'evolution_message_dispatch_delay_ms' => (int) AppSetting::getValue('evolution_message_dispatch_delay_ms', (string) EvolutionApiService::defaultDispatchDelayMs()),
+            'evolution_template_process_update' => (string) AppSetting::getValue('evolution_template_process_update', EvolutionApiService::defaultProcessTemplate()),
+            'evolution_template_collection_notice' => (string) AppSetting::getValue('evolution_template_collection_notice', EvolutionApiService::defaultCollectionTemplate()),
+            'webhook_base_url' => url('/api/integrations/evolution/webhook'),
+        ];
+
+        $settings['webhook_url'] = $evolutionApiService->webhookUrl($settings);
+
+        return $settings;
+    }
+
     private function aiGlobalDocumentValidationRules(bool $updating = false): array
     {
         return [
@@ -1591,6 +1724,31 @@ class ConfigController extends Controller
             'gemini_chat_model' => ['nullable', Rule::in(AiProviderCatalog::geminiChatModelIds())],
             'gemini_embedding_model' => ['nullable', Rule::in(AiProviderCatalog::geminiEmbeddingModelIds())],
         ];
+    }
+
+    private function evolutionValidationRules(bool $testing = false, bool $sendingTestMessage = false): array
+    {
+        $rules = [
+            'evolution_enabled' => ['nullable'],
+            'evolution_base_url' => ['nullable', 'url', 'max:255'],
+            'evolution_instance_name' => ['nullable', 'string', 'max:120'],
+            'evolution_api_key' => ['nullable', 'string', 'max:1000'],
+            'evolution_webhook_enabled' => ['nullable'],
+            'evolution_webhook_by_events' => ['nullable'],
+            'evolution_webhook_token' => ['nullable', 'string', 'max:190'],
+            'evolution_webhook_events' => ['nullable', 'array'],
+            'evolution_webhook_events.*' => ['string', Rule::in($this->evolutionWebhookEventValues())],
+            'evolution_message_dispatch_delay_ms' => [$testing ? 'nullable' : 'required', 'integer', 'min:0', 'max:600000'],
+            'evolution_template_process_update' => ['nullable', 'string', 'max:4000'],
+            'evolution_template_collection_notice' => ['nullable', 'string', 'max:4000'],
+        ];
+
+        if ($sendingTestMessage) {
+            $rules['test_number'] = ['required', 'string', 'max:30'];
+            $rules['test_message'] = ['required', 'string', 'max:4000'];
+        }
+
+        return $rules;
     }
 
     private function aiSettingsFromRequest(Request $request, array $validated): array
@@ -1636,6 +1794,72 @@ class ConfigController extends Controller
         ];
     }
 
+    private function evolutionSettingsFromRequest(Request $request, array $validated): array
+    {
+        $storedApiKey = (string) AppSetting::getDecryptedValue('evolution_api_key', '');
+        $apiKey = trim((string) ($validated['evolution_api_key'] ?? ''));
+        if ($apiKey === '') {
+            $apiKey = $storedApiKey;
+        }
+
+        $storedToken = trim((string) AppSetting::getValue('evolution_webhook_token', ''));
+        $token = trim((string) ($validated['evolution_webhook_token'] ?? ''));
+        if ($token === '') {
+            $token = $storedToken !== '' ? $storedToken : Str::random(48);
+        }
+
+        $storedEvents = json_decode((string) AppSetting::getValue('evolution_webhook_events_json', '[]'), true);
+        $allowedEvents = $this->evolutionWebhookEventValues();
+        $events = collect((array) ($validated['evolution_webhook_events'] ?? (is_array($storedEvents) ? $storedEvents : [])))
+            ->map(fn ($event) => trim((string) $event))
+            ->filter(fn ($event) => in_array($event, $allowedEvents, true))
+            ->values()
+            ->all();
+
+        if ($events === []) {
+            $events = EvolutionApiService::defaultWebhookEvents();
+        }
+
+        return [
+            'evolution_enabled' => $request->boolean('evolution_enabled'),
+            'evolution_base_url' => rtrim(trim((string) ($validated['evolution_base_url'] ?? AppSetting::getValue('evolution_base_url', ''))), '/'),
+            'evolution_instance_name' => trim((string) ($validated['evolution_instance_name'] ?? AppSetting::getValue('evolution_instance_name', ''))),
+            'evolution_api_key' => $apiKey,
+            'evolution_webhook_enabled' => $request->boolean('evolution_webhook_enabled'),
+            'evolution_webhook_by_events' => $request->boolean('evolution_webhook_by_events'),
+            'evolution_webhook_token' => $token,
+            'evolution_webhook_events' => $events,
+            'evolution_message_dispatch_delay_ms' => (int) ($validated['evolution_message_dispatch_delay_ms'] ?? AppSetting::getValue('evolution_message_dispatch_delay_ms', (string) EvolutionApiService::defaultDispatchDelayMs())),
+            'evolution_template_process_update' => trim((string) ($validated['evolution_template_process_update'] ?? AppSetting::getValue('evolution_template_process_update', EvolutionApiService::defaultProcessTemplate()))),
+            'evolution_template_collection_notice' => trim((string) ($validated['evolution_template_collection_notice'] ?? AppSetting::getValue('evolution_template_collection_notice', EvolutionApiService::defaultCollectionTemplate()))),
+        ];
+    }
+
+    private function persistEvolutionSettings(array $settings, bool $includeTemplates): void
+    {
+        $items = [
+            'evolution_enabled' => [$settings['evolution_enabled'] ? '1' : '0', 'Indica se a integracao EvolutionAPI esta habilitada'],
+            'evolution_base_url' => [$settings['evolution_base_url'], 'URL base da API Evolution'],
+            'evolution_instance_name' => [$settings['evolution_instance_name'], 'Nome da instancia configurada na EvolutionAPI'],
+            'evolution_webhook_enabled' => [$settings['evolution_webhook_enabled'] ? '1' : '0', 'Indica se o webhook da EvolutionAPI deve ser mantido ativo'],
+            'evolution_webhook_by_events' => [$settings['evolution_webhook_by_events'] ? '1' : '0', 'Indica se a EvolutionAPI deve quebrar o webhook por evento'],
+            'evolution_webhook_token' => [$settings['evolution_webhook_token'], 'Token de autenticacao do webhook da EvolutionAPI'],
+            'evolution_webhook_events_json' => [json_encode($settings['evolution_webhook_events'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', 'Eventos escutados pelo webhook da EvolutionAPI'],
+            'evolution_message_dispatch_delay_ms' => [(string) $settings['evolution_message_dispatch_delay_ms'], 'Intervalo em milissegundos entre mensagens em lote na EvolutionAPI'],
+        ];
+
+        if ($includeTemplates) {
+            $items['evolution_template_process_update'] = [$settings['evolution_template_process_update'], 'Template padrao de notificacao WhatsApp para atualizacao de processo'];
+            $items['evolution_template_collection_notice'] = [$settings['evolution_template_collection_notice'], 'Template padrao de notificacao WhatsApp para cobranca'];
+        }
+
+        $this->setMany($items);
+
+        if (trim((string) ($settings['evolution_api_key'] ?? '')) !== '') {
+            AppSetting::setEncryptedValue('evolution_api_key', (string) $settings['evolution_api_key'], 'API key criptografada da EvolutionAPI');
+        }
+    }
+
     private function validateAiConfigurationForSave(array $settings): void
     {
         $this->validateAiTokenLimitForProvider($settings);
@@ -1664,6 +1888,36 @@ class ConfigController extends Controller
 
         if ($settings['gemini_chat_model'] === '') {
             throw ValidationException::withMessages(['gemini_chat_model' => 'Informe o modelo de chat da Gemini para ativar este provedor.']);
+        }
+    }
+
+    private function validateEvolutionConfigurationForSave(array $settings): void
+    {
+        if (!$settings['evolution_enabled']) {
+            return;
+        }
+
+        $this->validateEvolutionConfigurationForRemoteAction($settings);
+    }
+
+    private function validateEvolutionConfigurationForRemoteAction(array $settings): void
+    {
+        $errors = [];
+
+        if (trim((string) ($settings['evolution_base_url'] ?? '')) === '') {
+            $errors['evolution_base_url'] = 'Informe a URL base da EvolutionAPI.';
+        }
+
+        if (trim((string) ($settings['evolution_instance_name'] ?? '')) === '') {
+            $errors['evolution_instance_name'] = 'Informe o nome da instancia na EvolutionAPI.';
+        }
+
+        if (trim((string) ($settings['evolution_api_key'] ?? '')) === '') {
+            $errors['evolution_api_key'] = 'Informe a API key da EvolutionAPI.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
         }
     }
 
@@ -1746,6 +2000,16 @@ class ConfigController extends Controller
         return mb_substr($normalized, 0, 4)
             . str_repeat('*', max($length - 8, 4))
             . mb_substr($normalized, -4);
+    }
+
+    private function evolutionWebhookEventValues(): array
+    {
+        return collect(EvolutionApiService::availableWebhookEvents())
+            ->pluck('value')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MobileInstanceController;
 use App\Http\Controllers\AssinafyWebhookController;
+use App\Http\Controllers\EvolutionWebhookController;
 use App\Http\Controllers\Internal\AutomationController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,10 @@ Route::prefix('internal')
 
 Route::post('/integrations/assinafy/webhook', AssinafyWebhookController::class)
     ->name('integrations.assinafy.webhook');
+
+Route::post('/integrations/evolution/webhook/{token}/{event?}', EvolutionWebhookController::class)
+    ->where('event', '.*')
+    ->name('integrations.evolution.webhook');
 
 Route::prefix('mobile')->group(function () {
     Route::get('/health', [MobileInstanceController::class, 'health'])->name('api.mobile.health');

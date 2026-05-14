@@ -18,11 +18,12 @@
             ['key' => 'demands', 'label' => 'Demandas', 'icon' => 'fa-solid fa-table-columns', 'description' => 'Tags, cores e SLA'],
             ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
             ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini, prompts e base legal', 'href' => route('config.ai.index')],
+            ['key' => 'evolution', 'label' => 'EvolutionAPI', 'icon' => 'fa-brands fa-whatsapp', 'description' => 'Credenciais, webhook, templates e testes', 'href' => route('config.evolution.index')],
         ];
     @endphp
 
     <div class="rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-6">
             @foreach($configTabs as $tab)
                 @if(isset($tab['href']))
                     <a href="{{ $tab['href'] }}" class="rounded-2xl border border-transparent px-4 py-3 text-left text-gray-600 transition hover:border-gray-200 hover:bg-gray-50 dark:text-gray-300 dark:hover:border-gray-800 dark:hover:bg-white/[0.03]">
@@ -248,8 +249,8 @@
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]" id="automation-section">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Automacao WhatsApp</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Documentacao da integracao interna e credenciais usadas pelo n8n/Evolution para chamar o backend do Ancora.</p>
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">API interna da automacao</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Documentacao da integracao interna e credenciais usadas pelo n8n ou outros orquestradores para chamar o backend do Ancora.</p>
                     </div>
                     <a href="{{ $automation['documentation_url'] }}" class="{{ $softButtonClass }} inline-flex items-center gap-2 whitespace-nowrap">
                         <i class="fa-solid fa-book-open"></i>

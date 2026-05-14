@@ -133,6 +133,11 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
     Route::get('/config/ia', [ConfigController::class, 'ai'])->name('config.ai.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.index']);
     Route::post('/config/ia/save', [ConfigController::class, 'saveAi'])->name('config.ai.save')->middleware(['ancora.superadmin', 'ancora.route:config.ai.save']);
     Route::post('/config/ia/test', [ConfigController::class, 'testAi'])->name('config.ai.test')->middleware(['ancora.superadmin', 'ancora.route:config.ai.test']);
+    Route::get('/config/evolution-api', [ConfigController::class, 'evolution'])->name('config.evolution.index')->middleware(['ancora.superadmin', 'ancora.route:config.evolution.index']);
+    Route::post('/config/evolution-api/save', [ConfigController::class, 'saveEvolution'])->name('config.evolution.save')->middleware(['ancora.superadmin', 'ancora.route:config.evolution.save']);
+    Route::post('/config/evolution-api/test', [ConfigController::class, 'testEvolution'])->name('config.evolution.test')->middleware(['ancora.superadmin', 'ancora.route:config.evolution.test']);
+    Route::post('/config/evolution-api/webhook/sync', [ConfigController::class, 'syncEvolutionWebhook'])->name('config.evolution.webhook.sync')->middleware(['ancora.superadmin', 'ancora.route:config.evolution.webhook.sync']);
+    Route::post('/config/evolution-api/message/test', [ConfigController::class, 'sendEvolutionTestMessage'])->name('config.evolution.message.test')->middleware(['ancora.superadmin', 'ancora.route:config.evolution.message.test']);
     Route::get('/config/ia/base-legal-global', [ConfigController::class, 'aiLegalBase'])->name('config.ai.legal-base.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.index']);
     Route::post('/config/ia/base-legal-global', [ConfigController::class, 'storeAiGlobalDocument'])->name('config.ai.legal-base.store')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.store']);
     Route::match(['post', 'put'], '/config/ia/base-legal-global/{document}', [ConfigController::class, 'updateAiGlobalDocument'])->name('config.ai.legal-base.update')->middleware(['ancora.superadmin', 'ancora.route:config.ai.legal-base.update']);
