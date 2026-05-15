@@ -19,7 +19,17 @@ class ProcessDataJudService
 
     public function syncAll(): array
     {
-        $summary = ['checked' => 0, 'updated' => 0, 'created' => 0, 'refreshed' => 0, 'skipped' => 0, 'errors' => []];
+        $summary = [
+            'checked' => 0,
+            'updated' => 0,
+            'created' => 0,
+            'refreshed' => 0,
+            'skipped' => 0,
+            'notifications_sent' => 0,
+            'notification_skipped' => 0,
+            'notification_failures' => 0,
+            'errors' => [],
+        ];
 
         ProcessCase::query()
             ->whereNotNull('process_number')
@@ -33,6 +43,9 @@ class ProcessDataJudService
                     $summary['created'] += $result['created'] ?? 0;
                     $summary['refreshed'] += $result['refreshed'] ?? 0;
                     $summary['updated'] += (($result['created'] ?? 0) + ($result['refreshed'] ?? 0)) > 0 ? 1 : 0;
+                    $summary['notifications_sent'] += $result['notifications_sent'] ?? 0;
+                    $summary['notification_skipped'] += $result['notification_skipped'] ?? 0;
+                    $summary['notification_failures'] += count((array) ($result['notification_failures'] ?? []));
                     if (($result['skipped'] ?? false) === true) {
                         $summary['skipped']++;
                     }
@@ -94,6 +107,7 @@ class ProcessDataJudService
             $created = 0;
             $refreshed = 0;
             $notificationsSent = 0;
+            $notificationSkipped = 0;
             $notificationFailures = [];
             $hadPreviousSync = $case->last_datajud_sync_at !== null;
             $createdPhases = [];
@@ -154,6 +168,8 @@ class ProcessDataJudService
                     $notification = $this->processAutoNotificationService->notifyPhase($case, $createdPhase);
                     if (($notification['status'] ?? '') === 'sent') {
                         $notificationsSent++;
+                    } elseif (($notification['status'] ?? '') === 'skipped') {
+                        $notificationSkipped++;
                     } elseif (($notification['status'] ?? '') === 'failed') {
                         $notificationFailures[] = (string) ($notification['message'] ?? 'erro desconhecido');
                     }
@@ -168,6 +184,7 @@ class ProcessDataJudService
                     'created' => $created,
                     'refreshed' => $refreshed,
                     'notifications_sent' => $notificationsSent,
+                    'notification_skipped' => $notificationSkipped,
                     'notification_failures' => count($notificationFailures),
                 ]);
             }
@@ -177,6 +194,7 @@ class ProcessDataJudService
                 'created' => $created,
                 'refreshed' => $refreshed,
                 'notifications_sent' => $notificationsSent,
+                'notification_skipped' => $notificationSkipped,
                 'notification_failures' => $notificationFailures,
                 'error' => null,
             ];

@@ -68,6 +68,16 @@
                         'judicial' => 'Vara/Setor',
                         default => 'Vara/Orgao/Setor',
                     };
+                    $pushTargetLabel = 'Nao configurado';
+                    if ($case->client_condominium_id) {
+                        $pushTargetLabel = $case->clientCondominium?->syndic?->display_name
+                            ? 'Sindico: ' . $case->clientCondominium->syndic->display_name
+                            : 'Sindico nao cadastrado no condominio vinculado';
+                    } elseif ($case->client?->display_name) {
+                        $pushTargetLabel = 'Cliente avulso: ' . $case->client->display_name;
+                    } elseif ($case->client_name_snapshot) {
+                        $pushTargetLabel = 'Cliente informado sem cadastro vinculado';
+                    }
 
                     $mainDetails = [
                         'Responsavel' => $case->responsible_lawyer ?: 'Nao informado',
@@ -80,6 +90,7 @@
 
                     if ($pushAutomaticAvailable ?? false) {
                         $mainDetails['Push automatico'] = $case->push_automatic ? 'Ativado' : 'Desativado';
+                        $mainDetails['Destino do push'] = $pushTargetLabel;
                     }
 
                     if (filled($case->judging_body)) {
@@ -261,6 +272,9 @@
                         Parecer revisado
                         <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 dark:bg-gray-800" title="Indica que o texto do parecer ja foi revisado antes de eventual compartilhamento.">?</span>
                     </label>
+                </div>
+                <div class="md:col-span-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
+                    Se o processo estiver com push automatico ativo, apenas andamentos nao privados podem disparar WhatsApp para o cliente ou para o sindico do condominio vinculado.
                 </div>
                 <div class="md:col-span-3">
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Observacoes</label>

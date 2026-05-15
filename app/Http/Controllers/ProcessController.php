@@ -557,7 +557,7 @@ class ProcessController extends Controller
             'actionTypeOption',
             'processTypeOption',
             'client',
-            'clientCondominium',
+            'clientCondominium.syndic',
             'adverse',
             'adverseCondominium',
             'clientPositionOption',
@@ -663,6 +663,8 @@ class ProcessController extends Controller
             $message .= ' Push automatico enviado para ' . ($notification['recipient_name'] ?: $notification['phone']) . '.';
         } elseif (($notification['status'] ?? '') === 'failed') {
             $message .= ' O andamento foi salvo, mas o push automatico falhou: ' . Str::limit((string) ($notification['message'] ?? 'erro desconhecido'), 140, '') . '.';
+        } elseif (($notification['status'] ?? '') === 'skipped' && !empty($notification['message'])) {
+            $message .= ' Push automatico nao enviado: ' . Str::limit((string) $notification['message'], 160, '') . '.';
         }
 
         return redirect()->route('processos.show', ['processo' => $processo, 'tab' => 'fases'])
@@ -716,6 +718,9 @@ class ProcessController extends Controller
         if (($result['notifications_sent'] ?? 0) > 0) {
             $message .= ' Push automatico enviado em ' . (int) $result['notifications_sent'] . ' andamento(s).';
         }
+        if (($result['notification_skipped'] ?? 0) > 0) {
+            $message .= ' ' . (int) $result['notification_skipped'] . ' andamento(s) nao geraram push automatico.';
+        }
         if (!empty($result['notification_failures'])) {
             $message .= ' Houve falha em ' . count((array) $result['notification_failures']) . ' push(es) automaticos.';
         }
@@ -752,10 +757,8 @@ class ProcessController extends Controller
 
         $client = $this->resolveEntity((string) $request->input('client_name', ''));
         $adverse = $this->resolveEntity((string) $request->input('adverse_name', ''));
-        $clientCondominium = $this->resolveCondominium((string) $request->input('client_name', ''));
-        $adverseCondominium = $this->resolveCondominium((string) $request->input('adverse_name', ''));
-        $clientCondominiumId = (int) ($validated['client_condominium_id'] ?? 0) ?: (int) ($clientCondominium?->id ?? 0);
-        $adverseCondominiumId = (int) ($validated['adverse_condominium_id'] ?? 0) ?: (int) ($adverseCondominium?->id ?? 0);
+        $clientCondominiumId = (int) ($validated['client_condominium_id'] ?? 0);
+        $adverseCondominiumId = (int) ($validated['adverse_condominium_id'] ?? 0);
         $selectedClientCondominium = $clientCondominiumId ? ClientCondominium::query()->find($clientCondominiumId) : null;
         $selectedAdverseCondominium = $adverseCondominiumId ? ClientCondominium::query()->find($adverseCondominiumId) : null;
         $clientNameInput = trim((string) ($validated['client_name'] ?? ''));
@@ -771,9 +774,9 @@ class ProcessController extends Controller
             'process_type_option_id' => $this->optionId($request, 'process_type_option_id', 'process_type'),
             'client_entity_id' => $client?->id,
             'client_condominium_id' => $clientCondominiumId ?: null,
-            'client_name_snapshot' => $client?->display_name ?: ($clientCondominium?->name ?: ($clientNameInput !== '' ? $clientNameInput : $selectedClientCondominium?->name)),
+            'client_name_snapshot' => $client?->display_name ?: ($clientNameInput !== '' ? $clientNameInput : $selectedClientCondominium?->name),
             'adverse_entity_id' => $adverse?->id,
-            'adverse_name' => $adverse?->display_name ?: ($adverseCondominium?->name ?: ($adverseNameInput !== '' ? $adverseNameInput : $selectedAdverseCondominium?->name)),
+            'adverse_name' => $adverse?->display_name ?: ($adverseNameInput !== '' ? $adverseNameInput : $selectedAdverseCondominium?->name),
             'client_position_option_id' => $this->optionId($request, 'client_position_option_id', 'client_position'),
             'adverse_position_option_id' => $this->optionId($request, 'adverse_position_option_id', 'adverse_position'),
             'client_lawyer' => $validated['client_lawyer'] ?? null,
@@ -875,6 +878,7 @@ class ProcessController extends Controller
                 'display_name' => $entity->display_name,
                 'legal_name' => $entity->legal_name,
                 'cpf_cnpj' => $entity->cpf_cnpj,
+                'sort_order' => $entity->profile_scope === 'avulso' ? 0 : ($entity->profile_scope === 'contato' ? 1 : 2),
                 'lookup_hint' => trim(implode(' · ', array_filter([
                     $entity->profile_scope === 'avulso' ? 'Cliente avulso' : ($entity->role_tag ?: 'Entidade'),
                     $entity->cpf_cnpj,
@@ -890,6 +894,7 @@ class ProcessController extends Controller
                 'display_name' => $condominium->name,
                 'legal_name' => 'Condominio',
                 'cpf_cnpj' => $condominium->cnpj,
+                'sort_order' => 9,
                 'lookup_hint' => trim(implode(' · ', array_filter([
                     'Condominio',
                     $condominium->cnpj,
@@ -898,7 +903,12 @@ class ProcessController extends Controller
 
         return $entities
             ->merge($condominiums)
-            ->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->sortBy(fn ($item) => Str::of((string) $item->display_name)->ascii()->lower()->toString() . '|' . sprintf('%02d', (int) ($item->sort_order ?? 9)))
+            ->map(function ($item) {
+                unset($item->sort_order);
+
+                return $item;
+            })
             ->values();
     }
 

@@ -22,18 +22,32 @@ class ProcessAutoNotificationService
             'clientCondominium.syndic',
         ]);
 
+        if ((bool) $phase->is_private) {
+            return $this->skip('private_phase', 'Andamento privado nao gera push automatico para o cliente.');
+        }
+
         if (!(bool) $case->push_automatic) {
-            return ['status' => 'skipped', 'reason' => 'push_disabled'];
+            return $this->skip('push_disabled', 'O checkbox de push automatico esta desativado neste processo.');
         }
 
         $settings = $this->evolutionApiService->currentSettings();
         if (!$this->evolutionApiService->hasReadyConfiguration($settings)) {
-            return ['status' => 'skipped', 'reason' => 'evolution_unavailable'];
+            return $this->skip('evolution_unavailable', 'A EvolutionAPI nao esta configurada para envio.');
         }
 
         $target = $this->resolveTarget($case);
-        if (!$target['entity'] || $target['phone'] === '') {
-            return ['status' => 'skipped', 'reason' => 'missing_phone'];
+        if (!$target['entity']) {
+            return $this->skip(
+                (string) ($target['reason'] ?? 'missing_recipient'),
+                (string) ($target['message'] ?? 'Nao foi possivel localizar o destinatario do push automatico.')
+            );
+        }
+
+        if ($target['phone'] === '') {
+            return $this->skip(
+                (string) ($target['reason'] ?? 'missing_phone'),
+                (string) ($target['message'] ?? 'O destinatario do push automatico nao possui telefone cadastrado.')
+            );
         }
 
         try {
@@ -72,16 +86,39 @@ class ProcessAutoNotificationService
 
     private function resolveTarget(ProcessCase $case): array
     {
-        if ($case->clientCondominium?->syndic) {
+        if ($case->client_condominium_id) {
+            if (!$case->clientCondominium?->syndic) {
+                return [
+                    'entity' => null,
+                    'phone' => '',
+                    'reason' => 'missing_syndic',
+                    'message' => 'O condominio vinculado nao possui sindico cadastrado para receber o push automatico.',
+                ];
+            }
+
+            $phone = $this->primaryPhone($case->clientCondominium->syndic);
+
             return [
                 'entity' => $case->clientCondominium->syndic,
-                'phone' => $this->primaryPhone($case->clientCondominium->syndic),
+                'phone' => $phone,
+                'reason' => $phone === '' ? 'missing_syndic_phone' : null,
+                'message' => $phone === ''
+                    ? 'O sindico do condominio vinculado nao possui telefone cadastrado para receber o push automatico.'
+                    : null,
             ];
         }
 
+        $phone = $this->primaryPhone($case->client);
+
         return [
             'entity' => $case->client,
-            'phone' => $this->primaryPhone($case->client),
+            'phone' => $phone,
+            'reason' => $case->client ? ($phone === '' ? 'missing_client_phone' : null) : 'missing_client',
+            'message' => !$case->client
+                ? 'O processo nao possui cliente avulso vinculado para receber o push automatico.'
+                : ($phone === ''
+                    ? 'O cliente avulso vinculado ao processo nao possui telefone cadastrado para receber o push automatico.'
+                    : null),
         ];
     }
 
@@ -97,5 +134,14 @@ class ProcessAutoNotificationService
             })
             ->filter(fn ($value) => strlen((string) $value) >= 10)
             ->first();
+    }
+
+    private function skip(string $reason, string $message): array
+    {
+        return [
+            'status' => 'skipped',
+            'reason' => $reason,
+            'message' => $message,
+        ];
     }
 }
