@@ -15,6 +15,7 @@ class CobrancaCollectionNotificationService
 {
     public function __construct(
         private readonly EvolutionApiService $evolutionApiService,
+        private readonly EvolutionMessageLogService $messageLogService,
         private readonly NotificationTemplateService $templateService,
     ) {
     }
@@ -250,12 +251,28 @@ class CobrancaCollectionNotificationService
                         $whatsappMessage,
                         $whatsappDelayOffsetMs + ($whatsappDelayStepMs * $index)
                     );
+                    $this->messageLogService->recordOutbound('cobrancas', $phone, $whatsappMessage, $response, [
+                        'cobranca_case_id' => $case->id,
+                        'metadata' => [
+                            'channel' => 'collection_notice',
+                            'delay_offset_ms' => $whatsappDelayOffsetMs + ($whatsappDelayStepMs * $index),
+                            'sent_by_user_id' => $user?->id,
+                        ],
+                    ]);
                     $whatsappResults[] = [
                         'value' => $phone,
                         'status' => 'sent',
                         'message_id' => (string) ($response['message_id'] ?? ''),
                     ];
                 } catch (\Throwable $e) {
+                    $this->messageLogService->recordOutboundFailure('cobrancas', $phone, $whatsappMessage, $e->getMessage(), [
+                        'cobranca_case_id' => $case->id,
+                        'metadata' => [
+                            'channel' => 'collection_notice',
+                            'delay_offset_ms' => $whatsappDelayOffsetMs + ($whatsappDelayStepMs * $index),
+                            'sent_by_user_id' => $user?->id,
+                        ],
+                    ]);
                     $whatsappResults[] = [
                         'value' => $phone,
                         'status' => 'failed',

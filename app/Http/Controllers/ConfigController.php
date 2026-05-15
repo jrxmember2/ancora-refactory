@@ -7,6 +7,8 @@ use App\Models\AiGlobalDocument;
 use App\Models\AppSetting;
 use App\Models\CobrancaMonetaryIndexFactor;
 use App\Models\ClientCondominium;
+use App\Models\EvolutionMessageLog;
+use App\Models\EvolutionWebhookEvent;
 use App\Models\Demand;
 use App\Models\DemandCategory;
 use App\Models\DemandTag;
@@ -21,6 +23,7 @@ use App\Models\ClientPortalUser;
 use App\Services\Ai\AiService;
 use App\Services\Ai\Knowledge\AiGlobalDocumentProcessor;
 use App\Services\EvolutionApiService;
+use App\Services\EvolutionMessageLogService;
 use App\Services\SharedServiceCatalogService;
 use App\Support\AncoraAuth;
 use App\Support\AiLegalDocumentCatalog;
@@ -833,23 +836,44 @@ class ConfigController extends Controller
         ]);
     }
 
-    public function sendEvolutionTestMessage(Request $request, EvolutionApiService $evolutionApiService): JsonResponse
+    public function sendEvolutionTestMessage(
+        Request $request,
+        EvolutionApiService $evolutionApiService,
+        EvolutionMessageLogService $messageLogService,
+    ): JsonResponse
     {
         $validated = $request->validate($this->evolutionValidationRules(testing: true, sendingTestMessage: true));
         $settings = $this->evolutionSettingsFromRequest($request, $validated);
         $this->validateEvolutionConfigurationForRemoteAction($settings);
 
-        $result = $evolutionApiService->sendTestMessage(
-            $settings,
-            (string) ($validated['test_number'] ?? ''),
-            (string) ($validated['test_message'] ?? '')
-        );
+        $testNumber = (string) ($validated['test_number'] ?? '');
+        $testMessage = (string) ($validated['test_message'] ?? '');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Mensagem de teste enviada com status ' . strtoupper((string) ($result['status'] ?? 'PENDING')) . '.',
-            'result' => $result,
-        ]);
+        try {
+            $result = $evolutionApiService->sendTestMessage($settings, $testNumber, $testMessage);
+            $messageLogService->recordOutbound('config_test', $testNumber, $testMessage, $result, [
+                'metadata' => [
+                    'channel' => 'config_test',
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mensagem de teste enviada com status ' . strtoupper((string) ($result['status'] ?? 'PENDING')) . '.',
+                'result' => $result,
+            ]);
+        } catch (\Throwable $exception) {
+            $messageLogService->recordOutboundFailure('config_test', $testNumber, $testMessage, $exception->getMessage(), [
+                'metadata' => [
+                    'channel' => 'config_test',
+                ],
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     public function saveAutomation(Request $request): RedirectResponse
@@ -1675,6 +1699,39 @@ class ConfigController extends Controller
             'evolution_template_collection_email_subject' => (string) ($storedSettings['evolution_template_collection_email_subject'] ?? EvolutionApiService::defaultCollectionEmailSubjectTemplate()),
             'evolution_template_collection_email_body' => (string) ($storedSettings['evolution_template_collection_email_body'] ?? EvolutionApiService::defaultCollectionEmailBodyTemplate()),
             'webhook_base_url' => url('/api/integrations/evolution/webhook'),
+            'monitoring' => [
+                'last_webhook_event_name' => (string) AppSetting::getValue('evolution_last_webhook_event_name', ''),
+                'last_webhook_status' => (string) AppSetting::getValue('evolution_last_webhook_status', ''),
+                'last_webhook_at' => (string) AppSetting::getValue('evolution_last_webhook_at', ''),
+                'last_connection_state' => (string) AppSetting::getValue('evolution_last_connection_state', ''),
+                'last_connection_instance' => (string) AppSetting::getValue('evolution_last_connection_instance', ''),
+                'last_connection_at' => (string) AppSetting::getValue('evolution_last_connection_at', ''),
+                'last_inbound_phone' => (string) AppSetting::getValue('evolution_last_inbound_phone', ''),
+                'last_inbound_message' => (string) AppSetting::getValue('evolution_last_inbound_message', ''),
+                'last_inbound_at' => (string) AppSetting::getValue('evolution_last_inbound_at', ''),
+                'last_message_status' => (string) AppSetting::getValue('evolution_last_message_status', ''),
+                'last_message_status_module' => (string) AppSetting::getValue('evolution_last_message_status_module', ''),
+                'last_message_status_phone' => (string) AppSetting::getValue('evolution_last_message_status_phone', ''),
+                'last_message_status_at' => (string) AppSetting::getValue('evolution_last_message_status_at', ''),
+                'webhook_events_count' => Schema::hasTable('evolution_webhook_events')
+                    ? EvolutionWebhookEvent::query()->count()
+                    : 0,
+                'message_logs_count' => Schema::hasTable('evolution_message_logs')
+                    ? EvolutionMessageLog::query()->count()
+                    : 0,
+                'outbound_pending_count' => Schema::hasTable('evolution_message_logs')
+                    ? EvolutionMessageLog::query()
+                        ->where('direction', 'outbound')
+                        ->whereIn('status', ['PENDING', 'SERVER_ACK'])
+                        ->count()
+                    : 0,
+                'outbound_failed_count' => Schema::hasTable('evolution_message_logs')
+                    ? EvolutionMessageLog::query()
+                        ->where('direction', 'outbound')
+                        ->whereIn('status', ['FAILED', 'ERROR'])
+                        ->count()
+                    : 0,
+            ],
         ];
 
         $settings['webhook_url'] = $evolutionApiService->webhookUrl($settings);

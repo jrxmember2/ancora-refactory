@@ -5,6 +5,19 @@
     $textareaClass = 'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
     $buttonClass = 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600';
     $softButtonClass = 'rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.03]';
+    $monitoring = $settings['monitoring'] ?? [];
+    $formatMonitoringDate = function ($value) {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return 'Ainda sem registro';
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i:s');
+        } catch (\Throwable) {
+            return $value;
+        }
+    };
 @endphp
 
 @section('content')
@@ -30,6 +43,41 @@
             <i class="fa-solid fa-arrows-rotate"></i>
             <span>Sincronizar webhook</span>
         </button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Ultimo webhook</div>
+            <div class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">{{ $monitoring['last_webhook_event_name'] ?: 'Nenhum evento ainda' }}</div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Status: {{ $monitoring['last_webhook_status'] ?: 'sem processamento' }}</p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $formatMonitoringDate($monitoring['last_webhook_at'] ?? '') }}</p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Conexao da instancia</div>
+            <div class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">{{ $monitoring['last_connection_state'] ?: 'Sem retorno ainda' }}</div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $monitoring['last_connection_instance'] ?: 'Instancia ainda nao informada' }}</p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $formatMonitoringDate($monitoring['last_connection_at'] ?? '') }}</p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Ultima inbound</div>
+            <div class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">{{ $monitoring['last_inbound_phone'] ?: 'Sem mensagens inbound' }}</div>
+            <p class="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{{ $monitoring['last_inbound_message'] ?: 'Quando o cliente responder no WhatsApp, o resumo aparece aqui.' }}</p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $formatMonitoringDate($monitoring['last_inbound_at'] ?? '') }}</p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Ultimo status</div>
+            <div class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">{{ $monitoring['last_message_status'] ?: 'Nenhum status reconciliado' }}</div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ $monitoring['last_message_status_module'] ?: 'Modulo ainda nao identificado' }}
+                @if(!empty($monitoring['last_message_status_phone']))
+                    · {{ $monitoring['last_message_status_phone'] }}
+                @endif
+            </p>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $formatMonitoringDate($monitoring['last_message_status_at'] ?? '') }}</p>
+        </div>
     </div>
 
     <form id="evolution-config-form" method="post" action="{{ route('config.evolution.save') }}" class="space-y-6">
@@ -280,6 +328,28 @@
                         <li>O webhook pode ser sincronizado sem precisar salvar primeiro.</li>
                         <li>O intervalo em ms sera a base dos disparos em lote para evitar rajadas no numero.</li>
                     </ul>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Resumo do rastreio</h3>
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Eventos webhook</div>
+                            <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ $monitoring['webhook_events_count'] ?? 0 }}</div>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Mensagens rastreadas</div>
+                            <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ $monitoring['message_logs_count'] ?? 0 }}</div>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Saidas pendentes</div>
+                            <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ $monitoring['outbound_pending_count'] ?? 0 }}</div>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Saidas com falha</div>
+                            <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ $monitoring['outbound_failed_count'] ?? 0 }}</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">

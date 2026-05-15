@@ -11,6 +11,7 @@ class ProcessAutoNotificationService
 {
     public function __construct(
         private readonly EvolutionApiService $evolutionApiService,
+        private readonly EvolutionMessageLogService $messageLogService,
         private readonly NotificationTemplateService $templateService,
     ) {
     }
@@ -50,6 +51,8 @@ class ProcessAutoNotificationService
             );
         }
 
+        $message = '';
+
         try {
             $template = trim((string) ($settings['evolution_template_process_update'] ?? ''));
             if ($template === '') {
@@ -62,6 +65,14 @@ class ProcessAutoNotificationService
             );
 
             $result = $this->evolutionApiService->sendTextMessage($settings, $target['phone'], $message);
+            $this->messageLogService->recordOutbound('processos', $target['phone'], $message, $result, [
+                'process_case_id' => $case->id,
+                'process_case_phase_id' => $phase->id,
+                'metadata' => [
+                    'recipient_name' => (string) ($target['entity']->display_name ?: ''),
+                    'channel' => 'process_auto_push',
+                ],
+            ]);
 
             return [
                 'status' => 'sent',
@@ -70,6 +81,17 @@ class ProcessAutoNotificationService
                 'message_id' => (string) ($result['message_id'] ?? ''),
             ];
         } catch (\Throwable $e) {
+            if ($message !== '') {
+                $this->messageLogService->recordOutboundFailure('processos', $target['phone'], $message, $e->getMessage(), [
+                    'process_case_id' => $case->id,
+                    'process_case_phase_id' => $phase->id,
+                    'metadata' => [
+                        'recipient_name' => (string) ($target['entity']?->display_name ?: ''),
+                        'channel' => 'process_auto_push',
+                    ],
+                ]);
+            }
+
             Log::warning('Falha ao enviar push automatico do processo.', [
                 'process_case_id' => $case->id,
                 'process_phase_id' => $phase->id,
