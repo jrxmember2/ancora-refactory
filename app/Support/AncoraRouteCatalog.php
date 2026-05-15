@@ -71,6 +71,15 @@ class AncoraRouteCatalog
                     'config.users.delete' => 'Excluir usuario',
                 ],
             ],
+            'ia' => [
+                'label' => 'Leme Escritorio',
+                'routes' => [
+                    'ia.office-chat.index' => 'Acessar Leme Escritorio',
+                    'ia.office-chat.ask' => 'Enviar pergunta no Leme Escritorio',
+                    'ia.office-chat.show' => 'Abrir conversa do Leme Escritorio',
+                    'ia.office-chat.delete' => 'Excluir conversa do Leme Escritorio',
+                ],
+            ],
             'clientes' => [
                 'label' => 'Clientes',
                 'routes' => [

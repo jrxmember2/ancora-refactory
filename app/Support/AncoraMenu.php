@@ -18,6 +18,8 @@ class AncoraMenu
         }
 
         $has = static fn (string $slug): bool => $available->has($slug);
+        $routePermissions = $user?->isSuperadmin() ? [] : ($user?->accessibleRouteNames() ?? []);
+        $canRoute = static fn (string $routeName): bool => $user && ($user->isSuperadmin() || in_array($routeName, $routePermissions, true));
 
         $groups = [
             [
@@ -129,6 +131,7 @@ class AncoraMenu
                 'title' => 'Administracao',
                 'items' => array_values(array_filter([
                     $has('busca') ? ['label' => 'Busca', 'path' => route('busca'), 'icon' => 'fa-solid fa-magnifying-glass'] : null,
+                    $canRoute('ia.office-chat.index') ? ['label' => 'Leme Escritorio', 'path' => route('ia.office-chat.index'), 'icon' => 'fa-solid fa-comments'] : null,
                     $has('config') ? ['label' => 'Configuracoes', 'path' => route('config.index'), 'icon' => 'fa-solid fa-gear'] : null,
                     ['label' => 'Versionamento', 'path' => route('changelog.index'), 'icon' => 'fa-solid fa-code-branch'],
                     $has('logs') ? ['label' => 'Logs', 'path' => route('logs.index'), 'icon' => 'fa-solid fa-clock-rotate-left'] : null,

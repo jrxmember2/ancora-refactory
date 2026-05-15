@@ -33,6 +33,10 @@
             <i class="fa-solid fa-arrow-left"></i>
             <span>Voltar para Configuracoes</span>
         </a>
+        <a href="{{ route('ia.office-chat.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
+            <i class="fa-solid fa-comments"></i>
+            <span>Abrir Leme Escritorio</span>
+        </a>
         <a href="{{ route('config.ai.chat-history.index') }}" class="{{ $softButtonClass }} inline-flex items-center gap-2">
             <i class="fa-solid fa-timeline"></i>
             <span>Historico de Consultas</span>

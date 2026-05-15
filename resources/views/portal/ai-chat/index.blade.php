@@ -68,6 +68,15 @@
                     <a href="{{ route('portal.ai-chat.index') }}" class="inline-flex items-center justify-center rounded-full border border-[#eadfd5] bg-white px-3 py-1.5 text-xs font-semibold text-[#941415] transition hover:border-[#941415]/40 hover:bg-[#fdf8f4]">
                         <i class="fa-solid fa-plus mr-1.5"></i>Novo chat
                     </a>
+                    @if($activeConversation)
+                        <form method="post" action="{{ route('portal.ai-chat.delete', $activeConversation) }}" onsubmit="return confirm('Excluir este chat da sua lista?');">
+                            @csrf
+                            <input type="hidden" name="return_to" value="{{ route('portal.ai-chat.index') }}">
+                            <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-error-200 bg-error-50 text-error-600 transition hover:bg-error-100" title="Excluir chat">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>
@@ -137,12 +146,24 @@
                         <div class="border-t border-[#eadfd5] px-3 py-3">
                             <div class="space-y-3">
                                 @forelse($recentConversations as $conversation)
-                                    <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="block rounded-2xl border px-4 py-3 transition {{ $activeConversation && (int) $activeConversation->id === (int) $conversation->id ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
-                                        <div class="text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
-                                        <div class="mt-1 text-xs text-gray-500">
-                                            {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                                    @php($isActiveConversation = $activeConversation && (int) $activeConversation->id === (int) $conversation->id)
+                                    <div class="rounded-2xl border px-4 py-3 transition {{ $isActiveConversation ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="min-w-0 flex-1">
+                                                <div class="truncate text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
+                                                <div class="mt-1 text-xs text-gray-500">
+                                                    {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                                                </div>
+                                            </a>
+                                            <form method="post" action="{{ route('portal.ai-chat.delete', $conversation) }}" onsubmit="return confirm('Excluir este chat da sua lista?');">
+                                                @csrf
+                                                <input type="hidden" name="return_to" value="{{ $isActiveConversation ? route('portal.ai-chat.index') : url()->current() }}">
+                                                <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-error-200 bg-error-50 text-error-600 transition hover:bg-error-100" title="Excluir chat">
+                                                    <i class="fa-solid fa-trash text-xs"></i>
+                                                </button>
+                                            </form>
                                         </div>
-                                    </a>
+                                    </div>
                                 @empty
                                     <div class="rounded-2xl border border-dashed border-[#eadfd5] bg-[#fdf8f4] px-4 py-4 text-sm text-gray-500">
                                         Nenhuma conversa registrada ainda.
@@ -289,12 +310,24 @@
             <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-[#941415]">Historico recente da Leme</h3>
             <div class="mt-4 space-y-3">
                 @forelse($recentConversations as $conversation)
-                    <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="block rounded-2xl border px-4 py-3 transition {{ $activeConversation && (int) $activeConversation->id === (int) $conversation->id ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
-                        <div class="text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
-                        <div class="mt-1 text-xs text-gray-500">
-                            {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                    @php($isActiveConversation = $activeConversation && (int) $activeConversation->id === (int) $conversation->id)
+                    <div class="rounded-2xl border px-4 py-3 transition {{ $isActiveConversation ? 'border-[#941415] bg-[#fdf2f2]' : 'border-[#eadfd5] bg-white hover:border-[#941415]/40' }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <a href="{{ route('portal.ai-chat.show', $conversation) }}" class="min-w-0 flex-1">
+                                <div class="truncate text-sm font-semibold text-gray-900">{{ $conversation->displayTitle() }}</div>
+                                <div class="mt-1 text-xs text-gray-500">
+                                    {{ $conversation->condominium?->name ?: 'Sem condominio' }} | {{ $conversation->last_message_at?->format('d/m/Y H:i') ?: $conversation->updated_at?->format('d/m/Y H:i') }}
+                                </div>
+                            </a>
+                            <form method="post" action="{{ route('portal.ai-chat.delete', $conversation) }}" onsubmit="return confirm('Excluir este chat da sua lista?');">
+                                @csrf
+                                <input type="hidden" name="return_to" value="{{ $isActiveConversation ? route('portal.ai-chat.index') : url()->current() }}">
+                                <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-error-200 bg-error-50 text-error-600 transition hover:bg-error-100" title="Excluir chat">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </form>
                         </div>
-                    </a>
+                    </div>
                 @empty
                     <div class="rounded-2xl border border-dashed border-[#eadfd5] bg-[#fdf8f4] px-4 py-4 text-sm text-gray-500">
                         Nenhuma conversa registrada ainda.

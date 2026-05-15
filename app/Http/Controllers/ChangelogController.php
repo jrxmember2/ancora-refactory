@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.09',
-            'date' => '12/05/2026',
-            'label' => 'v2.09 - 12/05/2026',
+            'version' => 'v2.10',
+            'date' => '15/05/2026',
+            'label' => 'v2.10 - 15/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Leme Escritorio entra no painel interno e os chats ganham lixeira com exclusao logica',
+                'items' => [
+                    'Nasce o Leme Escritorio em rota propria do painel interno, com escopo controlado entre Base Legal Global e um condominio especifico, reaproveitando o motor central de IA e a busca documental ja processada.',
+                    'O escritorio passa a ter conversas e mensagens proprias em tabelas separadas, preservando o historico do Portal do Cliente sem acoplamento indevido ao usuario do portal.',
+                    'Portal e escritorio passam a exibir lixeira nos cards de chat e no topo da conversa ativa, usando exclusao logica para retirar o chat da listagem sem perder rastreabilidade no banco.',
+                ],
+            ],
+            [
+                'version' => 'v2.09',
+                'date' => '12/05/2026',
                 'title' => 'API publica mobile valida a instancia do Portal do Cliente para o app Android',
                 'items' => [
                     'A API ganha os endpoints publicos /api/mobile/health e /api/mobile/instance-info para que o aplicativo Android valide se a URL informada pertence a uma instancia Ancora com Portal do Cliente disponivel.',

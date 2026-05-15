@@ -33,6 +33,7 @@ class PortalSyndicChatService
         return AiChatConversation::query()
             ->with('condominium')
             ->where('client_portal_user_id', $portalUser->id)
+            ->where('status', '!=', 'deleted')
             ->when($clientCondominiumId, function ($query) use ($clientCondominiumId) {
                 $query->where('client_condominium_id', (int) $clientCondominiumId);
             })
@@ -45,6 +46,18 @@ class PortalSyndicChatService
     public function hasKnowledgeBase(?int $clientCondominiumId): bool
     {
         return $this->documentSearchService->hasKnowledgeBase($clientCondominiumId);
+    }
+
+    public function deleteConversationForUser(ClientPortalUser $portalUser, AiChatConversation $conversation): void
+    {
+        if ((int) $conversation->client_portal_user_id !== (int) $portalUser->id) {
+            throw new RuntimeException('Voce nao possui permissao para excluir esta conversa.');
+        }
+
+        $conversation->forceFill([
+            'status' => 'deleted',
+            'last_message_at' => now(),
+        ])->save();
     }
 
     /** @return array<string,mixed>|null */

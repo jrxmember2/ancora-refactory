@@ -43,6 +43,18 @@ class ClientPortalAiChatController extends Controller
         return $this->renderChatPage($request, $portalUser, $conversation->load(['messages', 'condominium']));
     }
 
+    public function destroy(Request $request, AiChatConversation $conversation): RedirectResponse
+    {
+        $portalUser = ClientPortalAuth::user($request);
+        abort_unless($portalUser, 401);
+
+        $this->assertConversationAccess($portalUser, $conversation);
+        $this->chatService->deleteConversationForUser($portalUser, $conversation);
+
+        return $this->safeRedirect($request, route('portal.ai-chat.index'))
+            ->with('success', 'Chat excluido com sucesso.');
+    }
+
     public function ask(Request $request): JsonResponse|RedirectResponse
     {
         $portalUser = ClientPortalAuth::user($request);
@@ -214,6 +226,7 @@ class ClientPortalAiChatController extends Controller
     private function assertConversationAccess(ClientPortalUser $portalUser, AiChatConversation $conversation): void
     {
         abort_unless((int) $conversation->client_portal_user_id === (int) $portalUser->id, 404);
+        abort_unless(trim((string) $conversation->status) !== 'deleted', 404);
 
         $condominiumId = (int) ($conversation->client_condominium_id ?? 0);
         if ($condominiumId > 0) {
@@ -238,5 +251,24 @@ class ClientPortalAiChatController extends Controller
     private function chatServiceSettings(): array
     {
         return app(AiService::class)->settings();
+    }
+
+    private function safeRedirect(Request $request, string $fallback): RedirectResponse
+    {
+        $returnTo = trim((string) $request->input('return_to', ''));
+        if ($returnTo === '') {
+            return redirect()->to($fallback);
+        }
+
+        if (str_starts_with($returnTo, '/') && !str_starts_with($returnTo, '//')) {
+            return redirect()->to($returnTo);
+        }
+
+        $targetHost = parse_url($returnTo, PHP_URL_HOST);
+        if ($targetHost && $targetHost === $request->getHost()) {
+            return redirect()->to($returnTo);
+        }
+
+        return redirect()->to($fallback);
     }
 }

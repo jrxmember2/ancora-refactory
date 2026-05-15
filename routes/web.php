@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\AiOfficeChatController;
 use App\Http\Controllers\ClientExportController;
 use App\Http\Controllers\ClientPortalUserController;
 use App\Http\Controllers\ClientsController;
@@ -75,6 +76,7 @@ Route::domain(config('app.client_portal_domain'))->name('portal.')->group(functi
         Route::get('/chat-sindico', [ClientPortalAiChatController::class, 'index'])->name('ai-chat.index');
         Route::post('/chat-sindico/perguntar', [ClientPortalAiChatController::class, 'ask'])->name('ai-chat.ask');
         Route::get('/chat-sindico/conversas/{conversation}', [ClientPortalAiChatController::class, 'show'])->name('ai-chat.show');
+        Route::match(['post', 'delete'], '/chat-sindico/conversas/{conversation}/excluir', [ClientPortalAiChatController::class, 'destroy'])->name('ai-chat.delete');
 
         Route::get('/minha-conta', [ClientPortalAccountController::class, 'edit'])->name('account');
         Route::post('/minha-conta/senha', [ClientPortalAccountController::class, 'updatePassword'])->name('account.password');
@@ -146,6 +148,10 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
     Route::get('/config/ia/historico-consultas', [ConfigController::class, 'aiChatHistory'])->name('config.ai.chat-history.index')->middleware(['ancora.superadmin', 'ancora.route:config.ai.chat-history.index']);
     Route::get('/config/ia/historico-consultas/{message}', [ConfigController::class, 'aiChatHistoryShow'])->name('config.ai.chat-history.show')->middleware(['ancora.superadmin', 'ancora.route:config.ai.chat-history.show']);
     Route::match(['post', 'put'], '/config/ia/historico-consultas/{message}', [ConfigController::class, 'updateAiChatHistoryReview'])->name('config.ai.chat-history.update')->middleware(['ancora.superadmin', 'ancora.route:config.ai.chat-history.update']);
+    Route::get('/ia/escritorio', [AiOfficeChatController::class, 'index'])->name('ia.office-chat.index')->middleware('ancora.route:ia.office-chat.index');
+    Route::post('/ia/escritorio/perguntar', [AiOfficeChatController::class, 'ask'])->name('ia.office-chat.ask')->middleware('ancora.route:ia.office-chat.ask');
+    Route::get('/ia/escritorio/conversas/{conversation}', [AiOfficeChatController::class, 'show'])->name('ia.office-chat.show')->middleware('ancora.route:ia.office-chat.show');
+    Route::match(['post', 'delete'], '/ia/escritorio/conversas/{conversation}/excluir', [AiOfficeChatController::class, 'destroy'])->name('ia.office-chat.delete')->middleware('ancora.route:ia.office-chat.delete');
     Route::get('/config/automacao/documentacao', [ConfigController::class, 'automationDocumentation'])->name('config.automation.documentation')->middleware(['ancora.superadmin', 'ancora.route:config.automation.documentation']);
     Route::post('/config/automacao/save', [ConfigController::class, 'saveAutomation'])->name('config.automation.save')->middleware(['ancora.superadmin', 'ancora.route:config.automation.save']);
     Route::post('/config/branding/save', [ConfigController::class, 'saveBranding'])->name('config.branding.save')->middleware(['ancora.superadmin', 'ancora.route:config.branding.save']);
