@@ -9,15 +9,25 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.10',
+            'version' => 'v2.11',
             'date' => '15/05/2026',
-            'label' => 'v2.10 - 15/05/2026',
+            'label' => 'v2.11 - 15/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Hotfix da migration do Leme Escritorio para compatibilidade com client_condominiums legado',
+                'items' => [
+                    'A migration de ai_office_chat_conversations passa a usar client_condominium_id como INT assinado, refletindo a estrutura real do client_condominiums no banco legado da instancia.',
+                    'O ajuste elimina a incompatibilidade 3780 do MySQL ao criar a foreign key do Leme Escritorio em producao.',
+                    'A migration agora tambem limpa qualquer sobra parcial das tabelas do Leme Escritorio antes de recriar a estrutura corretamente em uma nova tentativa.',
+                ],
+            ],
+            [
+                'version' => 'v2.10',
+                'date' => '15/05/2026',
                 'title' => 'Leme Escritorio entra no painel interno e os chats ganham lixeira com exclusao logica',
                 'items' => [
                     'Nasce o Leme Escritorio em rota propria do painel interno, com escopo controlado entre Base Legal Global e um condominio especifico, reaproveitando o motor central de IA e a busca documental ja processada.',

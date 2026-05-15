@@ -8,11 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('ai_office_chat_messages');
+        Schema::dropIfExists('ai_office_chat_conversations');
+
         if (!Schema::hasTable('ai_office_chat_conversations')) {
             Schema::create('ai_office_chat_conversations', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-                $table->unsignedInteger('client_condominium_id')->nullable();
+                $table->integer('client_condominium_id')->nullable();
                 $table->string('scope_type', 30)->default('condominium');
                 $table->string('title', 180)->nullable();
                 $table->string('status', 30)->default('active');
