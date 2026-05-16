@@ -13,9 +13,10 @@ class MobileInstanceController extends Controller
     public function health(): JsonResponse
     {
         return response()->json([
-            'success' => true,
+            'status' => 'ok',
             'app' => 'ancora',
-            'status' => 'online',
+            'mobile_api' => true,
+            'version' => (string) config('mobile.app_version', '1.0.0'),
         ]);
     }
 

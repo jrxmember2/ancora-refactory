@@ -1,0 +1,9 @@
+<resources>
+    <color name="ancora_wine">#941415</color>
+    <color name="ancora_surface">#F7F2EC</color>
+    <color name="ancora_text">#1F1F1F</color>
+    <color name="ancora_soft_gray">#F2F2F2</color>
+    <color name="ancora_white">#FFFFFF</color>
+    <color name="splash_background">#F7F2EC</color>
+    <color name="ic_launcher_background">#F7F2EC</color>
+</resources>

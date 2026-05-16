@@ -2,7 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Demand;
+use App\Models\DemandMessage;
+use App\Models\ProcessCase;
+use App\Models\ProcessCasePhase;
 use App\Models\User;
+use App\Observers\DemandMessageObserver;
+use App\Observers\DemandObserver;
+use App\Observers\ProcessCaseObserver;
+use App\Observers\ProcessCasePhaseObserver;
 use App\Support\AncoraAuth;
 use App\Support\AncoraMenu;
 use App\Support\AncoraSettings;
@@ -20,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Demand::observe(DemandObserver::class);
+        DemandMessage::observe(DemandMessageObserver::class);
+        ProcessCase::observe(ProcessCaseObserver::class);
+        ProcessCasePhase::observe(ProcessCasePhaseObserver::class);
+
         $request = request();
         $forwardedProto = strtolower((string) $request?->header('x-forwarded-proto', ''));
         $appUrl = (string) config('app.url', '');

@@ -70,6 +70,21 @@ class ClientPortalUser extends Model
         return $this->hasMany(AiChatConversation::class, 'client_portal_user_id');
     }
 
+    public function apiTokens(): HasMany
+    {
+        return $this->hasMany(ClientPortalApiToken::class, 'client_portal_user_id');
+    }
+
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(ClientPortalDeviceToken::class, 'client_portal_user_id');
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(ClientPortalNotification::class, 'client_portal_user_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

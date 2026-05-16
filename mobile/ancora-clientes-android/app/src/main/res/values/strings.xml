@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Âncora Clientes</string>
+    <string name="biometric_title">Desbloquear Âncora Clientes</string>
+    <string name="biometric_subtitle">Use sua biometria para acessar sua área do cliente.</string>
+    <string name="biometric_negative">Entrar com senha</string>
+    <string name="notification_channel_name">Atualizações do portal</string>
+    <string name="notification_channel_description">Push de processos, solicitações e notificações do portal.</string>
+</resources>

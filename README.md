@@ -141,3 +141,39 @@ Para o modulo `Assinador Eletronico` aceitar PDFs de ate `50 MB`, o ambiente pre
 Se houver Nginx ou proxy na frente da aplicacao, configure tambem:
 
 - `client_max_body_size 50M`
+
+## Mobile Nativo
+
+Esta base agora inclui a primeira versao do app Android nativo do Portal do Cliente em:
+
+- `mobile/ancora-clientes-android`
+
+O app se chama `Âncora Clientes`, foi implementado em `Kotlin + Jetpack Compose + Material 3` e consome a API REST mobile versionada em:
+
+- `/api/mobile/v1`
+
+Documentacao complementar:
+
+- `docs/mobile-api.md`
+- `docs/mobile-app.md`
+- `docs/easypanel-mobile.md`
+
+Pontos importantes:
+
+- o app nao usa `WebView`
+- o app nao abre Chrome para acessar o Portal do Cliente
+- o primeiro acesso exige a configuracao da URL da instancia
+- a URL e validada por `GET /api/mobile/v1/health`
+- o backend mobile registra dispositivos FCM, notificacoes e tokens proprios do portal
+
+Comandos uteis para backend mobile:
+
+```bash
+php artisan migrate --force
+php artisan storage:link
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan mobile:push:test {client_portal_user_id}
+php artisan queue:work --sleep=3 --tries=3 --timeout=120
+```

@@ -40,4 +40,10 @@ return [
         'api_key' => env('DATAJUD_API_KEY', 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw=='),
     ],
 
+    'fcm' => [
+        'enabled' => env('FCM_ENABLED', false),
+        'project_id' => env('FCM_PROJECT_ID', ''),
+        'service_account_json_base64' => env('FCM_SERVICE_ACCOUNT_JSON_BASE64', ''),
+    ],
+
 ];
