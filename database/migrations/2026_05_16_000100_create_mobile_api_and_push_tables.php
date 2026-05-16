@@ -54,7 +54,8 @@ return new class extends Migration
             Schema::create('client_portal_notifications', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('client_portal_user_id')->constrained('client_portal_users')->cascadeOnDelete();
-                $table->foreignId('client_condominium_id')->nullable()->constrained('client_condominiums')->nullOnDelete();
+                // client_condominiums.id is INT in the legacy schema, so this FK must match it exactly.
+                $table->integer('client_condominium_id')->nullable();
                 $table->string('type', 80);
                 $table->string('title', 180);
                 $table->text('body');
@@ -66,7 +67,13 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->index(['client_portal_user_id', 'read_at'], 'idx_portal_notifications_user_read');
+                $table->index(['client_condominium_id'], 'idx_portal_notifications_condominium');
                 $table->index(['type', 'created_at'], 'idx_portal_notifications_type_created');
+
+                $table->foreign('client_condominium_id', 'fk_client_portal_notifications_condominium')
+                    ->references('id')
+                    ->on('client_condominiums')
+                    ->nullOnDelete();
             });
         }
     }
