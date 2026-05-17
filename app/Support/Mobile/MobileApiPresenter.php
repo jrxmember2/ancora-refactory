@@ -75,10 +75,15 @@ class MobileApiPresenter
     public static function processSummary(ProcessCase $case): array
     {
         $lastPhase = $case->phases->first();
+        $clientName = self::processClientName($case);
+        $adverseName = self::processAdverseName($case);
 
         return [
             'id' => (int) $case->id,
             'process_number' => (string) ($case->process_number ?: ('Processo #' . $case->id)),
+            'client_name' => $clientName,
+            'adverse_name' => $adverseName,
+            'parties_label' => self::processPartiesLabel($clientName, $adverseName),
             'status' => [
                 'label' => (string) ($case->statusOption?->name ?: 'Sem status'),
                 'color' => (string) ($case->statusOption?->color_hex ?: '#6B7280'),
@@ -92,9 +97,15 @@ class MobileApiPresenter
 
     public static function processDetail(ProcessCase $case): array
     {
+        $clientName = self::processClientName($case);
+        $adverseName = self::processAdverseName($case);
+
         return [
             'id' => (int) $case->id,
             'process_number' => (string) ($case->process_number ?: ('Processo #' . $case->id)),
+            'client_name' => $clientName,
+            'adverse_name' => $adverseName,
+            'parties_label' => self::processPartiesLabel($clientName, $adverseName),
             'status' => [
                 'label' => (string) ($case->statusOption?->name ?: 'Sem status'),
                 'color' => (string) ($case->statusOption?->color_hex ?: '#6B7280'),
@@ -254,5 +265,38 @@ class MobileApiPresenter
             ->values()
             ->take(8)
             ->all();
+    }
+
+    private static function processClientName(ProcessCase $case): ?string
+    {
+        return self::cleanProcessPartyName(
+            $case->clientCondominium?->name
+            ?: $case->client?->display_name
+            ?: $case->client_name_snapshot
+        );
+    }
+
+    private static function processAdverseName(ProcessCase $case): ?string
+    {
+        return self::cleanProcessPartyName(
+            $case->adverseCondominium?->name
+            ?: $case->adverse?->display_name
+            ?: $case->adverse_name
+        );
+    }
+
+    private static function processPartiesLabel(?string $clientName, ?string $adverseName): ?string
+    {
+        $client = $clientName ?: 'Cliente nao informado';
+        $adverse = $adverseName ?: 'Adverso nao informado';
+
+        return $client . ' x ' . $adverse;
+    }
+
+    private static function cleanProcessPartyName(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : null;
     }
 }

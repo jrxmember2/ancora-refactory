@@ -35,6 +35,10 @@ class DashboardController extends Controller
                 'statusOption',
                 'processTypeOption',
                 'natureOption',
+                'client',
+                'clientCondominium',
+                'adverse',
+                'adverseCondominium',
                 'phases' => fn ($query) => $query->where('is_private', false),
             ])->latest('updated_at')->limit(4)->get()
             : collect();

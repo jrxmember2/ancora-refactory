@@ -30,6 +30,10 @@ class ProcessController extends Controller
                 'statusOption',
                 'processTypeOption',
                 'natureOption',
+                'client',
+                'clientCondominium',
+                'adverse',
+                'adverseCondominium',
                 'phases' => fn ($phase) => $phase->where('is_private', false),
             ]);
 
@@ -76,6 +80,10 @@ class ProcessController extends Controller
             'statusOption',
             'processTypeOption',
             'natureOption',
+            'client',
+            'clientCondominium',
+            'adverse',
+            'adverseCondominium',
             'phases' => fn ($query) => $query->where('is_private', false)->latest('phase_date')->latest('created_at'),
         ]);
 

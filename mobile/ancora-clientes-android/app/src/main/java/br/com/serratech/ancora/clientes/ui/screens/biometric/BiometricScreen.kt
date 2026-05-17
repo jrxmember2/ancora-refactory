@@ -1,6 +1,7 @@
 package br.com.serratech.ancora.clientes.ui.screens.biometric
 
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import br.com.serratech.ancora.clientes.R
+import androidx.biometric.BiometricManager
 import br.com.serratech.ancora.clientes.ui.components.BiometricUnlockCard
 
 @Composable
@@ -78,7 +80,8 @@ private fun showBiometricPrompt(
     onUnlocked: () -> Unit,
     onError: (String) -> Unit,
 ) {
-    val activity = context as? FragmentActivity ?: return onError("Nao foi possivel abrir a biometria neste aparelho.")
+    val activity = context.findFragmentActivity()
+        ?: return onError("Nao foi possivel abrir a biometria neste aparelho.")
     val prompt = BiometricPrompt(
         activity,
         ContextCompat.getMainExecutor(context),
@@ -101,7 +104,13 @@ private fun showBiometricPrompt(
         BiometricPrompt.PromptInfo.Builder()
             .setTitle(context.getString(R.string.biometric_title))
             .setSubtitle(context.getString(R.string.biometric_subtitle))
-            .setNegativeButtonText(context.getString(R.string.biometric_negative))
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
             .build()
     )
+}
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
 }

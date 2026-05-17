@@ -1,8 +1,47 @@
 @extends('layouts.app')
 
+@php
+    $buttonClass = 'rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600';
+    $softButtonClass = 'rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200';
+@endphp
+
 @section('content')
-<x-ancora.section-header title="Configurações de clientes" subtitle="Tipos reutilizáveis para perfil/papel, condomínio e unidade." />
+<x-ancora.section-header title="Configuracoes de clientes" subtitle="Tipos reutilizaveis para perfil/papel, condominio e unidade.">
+    <button type="button" onclick="document.getElementById('portal-app-login-logs-modal').showModal()" class="{{ $buttonClass }}">Logins do app</button>
+</x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
+
+<div id="portal-app-login-logs" class="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Portal do Cliente / App mobile</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Audite os logins feitos no aplicativo Ancora Clientes, com IP, dispositivo, versao e localizacao quando a infraestrutura informar esses dados.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="document.getElementById('portal-app-login-logs-modal').showModal()" class="{{ $buttonClass }}">Abrir logins</button>
+            @if($portalAppLoginLogsReady && $portalAppLoginLogCount > 0)
+                <a href="{{ route('clientes.config.portal-app-logins.export') }}" class="{{ $softButtonClass }}">Exportar XLSX</a>
+            @else
+                <span class="{{ $softButtonClass }} opacity-60">Exportar XLSX</span>
+            @endif
+        </div>
+    </div>
+
+    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/40">
+            <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Registros</div>
+            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ number_format((int) $portalAppLoginLogCount, 0, ',', '.') }}</div>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/40">
+            <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Ultimo login app</div>
+            <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{{ $portalAppLoginLogs->first()?->created_at?->format('d/m/Y H:i') ?: 'Nenhum login registrado' }}</div>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/40">
+            <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Localizacao</div>
+            <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{{ $portalAppLoginLogs->first()?->location_label ?: 'Somente IP por enquanto' }}</div>
+        </div>
+    </div>
+</div>
 
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr,1.5fr]">
     <form method="post" action="{{ route('clientes.config.types.store') }}" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -53,4 +92,6 @@
         </div>
     </div>
 </div>
+
+@include('pages.clientes.portal._app-login-logs-modal')
 @endsection

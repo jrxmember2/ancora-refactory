@@ -2,6 +2,7 @@ package br.com.serratech.ancora.clientes.data.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class HealthResponseDto(
@@ -125,6 +126,9 @@ data class ProcessPhaseDto(
 data class ProcessItemDto(
     val id: Long,
     @SerialName("process_number") val processNumber: String,
+    @SerialName("client_name") val clientName: String? = null,
+    @SerialName("adverse_name") val adverseName: String? = null,
+    @SerialName("parties_label") val partiesLabel: String? = null,
     val status: StatusInfoDto,
     val type: String? = null,
     val nature: String? = null,
@@ -136,6 +140,9 @@ data class ProcessItemDto(
 data class ProcessDetailDto(
     val id: Long,
     @SerialName("process_number") val processNumber: String,
+    @SerialName("client_name") val clientName: String? = null,
+    @SerialName("adverse_name") val adverseName: String? = null,
+    @SerialName("parties_label") val partiesLabel: String? = null,
     val status: StatusInfoDto,
     val type: String? = null,
     val nature: String? = null,
@@ -289,7 +296,7 @@ data class LemeMessageDto(
     val status: String,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("created_at_br") val createdAtBr: String? = null,
-    val documents: List<Map<String, String>> = emptyList(),
+    val documents: List<JsonObject> = emptyList(),
 )
 
 @Serializable

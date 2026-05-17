@@ -268,7 +268,18 @@ private fun ProcessesContent(
             AncoraCard(modifier = Modifier.clickable { onOpenDetail(process.id) }) {
                 Text(process.processNumber, style = MaterialTheme.typography.titleMedium)
                 StatusChip(process.status)
-                Text(process.type ?: "Tipo nao informado")
+                Text(
+                    process.partiesLabel ?: "Partes nao informadas",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(process.nature ?: "Natureza nao informada")
+                process.type?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
                     process.lastPublicPhase?.description ?: "Sem andamento publico recente",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -316,8 +327,12 @@ fun ProcessDetailScreen(
                     AncoraCard {
                         Text(viewModel.detail!!.processNumber, style = MaterialTheme.typography.headlineSmall)
                         StatusChip(viewModel.detail!!.status)
-                        Text(viewModel.detail!!.type ?: "Tipo nao informado")
+                        Text(
+                            viewModel.detail!!.partiesLabel ?: "Partes nao informadas",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                         Text(viewModel.detail!!.nature ?: "Natureza nao informada")
+                        Text(viewModel.detail!!.type ?: "Tipo de processo nao informado")
                         Text(
                             viewModel.detail!!.court ?: "Tribunal nao configurado",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

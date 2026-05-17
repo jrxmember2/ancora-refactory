@@ -115,6 +115,8 @@ CACHE_STORE=file
 QUEUE_CONNECTION=sync
 ```
 
+> Se esta instancia tambem vai atender o app `Ancora Clientes` com push mobile, prefira `QUEUE_CONNECTION=database` e configure `FCM_ENABLED`, `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON_BASE64` e `MOBILE_API_TOKEN_TTL_DAYS=30`. O detalhamento dessa configuracao esta em `docs/easypanel-mobile.md`.
+
 ### Volume recomendado
 
 Persistir pelo menos:

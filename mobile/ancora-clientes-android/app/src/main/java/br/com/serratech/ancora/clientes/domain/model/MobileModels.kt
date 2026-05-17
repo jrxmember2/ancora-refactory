@@ -64,6 +64,9 @@ data class StatusInfo(
 data class ProcessItem(
     val id: Long,
     val processNumber: String,
+    val clientName: String?,
+    val adverseName: String?,
+    val partiesLabel: String?,
     val status: StatusInfo,
     val type: String?,
     val nature: String?,
@@ -85,6 +88,9 @@ data class ProcessListResult(
 data class ProcessDetail(
     val id: Long,
     val processNumber: String,
+    val clientName: String?,
+    val adverseName: String?,
+    val partiesLabel: String?,
     val status: StatusInfo,
     val type: String?,
     val nature: String?,

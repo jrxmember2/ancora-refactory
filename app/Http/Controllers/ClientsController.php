@@ -6,6 +6,7 @@ use App\Models\ClientAttachment;
 use App\Models\ClientBlock;
 use App\Models\ClientCondominium;
 use App\Models\ClientEntity;
+use App\Models\ClientPortalAppLoginLog;
 use App\Models\ClientTimeline;
 use App\Models\ClientType;
 use App\Models\ClientUnit;
@@ -16,6 +17,7 @@ use App\Models\AuditLog;
 use App\Services\Ai\AiCondominiumAttachmentProcessor;
 use App\Support\AiDocumentCatalog;
 use App\Support\AncoraAuth;
+use App\Support\SimpleXlsxExporter;
 use App\Support\SortableQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -1610,6 +1612,15 @@ class ClientsController extends Controller
 
     public function config(): View
     {
+        $portalAppLoginLogsReady = Schema::hasTable('client_portal_app_login_logs');
+        $portalAppLoginLogs = $portalAppLoginLogsReady
+            ? ClientPortalAppLoginLog::query()
+                ->with('portalUser')
+                ->latest('id')
+                ->limit(80)
+                ->get()
+            : collect();
+
         return view('pages.clientes.config', [
             'title' => 'Configurações de clientes',
             'types' => ClientType::query()->orderBy('scope')->orderBy('sort_order')->get(),
@@ -1618,6 +1629,9 @@ class ClientsController extends Controller
                 'condominium' => 'Condomínio',
                 'unit' => 'Unidade',
             ],
+            'portalAppLoginLogsReady' => $portalAppLoginLogsReady,
+            'portalAppLoginLogs' => $portalAppLoginLogs,
+            'portalAppLoginLogCount' => $portalAppLoginLogsReady ? ClientPortalAppLoginLog::query()->count() : 0,
         ]);
     }
 
@@ -1632,6 +1646,74 @@ class ClientsController extends Controller
         $data['sort_order'] = (int) $request->integer('sort_order', 999);
         ClientType::query()->updateOrCreate(['scope' => $data['scope'], 'name' => $data['name']], $data);
         return back()->with('success', 'Tipo salvo com sucesso.');
+    }
+
+    public function exportPortalAppLoginLogs(Request $request, SimpleXlsxExporter $xlsxExporter): BinaryFileResponse|RedirectResponse
+    {
+        if (!Schema::hasTable('client_portal_app_login_logs')) {
+            return back()->with('error', 'O log de acessos do app ainda nao foi migrado nesta instancia.');
+        }
+
+        $logs = ClientPortalAppLoginLog::query()
+            ->with('portalUser')
+            ->latest('id')
+            ->get();
+
+        if ($logs->isEmpty()) {
+            return back()->with('error', 'Ainda nao ha logins do app para exportar.');
+        }
+
+        $rows = $logs->map(function (ClientPortalAppLoginLog $log) {
+            return [
+                optional($log->created_at)->format('d/m/Y H:i:s') ?: '',
+                $log->portalUser?->name ?: 'Usuario removido',
+                $log->portalUser?->login_key ?: '',
+                $log->platform ?: '',
+                $log->device_name ?: '',
+                $log->app_version ?: '',
+                $log->ip_address ?: '',
+                $log->location_label ?: '',
+                $log->country ?: '',
+                $log->region ?: '',
+                $log->city ?: '',
+                $log->user_agent ?: '',
+            ];
+        })->values()->all();
+
+        try {
+            $path = $xlsxExporter->build('Logins App Ancora', [
+                'Data e hora',
+                'Usuario',
+                'Login',
+                'Plataforma',
+                'Dispositivo',
+                'Versao do app',
+                'IP',
+                'Localizacao',
+                'Pais',
+                'Regiao',
+                'Cidade',
+                'User-Agent',
+            ], $rows);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', 'Nao foi possivel gerar o arquivo XLSX agora.');
+        }
+
+        $this->logClientAction(
+            $request,
+            'clientes.config.portal-app-logins.export',
+            'client_portal_app_login_logs',
+            null,
+            'Exportacao do historico de logins do app Ancora Clientes.'
+        );
+
+        return response()->download(
+            $path,
+            'logins-app-ancora-clientes-' . now()->format('Ymd-His') . '.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        )->deleteFileAfterSend(true);
     }
 
     public function attachmentDownload(ClientAttachment $attachment): BinaryFileResponse

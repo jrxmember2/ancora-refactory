@@ -8,7 +8,10 @@
 
 @section('content')
 <x-ancora.section-header title="Portal do Cliente" subtitle="Usuarios externos com autenticacao propria, multiplos condominios e permissoes de acesso ao portal.">
-    <button type="button" onclick="document.getElementById('portal-user-create').showModal()" class="{{ $buttonClass }}">Novo usuario do portal</button>
+    <div class="flex flex-wrap gap-2">
+        <a href="{{ route('clientes.config') }}#portal-app-login-logs" class="{{ $softButtonClass }}">Config do app</a>
+        <button type="button" onclick="document.getElementById('portal-user-create').showModal()" class="{{ $buttonClass }}">Novo usuario do portal</button>
+    </div>
 </x-ancora.section-header>
 @include('pages.clientes.partials.subnav')
 

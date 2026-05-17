@@ -39,13 +39,23 @@ Nome visivel:
 1. Crie um app Android com package `br.com.serratech.ancora.clientes`.
 2. Baixe o arquivo `google-services.json`.
 3. Coloque o arquivo em `app/google-services.json`.
-4. Configure no backend:
+4. No backend Laravel, habilite fila e FCM:
 
 ```env
+QUEUE_CONNECTION=database
 FCM_ENABLED=true
 FCM_PROJECT_ID=
 FCM_SERVICE_ACCOUNT_JSON_BASE64=
 ```
+
+5. Rode as migrations do backend, incluindo a tabela `jobs`.
+6. Suba um worker:
+
+```bash
+php artisan queue:work --sleep=3 --tries=3 --timeout=120
+```
+
+7. Gere um novo build do app depois de adicionar o `google-services.json`.
 
 ## Build debug
 
@@ -131,16 +141,33 @@ Ao trocar a URL:
 
 ## Testar push
 
-1. Faca login no app.
-2. Confirme o registro do dispositivo em `/api/mobile/v1/devices/register`.
-3. No backend, rode:
+1. Confirme que o app foi compilado com `app/google-services.json`.
+2. Confirme no backend:
+
+```env
+QUEUE_CONNECTION=database
+FCM_ENABLED=true
+FCM_PROJECT_ID=...
+FCM_SERVICE_ACCOUNT_JSON_BASE64=...
+```
+
+3. Deixe o worker de fila rodando:
+
+```bash
+php artisan queue:work --sleep=3 --tries=3 --timeout=120
+```
+
+4. Faca login no app.
+5. Aceite a permissao de notificacoes no Android 13+.
+6. Confirme o registro do dispositivo em `/api/mobile/v1/devices/register`.
+7. No backend, rode:
 
 ```bash
 php artisan mobile:push:test {client_portal_user_id}
 ```
 
-4. Toque na notificacao.
-5. Confirme que o app abre a tela interna correta.
+8. Toque na notificacao.
+9. Confirme que o app abre a tela interna correta.
 
 ## Testar Leme IA
 
@@ -159,14 +186,27 @@ php artisan mobile:push:test {client_portal_user_id}
 
 ## Trocar icone ou logomarca
 
-Arquivos principais:
+Hoje o app esta configurado para usar um arquivo principal:
 
 - `app/src/main/res/drawable/logo_ancora_clientes.png`
+
+Se voce substituir esse PNG, a mesma arte passa a ser usada em:
+
+- splash screen
+- marca da tela de login
+- marca da tela de configuracao inicial
+- foreground do icone adaptativo
+
+Arquivos que usam esse asset:
+
 - `app/src/main/res/drawable/ic_launcher_foreground.xml`
-- `app/src/main/res/drawable/ic_launcher_background.xml`
 - `app/src/main/res/drawable/splash_logo.xml`
 - `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
 - `app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml`
+
+Arquivo de fundo do launcher:
+
+- `app/src/main/res/drawable/ic_launcher_background.xml`
 
 Depois de trocar assets, gere novo build.
 

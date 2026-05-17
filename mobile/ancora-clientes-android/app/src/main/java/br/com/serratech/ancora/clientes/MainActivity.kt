@@ -1,17 +1,17 @@
 package br.com.serratech.ancora.clientes
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
 import br.com.serratech.ancora.clientes.ui.navigation.AncoraClientesApp
 import br.com.serratech.ancora.clientes.ui.navigation.AppViewModel
 import br.com.serratech.ancora.clientes.ui.navigation.appViewModelFactory
 import br.com.serratech.ancora.clientes.ui.theme.AncoraClientesTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var appViewModel: AppViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -6,7 +6,7 @@ import androidx.biometric.BiometricManager
 class BiometricAuthenticator {
     fun isAvailable(context: Context): Boolean {
         val manager = BiometricManager.from(context)
-        val result = manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+        val result = manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
         return result == BiometricManager.BIOMETRIC_SUCCESS
     }
 }

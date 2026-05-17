@@ -85,6 +85,11 @@ class ClientPortalUser extends Model
         return $this->hasMany(ClientPortalNotification::class, 'client_portal_user_id');
     }
 
+    public function appLoginLogs(): HasMany
+    {
+        return $this->hasMany(ClientPortalAppLoginLog::class, 'client_portal_user_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

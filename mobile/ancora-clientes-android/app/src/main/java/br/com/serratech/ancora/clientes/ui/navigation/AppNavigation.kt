@@ -467,7 +467,20 @@ private fun AppNavHost(
         }
 
         composable(AppRoutes.Leme) {
-            LemeScreen(container = container)
+            LemeScreen(
+                container = container,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(AppRoutes.Dashboard) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+            )
         }
 
         composable(AppRoutes.Notifications) {

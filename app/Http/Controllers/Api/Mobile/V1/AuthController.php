@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Mobile\V1;
 use App\Http\Controllers\Controller;
 use App\Models\ClientPortalDeviceToken;
 use App\Models\ClientPortalUser;
+use App\Services\Mobile\ClientPortalAppLoginLogService;
 use App\Support\Mobile\ClientPortalApiTokenManager;
 use App\Support\Mobile\MobileApiContext;
 use App\Support\Mobile\MobileApiPresenter;
@@ -16,6 +17,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly ClientPortalApiTokenManager $tokenManager,
+        private readonly ClientPortalAppLoginLogService $appLoginLogService,
     ) {
     }
 
@@ -62,6 +64,17 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->save();
         $token = $issued['token'];
+
+        try {
+            $this->appLoginLogService->recordLogin($user, $token, $request, [
+                'platform' => $validated['platform'] ?? 'android',
+                'device_name' => $validated['device_name'] ?? null,
+                'app_version' => $validated['app_version'] ?? null,
+            ]);
+        } catch (\Throwable) {
+            //
+        }
+
         $selectedCondominium = $selectedCondominiumId
             ? $user->accessibleCondominiums()->firstWhere('id', $selectedCondominiumId)
             : null;
