@@ -164,7 +164,6 @@ class AppViewModel(
                     launchDestination = destination,
                     sessionUser = user,
                     unreadNotifications = unreadCount,
-                    navigationTarget = NavigationTarget(destination.toRoute(), clearBackStack = true),
                 )
             }
         }
@@ -205,6 +204,16 @@ class AppViewModel(
             launchDestination = LaunchDestination.Login,
             navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
         )
+    }
+
+    fun onBiometricUnavailable() {
+        viewModelScope.launch {
+            container.sessionManager.enableBiometric(false, markPrompted = true)
+            _uiState.value = _uiState.value.copy(
+                launchDestination = LaunchDestination.Login,
+                navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
+            )
+        }
     }
 
     fun onBiometricUnlocked() {
@@ -315,6 +324,10 @@ fun AncoraClientesApp(
 
     LaunchedEffect(uiState.navigationTarget, currentRoute, uiState.isLoading) {
         if (uiState.isLoading) {
+            return@LaunchedEffect
+        }
+
+        if (currentRoute.isBlank()) {
             return@LaunchedEffect
         }
 
@@ -455,6 +468,7 @@ private fun AppNavHost(
             BiometricScreen(
                 onUnlocked = appViewModel::onBiometricUnlocked,
                 onUsePassword = appViewModel::onBiometricFallbackRequested,
+                onBiometricUnavailable = appViewModel::onBiometricUnavailable,
             )
         }
 
