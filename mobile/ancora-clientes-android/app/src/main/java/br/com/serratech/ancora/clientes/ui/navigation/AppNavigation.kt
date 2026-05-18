@@ -264,6 +264,7 @@ fun AncoraClientesApp(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route.orEmpty()
+    val startRoute = uiState.launchDestination.toAppRoute()
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
@@ -277,25 +278,33 @@ fun AncoraClientesApp(
         NavItem(AppRoutes.Profile, "Perfil", Icons.Outlined.AccountCircle),
     )
 
-    LaunchedEffect(uiState.navigationTarget) {
+    LaunchedEffect(uiState.navigationTarget, currentRoute, uiState.isLoading) {
+        if (uiState.isLoading) {
+            return@LaunchedEffect
+        }
+
         uiState.navigationTarget?.let { target ->
-            navController.navigate(target.route) {
-                launchSingleTop = true
-                restoreState = !target.clearBackStack
-                if (target.clearBackStack) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        inclusive = true
+            if (currentRoute == target.route) {
+                appViewModel.consumeNavigationTarget()
+            } else {
+                navController.navigate(target.route) {
+                    launchSingleTop = true
+                    restoreState = !target.clearBackStack
+                    if (target.clearBackStack) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = true
+                        }
                     }
                 }
+                appViewModel.consumeNavigationTarget()
             }
-            appViewModel.consumeNavigationTarget()
         }
     }
 
     LaunchedEffect(uiState.launchDestination) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            uiState.launchDestination != LaunchDestination.Setup &&
+            uiState.launchDestination == LaunchDestination.Home &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -355,6 +364,7 @@ fun AncoraClientesApp(
                     .weight(1f)
                     .padding(padding),
                 navController = navController,
+                startDestination = startRoute,
                 container = container,
                 appViewModel = appViewModel,
                 uiState = uiState,
@@ -367,13 +377,14 @@ fun AncoraClientesApp(
 private fun AppNavHost(
     modifier: Modifier,
     navController: androidx.navigation.NavHostController,
+    startDestination: String,
     container: AppContainer,
     appViewModel: AppViewModel,
     uiState: AppUiState,
 ) {
     NavHost(
         navController = navController,
-        startDestination = AppRoutes.Setup,
+        startDestination = startDestination,
         modifier = modifier,
     ) {
         composable(AppRoutes.Setup) {
@@ -503,4 +514,11 @@ private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+private fun LaunchDestination.toAppRoute(): String = when (this) {
+    LaunchDestination.Setup -> AppRoutes.Setup
+    LaunchDestination.Login -> AppRoutes.Login
+    LaunchDestination.Biometric -> AppRoutes.Biometric
+    LaunchDestination.Home -> AppRoutes.Dashboard
 }

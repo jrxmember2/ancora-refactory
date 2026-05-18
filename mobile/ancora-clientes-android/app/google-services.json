@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "603911583013",
+    "project_id": "ancora-clientes",
+    "storage_bucket": "ancora-clientes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603911583013:android:36681b332b0cdaf81bd6cc",
+        "android_client_info": {
+          "package_name": "br.com.serratech.ancora.clientes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGIKskHdXWrJxR61N6DxtQmb2UsJN2_x0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

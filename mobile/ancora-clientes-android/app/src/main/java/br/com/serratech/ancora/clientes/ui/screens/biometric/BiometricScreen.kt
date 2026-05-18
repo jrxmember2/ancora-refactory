@@ -41,6 +41,7 @@ fun BiometricScreen(
             showBiometricPrompt(
                 context = context,
                 onUnlocked = onUnlocked,
+                onUsePassword = onUsePassword,
                 onError = { message -> promptError = message },
             )
         }
@@ -59,6 +60,7 @@ fun BiometricScreen(
                 showBiometricPrompt(
                     context = context,
                     onUnlocked = onUnlocked,
+                    onUsePassword = onUsePassword,
                     onError = { message -> promptError = message },
                 )
             },
@@ -78,35 +80,53 @@ fun BiometricScreen(
 private fun showBiometricPrompt(
     context: Context,
     onUnlocked: () -> Unit,
+    onUsePassword: () -> Unit,
     onError: (String) -> Unit,
 ) {
     val activity = context.findFragmentActivity()
         ?: return onError("Nao foi possivel abrir a biometria neste aparelho.")
-    val prompt = BiometricPrompt(
-        activity,
-        ContextCompat.getMainExecutor(context),
-        object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                onUnlocked()
-            }
+    val biometricStatus = BiometricManager.from(context)
+        .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+    if (biometricStatus != BiometricManager.BIOMETRIC_SUCCESS) {
+        onError("A biometria nao esta disponivel neste aparelho agora. Entre com sua senha.")
+        return
+    }
 
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                onError(errString.toString())
-            }
+    runCatching {
+        val prompt = BiometricPrompt(
+            activity,
+            ContextCompat.getMainExecutor(context),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onUnlocked()
+                }
 
-            override fun onAuthenticationFailed() {
-                onError("Biometria nao reconhecida. Tente novamente ou entre com senha.")
-            }
-        },
-    )
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        onUsePassword()
+                        return
+                    }
 
-    prompt.authenticate(
-        BiometricPrompt.PromptInfo.Builder()
-            .setTitle(context.getString(R.string.biometric_title))
-            .setSubtitle(context.getString(R.string.biometric_subtitle))
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
-            .build()
-    )
+                    onError(errString.toString())
+                }
+
+                override fun onAuthenticationFailed() {
+                    onError("Biometria nao reconhecida. Tente novamente ou entre com senha.")
+                }
+            },
+        )
+
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(context.getString(R.string.biometric_title))
+                .setSubtitle(context.getString(R.string.biometric_subtitle))
+                .setNegativeButtonText(context.getString(R.string.biometric_negative))
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                .build()
+        )
+    }.onFailure {
+        onError("Nao foi possivel iniciar a biometria agora. Entre com sua senha e tente novamente.")
+    }
 }
 
 private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
