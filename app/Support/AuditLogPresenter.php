@@ -61,6 +61,16 @@ class AuditLogPresenter
             'cobrancas.attachments.upload' => 'Anexou arquivo na cobrança',
             'cobrancas.attachments.delete' => 'Excluiu anexo da cobrança',
 
+            'cobrancas.monetary.standalone.index' => 'Listou memorias TJES avulsas',
+            'cobrancas.monetary.standalone.create' => 'Abriu novo calculo TJES avulso',
+            'cobrancas.monetary.standalone.preview' => 'Simulou atualizacao monetaria TJES avulsa',
+            'cobrancas.monetary.standalone.store' => 'Salvou memoria TJES avulsa',
+            'cobrancas.monetary.standalone.show' => 'Visualizou memoria TJES avulsa',
+            'cobrancas.monetary.standalone.pdf' => 'Gerou PDF da memoria TJES avulsa',
+            'cobrancas.monetary.standalone.delete' => 'Excluiu memoria TJES avulsa',
+            'save_cobranca_standalone_monetary_update' => 'Salvou memoria TJES avulsa',
+            'print_cobranca_standalone_monetary_update' => 'Gerou PDF da memoria TJES avulsa',
+            'delete_cobranca_standalone_monetary_update' => 'Excluiu memoria TJES avulsa',
             'processos.store' => 'Criou processo',
             'processos.update' => 'Atualizou processo',
             'processos.delete' => 'Excluiu processo',
@@ -321,6 +331,10 @@ class AuditLogPresenter
 
     private static function recordLabelFromRequest(Request $request, string $routeName): string
     {
+        if (Str::startsWith($routeName, 'cobrancas.monetary.standalone')) {
+            return self::namedRecord('MEMORIA TJES AVULSA', self::inputOrRouteValue($request, ['title'], ['memory'], ['title']));
+        }
+
         return match (true) {
             Str::startsWith($routeName, 'clientes.condominios') => self::namedRecord('CONDOMÍNIO', self::inputOrRouteValue($request, ['name'], ['condominio'], ['name'])),
             Str::startsWith($routeName, 'clientes.avulsos') => self::namedRecord('CLIENTE AVULSO', self::inputOrRouteValue($request, ['display_name'], ['avulso'], ['display_name'])),
@@ -349,6 +363,14 @@ class AuditLogPresenter
 
     private static function genericRecordFromAction(string $action): string
     {
+        if (Str::startsWith($action, 'cobrancas.monetary.standalone') || in_array($action, [
+            'save_cobranca_standalone_monetary_update',
+            'print_cobranca_standalone_monetary_update',
+            'delete_cobranca_standalone_monetary_update',
+        ], true)) {
+            return 'MEMORIA TJES AVULSA';
+        }
+
         return match (true) {
             Str::startsWith($action, 'clientes.condominios') => 'CONDOMÍNIO',
             Str::startsWith($action, 'clientes.unidades') && !Str::contains($action, '.import') => 'UNIDADE',

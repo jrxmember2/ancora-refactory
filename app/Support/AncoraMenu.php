@@ -55,6 +55,7 @@ class AncoraMenu
                             ['label' => 'Dashboard', 'path' => route('cobrancas.dashboard')],
                             ['label' => 'Lista de OS', 'path' => route('cobrancas.index')],
                             ['label' => 'Nova OS', 'path' => route('cobrancas.create')],
+                            ['label' => 'TJES avulso', 'path' => route('cobrancas.monetary.standalone.index')],
                             ['label' => 'Faturamento', 'path' => route('cobrancas.billing.report')],
                             ['label' => 'Importar inadimplencia', 'path' => route('cobrancas.import.index')],
                         ],
