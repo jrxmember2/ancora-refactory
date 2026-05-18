@@ -3,6 +3,18 @@
 @php
     $inputClass = 'h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
     $textareaClass = 'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
+    $clientPayload = $clients->map(function ($client) {
+        return [
+            'id' => $client->id,
+            'name' => $client->display_name ?: $client->legal_name,
+            'document' => $client->cpf_cnpj,
+            'email' => strtolower(trim((string) data_get(collect($client->emails_json ?? [])->first(), 'email'))),
+            'phone' => collect($client->phones_json ?? [])
+                ->map(fn ($row) => is_array($row) ? ($row['number'] ?? '') : (string) $row)
+                ->filter()
+                ->first(),
+        ];
+    })->values();
     $quotaRows = collect(old('quotas', [[
         'selected' => '1',
         'reference_label' => '',
@@ -279,13 +291,7 @@
     </div>
 
     <script id="standalone-client-data" type="application/json">
-        @json($clients->map(fn ($client) => [
-            'id' => $client->id,
-            'name' => $client->display_name ?: $client->legal_name,
-            'document' => $client->cpf_cnpj,
-            'email' => strtolower(trim((string) data_get(collect($client->emails_json ?? [])->first(), 'email'))),
-            'phone' => collect($client->phones_json ?? [])->map(fn ($row) => is_array($row) ? ($row['number'] ?? '') : (string) $row)->filter()->first(),
-        ])->values())
+        @json($clientPayload)
     </script>
 @endif
 @endsection
