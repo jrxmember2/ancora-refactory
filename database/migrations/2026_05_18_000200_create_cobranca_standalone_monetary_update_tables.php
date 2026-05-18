@@ -106,8 +106,8 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE `cobranca_standalone_monetary_updates` MODIFY `client_entity_id` INT UNSIGNED NULL');
-        DB::statement('ALTER TABLE `cobranca_standalone_monetary_updates` MODIFY `generated_by` BIGINT UNSIGNED NULL');
+        $this->matchReferencedColumnType('cobranca_standalone_monetary_updates', 'client_entity_id', 'client_entities', 'id', true);
+        $this->matchReferencedColumnType('cobranca_standalone_monetary_updates', 'generated_by', 'users', 'id', true);
 
         if (!$this->indexExists('cobranca_standalone_monetary_updates', 'idx_cobranca_standalone_updates_client_created')) {
             Schema::table('cobranca_standalone_monetary_updates', function (Blueprint $table) {
@@ -134,7 +134,13 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE `cobranca_standalone_monetary_update_items` MODIFY `cobranca_standalone_monetary_update_id` BIGINT UNSIGNED NOT NULL');
+        $this->matchReferencedColumnType(
+            'cobranca_standalone_monetary_update_items',
+            'cobranca_standalone_monetary_update_id',
+            'cobranca_standalone_monetary_updates',
+            'id',
+            false
+        );
 
         if (!$this->indexExists('cobranca_standalone_monetary_update_items', 'idx_cobranca_standalone_update_items_update')) {
             Schema::table('cobranca_standalone_monetary_update_items', function (Blueprint $table) {
@@ -171,5 +177,40 @@ return new class extends Migration
             ->where('TABLE_NAME', $tableName)
             ->where('INDEX_NAME', $indexName)
             ->exists();
+    }
+
+    private function matchReferencedColumnType(
+        string $tableName,
+        string $columnName,
+        string $referencedTable,
+        string $referencedColumn,
+        bool $nullable
+    ): void {
+        $definition = $this->columnTypeDefinition($referencedTable, $referencedColumn);
+        if ($definition === null) {
+            return;
+        }
+
+        DB::statement(sprintf(
+            'ALTER TABLE `%s` MODIFY `%s` %s %s',
+            $tableName,
+            $columnName,
+            $definition,
+            $nullable ? 'NULL' : 'NOT NULL'
+        ));
+    }
+
+    private function columnTypeDefinition(string $tableName, string $columnName): ?string
+    {
+        $schema = (string) DB::getDatabaseName();
+
+        $column = DB::table('information_schema.COLUMNS')
+            ->select('COLUMN_TYPE')
+            ->where('TABLE_SCHEMA', $schema)
+            ->where('TABLE_NAME', $tableName)
+            ->where('COLUMN_NAME', $columnName)
+            ->first();
+
+        return $column ? (string) $column->COLUMN_TYPE : null;
     }
 };
