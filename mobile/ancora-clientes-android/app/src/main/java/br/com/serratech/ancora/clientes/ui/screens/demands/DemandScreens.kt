@@ -1,22 +1,26 @@
 package br.com.serratech.ancora.clientes.ui.screens.demands
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -45,9 +49,11 @@ import br.com.serratech.ancora.clientes.domain.model.DemandCategory
 import br.com.serratech.ancora.clientes.domain.model.DemandDetail
 import br.com.serratech.ancora.clientes.domain.model.DemandItem
 import br.com.serratech.ancora.clientes.ui.components.AncoraCard
+import br.com.serratech.ancora.clientes.ui.components.AncoraDropdownField
 import br.com.serratech.ancora.clientes.ui.components.AncoraTopBar
 import br.com.serratech.ancora.clientes.ui.components.AttachmentPicker
 import br.com.serratech.ancora.clientes.ui.components.ChatBubble
+import br.com.serratech.ancora.clientes.ui.components.DropdownOption
 import br.com.serratech.ancora.clientes.ui.components.EmptyState
 import br.com.serratech.ancora.clientes.ui.components.ErrorState
 import br.com.serratech.ancora.clientes.ui.components.LoadingState
@@ -112,10 +118,12 @@ class DemandsViewModel(
                 } else {
                     context.selected?.id
                 }
+                val useAllCondominiums = uiState.hasInitializedCondominiumFilter && effectiveCondominiumId == null
                 val result = container.demandRepository.list(
                     query = uiState.query,
                     status = uiState.selectedStatus,
                     condominiumId = effectiveCondominiumId,
+                    allCondominiums = useAllCondominiums,
                 )
 
                 Triple(context, effectiveCondominiumId, result)
@@ -186,9 +194,12 @@ class DemandCreateViewModel(
                 val condominiumContext = container.condominiumRepository.list()
                 categories to condominiumContext
             }.onSuccess { (loadedCategories, loadedCondominiumContext) ->
-                categories = loadedCategories
+                categories = loadedCategories.sortedWith(
+                    compareBy<DemandCategory> { it.name.trim().equals("outros", ignoreCase = true) }
+                        .thenBy { it.name.lowercase() }
+                )
                 condominiumContext = loadedCondominiumContext
-                selectedCategoryId = loadedCategories.firstOrNull()?.id
+                selectedCategoryId = categories.firstOrNull()?.id
                 selectedCondominiumId = loadedCondominiumContext.selected?.id
                     ?: loadedCondominiumContext.items.singleOrNull()?.id
                 isLoading = false
@@ -220,6 +231,10 @@ class DemandCreateViewModel(
                 isSaving = false
             }
         }
+    }
+
+    fun showError(message: String) {
+        error = message
     }
 }
 
@@ -327,7 +342,6 @@ fun DemandsScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DemandsContent(
     state: DemandsUiState,
@@ -358,50 +372,32 @@ private fun DemandsContent(
         }
         if (state.condominiumContext.items.size > 1) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Condominio", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = state.selectedCondominiumId == null,
-                            onClick = { onCondominiumSelected(null) },
-                            label = { Text("Todos") },
-                        )
+                AncoraDropdownField(
+                    label = "Condominio",
+                    selectedValue = state.selectedCondominiumId,
+                    options = buildList {
+                        add(DropdownOption<Long>(null, "Todos"))
                         state.condominiumContext.items.forEach { condominium ->
-                            FilterChip(
-                                selected = state.selectedCondominiumId == condominium.id,
-                                onClick = { onCondominiumSelected(condominium.id) },
-                                label = { Text(condominium.name) },
-                            )
+                            add(DropdownOption(condominium.id, condominium.name))
                         }
-                    }
-                }
+                    },
+                    onSelected = onCondominiumSelected,
+                )
             }
         }
         if (state.statusLabels.isNotEmpty()) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Status", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = state.selectedStatus == null,
-                            onClick = { onStatusSelected(null) },
-                            label = { Text("Todas") },
-                        )
+                AncoraDropdownField(
+                    label = "Status",
+                    selectedValue = state.selectedStatus,
+                    options = buildList {
+                        add(DropdownOption<String>(null, "Todas"))
                         state.statusLabels.forEach { (statusKey, label) ->
-                            FilterChip(
-                                selected = state.selectedStatus == statusKey,
-                                onClick = { onStatusSelected(statusKey) },
-                                label = { Text(label) },
-                            )
+                            add(DropdownOption(statusKey, label))
                         }
-                    }
-                }
+                    },
+                    onSelected = onStatusSelected,
+                )
             }
         }
         if (state.items.isEmpty()) {
@@ -409,6 +405,8 @@ private fun DemandsContent(
                 EmptyState(
                     "Nenhuma solicitacao encontrada",
                     "Abra sua primeira solicitacao para conversar com a equipe pelo app.",
+                    primaryActionLabel = "Nova solicitacao",
+                    onPrimaryAction = onCreateDemand,
                 )
             }
         } else {
@@ -431,6 +429,7 @@ fun DemandCreateScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
     onBack: () -> Unit,
+    onHome: () -> Unit,
     onCreated: (Long) -> Unit,
 ) {
     val viewModel: DemandCreateViewModel = viewModel(
@@ -441,7 +440,9 @@ fun DemandCreateScreen(
             }
         }
     )
+    val context = LocalContext.current
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        persistReadPermissions(context, uris)
         viewModel.addFiles(uris)
     }
 
@@ -450,12 +451,25 @@ fun DemandCreateScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        AncoraTopBar(title = "Nova solicitacao")
+        AncoraTopBar(
+            title = "Nova solicitacao",
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Voltar")
+                }
+            },
+            actions = {
+                IconButton(onClick = onHome) {
+                    Icon(Icons.Outlined.Home, contentDescription = "Ir para o inicio")
+                }
+            },
+        )
         when {
             viewModel.isLoading -> LoadingState("Carregando categorias...")
-            viewModel.error != null -> ErrorState(viewModel.error.orEmpty(), onRetry = viewModel::load)
+            viewModel.error != null && viewModel.categories.isEmpty() -> ErrorState(viewModel.error.orEmpty(), onRetry = viewModel::load)
             else -> DemandCreateContent(
                 viewModel = viewModel,
+                context = context,
                 onOpenPicker = { filePicker.launch(arrayOf("*/*")) },
                 onBack = onBack,
             )
@@ -463,10 +477,10 @@ fun DemandCreateScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DemandCreateContent(
     viewModel: DemandCreateViewModel,
+    context: Context,
     onOpenPicker: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -474,40 +488,38 @@ private fun DemandCreateContent(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        viewModel.error?.takeIf { viewModel.categories.isNotEmpty() }?.let { errorMessage ->
+            item {
+                AncoraCard {
+                    Text("Atencao", style = MaterialTheme.typography.titleMedium)
+                    Text(errorMessage, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
         if (viewModel.condominiumContext.items.size > 1) {
             item {
                 AncoraCard {
-                    Text("Condominio", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        viewModel.condominiumContext.items.forEach { condominium ->
-                            FilterChip(
-                                selected = viewModel.selectedCondominiumId == condominium.id,
-                                onClick = { viewModel.selectedCondominiumId = condominium.id },
-                                label = { Text(condominium.name) },
-                            )
-                        }
-                    }
+                    AncoraDropdownField(
+                        label = "Condominio",
+                        selectedValue = viewModel.selectedCondominiumId,
+                        options = viewModel.condominiumContext.items.map { condominium ->
+                            DropdownOption(condominium.id, condominium.name)
+                        },
+                        onSelected = { viewModel.selectedCondominiumId = it },
+                    )
                 }
             }
         }
         item {
             AncoraCard {
-                Text("Categoria", style = MaterialTheme.typography.titleMedium)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    viewModel.categories.forEach { category ->
-                        FilterChip(
-                            selected = viewModel.selectedCategoryId == category.id,
-                            onClick = { viewModel.selectedCategoryId = category.id },
-                            label = { Text(category.name) },
-                        )
-                    }
-                }
+                AncoraDropdownField(
+                    label = "Categoria",
+                    selectedValue = viewModel.selectedCategoryId,
+                    options = viewModel.categories.map { category ->
+                        DropdownOption(category.id, category.name)
+                    },
+                    onSelected = { viewModel.selectedCategoryId = it },
+                )
             }
         }
         item {
@@ -530,12 +542,13 @@ private fun DemandCreateContent(
         item {
             AttachmentPicker(
                 attachments = viewModel.selectedFiles.mapIndexed { index, uri ->
-                    DemandAttachment(index.toLong(), uri.lastPathSegment ?: "arquivo", null, 0, uri.toString())
+                    DemandAttachment(index.toLong(), context.resolveDisplayName(uri), null, 0, uri.toString())
                 },
                 onAddClick = onOpenPicker,
                 onAttachmentClick = { attachment ->
                     viewModel.selectedFiles.firstOrNull { it.toString() == attachment.downloadUrl }?.let(viewModel::removeFile)
                 },
+                addButtonLabel = "Anexar arquivo ate 30 MB",
             )
         }
         item {
@@ -553,6 +566,7 @@ fun DemandDetailScreen(
     container: AppContainer,
     demandId: Long,
     onBack: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -566,6 +580,7 @@ fun DemandDetailScreen(
         }
     )
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        persistReadPermissions(context, uris)
         viewModel.addFiles(uris)
     }
     var previewImageFile by remember { mutableStateOf<File?>(null) }
@@ -604,7 +619,19 @@ fun DemandDetailScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        AncoraTopBar(title = "Solicitacao")
+        AncoraTopBar(
+            title = "Solicitacao",
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Voltar")
+                }
+            },
+            actions = {
+                IconButton(onClick = onHome) {
+                    Icon(Icons.Outlined.Home, contentDescription = "Ir para o inicio")
+                }
+            },
+        )
         when {
             viewModel.isLoading -> LoadingState("Carregando conversa...")
             viewModel.error != null && viewModel.detail == null -> ErrorState(viewModel.error.orEmpty(), onRetry = viewModel::refresh)
@@ -662,12 +689,13 @@ fun DemandDetailScreen(
                             )
                             AttachmentPicker(
                                 attachments = viewModel.selectedFiles.mapIndexed { index, uri ->
-                                    DemandAttachment(index.toLong(), uri.lastPathSegment ?: "arquivo", null, 0, uri.toString())
+                                    DemandAttachment(index.toLong(), context.resolveDisplayName(uri), null, 0, uri.toString())
                                 },
                                 onAddClick = { filePicker.launch(arrayOf("*/*")) },
                                 onAttachmentClick = { attachment ->
                                     viewModel.selectedFiles.firstOrNull { it.toString() == attachment.downloadUrl }?.let(viewModel::removeFile)
                                 },
+                                addButtonLabel = "Anexar arquivo ate 30 MB",
                             )
                             PrimaryButton(text = "Enviar", loading = viewModel.isSending, onClick = viewModel::sendReply)
                             if (viewModel.detail!!.canCancel) {
@@ -727,4 +755,28 @@ fun DemandDetailScreen(
             text = { Text("Essa acao encerra a solicitacao atual no app.") },
         )
     }
+}
+
+private fun persistReadPermissions(context: Context, uris: List<Uri>) {
+    uris.forEach { uri ->
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+    }
+}
+
+private fun Context.resolveDisplayName(uri: Uri): String {
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0) {
+                return cursor.getString(index) ?: "arquivo"
+            }
+        }
+    }
+
+    return uri.lastPathSegment?.substringAfterLast('/') ?: "arquivo"
 }

@@ -3,15 +3,12 @@ package br.com.serratech.ancora.clientes.ui.screens.processes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -32,7 +29,9 @@ import br.com.serratech.ancora.clientes.domain.model.ProcessDetail
 import br.com.serratech.ancora.clientes.domain.model.ProcessFilterOption
 import br.com.serratech.ancora.clientes.domain.model.ProcessItem
 import br.com.serratech.ancora.clientes.ui.components.AncoraCard
+import br.com.serratech.ancora.clientes.ui.components.AncoraDropdownField
 import br.com.serratech.ancora.clientes.ui.components.AncoraTopBar
+import br.com.serratech.ancora.clientes.ui.components.DropdownOption
 import br.com.serratech.ancora.clientes.ui.components.EmptyState
 import br.com.serratech.ancora.clientes.ui.components.ErrorState
 import br.com.serratech.ancora.clientes.ui.components.LoadingState
@@ -82,6 +81,16 @@ class ProcessesViewModel(
         search(forceBlocking = false)
     }
 
+    fun clearFilters() {
+        uiState = uiState.copy(
+            query = "",
+            selectedStatusId = null,
+            selectedCondominiumId = null,
+            hasInitializedCondominiumFilter = true,
+        )
+        search(forceBlocking = false)
+    }
+
     fun search(forceBlocking: Boolean = false) {
         viewModelScope.launch {
             uiState = uiState.copy(
@@ -95,10 +104,12 @@ class ProcessesViewModel(
                 } else {
                     context.selected?.id
                 }
+                val useAllCondominiums = uiState.hasInitializedCondominiumFilter && effectiveCondominiumId == null
                 val result = container.processRepository.list(
                     query = uiState.query,
                     statusOptionId = uiState.selectedStatusId,
                     condominiumId = effectiveCondominiumId,
+                    allCondominiums = useAllCondominiums,
                 )
 
                 Triple(context, effectiveCondominiumId, result)
@@ -153,6 +164,7 @@ fun ProcessesScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
     onOpenDetail: (Long) -> Unit,
+    onOpenHome: () -> Unit,
 ) {
     val viewModel: ProcessesViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -173,25 +185,20 @@ fun ProcessesScreen(
                     onRetry = { viewModel.search(forceBlocking = true) },
                 )
             }
-            viewModel.uiState.items.isEmpty() -> {
-                EmptyState(
-                    "Nenhum processo disponivel",
-                    "Assim que houver processos publicos vinculados a sua conta, eles aparecerao aqui.",
-                )
-            }
             else -> ProcessesContent(
                 state = viewModel.uiState,
                 onQueryChanged = viewModel::updateQuery,
                 onSearch = { viewModel.search(forceBlocking = false) },
                 onStatusSelected = viewModel::updateStatus,
                 onCondominiumSelected = viewModel::updateCondominium,
+                onClearFilters = viewModel::clearFilters,
+                onOpenHome = onOpenHome,
                 onOpenDetail = onOpenDetail,
             )
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProcessesContent(
     state: ProcessesUiState,
@@ -199,6 +206,8 @@ private fun ProcessesContent(
     onSearch: () -> Unit,
     onStatusSelected: (Long?) -> Unit,
     onCondominiumSelected: (Long?) -> Unit,
+    onClearFilters: () -> Unit,
+    onOpenHome: () -> Unit,
     onOpenDetail: (Long) -> Unit,
 ) {
     LazyColumn(
@@ -218,78 +227,73 @@ private fun ProcessesContent(
         }
         if (state.condominiumContext.items.size > 1) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Condominio", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = state.selectedCondominiumId == null,
-                            onClick = { onCondominiumSelected(null) },
-                            label = { Text("Todos") },
-                        )
+                AncoraDropdownField(
+                    label = "Condominio",
+                    selectedValue = state.selectedCondominiumId,
+                    options = buildList {
+                        add(DropdownOption<Long>(null, "Todos"))
                         state.condominiumContext.items.forEach { condominium ->
-                            FilterChip(
-                                selected = state.selectedCondominiumId == condominium.id,
-                                onClick = { onCondominiumSelected(condominium.id) },
-                                label = { Text(condominium.name) },
-                            )
+                            add(DropdownOption(condominium.id, condominium.name))
                         }
-                    }
-                }
+                    },
+                    onSelected = onCondominiumSelected,
+                )
             }
         }
         if (state.statuses.isNotEmpty()) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Status", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = state.selectedStatusId == null,
-                            onClick = { onStatusSelected(null) },
-                            label = { Text("Todos") },
-                        )
+                AncoraDropdownField(
+                    label = "Status",
+                    selectedValue = state.selectedStatusId,
+                    options = buildList {
+                        add(DropdownOption<Long>(null, "Todos"))
                         state.statuses.forEach { status ->
-                            FilterChip(
-                                selected = state.selectedStatusId == status.id,
-                                onClick = { onStatusSelected(status.id) },
-                                label = { Text(status.name) },
-                            )
+                            add(DropdownOption(status.id, status.name))
                         }
-                    }
-                }
+                    },
+                    onSelected = onStatusSelected,
+                )
             }
         }
-        items(state.items) { process ->
-            AncoraCard(modifier = Modifier.clickable { onOpenDetail(process.id) }) {
-                Text(process.processNumber, style = MaterialTheme.typography.titleMedium)
-                StatusChip(process.status)
-                Text(
-                    process.partiesLabel ?: "Partes nao informadas",
-                    style = MaterialTheme.typography.bodyMedium,
+        if (state.items.isEmpty()) {
+            item {
+                EmptyState(
+                    title = "Nenhum processo encontrado",
+                    message = "Ajuste os filtros ou volte para o inicio para continuar navegando.",
+                    primaryActionLabel = "Limpar filtros",
+                    onPrimaryAction = onClearFilters,
+                    secondaryActionLabel = "Ir para o inicio",
+                    onSecondaryAction = onOpenHome,
                 )
-                Text(process.nature ?: "Natureza nao informada")
-                process.type?.let {
+            }
+        } else {
+            items(state.items) { process ->
+                AncoraCard(modifier = Modifier.clickable { onOpenDetail(process.id) }) {
+                    Text(process.processNumber, style = MaterialTheme.typography.titleMedium)
+                    StatusChip(process.status)
                     Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
+                        process.partiesLabel ?: "Partes nao informadas",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(process.nature ?: "Natureza nao informada")
+                    process.type?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        process.lastPublicPhase?.description ?: "Sem andamento publico recente",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-                Text(
-                    process.lastPublicPhase?.description ?: "Sem andamento publico recente",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                process.lastPublicPhase?.phaseDateBr?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    process.lastPublicPhase?.phaseDateBr?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

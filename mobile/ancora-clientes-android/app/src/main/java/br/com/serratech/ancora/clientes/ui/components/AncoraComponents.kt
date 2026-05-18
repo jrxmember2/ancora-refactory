@@ -3,13 +3,14 @@ package br.com.serratech.ancora.clientes.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +29,10 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,6 +43,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,16 +59,23 @@ import androidx.compose.ui.unit.sp
 import br.com.serratech.ancora.clientes.domain.model.DemandAttachment
 import br.com.serratech.ancora.clientes.domain.model.StatusInfo
 
+data class DropdownOption<T>(
+    val value: T?,
+    val label: String,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AncoraTopBar(
     title: String,
     modifier: Modifier = Modifier,
-    actions: @Composable () -> Unit = {},
+    navigationIcon: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
         modifier = modifier,
         title = { Text(title, fontWeight = FontWeight.SemiBold) },
+        navigationIcon = { navigationIcon?.invoke() },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onBackground,
@@ -167,6 +183,50 @@ fun EmptyState(title: String, message: String) {
         }
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun EmptyState(
+    title: String,
+    message: String,
+    primaryActionLabel: String?,
+    onPrimaryAction: (() -> Unit)?,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.HourglassEmpty, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        primaryActionLabel?.let { label ->
+            onPrimaryAction?.let { action ->
+                PrimaryButton(
+                    text = label,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = action,
+                )
+            }
+        }
+        if (!secondaryActionLabel.isNullOrBlank() && onSecondaryAction != null) {
+            TextButton(onClick = onSecondaryAction) {
+                Text(secondaryActionLabel)
+            }
+        }
     }
 }
 
@@ -290,6 +350,50 @@ fun AttachmentPicker(
                         ),
                     )
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun <T> AncoraDropdownField(
+    label: String,
+    selectedValue: T?,
+    options: List<DropdownOption<T>>,
+    onSelected: (T?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label.orEmpty()
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option.value)
+                    },
+                )
             }
         }
     }

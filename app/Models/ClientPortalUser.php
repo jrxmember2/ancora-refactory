@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ClientPortalUser extends Model
 {
@@ -24,6 +26,7 @@ class ClientPortalUser extends Model
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
+            'birth_date' => 'date',
             'can_view_processes' => 'boolean',
             'can_view_cobrancas' => 'boolean',
             'can_open_demands' => 'boolean',
@@ -113,6 +116,42 @@ class ClientPortalUser extends Model
         }
 
         return $this->entity?->display_name ?: 'Cliente';
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        $path = trim((string) $this->avatar_path);
+        if ($path === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        if (!str_starts_with($path, '/')) {
+            return Storage::disk('public')->exists($path)
+                ? Storage::disk('public')->url($path)
+                : null;
+        }
+
+        $relative = '/' . ltrim($path, '/');
+        $absolute = public_path(ltrim($relative, '/'));
+
+        return is_file($absolute) ? asset(ltrim($relative, '/')) : null;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $parts = Str::of((string) $this->name)
+            ->squish()
+            ->explode(' ')
+            ->filter()
+            ->take(2)
+            ->map(fn (string $part) => Str::upper(Str::substr($part, 0, 1)))
+            ->implode('');
+
+        return $parts !== '' ? $parts : 'U';
     }
 
     public function portalCondominiumNames(int $limit = 3): string

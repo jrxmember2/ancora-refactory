@@ -25,4 +25,18 @@ class DemandAttachment extends Model
     public function message(): BelongsTo { return $this->belongsTo(DemandMessage::class, 'message_id'); }
     public function portalUser(): BelongsTo { return $this->belongsTo(ClientPortalUser::class, 'client_portal_user_id'); }
     public function user(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); }
+
+    public function resolvedAbsolutePath(): ?string
+    {
+        $path = trim((string) ($this->relative_path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'private://')) {
+            return storage_path('app/' . ltrim(substr($path, 10), '/'));
+        }
+
+        return public_path(ltrim($path, '/'));
+    }
 }

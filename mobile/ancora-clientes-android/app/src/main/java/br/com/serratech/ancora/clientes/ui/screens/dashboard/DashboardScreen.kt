@@ -124,6 +124,7 @@ fun DashboardScreen(
     container: AppContainer,
     showBiometricOptIn: Boolean,
     onBiometricDecision: (Boolean) -> Unit,
+    onUnreadCountChanged: (Int) -> Unit,
     onOpenNewDemand: () -> Unit,
     onOpenLeme: () -> Unit,
 ) {
@@ -140,6 +141,10 @@ fun DashboardScreen(
 
     LaunchedEffect(showBiometricOptIn) {
         displayOptIn = showBiometricOptIn && container.biometricAuthenticator.isAvailable(context)
+    }
+
+    LaunchedEffect(viewModel.uiState.data?.summary?.notificationsUnread) {
+        onUnreadCountChanged(viewModel.uiState.data?.summary?.notificationsUnread ?: 0)
     }
 
     Column(modifier = modifier.fillMaxSize()) {

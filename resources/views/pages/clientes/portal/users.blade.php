@@ -58,8 +58,25 @@
                     @php($aiStatus = $item->ai_usage_status ?? null)
                     <tr>
                         <td class="px-6 py-4 align-top">
-                            <div class="font-semibold text-gray-900 dark:text-white">{{ $item->name }}</div>
-                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->login_key }} - {{ $item->email ?: 'sem e-mail' }}</div>
+                            <div class="flex items-start gap-3">
+                                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-brand-500 text-sm font-semibold text-white">
+                                    @if($item->avatar_url)
+                                        <img src="{{ $item->avatar_url }}" alt="{{ $item->name }}" class="h-full w-full object-cover">
+                                    @else
+                                        {{ $item->initials }}
+                                    @endif
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-900 dark:text-white">{{ $item->name }}</div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->login_key }} - {{ $item->email ?: 'sem e-mail' }}</div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $item->phone ?: 'sem telefone' }}
+                                        @if($item->birth_date)
+                                            <span class="mx-1">-</span>{{ $item->birth_date->format('d/m/Y') }}
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700 dark:text-gray-200">
                             {{ $item->portalCondominiumNames() ?: ($item->entity?->display_name ?: 'Sem vinculo') }}

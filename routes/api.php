@@ -40,6 +40,7 @@ Route::prefix('mobile/v1')->name('api.mobile.v1.')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout'])->name('auth.logout');
         Route::post('/auth/change-password', [MobileAuthController::class, 'changePassword'])->name('auth.change-password');
         Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
+        Route::post('/me', [MobileAuthController::class, 'updateProfile'])->name('me.update');
 
         Route::post('/devices/register', [MobileDeviceController::class, 'register'])->name('devices.register');
         Route::post('/devices/unregister', [MobileDeviceController::class, 'unregister'])->name('devices.unregister');

@@ -64,6 +64,7 @@ class AppContainer(application: Application) {
         api = apiService,
         sessionManager = sessionManager,
         preferences = preferences,
+        context = application,
     )
     val condominiumRepository = CondominiumRepository(apiService)
     val dashboardRepository = DashboardRepository(apiService)

@@ -30,7 +30,9 @@ class DemandController extends Controller
 
         $selectedCondominiumId = MobileApiContext::selectedCondominiumId($request);
         $requestedCondominiumId = (int) $request->integer('client_condominium_id');
-        if ($requestedCondominiumId > 0 && in_array($requestedCondominiumId, $user->accessibleCondominiumIds(), true)) {
+        if ($request->boolean('all_condominiums')) {
+            $selectedCondominiumId = null;
+        } elseif ($requestedCondominiumId > 0 && in_array($requestedCondominiumId, $user->accessibleCondominiumIds(), true)) {
             $selectedCondominiumId = $requestedCondominiumId;
         }
 
@@ -96,7 +98,7 @@ class DemandController extends Controller
             'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'subject' => ['required', 'string', 'max:180'],
             'description' => ['required', 'string', 'max:12000'],
-            'files.*' => ['nullable', 'file', 'max:20480'],
+            'files.*' => ['nullable', 'file', 'max:30720'],
         ]);
 
         $condominiumIds = $user->accessibleCondominiumIds();
@@ -166,7 +168,7 @@ class DemandController extends Controller
 
         $validated = $request->validate([
             'message' => ['required', 'string', 'max:12000'],
-            'files.*' => ['nullable', 'file', 'max:20480'],
+            'files.*' => ['nullable', 'file', 'max:30720'],
         ]);
 
         DB::transaction(function () use ($request, $demand, $user, $validated) {
@@ -259,8 +261,8 @@ class DemandController extends Controller
         abort_unless($user && $access->canSeeDemand($user, $demand), 404);
         abort_if($attachment->demand_id !== $demand->id || $attachment->is_internal, 404);
 
-        $path = public_path(ltrim((string) $attachment->relative_path, '/'));
-        abort_unless(is_file($path), 404);
+        $path = $attachment->resolvedAbsolutePath();
+        abort_unless(is_string($path) && is_file($path), 404);
 
         return response()->download($path, $attachment->original_name);
     }
@@ -280,7 +282,8 @@ class DemandController extends Controller
             return 0;
         }
 
-        $dir = public_path('uploads/demandas/' . $demand->id);
+        $relativeDir = 'private/client-portal-demands/' . $demand->id;
+        $dir = storage_path('app/' . $relativeDir);
         if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
             return 0;
         }
@@ -291,12 +294,7 @@ class DemandController extends Controller
                 continue;
             }
 
-            $ext = strtolower((string) $file->getClientOriginalExtension());
-            if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt'], true)) {
-                continue;
-            }
-
-            $stored = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $ext;
+            $stored = $this->storedFilename($file);
             $file->move($dir, $stored);
             $path = $dir . DIRECTORY_SEPARATOR . $stored;
 
@@ -308,7 +306,7 @@ class DemandController extends Controller
                 'user_id' => $userId,
                 'original_name' => Str::limit((string) $file->getClientOriginalName(), 255, ''),
                 'stored_name' => $stored,
-                'relative_path' => '/uploads/demandas/' . $demand->id . '/' . $stored,
+                'relative_path' => 'private://' . $relativeDir . '/' . $stored,
                 'mime_type' => Str::limit((string) ($file->getClientMimeType() ?: $file->getMimeType() ?: ''), 120, ''),
                 'file_size' => is_file($path) ? (int) (@filesize($path) ?: 0) : 0,
                 'is_internal' => $internal,
@@ -331,6 +329,14 @@ class DemandController extends Controller
         }
 
         return [];
+    }
+
+    private function storedFilename(UploadedFile $file): string
+    {
+        $extension = trim((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: $file->guessExtension() ?: 'bin'));
+        $extension = Str::lower($extension);
+
+        return now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $extension;
     }
 
     private function canManageDemand(ClientPortalUser $user, Demand $demand): bool

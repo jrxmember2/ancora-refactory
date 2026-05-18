@@ -15,6 +15,7 @@ use App\Models\ProcessCasePhase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use DateTimeInterface;
+use Illuminate\Support\Facades\Storage;
 
 class MobileApiPresenter
 {
@@ -39,6 +40,10 @@ class MobileApiPresenter
             'name' => (string) $user->name,
             'login_key' => (string) $user->login_key,
             'email' => $user->email ? (string) $user->email : null,
+            'phone' => $user->phone ? (string) $user->phone : null,
+            'birth_date' => $user->birth_date?->toDateString(),
+            'birth_date_br' => $user->birth_date?->format('d/m/Y'),
+            'avatar_url' => self::avatarUrl($user->avatar_path),
             'portal_role' => (string) ($user->portal_role ?? 'cliente'),
             'must_change_password' => (bool) $user->must_change_password,
             'permissions' => [
@@ -298,5 +303,15 @@ class MobileApiPresenter
         $value = trim((string) ($value ?? ''));
 
         return $value !== '' ? $value : null;
+    }
+
+    private static function avatarUrl(?string $path): ?string
+    {
+        $path = trim((string) ($path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        return url(Storage::disk('public')->url($path));
     }
 }

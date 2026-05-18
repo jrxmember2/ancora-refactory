@@ -5,10 +5,11 @@
     $selectedCondominiums = collect(old('client_condominium_ids', $portalUser?->accessibleCondominiumIds() ?? []))
         ->map(fn ($id) => (int) $id)
         ->all();
+    $avatarUrl = $portalUser?->avatar_url;
 @endphp
 
 <dialog id="{{ $modalId }}" class="fixed inset-0 m-auto w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
-    <form method="post" action="{{ $action }}" class="p-6">
+    <form method="post" action="{{ $action }}" class="p-6" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="_portal_user_modal" value="{{ $modalId }}">
         @if($method !== 'POST')
@@ -24,6 +25,22 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="md:col-span-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950/40">
+                <div class="flex flex-col gap-4 md:flex-row md:items-center">
+                    <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-brand-500 text-xl font-semibold text-white">
+                        @if($avatarUrl)
+                            <img src="{{ $avatarUrl }}" alt="{{ $portalUser?->name ?: 'Avatar' }}" class="h-full w-full object-cover">
+                        @else
+                            {{ $portalUser?->initials ?? 'NC' }}
+                        @endif
+                    </div>
+                    <div class="flex-1">
+                        <label class="{{ $labelClass }}">Foto do usuario</label>
+                        <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="{{ $inputClass }} h-auto py-3">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Opcional. Se enviar uma nova imagem, ela substitui a foto atual do cadastro.</p>
+                    </div>
+                </div>
+            </div>
             <div>
                 <label class="{{ $labelClass }}">Nome</label>
                 <input name="name" value="{{ old('name', $portalUser?->name) }}" required class="{{ $inputClass }}">
@@ -39,6 +56,10 @@
             <div>
                 <label class="{{ $labelClass }}">Telefone</label>
                 <input name="phone" value="{{ old('phone', $portalUser?->phone) }}" class="{{ $inputClass }}">
+            </div>
+            <div>
+                <label class="{{ $labelClass }}">Data de nascimento</label>
+                <input type="date" name="birth_date" value="{{ old('birth_date', $portalUser?->birth_date?->format('Y-m-d')) }}" class="{{ $inputClass }}">
             </div>
             <div>
                 <label class="{{ $labelClass }}">Perfil</label>

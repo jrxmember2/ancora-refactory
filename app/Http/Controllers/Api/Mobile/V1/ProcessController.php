@@ -20,7 +20,9 @@ class ProcessController extends Controller
 
         $selectedCondominiumId = MobileApiContext::selectedCondominiumId($request);
         $requestedCondominiumId = (int) $request->integer('client_condominium_id');
-        if ($requestedCondominiumId > 0 && in_array($requestedCondominiumId, $user->accessibleCondominiumIds(), true)) {
+        if ($request->boolean('all_condominiums')) {
+            $selectedCondominiumId = null;
+        } elseif ($requestedCondominiumId > 0 && in_array($requestedCondominiumId, $user->accessibleCondominiumIds(), true)) {
             $selectedCondominiumId = $requestedCondominiumId;
         }
 

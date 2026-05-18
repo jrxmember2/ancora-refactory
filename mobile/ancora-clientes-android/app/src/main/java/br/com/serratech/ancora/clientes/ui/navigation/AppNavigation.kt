@@ -9,9 +9,17 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -20,6 +28,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -33,8 +42,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -49,6 +63,7 @@ import androidx.navigation.navArgument
 import br.com.serratech.ancora.clientes.core.AppContainer
 import br.com.serratech.ancora.clientes.core.session.LaunchDestination
 import br.com.serratech.ancora.clientes.domain.model.SessionUser
+import br.com.serratech.ancora.clientes.R
 import br.com.serratech.ancora.clientes.ui.screens.biometric.BiometricScreen
 import br.com.serratech.ancora.clientes.ui.screens.dashboard.DashboardScreen
 import br.com.serratech.ancora.clientes.ui.screens.demands.DemandCreateScreen
@@ -99,6 +114,7 @@ data class AppUiState(
     val isLoading: Boolean = true,
     val launchDestination: LaunchDestination = LaunchDestination.Setup,
     val sessionUser: SessionUser? = null,
+    val unreadNotifications: Int = 0,
     val showBiometricOptIn: Boolean = false,
     val navigationTarget: NavigationTarget? = null,
 )
@@ -127,6 +143,11 @@ class AppViewModel(
             } else {
                 null
             }
+            val unreadCount = if (user != null) {
+                runCatching { container.notificationRepository.unreadCount() }.getOrDefault(0)
+            } else {
+                0
+            }
 
             if ((destination == LaunchDestination.Home || destination == LaunchDestination.Biometric) && user == null) {
                 container.sessionManager.clearSession(clearInstance = false)
@@ -134,6 +155,7 @@ class AppViewModel(
                     isLoading = false,
                     launchDestination = LaunchDestination.Login,
                     sessionUser = null,
+                    unreadNotifications = 0,
                     navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
                 )
             } else {
@@ -141,6 +163,7 @@ class AppViewModel(
                     isLoading = false,
                     launchDestination = destination,
                     sessionUser = user,
+                    unreadNotifications = unreadCount,
                     navigationTarget = NavigationTarget(destination.toRoute(), clearBackStack = true),
                 )
             }
@@ -151,6 +174,7 @@ class AppViewModel(
         _uiState.value = _uiState.value.copy(
             launchDestination = LaunchDestination.Login,
             sessionUser = null,
+            unreadNotifications = 0,
             navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
         )
     }
@@ -158,9 +182,11 @@ class AppViewModel(
     fun onLoginSuccess(user: SessionUser) {
         viewModelScope.launch {
             val shouldOfferBiometric = !container.preferences.wasBiometricPrompted()
+            val unreadCount = runCatching { container.notificationRepository.unreadCount() }.getOrDefault(0)
             _uiState.value = _uiState.value.copy(
                 launchDestination = LaunchDestination.Home,
                 sessionUser = user,
+                unreadNotifications = unreadCount,
                 showBiometricOptIn = shouldOfferBiometric,
                 navigationTarget = NavigationTarget(AppRoutes.Dashboard, clearBackStack = true),
             )
@@ -189,12 +215,21 @@ class AppViewModel(
         )
     }
 
+    fun onUnreadCountChanged(count: Int) {
+        _uiState.value = _uiState.value.copy(unreadNotifications = count.coerceAtLeast(0))
+    }
+
+    fun onSessionUserUpdated(user: SessionUser) {
+        _uiState.value = _uiState.value.copy(sessionUser = user)
+    }
+
     fun logout() {
         viewModelScope.launch {
             container.authRepository.logout()
             _uiState.value = _uiState.value.copy(
                 launchDestination = LaunchDestination.Login,
                 sessionUser = null,
+                unreadNotifications = 0,
                 showBiometricOptIn = false,
                 navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
             )
@@ -315,7 +350,7 @@ fun AncoraClientesApp(
 
     Scaffold(
         bottomBar = {
-            if (showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
+            if (!uiState.isLoading && showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
                 NavigationBar {
                     navItems.forEach { item ->
                         NavigationBarItem(
@@ -329,7 +364,7 @@ fun AncoraClientesApp(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            icon = { NavItemIcon(item, uiState.unreadNotifications) },
                             label = { Text(item.label) },
                         )
                     }
@@ -337,6 +372,11 @@ fun AncoraClientesApp(
             }
         },
     ) { padding ->
+        if (uiState.isLoading) {
+            AppLaunchLoadingScreen(modifier = Modifier.padding(padding))
+            return@Scaffold
+        }
+
         Row(modifier = Modifier.fillMaxSize()) {
             if (showNavigationChrome && widthSizeClass != WindowWidthSizeClass.Compact) {
                 NavigationRail {
@@ -352,7 +392,7 @@ fun AncoraClientesApp(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            icon = { NavItemIcon(item, uiState.unreadNotifications) },
                             label = { Text(item.label) },
                         )
                     }
@@ -423,6 +463,7 @@ private fun AppNavHost(
                 container = container,
                 showBiometricOptIn = uiState.showBiometricOptIn,
                 onBiometricDecision = appViewModel::onBiometricOptInDecision,
+                onUnreadCountChanged = appViewModel::onUnreadCountChanged,
                 onOpenNewDemand = { navController.navigate(AppRoutes.DemandCreate) },
                 onOpenLeme = { navController.navigate(AppRoutes.Leme) },
             )
@@ -432,6 +473,15 @@ private fun AppNavHost(
             ProcessesScreen(
                 container = container,
                 onOpenDetail = { processId -> navController.navigate(AppRoutes.processDetail(processId)) },
+                onOpenHome = {
+                    navController.navigate(AppRoutes.Dashboard) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
 
@@ -458,6 +508,15 @@ private fun AppNavHost(
             DemandCreateScreen(
                 container = container,
                 onBack = { navController.popBackStack() },
+                onHome = {
+                    navController.navigate(AppRoutes.Dashboard) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onCreated = { demandId ->
                     navController.navigate(AppRoutes.demandDetail(demandId)) {
                         popUpTo(AppRoutes.Demands)
@@ -474,6 +533,15 @@ private fun AppNavHost(
                 container = container,
                 demandId = entry.arguments?.getLong("demandId") ?: 0L,
                 onBack = { navController.popBackStack() },
+                onHome = {
+                    navController.navigate(AppRoutes.Dashboard) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
 
@@ -495,7 +563,10 @@ private fun AppNavHost(
         }
 
         composable(AppRoutes.Notifications) {
-            NotificationsScreen(container = container)
+            NotificationsScreen(
+                container = container,
+                onUnreadCountChanged = appViewModel::onUnreadCountChanged,
+            )
         }
 
         composable(AppRoutes.Profile) {
@@ -505,6 +576,7 @@ private fun AppNavHost(
                 onLogout = appViewModel::logout,
                 onOpenInstanceSettings = { navController.navigate(AppRoutes.SetupChange) },
                 onBiometricChanged = appViewModel::onBiometricOptInDecision,
+                onProfileUpdated = appViewModel::onSessionUserUpdated,
             )
         }
     }
@@ -514,6 +586,46 @@ private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+@Composable
+private fun NavItemIcon(item: NavItem, unreadNotifications: Int) {
+    Box {
+        Icon(item.icon, contentDescription = item.label)
+        if (item.route == AppRoutes.Notifications && unreadNotifications > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(10.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color(0xFFD62828)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppLaunchLoadingScreen(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.logo_ancora_clientes),
+            contentDescription = null,
+            modifier = Modifier.size(180.dp),
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        CircularProgressIndicator()
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Carregando seu portal...",
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 private fun LaunchDestination.toAppRoute(): String = when (this) {

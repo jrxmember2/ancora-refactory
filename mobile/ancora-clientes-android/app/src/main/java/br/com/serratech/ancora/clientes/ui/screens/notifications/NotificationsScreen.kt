@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -37,6 +38,8 @@ class NotificationsViewModel(
         private set
     var items by mutableStateOf<List<NotificationItem>>(emptyList())
         private set
+    var unreadCount by mutableStateOf(0)
+        private set
 
     init {
         refresh()
@@ -47,14 +50,22 @@ class NotificationsViewModel(
             isLoading = true
             error = null
             runCatching { container.notificationRepository.list() }
-                .onSuccess { items = it; isLoading = false }
-                .onFailure { error = it.message ?: "Não foi possível carregar as notificações."; isLoading = false }
+                .onSuccess { feed ->
+                    items = feed.items
+                    unreadCount = feed.unreadCount
+                    isLoading = false
+                }
+                .onFailure {
+                    error = it.message ?: "Nao foi possivel carregar as notificacoes."
+                    isLoading = false
+                }
         }
     }
 
     fun readAll() {
         viewModelScope.launch {
             runCatching { container.notificationRepository.readAll() }
+            unreadCount = 0
             refresh()
         }
     }
@@ -64,6 +75,7 @@ class NotificationsViewModel(
 fun NotificationsScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
+    onUnreadCountChanged: (Int) -> Unit,
 ) {
     val viewModel: NotificationsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -74,12 +86,19 @@ fun NotificationsScreen(
         }
     )
 
+    LaunchedEffect(viewModel.unreadCount) {
+        onUnreadCountChanged(viewModel.unreadCount)
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
-        AncoraTopBar(title = "Notificações", actions = { TextButton(onClick = viewModel::readAll) { Text("Ler tudo") } })
+        AncoraTopBar(title = "Notificacoes", actions = { TextButton(onClick = viewModel::readAll) { Text("Ler tudo") } })
         when {
-            viewModel.isLoading -> LoadingState("Buscando notificações...")
+            viewModel.isLoading -> LoadingState("Buscando notificacoes...")
             viewModel.error != null -> ErrorState(viewModel.error.orEmpty(), onRetry = viewModel::refresh)
-            viewModel.items.isEmpty() -> EmptyState("Sem notificações por enquanto", "As atualizações públicas do seu portal aparecerão aqui.")
+            viewModel.items.isEmpty() -> EmptyState(
+                "Sem notificacoes por enquanto",
+                "As atualizacoes publicas do seu portal aparecerao aqui.",
+            )
             else -> LazyColumn(
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),

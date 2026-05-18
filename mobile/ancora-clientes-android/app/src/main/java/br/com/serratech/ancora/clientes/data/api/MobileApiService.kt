@@ -17,6 +17,7 @@ import br.com.serratech.ancora.clientes.data.dto.LoginRequestDto
 import br.com.serratech.ancora.clientes.data.dto.NotificationListResponseDto
 import br.com.serratech.ancora.clientes.data.dto.ProcessItemEnvelopeDto
 import br.com.serratech.ancora.clientes.data.dto.ProcessListResponseDto
+import br.com.serratech.ancora.clientes.data.dto.ProfileUpdateResponseDto
 import br.com.serratech.ancora.clientes.data.dto.SimpleResponseDto
 import br.com.serratech.ancora.clientes.data.dto.UserEnvelopeDto
 import okhttp3.MultipartBody
@@ -48,6 +49,15 @@ interface MobileApiService {
     @GET("api/mobile/v1/me")
     suspend fun me(): UserEnvelopeDto
 
+    @Multipart
+    @POST("api/mobile/v1/me")
+    suspend fun updateProfile(
+        @Part avatar: MultipartBody.Part? = null,
+        @Part("email") email: RequestBody? = null,
+        @Part("phone") phone: RequestBody? = null,
+        @Part("birth_date") birthDate: RequestBody? = null,
+    ): ProfileUpdateResponseDto
+
     @POST("api/mobile/v1/devices/register")
     suspend fun registerDevice(@Body payload: DeviceRegistrationRequestDto): DeviceRegistrationResponseDto
 
@@ -68,6 +78,7 @@ interface MobileApiService {
         @Query("q") query: String? = null,
         @Query("status_option_id") statusOptionId: Long? = null,
         @Query("client_condominium_id") condominiumId: Long? = null,
+        @Query("all_condominiums") allCondominiums: Boolean? = null,
     ): ProcessListResponseDto
 
     @GET
@@ -78,6 +89,7 @@ interface MobileApiService {
         @Query("q") query: String? = null,
         @Query("status") status: String? = null,
         @Query("client_condominium_id") condominiumId: Long? = null,
+        @Query("all_condominiums") allCondominiums: Boolean? = null,
     ): DemandListResponseDto
 
     @GET

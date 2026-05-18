@@ -5,6 +5,10 @@ data class SessionUser(
     val name: String,
     val loginKey: String,
     val email: String?,
+    val phone: String?,
+    val birthDate: String?,
+    val birthDateBr: String?,
+    val avatarUrl: String?,
     val mustChangePassword: Boolean,
     val permissions: UserPermissions,
     val selectedCondominium: Condominium?,
@@ -168,6 +172,11 @@ data class NotificationItem(
     val data: Map<String, String>,
     val readAt: String?,
     val createdAtBr: String?,
+)
+
+data class NotificationFeed(
+    val items: List<NotificationItem>,
+    val unreadCount: Int,
 )
 
 data class UsageStatus(

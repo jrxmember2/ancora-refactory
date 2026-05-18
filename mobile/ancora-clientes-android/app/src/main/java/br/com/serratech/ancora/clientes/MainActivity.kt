@@ -15,7 +15,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var appViewModel: AppViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -24,8 +24,6 @@ class MainActivity : FragmentActivity() {
             this,
             appViewModelFactory(app.container, intent?.extras),
         )[AppViewModel::class.java]
-
-        splashScreen.setKeepOnScreenCondition { appViewModel.uiState.value.isLoading }
 
         setContent {
             AncoraClientesTheme {

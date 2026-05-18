@@ -11,7 +11,10 @@ use App\Support\Mobile\MobileApiContext;
 use App\Support\Mobile\MobileApiPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -148,5 +151,59 @@ class AuthController extends Controller
         return response()->json([
             'user' => MobileApiPresenter::user($user->fresh(['condominiums', 'condominium']), MobileApiContext::selectedCondominium($request)),
         ]);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = MobileApiContext::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'email' => ['nullable', 'email', 'max:190'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'birth_date' => ['nullable', 'date_format:Y-m-d'],
+            'avatar' => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        $avatarPath = $user->avatar_path;
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $this->storeAvatar($request->file('avatar'), (string) $user->avatar_path);
+        }
+
+        $user->forceFill([
+            'email' => $this->nullableTrim($validated['email'] ?? null),
+            'phone' => $this->nullableTrim($validated['phone'] ?? null),
+            'birth_date' => $validated['birth_date'] ?? null,
+            'avatar_path' => $avatarPath,
+        ])->save();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Perfil atualizado com sucesso.',
+            'user' => MobileApiPresenter::user($user->fresh(['condominiums', 'condominium']), MobileApiContext::selectedCondominium($request)),
+        ]);
+    }
+
+    private function storeAvatar(UploadedFile $file, string $currentPath = ''): string
+    {
+        $currentPath = trim($currentPath);
+        if ($currentPath !== '' && Storage::disk('public')->exists($currentPath)) {
+            Storage::disk('public')->delete($currentPath);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $name = 'avatar-' . now()->format('Ymd-His') . '-' . Str::random(8) . '.' . $extension;
+        $path = 'avatars/client-portal-users/' . $name;
+
+        Storage::disk('public')->putFileAs('avatars/client-portal-users', $file, $name);
+
+        return $path;
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : null;
     }
 }

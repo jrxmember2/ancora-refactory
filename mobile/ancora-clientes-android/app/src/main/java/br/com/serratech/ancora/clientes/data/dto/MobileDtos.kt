@@ -44,6 +44,10 @@ data class UserDto(
     val name: String,
     @SerialName("login_key") val loginKey: String,
     val email: String? = null,
+    val phone: String? = null,
+    @SerialName("birth_date") val birthDate: String? = null,
+    @SerialName("birth_date_br") val birthDateBr: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("portal_role") val portalRole: String? = null,
     @SerialName("must_change_password") val mustChangePassword: Boolean = false,
     val permissions: PermissionsDto = PermissionsDto(),
@@ -175,6 +179,13 @@ data class PaginationDto(
     @SerialName("per_page") val perPage: Int = 15,
     val total: Int = 0,
     @SerialName("unread_count") val unreadCount: Int? = null,
+)
+
+@Serializable
+data class ProfileUpdateResponseDto(
+    val ok: Boolean = false,
+    val message: String? = null,
+    val user: UserDto,
 )
 
 @Serializable

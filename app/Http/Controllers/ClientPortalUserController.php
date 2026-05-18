@@ -10,6 +10,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ClientPortalUserController extends Controller
@@ -94,6 +96,8 @@ class ClientPortalUserController extends Controller
             'login_key' => ['required', 'string', 'max:80', 'unique:client_portal_users,login_key,' . $id],
             'email' => ['nullable', 'email', 'max:190'],
             'phone' => ['nullable', 'string', 'max:40'],
+            'birth_date' => ['nullable', 'date'],
+            'avatar' => ['nullable', 'image', 'max:5120'],
             'portal_role' => ['required', 'string', 'max:40'],
             'client_entity_id' => ['nullable', 'integer', 'exists:client_entities,id'],
             'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
@@ -125,12 +129,19 @@ class ClientPortalUserController extends Controller
             $resetAt = now()->toDateString();
         }
 
+        $avatarPath = $current?->avatar_path;
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $this->storeAvatar($request->file('avatar'), (string) $current?->avatar_path);
+        }
+
         return [
             [
                 'name' => $validated['name'],
                 'login_key' => trim($validated['login_key']),
-                'email' => $validated['email'] ?? null,
-                'phone' => $validated['phone'] ?? null,
+                'email' => $this->nullableTrim($validated['email'] ?? null),
+                'phone' => $this->nullableTrim($validated['phone'] ?? null),
+                'birth_date' => $validated['birth_date'] ?? null,
+                'avatar_path' => $avatarPath,
                 'portal_role' => $validated['portal_role'],
                 'client_entity_id' => $validated['client_entity_id'] ?? null,
                 'client_condominium_id' => $condominiumIds[0] ?? null,
@@ -149,6 +160,29 @@ class ClientPortalUserController extends Controller
             ],
             $condominiumIds,
         ];
+    }
+
+    private function storeAvatar($file, string $currentPath = ''): string
+    {
+        $currentPath = trim($currentPath);
+        if ($currentPath !== '' && !preg_match('#^https?://#i', $currentPath)) {
+            Storage::disk('public')->delete($currentPath);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $name = 'avatar-' . now()->format('Ymd-His') . '-' . Str::random(8) . '.' . $extension;
+        $path = 'avatars/client-portal-users/' . $name;
+
+        Storage::disk('public')->putFileAs('avatars/client-portal-users', $file, $name);
+
+        return $path;
+    }
+
+    private function nullableTrim(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     private function roleLabels(): array

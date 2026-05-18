@@ -2,6 +2,8 @@ package br.com.serratech.ancora.clientes.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import android.os.Build
 import androidx.core.content.FileProvider
 import br.com.serratech.ancora.clientes.BuildConfig
@@ -9,6 +11,7 @@ import br.com.serratech.ancora.clientes.core.session.AppSessionManager
 import br.com.serratech.ancora.clientes.core.utils.UrlNormalizer
 import br.com.serratech.ancora.clientes.data.api.MobileApiService
 import br.com.serratech.ancora.clientes.data.dto.AuthResponseDto
+import br.com.serratech.ancora.clientes.data.dto.ChangePasswordRequestDto
 import br.com.serratech.ancora.clientes.data.dto.CondominiumDto
 import br.com.serratech.ancora.clientes.data.dto.CondominiumsResponseDto
 import br.com.serratech.ancora.clientes.data.dto.DashboardResponseDto
@@ -43,6 +46,7 @@ import br.com.serratech.ancora.clientes.domain.model.DemandMessage
 import br.com.serratech.ancora.clientes.domain.model.LemeHistory
 import br.com.serratech.ancora.clientes.domain.model.LemeMessage
 import br.com.serratech.ancora.clientes.domain.model.MovementItem
+import br.com.serratech.ancora.clientes.domain.model.NotificationFeed
 import br.com.serratech.ancora.clientes.domain.model.NotificationItem
 import br.com.serratech.ancora.clientes.domain.model.ProcessDetail
 import br.com.serratech.ancora.clientes.domain.model.ProcessFilterOption
@@ -65,6 +69,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.UUID
 
 class InstanceRepository(
     private val preferences: AppPreferencesDataSource,
@@ -109,6 +114,7 @@ class AuthRepository(
     private val api: MobileApiService,
     private val sessionManager: AppSessionManager,
     private val preferences: AppPreferencesDataSource,
+    private val context: Context,
 ) {
     suspend fun login(login: String, password: String): SessionUser {
         val response = api.login(
@@ -124,6 +130,30 @@ class AuthRepository(
     }
 
     suspend fun me(): SessionUser = api.me().user.toDomain()
+
+    suspend fun updateProfile(
+        email: String,
+        phone: String,
+        birthDate: String,
+        avatar: Uri?,
+    ): SessionUser {
+        val payload = context.prepareUploadPayload(avatar)
+        return api.updateProfile(
+            avatar = payload?.let { MultipartBody.Part.createFormData("avatar", it.file.name, it.requestBody) },
+            email = email.trim().takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaType()),
+            phone = phone.trim().takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaType()),
+            birthDate = birthDate.trim().takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaType()),
+        ).user.toDomain()
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String, confirmation: String): SessionUser =
+        api.changePassword(
+            ChangePasswordRequestDto(
+                currentPassword = currentPassword,
+                password = newPassword,
+                passwordConfirmation = confirmation,
+            )
+        ).user.toDomain()
 
     suspend fun logout() {
         unregisterCurrentDeviceIfNeeded()
@@ -184,10 +214,12 @@ class ProcessRepository(
         query: String,
         statusOptionId: Long?,
         condominiumId: Long?,
+        allCondominiums: Boolean = false,
     ): ProcessListResult = api.processes(
         query = query.takeIf { it.isNotBlank() },
         statusOptionId = statusOptionId,
         condominiumId = condominiumId,
+        allCondominiums = allCondominiums.takeIf { it },
     ).toDomain()
 
     suspend fun detail(id: Long): ProcessDetail =
@@ -203,10 +235,12 @@ class DemandRepository(
         query: String,
         status: String?,
         condominiumId: Long?,
+        allCondominiums: Boolean = false,
     ): DemandListResult = api.demands(
         query = query.takeIf { it.isNotBlank() },
         status = status,
         condominiumId = condominiumId,
+        allCondominiums = allCondominiums.takeIf { it },
     ).toDomain()
 
     suspend fun detail(id: Long): DemandDetail =
@@ -287,12 +321,8 @@ class DemandRepository(
 
     private fun buildMultipartFiles(files: List<Uri>): List<MultipartBody.Part> {
         return files.mapNotNull { uri ->
-            val stream = context.contentResolver.openInputStream(uri) ?: return@mapNotNull null
-            val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "anexo"
-            val tempFile = File(context.cacheDir, fileName)
-            stream.use { input -> tempFile.outputStream().use { output -> input.copyTo(output) } }
-            val requestBody = tempFile.asRequestBody("application/octet-stream".toMediaType())
-            MultipartBody.Part.createFormData("files[]", tempFile.name, requestBody)
+            val payload = context.prepareUploadPayload(uri) ?: return@mapNotNull null
+            MultipartBody.Part.createFormData("files[]", payload.file.name, payload.requestBody)
         }
     }
 }
@@ -300,8 +330,15 @@ class DemandRepository(
 class NotificationRepository(
     private val api: MobileApiService,
 ) {
-    suspend fun list(unreadOnly: Boolean = false): List<NotificationItem> =
-        api.notifications(unreadOnly).items.map { it.toDomain() }
+    suspend fun list(unreadOnly: Boolean = false): NotificationFeed {
+        val response = api.notifications(unreadOnly)
+        return NotificationFeed(
+            items = response.items.map { it.toDomain() },
+            unreadCount = response.meta.unreadCount ?: response.items.count { it.readAt == null },
+        )
+    }
+
+    suspend fun unreadCount(): Int = api.notifications().meta.unreadCount ?: 0
 
     suspend fun read(id: Long) {
         api.readNotification("api/mobile/v1/notifications/$id/read")
@@ -342,6 +379,10 @@ private fun UserDto.toDomain(): SessionUser = SessionUser(
     name = name,
     loginKey = loginKey,
     email = email,
+    phone = phone,
+    birthDate = birthDate,
+    birthDateBr = birthDateBr,
+    avatarUrl = avatarUrl,
     mustChangePassword = mustChangePassword,
     permissions = UserPermissions(
         canViewProcesses = permissions.canViewProcesses,
@@ -528,3 +569,89 @@ private fun FilterOptionDto.toDomain(): ProcessFilterOption = ProcessFilterOptio
     name = name,
     color = color,
 )
+
+private data class UploadPayload(
+    val file: File,
+    val requestBody: okhttp3.RequestBody,
+)
+
+private const val MAX_ATTACHMENT_BYTES = 30L * 1024L * 1024L
+
+private fun Context.prepareUploadPayload(uri: Uri?): UploadPayload? {
+    if (uri == null) {
+        return null
+    }
+
+    val metadata = queryUploadMetadata(uri)
+    val size = metadata.size
+    if (size != null && size > MAX_ATTACHMENT_BYTES) {
+        throw IllegalArgumentException("Cada arquivo deve ter no maximo 30 MB.")
+    }
+
+    val contentType = metadata.mimeType ?: contentResolver.getType(uri) ?: "application/octet-stream"
+    val fileName = metadata.displayName.toUploadFileName(contentType)
+    val tempFile = File(cacheDir, "${UUID.randomUUID()}_${fileName}")
+
+    contentResolver.openInputStream(uri)?.use { input ->
+        tempFile.outputStream().use { output -> input.copyTo(output) }
+    } ?: throw IllegalStateException("Nao foi possivel ler o arquivo selecionado.")
+
+    if (tempFile.length() > MAX_ATTACHMENT_BYTES) {
+        tempFile.delete()
+        throw IllegalArgumentException("Cada arquivo deve ter no maximo 30 MB.")
+    }
+
+    return UploadPayload(
+        file = tempFile,
+        requestBody = tempFile.asRequestBody(contentType.toMediaType()),
+    )
+}
+
+private data class UploadMetadata(
+    val displayName: String,
+    val size: Long?,
+    val mimeType: String?,
+)
+
+private fun Context.queryUploadMetadata(uri: Uri): UploadMetadata {
+    var displayName = "arquivo"
+    var size: Long? = null
+    val mimeType = contentResolver.getType(uri)
+
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
+        ?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (displayNameIndex >= 0) {
+                    displayName = cursor.getString(displayNameIndex) ?: displayName
+                }
+                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) {
+                    size = cursor.getLong(sizeIndex)
+                }
+            }
+        }
+
+    return UploadMetadata(
+        displayName = displayName,
+        size = size,
+        mimeType = mimeType,
+    )
+}
+
+private fun String.toUploadFileName(contentType: String): String {
+    val trimmed = trim().ifBlank { "arquivo" }
+    val safe = trimmed.substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
+    if ('.' in safe.substringAfterLast('/')) {
+        return safe
+    }
+
+    val extension = MimeTypeMap.getSingleton()
+        .getExtensionFromMimeType(contentType)
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf { it.isNotBlank() }
+        ?: "bin"
+
+    return "$safe.$extension"
+}
