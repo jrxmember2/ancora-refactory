@@ -49,12 +49,15 @@
             @csrf
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                         <h3 class="text-base font-semibold text-gray-900 dark:text-white">Identificacao e devedor</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Vincule um cliente avulso quando houver cadastro. Se preferir, preencha os dados manualmente.</p>
                     </div>
-                    <button type="button" id="fill-client-data" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Preencher do cadastro</button>
+                    <div class="md:max-w-xs md:text-right">
+                        <button type="button" id="fill-client-data" class="rounded-xl border border-brand-300 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 transition disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Usar dados do cadastro</button>
+                        <p id="standalone-fill-client-feedback" class="mt-2 text-xs text-gray-500 dark:text-gray-400">Selecione um cliente avulso para copiar nome, documento, e-mail e telefone do cadastro.</p>
+                    </div>
                 </div>
 
                 <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -77,7 +80,7 @@
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CPF/CNPJ</label>
-                        <input name="debtor_document_snapshot" id="standalone-debtor-document" value="{{ old('debtor_document_snapshot') }}" class="{{ $inputClass }}" placeholder="000.000.000-00">
+                        <input name="debtor_document_snapshot" id="standalone-debtor-document" value="{{ old('debtor_document_snapshot') }}" class="{{ $inputClass }}" placeholder="000.000.000-00 ou 00.000.000/0000-00" inputmode="numeric" maxlength="18" data-document-mask>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
@@ -85,7 +88,7 @@
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
-                        <input name="debtor_phone_snapshot" id="standalone-debtor-phone" value="{{ old('debtor_phone_snapshot') }}" class="{{ $inputClass }}" placeholder="(27) 99999-9999" data-phone-mask>
+                        <input name="debtor_phone_snapshot" id="standalone-debtor-phone" value="{{ old('debtor_phone_snapshot') }}" class="{{ $inputClass }}" placeholder="(27) 99999-9999" inputmode="numeric" maxlength="15" data-phone-mask>
                     </div>
                     <div class="md:col-span-2">
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Observacoes</label>
@@ -116,7 +119,7 @@
                                 </div>
                                 <div>
                                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Competencia / referencia</label>
-                                    <input type="text" name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="mm/aaaa" class="{{ $inputClass }}">
+                                    <input type="text" name="quotas[{{ $index }}][reference_label]" value="{{ $row['reference_label'] ?? '' }}" placeholder="MM/AAAA" class="{{ $inputClass }}" inputmode="numeric" maxlength="7" data-reference-mask>
                                 </div>
                                 <div>
                                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
@@ -308,6 +311,7 @@
     const clientMap = new Map(clientData.map((item) => [String(item.id), item]));
     const clientSelect = document.getElementById('standalone-client-select');
     const fillClientDataButton = document.getElementById('fill-client-data');
+    const fillClientFeedback = document.getElementById('standalone-fill-client-feedback');
     const debtorName = document.getElementById('standalone-debtor-name');
     const debtorDocument = document.getElementById('standalone-debtor-document');
     const debtorEmail = document.getElementById('standalone-debtor-email');
@@ -353,6 +357,66 @@
         });
     }
 
+    function formatCpf(digits) {
+        return digits
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+
+    function formatCnpj(digits) {
+        return digits
+            .replace(/(\d{2})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1/$2')
+            .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+    }
+
+    function formatDocumentValue(value) {
+        let digits = onlyDigits(value).slice(0, 14);
+        if (!digits) return '';
+        return digits.length > 11 ? formatCnpj(digits) : formatCpf(digits);
+    }
+
+    function formatPhoneValue(value) {
+        let digits = onlyDigits(value).slice(0, 11);
+        if (!digits) return '';
+
+        if (digits.length > 10) {
+            return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').trim();
+        }
+
+        if (digits.length > 6) {
+            return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').trim();
+        }
+
+        if (digits.length > 2) {
+            return digits.replace(/(\d{2})(\d{0,5})/, '($1) $2').trim();
+        }
+
+        return digits;
+    }
+
+    function formatReferenceValue(value) {
+        const digits = onlyDigits(value).slice(0, 6);
+        if (!digits) return '';
+        if (digits.length <= 2) return digits;
+        return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+
+    function setFillClientFeedback(message, tone = 'neutral') {
+        if (!fillClientFeedback) return;
+
+        const tones = {
+            neutral: 'mt-2 text-xs text-gray-500 dark:text-gray-400',
+            success: 'mt-2 text-xs text-success-600 dark:text-success-400',
+            error: 'mt-2 text-xs text-error-600 dark:text-error-400',
+        };
+
+        fillClientFeedback.className = tones[tone] || tones.neutral;
+        fillClientFeedback.textContent = message;
+    }
+
     function bindDecimalMasks(scope = form) {
         scope.querySelectorAll('[data-decimal-mask]').forEach((input) => {
             if (input.dataset.decimalBound === '1') return;
@@ -365,6 +429,62 @@
                 input.value = formatDecimalValue(input.value);
             });
         });
+    }
+
+    function bindDocumentMasks(scope = form) {
+        scope.querySelectorAll('[data-document-mask]').forEach((input) => {
+            if (input.dataset.documentBound === '1') return;
+            input.dataset.documentBound = '1';
+            input.value = formatDocumentValue(input.value);
+            input.addEventListener('input', () => {
+                input.value = formatDocumentValue(input.value);
+            });
+            input.addEventListener('blur', () => {
+                input.value = formatDocumentValue(input.value);
+            });
+        });
+    }
+
+    function bindPhoneMasks(scope = form) {
+        scope.querySelectorAll('[data-phone-mask]').forEach((input) => {
+            if (input.dataset.phoneBound === '1') return;
+            input.dataset.phoneBound = '1';
+            input.value = formatPhoneValue(input.value);
+            input.addEventListener('input', () => {
+                input.value = formatPhoneValue(input.value);
+            });
+            input.addEventListener('blur', () => {
+                input.value = formatPhoneValue(input.value);
+            });
+        });
+    }
+
+    function bindReferenceMasks(scope = form) {
+        scope.querySelectorAll('[data-reference-mask]').forEach((input) => {
+            if (input.dataset.referenceBound === '1') return;
+            input.dataset.referenceBound = '1';
+            input.value = formatReferenceValue(input.value);
+            input.addEventListener('input', () => {
+                input.value = formatReferenceValue(input.value);
+            });
+            input.addEventListener('blur', () => {
+                input.value = formatReferenceValue(input.value);
+            });
+        });
+    }
+
+    function updateFillClientButtonState() {
+        if (!fillClientDataButton) return;
+
+        const hasClient = clientMap.has(String(clientSelect?.value || ''));
+        fillClientDataButton.disabled = !hasClient;
+
+        if (!hasClient) {
+            setFillClientFeedback('Selecione um cliente avulso para copiar nome, documento, e-mail e telefone do cadastro.');
+            return;
+        }
+
+        setFillClientFeedback('Cliente selecionado. Clique no botao para sobrescrever os dados manuais com o cadastro.');
     }
 
     function updateConditionalFields() {
@@ -397,12 +517,25 @@
 
     function fillClientData(force = false) {
         const client = clientMap.get(String(clientSelect?.value || ''));
-        if (!client) return;
+        if (!client) {
+            if (force) {
+                setFillClientFeedback('Selecione um cliente avulso antes de usar o preenchimento automatico.', 'error');
+                clientSelect?.focus();
+            }
+            return;
+        }
 
         if (force || !debtorName.value) debtorName.value = client.name || '';
         if (force || !debtorDocument.value) debtorDocument.value = client.document || '';
         if (force || !debtorEmail.value) debtorEmail.value = client.email || '';
         if (force || !debtorPhone.value) debtorPhone.value = client.phone || '';
+
+        debtorDocument.value = formatDocumentValue(debtorDocument.value);
+        debtorPhone.value = formatPhoneValue(debtorPhone.value);
+
+        if (force) {
+            setFillClientFeedback(`Dados de ${client.name || 'cliente selecionado'} aplicados ao formulario.`, 'success');
+        }
     }
 
     function createQuotaRow(index) {
@@ -420,7 +553,7 @@
                 </div>
                 <div>
                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Competencia / referencia</label>
-                    <input type="text" name="quotas[${index}][reference_label]" placeholder="mm/aaaa" class="{{ $inputClass }}">
+                    <input type="text" name="quotas[${index}][reference_label]" placeholder="MM/AAAA" class="{{ $inputClass }}" inputmode="numeric" maxlength="7" data-reference-mask>
                 </div>
                 <div>
                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Vencimento</label>
@@ -436,6 +569,7 @@
             </div>
         `;
         bindDecimalMasks(wrapper);
+        bindReferenceMasks(wrapper);
         return wrapper;
     }
 
@@ -518,11 +652,18 @@
     }
 
     bindDecimalMasks();
+    bindDocumentMasks();
+    bindPhoneMasks();
+    bindReferenceMasks();
     updateConditionalFields();
+    updateFillClientButtonState();
     fillClientData(false);
 
     fillClientDataButton?.addEventListener('click', () => fillClientData(true));
-    clientSelect?.addEventListener('change', () => fillClientData(false));
+    clientSelect?.addEventListener('change', () => {
+        updateFillClientButtonState();
+        fillClientData(false);
+    });
     interestType?.addEventListener('change', updateConditionalFields);
     attorneyFeeType?.addEventListener('change', updateConditionalFields);
     previewButton?.addEventListener('click', previewCalculation);
