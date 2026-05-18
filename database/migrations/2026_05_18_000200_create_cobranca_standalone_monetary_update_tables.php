@@ -13,7 +13,7 @@ return new class extends Migration
         if (!Schema::hasTable('cobranca_standalone_monetary_updates')) {
             Schema::create('cobranca_standalone_monetary_updates', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('client_entity_id')->nullable();
+                $table->unsignedInteger('client_entity_id')->nullable();
                 $table->string('title', 180);
                 $table->text('description')->nullable();
                 $table->string('debtor_name_snapshot', 180);
@@ -46,10 +46,10 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->index(['client_entity_id', 'created_at'], 'idx_cobranca_standalone_updates_client_created');
-                $table->foreign('client_entity_id')->references('id')->on('client_entities')->nullOnDelete();
-                $table->foreign('generated_by')->references('id')->on('users')->nullOnDelete();
             });
         }
+
+        $this->syncStandaloneUpdateForeignKeys();
 
         if (!Schema::hasTable('cobranca_standalone_monetary_update_items')) {
             Schema::create('cobranca_standalone_monetary_update_items', function (Blueprint $table) {
@@ -70,10 +70,10 @@ return new class extends Migration
                 $table->timestamp('created_at')->nullable()->useCurrent();
 
                 $table->index('cobranca_standalone_monetary_update_id', 'idx_cobranca_standalone_update_items_update');
-                $table->foreign('cobranca_standalone_monetary_update_id', 'fk_cobranca_standalone_update_items_update')
-                    ->references('id')->on('cobranca_standalone_monetary_updates')->cascadeOnDelete();
             });
         }
+
+        $this->syncStandaloneItemForeignKeys();
 
         $this->syncRoutePermissions();
     }
@@ -98,5 +98,78 @@ return new class extends Migration
                 );
             }
         }
+    }
+
+    private function syncStandaloneUpdateForeignKeys(): void
+    {
+        if (!Schema::hasTable('cobranca_standalone_monetary_updates')) {
+            return;
+        }
+
+        DB::statement('ALTER TABLE `cobranca_standalone_monetary_updates` MODIFY `client_entity_id` INT UNSIGNED NULL');
+        DB::statement('ALTER TABLE `cobranca_standalone_monetary_updates` MODIFY `generated_by` BIGINT UNSIGNED NULL');
+
+        if (!$this->indexExists('cobranca_standalone_monetary_updates', 'idx_cobranca_standalone_updates_client_created')) {
+            Schema::table('cobranca_standalone_monetary_updates', function (Blueprint $table) {
+                $table->index(['client_entity_id', 'created_at'], 'idx_cobranca_standalone_updates_client_created');
+            });
+        }
+
+        if (!$this->foreignKeyExists('cobranca_standalone_monetary_updates', 'cobranca_standalone_monetary_updates_client_entity_id_foreign')) {
+            Schema::table('cobranca_standalone_monetary_updates', function (Blueprint $table) {
+                $table->foreign('client_entity_id')->references('id')->on('client_entities')->nullOnDelete();
+            });
+        }
+
+        if (!$this->foreignKeyExists('cobranca_standalone_monetary_updates', 'cobranca_standalone_monetary_updates_generated_by_foreign')) {
+            Schema::table('cobranca_standalone_monetary_updates', function (Blueprint $table) {
+                $table->foreign('generated_by')->references('id')->on('users')->nullOnDelete();
+            });
+        }
+    }
+
+    private function syncStandaloneItemForeignKeys(): void
+    {
+        if (!Schema::hasTable('cobranca_standalone_monetary_update_items')) {
+            return;
+        }
+
+        DB::statement('ALTER TABLE `cobranca_standalone_monetary_update_items` MODIFY `cobranca_standalone_monetary_update_id` BIGINT UNSIGNED NOT NULL');
+
+        if (!$this->indexExists('cobranca_standalone_monetary_update_items', 'idx_cobranca_standalone_update_items_update')) {
+            Schema::table('cobranca_standalone_monetary_update_items', function (Blueprint $table) {
+                $table->index('cobranca_standalone_monetary_update_id', 'idx_cobranca_standalone_update_items_update');
+            });
+        }
+
+        if (!$this->foreignKeyExists('cobranca_standalone_monetary_update_items', 'fk_cobranca_standalone_update_items_update')) {
+            Schema::table('cobranca_standalone_monetary_update_items', function (Blueprint $table) {
+                $table->foreign('cobranca_standalone_monetary_update_id', 'fk_cobranca_standalone_update_items_update')
+                    ->references('id')->on('cobranca_standalone_monetary_updates')->cascadeOnDelete();
+            });
+        }
+    }
+
+    private function foreignKeyExists(string $tableName, string $constraintName): bool
+    {
+        $schema = (string) DB::getDatabaseName();
+
+        return DB::table('information_schema.TABLE_CONSTRAINTS')
+            ->where('CONSTRAINT_SCHEMA', $schema)
+            ->where('TABLE_NAME', $tableName)
+            ->where('CONSTRAINT_NAME', $constraintName)
+            ->where('CONSTRAINT_TYPE', 'FOREIGN KEY')
+            ->exists();
+    }
+
+    private function indexExists(string $tableName, string $indexName): bool
+    {
+        $schema = (string) DB::getDatabaseName();
+
+        return DB::table('information_schema.STATISTICS')
+            ->where('TABLE_SCHEMA', $schema)
+            ->where('TABLE_NAME', $tableName)
+            ->where('INDEX_NAME', $indexName)
+            ->exists();
     }
 };
