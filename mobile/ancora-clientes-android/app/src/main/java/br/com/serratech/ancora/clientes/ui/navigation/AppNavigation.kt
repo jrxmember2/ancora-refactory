@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -117,15 +118,17 @@ data class AppUiState(
     val unreadNotifications: Int = 0,
     val showBiometricOptIn: Boolean = false,
     val navigationTarget: NavigationTarget? = null,
+    val pendingPushRoute: String? = null,
 )
 
 class AppViewModel(
     private val container: AppContainer,
     initialExtras: Bundle?,
 ) : ViewModel() {
+    private val initialPushTarget = initialExtras.toNotificationTarget()
     private val _uiState = MutableStateFlow(
         AppUiState(
-            navigationTarget = initialExtras.toNotificationTarget()?.let { NavigationTarget(it.route, clearBackStack = false) },
+            pendingPushRoute = initialPushTarget?.route,
         )
     )
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
@@ -157,6 +160,7 @@ class AppViewModel(
                     sessionUser = null,
                     unreadNotifications = 0,
                     navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
+                    pendingPushRoute = _uiState.value.pendingPushRoute,
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
@@ -164,6 +168,11 @@ class AppViewModel(
                     launchDestination = destination,
                     sessionUser = user,
                     unreadNotifications = unreadCount,
+                    navigationTarget = if (destination == LaunchDestination.Home && _uiState.value.pendingPushRoute != null) {
+                        NavigationTarget(_uiState.value.pendingPushRoute ?: AppRoutes.Dashboard, clearBackStack = false)
+                    } else {
+                        null
+                    },
                 )
             }
         }
@@ -175,6 +184,7 @@ class AppViewModel(
             sessionUser = null,
             unreadNotifications = 0,
             navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
+            pendingPushRoute = null,
         )
     }
 
@@ -182,12 +192,13 @@ class AppViewModel(
         viewModelScope.launch {
             val shouldOfferBiometric = !container.preferences.wasBiometricPrompted()
             val unreadCount = runCatching { container.notificationRepository.unreadCount() }.getOrDefault(0)
+            val targetRoute = _uiState.value.pendingPushRoute ?: AppRoutes.Dashboard
             _uiState.value = _uiState.value.copy(
                 launchDestination = LaunchDestination.Home,
                 sessionUser = user,
                 unreadNotifications = unreadCount,
                 showBiometricOptIn = shouldOfferBiometric,
-                navigationTarget = NavigationTarget(AppRoutes.Dashboard, clearBackStack = true),
+                navigationTarget = NavigationTarget(targetRoute, clearBackStack = true),
             )
         }
     }
@@ -218,9 +229,10 @@ class AppViewModel(
 
     fun onBiometricUnlocked() {
         container.pushNotifier.registerCurrentDevice()
+        val targetRoute = _uiState.value.pendingPushRoute ?: AppRoutes.Dashboard
         _uiState.value = _uiState.value.copy(
             launchDestination = LaunchDestination.Home,
-            navigationTarget = NavigationTarget(AppRoutes.Dashboard, clearBackStack = true),
+            navigationTarget = NavigationTarget(targetRoute, clearBackStack = true),
         )
     }
 
@@ -241,20 +253,26 @@ class AppViewModel(
                 unreadNotifications = 0,
                 showBiometricOptIn = false,
                 navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
+                pendingPushRoute = null,
             )
         }
     }
 
     fun applyNotificationIntent(extras: Bundle?) {
         extras.toNotificationTarget()?.let { target ->
+            val canNavigateNow = _uiState.value.launchDestination == LaunchDestination.Home && _uiState.value.sessionUser != null
             _uiState.value = _uiState.value.copy(
-                navigationTarget = NavigationTarget(target.route, clearBackStack = false),
+                pendingPushRoute = target.route,
+                navigationTarget = if (canNavigateNow) NavigationTarget(target.route, clearBackStack = false) else _uiState.value.navigationTarget,
             )
         }
     }
 
-    fun consumeNavigationTarget() {
-        _uiState.value = _uiState.value.copy(navigationTarget = null)
+    fun consumeNavigationTarget(navigatedRoute: String? = null) {
+        _uiState.value = _uiState.value.copy(
+            navigationTarget = null,
+            pendingPushRoute = if (navigatedRoute != null && navigatedRoute == _uiState.value.pendingPushRoute) null else _uiState.value.pendingPushRoute,
+        )
     }
 
     private fun LaunchDestination.toRoute(): String = when (this) {
@@ -267,6 +285,8 @@ class AppViewModel(
     private fun Bundle?.toNotificationTarget(): NotificationTarget? {
         if (this == null) return null
 
+        parseDeepLink(getString("deep_link").orEmpty(), getString("target_id").orEmpty())?.let { return it }
+
         val screen = getString("screen").orEmpty()
         val processId = getString("process_id").orEmpty()
         val demandId = getString("demand_id").orEmpty()
@@ -277,6 +297,31 @@ class AppViewModel(
             screen == "leme" -> NotificationTarget(AppRoutes.Leme)
             screen == "notifications" || screen.isNotBlank() -> NotificationTarget(AppRoutes.Notifications)
             else -> null
+        }
+    }
+
+    private fun parseDeepLink(deepLink: String, targetId: String): NotificationTarget? {
+        if (deepLink.isBlank()) {
+            return null
+        }
+
+        val uri = runCatching { Uri.parse(deepLink) }.getOrNull() ?: return null
+        if (!uri.scheme.equals("app", ignoreCase = true)) {
+            return null
+        }
+
+        return when (uri.host?.lowercase()) {
+            "notifications" -> NotificationTarget(AppRoutes.Notifications)
+            "leme" -> NotificationTarget(AppRoutes.Leme)
+            "processes" -> {
+                val processId = uri.lastPathSegment?.toLongOrNull() ?: targetId.toLongOrNull()
+                processId?.let { NotificationTarget(AppRoutes.processDetail(it)) } ?: NotificationTarget(AppRoutes.Processes)
+            }
+            "demands" -> {
+                val demandId = uri.lastPathSegment?.toLongOrNull() ?: targetId.toLongOrNull()
+                demandId?.let { NotificationTarget(AppRoutes.demandDetail(it)) } ?: NotificationTarget(AppRoutes.Demands)
+            }
+            else -> NotificationTarget(AppRoutes.Notifications)
         }
     }
 }
@@ -333,7 +378,7 @@ fun AncoraClientesApp(
 
         uiState.navigationTarget?.let { target ->
             if (currentRoute == target.route) {
-                appViewModel.consumeNavigationTarget()
+                appViewModel.consumeNavigationTarget(target.route)
             } else {
                 navController.navigate(target.route) {
                     launchSingleTop = true
@@ -344,7 +389,7 @@ fun AncoraClientesApp(
                         }
                     }
                 }
-                appViewModel.consumeNavigationTarget()
+                appViewModel.consumeNavigationTarget(target.route)
             }
         }
     }

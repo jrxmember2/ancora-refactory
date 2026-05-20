@@ -19,6 +19,7 @@
             ['key' => 'users', 'label' => 'Usuarios e acesso', 'icon' => 'fa-solid fa-user-shield', 'description' => 'Usuarios, perfis e SMTP'],
             ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini, prompts e base legal', 'href' => route('config.ai.index')],
             ['key' => 'evolution', 'label' => 'EvolutionAPI', 'icon' => 'fa-brands fa-whatsapp', 'description' => 'Credenciais, webhook, templates e testes', 'href' => route('config.evolution.index')],
+            ['key' => 'push', 'label' => 'Notificacoes Push', 'icon' => 'fa-solid fa-bell', 'description' => 'Disparo mobile para o app Android', 'href' => route('config.push.index')],
         ];
     @endphp
 

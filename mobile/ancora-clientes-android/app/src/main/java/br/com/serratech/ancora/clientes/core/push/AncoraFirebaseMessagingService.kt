@@ -11,8 +11,8 @@ class AncoraFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         PushNotifier(applicationContext).showNotification(
-            title = message.notification?.title ?: message.data["title"].orEmpty(),
-            body = message.notification?.body ?: message.data["body"].orEmpty(),
+            title = message.data["title"]?.takeIf { it.isNotBlank() } ?: message.notification?.title.orEmpty(),
+            body = message.data["body"]?.takeIf { it.isNotBlank() } ?: message.notification?.body.orEmpty(),
             data = message.data,
         )
     }

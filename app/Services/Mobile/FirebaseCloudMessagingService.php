@@ -16,6 +16,22 @@ class FirebaseCloudMessagingService
 
     public function sendToToken(string $token, array $notification, array $data = []): array
     {
+        return $this->sendMessageToToken($token, $notification, $data, [
+            'priority' => 'HIGH',
+            'channel_id' => 'ancora_clientes_updates',
+            'click_action' => 'OPEN_APP',
+        ]);
+    }
+
+    public function sendDataMessageToToken(string $token, array $data = []): array
+    {
+        return $this->sendMessageToToken($token, null, $data, [
+            'priority' => 'HIGH',
+        ]);
+    }
+
+    private function sendMessageToToken(string $token, ?array $notification, array $data, array $androidOptions): array
+    {
         if (!$this->enabled()) {
             return [
                 'ok' => false,
@@ -36,23 +52,29 @@ class FirebaseCloudMessagingService
         }
 
         $projectId = trim((string) config('services.fcm.project_id'));
-        $payload = [
-            'message' => [
-                'token' => $token,
-                'notification' => [
-                    'title' => (string) ($notification['title'] ?? ''),
-                    'body' => (string) ($notification['body'] ?? ''),
-                ],
-                'data' => $this->normalizeData($data),
-                'android' => [
-                    'priority' => 'HIGH',
-                    'notification' => [
-                        'channel_id' => 'ancora_clientes_updates',
-                        'click_action' => 'OPEN_APP',
-                    ],
-                ],
+        $message = [
+            'token' => $token,
+            'data' => $this->normalizeData($data),
+            'android' => [
+                'priority' => (string) ($androidOptions['priority'] ?? 'HIGH'),
             ],
         ];
+
+        if (is_array($notification)) {
+            $message['notification'] = [
+                'title' => (string) ($notification['title'] ?? ''),
+                'body' => (string) ($notification['body'] ?? ''),
+            ];
+        }
+
+        if (!empty($androidOptions['channel_id']) || !empty($androidOptions['click_action'])) {
+            $message['android']['notification'] = array_filter([
+                'channel_id' => (string) ($androidOptions['channel_id'] ?? ''),
+                'click_action' => (string) ($androidOptions['click_action'] ?? ''),
+            ], fn ($value) => trim((string) $value) !== '');
+        }
+
+        $payload = ['message' => $message];
 
         $response = Http::withToken($accessToken)
             ->acceptJson()
@@ -158,6 +180,18 @@ class FirebaseCloudMessagingService
 
     private function responseIndicatesInvalidToken(mixed $payload): bool
     {
+        if (is_array($payload)) {
+            $details = data_get($payload, 'error.details', []);
+            if (is_array($details)) {
+                foreach ($details as $detail) {
+                    $errorCode = strtoupper(trim((string) data_get($detail, 'errorCode', '')));
+                    if (in_array($errorCode, ['UNREGISTERED', 'REGISTRATION_TOKEN_NOT_REGISTERED'], true)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
         $string = json_encode($payload);
         if (!is_string($string)) {
             return false;
@@ -167,7 +201,8 @@ class FirebaseCloudMessagingService
 
         return str_contains($normalized, 'unregistered')
             || str_contains($normalized, 'registration-token-not-registered')
-            || str_contains($normalized, 'invalid registration token');
+            || str_contains($normalized, 'invalid registration token')
+            || str_contains($normalized, 'requested entity was not found');
     }
 
     private function base64UrlEncode(string $value): string

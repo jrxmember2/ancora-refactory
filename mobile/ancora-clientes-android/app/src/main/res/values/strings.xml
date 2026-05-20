@@ -5,4 +5,9 @@
     <string name="biometric_negative">Entrar com senha</string>
     <string name="notification_channel_name">Atualizações do portal</string>
     <string name="notification_channel_description">Push de processos, solicitações e notificações do portal.</string>
+    <string name="notification_channel_general_name">Comunicados do Âncora</string>
+    <string name="notification_channel_general_description">Avisos gerais e novidades enviadas pelo Portal do Cliente.</string>
+    <string name="notification_channel_important_name">Avisos importantes</string>
+    <string name="notification_channel_important_description">Notificações de alta prioridade, incluindo emergências e convocações relevantes.</string>
+    <string name="notification_fallback_title">Âncora Clientes</string>
 </resources>
