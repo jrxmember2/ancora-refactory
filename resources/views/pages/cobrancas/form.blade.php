@@ -21,13 +21,90 @@
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados principais da OS</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Selecione o condomínio, depois o bloco quando existir, e por fim a unidade.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" data-cobranca-mode-description>Selecione o condomínio, depois o bloco quando existir, e por fim a unidade.</p>
             </div>
-            <div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-200">
+            <div data-cobranca-condominial-badge class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700 dark:border-brand-900/60 dark:bg-brand-500/10 dark:text-brand-200">
                 O devedor da cobrança será sempre o <strong>proprietário da unidade</strong>.
+            </div>
+            <div data-cobranca-avulsa-badge class="hidden rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800 dark:border-warning-900/50 dark:bg-warning-500/10 dark:text-warning-200">
+                A cobranca avulsa nao fica vinculada a condominio, bloco ou unidade.
             </div>
         </div>
 
+        <div data-cobranca-avulsa-section class="hidden">
+            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div class="xl:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome completo *</label>
+                    <input type="text" name="avulsa_name" value="{{ $formData['avulsa_name'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Nome completo do devedor">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">RG</label>
+                    <input type="text" name="avulsa_rg" value="{{ $formData['avulsa_rg'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="RG">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CPF</label>
+                    <input type="text" name="avulsa_cpf" value="{{ $formData['avulsa_cpf'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="CPF">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CNH</label>
+                    <input type="text" name="avulsa_cnh" value="{{ $formData['avulsa_cnh'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Preencha CPF ou CNH">
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Informe CPF ou CNH para seguir com a cobrança avulsa.</p>
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Data de nascimento</label>
+                    <input type="date" name="avulsa_birth_date" value="{{ $formData['avulsa_birth_date'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CEP</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="avulsa_address_zip" value="{{ $formData['avulsa_address_zip'] ?? '' }}" data-avulsa-zip class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="00000-000">
+                        <button type="button" data-avulsa-zip-search class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="xl:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Endereco completo</label>
+                    <input type="text" name="avulsa_address_street" value="{{ $formData['avulsa_address_street'] ?? '' }}" data-avulsa-address-street class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Rua / logradouro">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Numero</label>
+                    <input type="text" name="avulsa_address_number" value="{{ $formData['avulsa_address_number'] ?? '' }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Numero">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Complemento</label>
+                    <input type="text" name="avulsa_address_complement" value="{{ $formData['avulsa_address_complement'] ?? '' }}" data-avulsa-address-complement class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Complemento">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bairro</label>
+                    <input type="text" name="avulsa_address_neighborhood" value="{{ $formData['avulsa_address_neighborhood'] ?? '' }}" data-avulsa-address-neighborhood class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Bairro">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cidade</label>
+                    <input type="text" name="avulsa_address_city" value="{{ $formData['avulsa_address_city'] ?? '' }}" data-avulsa-address-city class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white" placeholder="Cidade">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">UF</label>
+                    <input type="text" name="avulsa_address_state" value="{{ $formData['avulsa_address_state'] ?? '' }}" data-avulsa-address-state maxlength="2" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm uppercase text-gray-800 dark:border-gray-700 dark:text-white" placeholder="UF">
+                </div>
+                <div class="md:col-span-2 xl:col-span-3 text-xs text-gray-500 dark:text-gray-400" data-avulsa-zip-feedback>
+                    Preencha manualmente ou use a lupa para buscar o endereco pelo CEP.
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Modalidade da cobranca</label>
+                <select name="case_mode" id="case-mode" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
+                    @foreach($caseModeLabels as $key => $label)
+                        <option value="{{ $key }}" @selected(($formData['case_mode'] ?? 'condominial') === $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div data-cobranca-condominial-section>
         <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Condomínio</label>
@@ -95,6 +172,7 @@
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Observações</label>
                 <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 dark:border-gray-700 dark:text-white">{{ $formData['notes'] ?? '' }}</textarea>
             </div>
+        </div>
         </div>
     </div>
 
@@ -208,7 +286,7 @@
     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Quotas em aberto</h3>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white" data-quota-section-title>Quotas em aberto</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Campos ampliados para facilitar referência, vencimento e valores.</p>
             </div>
             <button type="button" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-repeater-add="quotas"><i class="fa-solid fa-plus"></i></button>
@@ -242,7 +320,7 @@
                     </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
                         <div>
-                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo da quota</label>
+                            <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" data-quota-kind-label>Tipo da quota</label>
                             <select name="quotas[{{ $index }}][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                                 @foreach($quotaStatusLabels as $key => $label)
                                     <option value="{{ $key }}" @selected(($row['status'] ?? '') === $key)>{{ $label }}</option>
@@ -289,7 +367,7 @@
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_120px]">
                     <div>
-                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tipo da quota</label>
+                        <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" data-quota-kind-label>Tipo da quota</label>
                         <select name="quotas[__INDEX__][status]" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
                             @foreach($quotaStatusLabels as $key => $label)
                                 <option value="{{ $key }}">{{ $label }}</option>
@@ -552,9 +630,16 @@
     const unitHint = document.getElementById('unit-hint');
     const ownerSummary = document.getElementById('owner-summary');
     const ownerContactSummary = document.getElementById('owner-contact-summary');
+    const form = document.getElementById('cobranca-form');
+    const caseModeSelect = document.getElementById('case-mode');
+    const caseModeRow = caseModeSelect?.closest('.mt-5');
+    const caseModeDescription = document.querySelector('[data-cobranca-mode-description]');
+    const condominialSection = document.querySelector('[data-cobranca-condominial-section]');
+    const avulsaSection = document.querySelector('[data-cobranca-avulsa-section]');
+    const condominialBadge = document.querySelector('[data-cobranca-condominial-badge]');
+    const avulsaBadge = document.querySelector('[data-cobranca-avulsa-badge]');
     const chargeType = document.getElementById('charge-type');
     const judicialField = document.getElementById('judicial-case-field');
-    const form = document.getElementById('cobranca-form');
     const agreementTotalInput = form?.querySelector('[name="agreement_total"]');
     const entryDueDateInput = form?.querySelector('[name="entry_due_date"]');
     const entryAmountInput = form?.querySelector('[name="entry_amount"]');
@@ -570,6 +655,26 @@
     const autoSplitCount = document.getElementById('auto-split-count');
     const autoSplitStartDate = document.getElementById('auto-split-start-date');
     const autoSplitCancel = document.getElementById('auto-split-cancel');
+    const quotaSectionTitle = document.querySelector('[data-quota-section-title]');
+    const avulsaNameInput = form?.querySelector('[name="avulsa_name"]');
+    const avulsaZipInput = form?.querySelector('[data-avulsa-zip]');
+    const avulsaZipSearchButton = form?.querySelector('[data-avulsa-zip-search]');
+    const avulsaZipFeedback = form?.querySelector('[data-avulsa-zip-feedback]');
+    const avulsaStreetInput = form?.querySelector('[data-avulsa-address-street]');
+    const avulsaNumberInput = form?.querySelector('[name="avulsa_address_number"]');
+    const avulsaComplementInput = form?.querySelector('[data-avulsa-address-complement]');
+    const avulsaNeighborhoodInput = form?.querySelector('[data-avulsa-address-neighborhood]');
+    const avulsaCityInput = form?.querySelector('[data-avulsa-address-city]');
+    const avulsaStateInput = form?.querySelector('[data-avulsa-address-state]');
+    let lastCondominiumSelection = {
+        condominiumId: '',
+        blockId: '',
+        unitId: initialUnitId,
+    };
+
+    if (caseModeRow && avulsaSection) {
+        caseModeRow.after(avulsaSection);
+    }
 
     function moneyDigits(value) {
         return String(value || '').replace(/\D+/g, '');
@@ -726,6 +831,152 @@
                 input.value = normalizeEmailValue(input.value);
             });
         });
+    }
+
+    function currentCaseMode() {
+        return caseModeSelect?.value === 'avulsa' ? 'avulsa' : 'condominial';
+    }
+
+    function quotaKindLabels() {
+        return Array.from(document.querySelectorAll('[data-quota-kind-label]'));
+    }
+
+    function formatZipValue(value) {
+        const digits = onlyDigits(value).slice(0, 8);
+        if (digits.length <= 5) {
+            return digits;
+        }
+
+        return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    }
+
+    function setAvulsaZipFeedback(message, tone = 'neutral') {
+        if (!avulsaZipFeedback) {
+            return;
+        }
+
+        avulsaZipFeedback.textContent = message;
+        avulsaZipFeedback.className = {
+            success: 'md:col-span-2 xl:col-span-3 text-xs text-success-700 dark:text-success-300',
+            error: 'md:col-span-2 xl:col-span-3 text-xs text-error-700 dark:text-error-300',
+            loading: 'md:col-span-2 xl:col-span-3 text-xs text-brand-700 dark:text-brand-300',
+        }[tone] || 'md:col-span-2 xl:col-span-3 text-xs text-gray-500 dark:text-gray-400';
+    }
+
+    function rememberCondominiumSelection() {
+        lastCondominiumSelection = {
+            condominiumId: condominiumSelect?.value || '',
+            blockId: blockSelect?.value || '',
+            unitId: unitIdHidden?.value || unitSelect?.value || '',
+        };
+    }
+
+    function restoreCondominiumSelection() {
+        if (!condominiumSelect) {
+            return;
+        }
+
+        const selection = lastCondominiumSelection;
+        if (!selection.condominiumId && !selection.unitId) {
+            handleCondominiumChange('', '');
+            return;
+        }
+
+        if (selection.unitId && !selection.condominiumId) {
+            const found = findUnitSelectionById(selection.unitId);
+            if (found) {
+                lastCondominiumSelection = found;
+            }
+        }
+
+        condominiumSelect.value = lastCondominiumSelection.condominiumId || '';
+        handleCondominiumChange(lastCondominiumSelection.blockId || '', lastCondominiumSelection.unitId || '');
+
+        if (lastCondominiumSelection.blockId && blockSelect) {
+            blockSelect.value = lastCondominiumSelection.blockId;
+            populateUnits(lastCondominiumSelection.condominiumId || '', lastCondominiumSelection.blockId, lastCondominiumSelection.unitId || '');
+        }
+    }
+
+    function updateQuotaLabels() {
+        const isAvulsa = currentCaseMode() === 'avulsa';
+
+        if (quotaSectionTitle) {
+            quotaSectionTitle.textContent = isAvulsa ? 'Debitos em aberto' : 'Quotas em aberto';
+        }
+
+        quotaKindLabels().forEach((label) => {
+            label.textContent = isAvulsa ? 'Tipo do debito' : 'Tipo da quota';
+        });
+    }
+
+    function syncCaseMode() {
+        const isAvulsa = currentCaseMode() === 'avulsa';
+
+        condominialSection?.classList.toggle('hidden', isAvulsa);
+        avulsaSection?.classList.toggle('hidden', !isAvulsa);
+        condominialBadge?.classList.toggle('hidden', isAvulsa);
+        avulsaBadge?.classList.toggle('hidden', !isAvulsa);
+
+        if (caseModeDescription) {
+            caseModeDescription.textContent = isAvulsa
+                ? 'Preencha os dados do devedor e do endereco da cobranca avulsa.'
+                : 'Selecione o condominio, depois o bloco quando existir, e por fim a unidade.';
+        }
+
+        if (avulsaNameInput) {
+            avulsaNameInput.required = isAvulsa;
+        }
+
+        if (isAvulsa) {
+            rememberCondominiumSelection();
+            if (unitIdHidden) unitIdHidden.value = '';
+            if (condominiumSelect) condominiumSelect.value = '';
+            if (blockSelect) blockSelect.value = '';
+            if (unitSelect) unitSelect.value = '';
+        } else {
+            restoreCondominiumSelection();
+        }
+
+        updateQuotaLabels();
+        syncOwnerSummary();
+    }
+
+    async function fetchAvulsaAddress() {
+        const digits = onlyDigits(avulsaZipInput?.value || '').slice(0, 8);
+
+        if (digits.length !== 8) {
+            setAvulsaZipFeedback('Informe um CEP com 8 digitos para buscar o endereco.', 'error');
+            avulsaZipInput?.focus();
+            return;
+        }
+
+        setAvulsaZipFeedback('Buscando endereco pelo CEP...', 'loading');
+
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+            if (!response.ok) {
+                throw new Error('zip_lookup_failed');
+            }
+
+            const payload = await response.json();
+            if (payload?.erro) {
+                setAvulsaZipFeedback('CEP nao encontrado. Confira o numero ou preencha manualmente.', 'error');
+                return;
+            }
+
+            if (avulsaZipInput) avulsaZipInput.value = formatZipValue(digits);
+            if (avulsaStreetInput && !avulsaStreetInput.value.trim()) avulsaStreetInput.value = payload.logradouro || '';
+            if (avulsaComplementInput && !avulsaComplementInput.value.trim()) avulsaComplementInput.value = payload.complemento || '';
+            if (avulsaNeighborhoodInput && !avulsaNeighborhoodInput.value.trim()) avulsaNeighborhoodInput.value = payload.bairro || '';
+            if (avulsaCityInput && !avulsaCityInput.value.trim()) avulsaCityInput.value = payload.localidade || '';
+            if (avulsaStateInput && !avulsaStateInput.value.trim()) avulsaStateInput.value = String(payload.uf || '').toUpperCase();
+
+            setAvulsaZipFeedback('Endereco localizado. Confira numero e complemento antes de salvar.', 'success');
+            avulsaNumberInput?.focus();
+        } catch (error) {
+            setAvulsaZipFeedback('Nao foi possivel consultar o CEP agora. Preencha o endereco manualmente.', 'error');
+        }
     }
 
     function updateChargeType() {
@@ -885,6 +1136,7 @@
     }
 
     function seedNotificationContactsFromSelectedUnit() {
+        if (currentCaseMode() !== 'condominial') return;
         if (!isCreateMode) return;
         const option = unitSelect?.options?.[unitSelect.selectedIndex];
         if (!option || !option.value) return;
@@ -901,6 +1153,14 @@
     }
 
     function syncOwnerSummary() {
+        if (currentCaseMode() === 'avulsa') {
+            if (unitIdHidden) unitIdHidden.value = '';
+            ownerSummary.textContent = 'Preencha os dados do devedor avulso neste formulario.';
+            ownerContactSummary.textContent = 'Use os blocos de e-mail e telefone abaixo para registrar os contatos da notificacao.';
+            unitHint.textContent = 'Esta OS nao fica vinculada a condominio, bloco ou unidade.';
+            return;
+        }
+
         const option = unitSelect?.options?.[unitSelect.selectedIndex];
         if (!option || !option.value) {
             unitIdHidden.value = '';
@@ -944,6 +1204,7 @@
         const effectiveBlockId = hasBlocks ? (selectedBlockId || blockSelect?.value || '') : '';
         populateUnits(condominiumId, effectiveBlockId, selectedUnitId);
         syncOwnerSummary();
+        rememberCondominiumSelection();
     }
 
     function reindexRepeater(scope) {
@@ -1135,17 +1396,33 @@
         bindRemoveButtons(scope);
     }
 
+    caseModeSelect?.addEventListener('change', syncCaseMode);
     condominiumSelect?.addEventListener('change', () => handleCondominiumChange('', ''));
     blockSelect?.addEventListener('change', () => {
         populateUnits(condominiumSelect?.value || '', blockSelect?.value || '', '');
         syncOwnerSummary();
+        rememberCondominiumSelection();
     });
     unitSelect?.addEventListener('change', () => {
         syncOwnerSummary();
+        rememberCondominiumSelection();
         seedNotificationContactsFromSelectedUnit();
     });
     chargeType?.addEventListener('change', updateChargeType);
     entryStatusInput?.addEventListener('change', updateEntryStatusCustomField);
+    avulsaZipInput?.addEventListener('input', () => {
+        avulsaZipInput.value = formatZipValue(avulsaZipInput.value);
+        if (onlyDigits(avulsaZipInput.value).length < 8) {
+            setAvulsaZipFeedback('Preencha manualmente ou use a lupa para buscar o endereco pelo CEP.');
+        }
+    });
+    avulsaZipInput?.addEventListener('blur', () => {
+        avulsaZipInput.value = formatZipValue(avulsaZipInput.value);
+    });
+    avulsaZipSearchButton?.addEventListener('click', fetchAvulsaAddress);
+    avulsaStateInput?.addEventListener('input', () => {
+        avulsaStateInput.value = String(avulsaStateInput.value || '').toUpperCase().slice(0, 2);
+    });
     autoSplitButton?.addEventListener('click', openAutoSplitModal);
     autoSplitCancel?.addEventListener('click', () => autoSplitModal?.close());
     autoSplitForm?.addEventListener('submit', (event) => {
@@ -1160,6 +1437,7 @@
     });
     const selected = findUnitSelectionById(initialUnitId);
     if (selected && condominiumSelect) {
+        lastCondominiumSelection = selected;
         condominiumSelect.value = selected.condominiumId;
         handleCondominiumChange(selected.blockId, selected.unitId);
         if (selected.blockId && blockSelect) {
@@ -1180,9 +1458,12 @@
     bindPhoneMask(document);
     bindReferencePeriodMask(document);
     bindEmailNormalization(document);
+    if (avulsaZipInput) {
+        avulsaZipInput.value = formatZipValue(avulsaZipInput.value);
+    }
+    syncCaseMode();
     updatePaymentBalance();
-    syncOwnerSummary();
-    if (isCreateMode && initialUnitId) {
+    if (isCreateMode && initialUnitId && currentCaseMode() === 'condominial') {
         seedNotificationContactsFromSelectedUnit();
     }
 })();

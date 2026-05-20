@@ -9,7 +9,6 @@ use App\Models\FormaEnvio;
 use App\Models\Proposal;
 use App\Models\ProposalAttachment;
 use App\Models\ProposalHistory;
-use App\Models\Servico;
 use App\Models\StatusRetorno;
 use App\Services\ProposalDashboardService;
 use App\Services\ProposalService;
@@ -42,6 +41,7 @@ class ProposalController extends Controller
     public function dashboard(Request $request): View
     {
         $year = max(2020, (int) $request->integer('year', now()->year));
+
         return view('pages.propostas.dashboard', [
             'title' => 'Dashboard de Propostas',
             'summary' => ProposalDashboardService::summary($year),
@@ -69,6 +69,7 @@ class ProposalController extends Controller
                     ->orWhere('propostas.referral_name', 'like', "%{$term}%");
             });
         }
+
         foreach (['administradora_id', 'service_id', 'response_status_id', 'send_method_id'] as $filter) {
             if ((int) $request->integer($filter) > 0) {
                 $column = match ($filter) {
@@ -77,22 +78,34 @@ class ProposalController extends Controller
                     'send_method_id' => 'send_method_id',
                     default => 'administradora_id',
                 };
+
                 $query->where('propostas.' . $column, $request->integer($filter));
             }
         }
-        if ((int) $request->integer('year') > 0) $query->whereYear('propostas.proposal_date', (int) $request->integer('year'));
-        if ($request->filled('date_from')) $query->whereDate('propostas.proposal_date', '>=', $request->input('date_from'));
-        if ($request->filled('date_to')) $query->whereDate('propostas.proposal_date', '<=', $request->input('date_to'));
+
+        if ((int) $request->integer('year') > 0) {
+            $query->whereYear('propostas.proposal_date', (int) $request->integer('year'));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('propostas.proposal_date', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('propostas.proposal_date', '<=', $request->input('date_to'));
+        }
 
         $sortState = SortableQuery::apply($query, $request, [
-            'proposal' => 'propostas.proposal_code',
+            'proposal' => function ($query, string $direction) {
+                $query
+                    ->orderBy('propostas.proposal_year', $direction)
+                    ->orderBy('propostas.proposal_seq', $direction);
+            },
             'client' => 'propostas.client_name',
             'service' => 'proposal_service_sort.name',
             'status' => 'proposal_status_sort.name',
             'proposal_total' => 'propostas.proposal_total',
             'closed_total' => 'propostas.closed_total',
             'date' => 'propostas.proposal_date',
-        ], 'date', 'desc');
+        ], 'proposal', 'desc');
 
         $totalsQuery = clone $query;
         $proposals = $query->paginate(max(5, min(100, (int) $request->integer('per_page', 15))))->withQueryString();
@@ -130,16 +143,17 @@ class ProposalController extends Controller
             ->get();
 
         $filename = 'propostas_' . now()->format('Ymd_His') . '.csv';
+
         return response()->streamDownload(function () use ($items) {
             $out = fopen('php://output', 'wb');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Número', 'Data', 'Cliente', 'Indicação', 'Administradora', 'Serviço', 'Solicitante', 'Telefone', 'Email', 'Forma de envio', 'Status', 'Valor proposta', 'Valor fechado', 'Follow-up', 'Validade em dias'], ';');
+            fputcsv($out, ['Numero', 'Data', 'Cliente', 'Indicacao', 'Administradora', 'Servico', 'Solicitante', 'Telefone', 'Email', 'Forma de envio', 'Status', 'Valor proposta', 'Valor fechado', 'Follow-up', 'Validade em dias'], ';');
             foreach ($items as $item) {
                 fputcsv($out, [
                     $item->proposal_code,
                     optional($item->proposal_date)->format('d/m/Y'),
                     $item->client_name,
-                    $item->has_referral ? ($item->referral_name ?: 'Sim') : 'Não',
+                    $item->has_referral ? ($item->referral_name ?: 'Sim') : 'Nao',
                     $item->administradora_name,
                     $item->service_name,
                     $item->requester_name,
@@ -147,8 +161,8 @@ class ProposalController extends Controller
                     $item->contact_email,
                     $item->send_method_name,
                     $item->status_name,
-                    number_format((float) $item->proposal_total, 2, ',', '.'),
-                    $item->closed_total !== null ? number_format((float) $item->closed_total, 2, ',', '.') : '',
+                    $item->without_amount ? 'Sem valor' : number_format((float) $item->proposal_total, 2, ',', '.'),
+                    $item->without_amount ? '' : ($item->closed_total !== null ? number_format((float) $item->closed_total, 2, ',', '.') : ''),
                     optional($item->followup_date)->format('d/m/Y'),
                     (int) $item->validity_days,
                 ], ';');
@@ -171,17 +185,22 @@ class ProposalController extends Controller
     {
         $payload = ProposalService::payloadFromRequest($request);
         $errors = ProposalService::validate($payload);
-        if ($errors !== []) return back()->withInput()->with('errors_list', $errors);
+        if ($errors !== []) {
+            return back()->withInput()->with('errors_list', $errors);
+        }
+
         $user = AncoraAuth::user($request);
         $proposal = ProposalService::create($payload, (int) $user->id);
         $this->logAction($request, 'create_proposta', $proposal->id, 'Cadastro de nova proposta - ' . $proposal->proposal_code);
         $this->recordHistory($proposal->id, $user->id, $user->email, 'create', 'Proposta cadastrada.');
-        return redirect()->route('propostas.show', $proposal)->with('success', 'Proposta cadastrada com sucesso. Agora você já pode anexar PDFs.');
+
+        return redirect()->route('propostas.show', $proposal)->with('success', 'Proposta cadastrada com sucesso. Agora voce ja pode anexar PDFs.');
     }
 
     public function show(Proposal $proposta): View
     {
         $proposta->load(['administradora', 'servico', 'formaEnvio', 'statusRetorno', 'attachments', 'history']);
+
         return view('pages.propostas.show', [
             'title' => 'Proposta ' . $proposta->proposal_code,
             'proposal' => $proposta,
@@ -191,16 +210,19 @@ class ProposalController extends Controller
     public function printView(Proposal $proposta): View
     {
         $proposta->load(['administradora', 'servico', 'formaEnvio', 'statusRetorno', 'attachments', 'history']);
+
         return view('pages.propostas.print', ['proposal' => $proposta]);
     }
 
     public function edit(Proposal $proposta): View
     {
+        $proposta->load('history');
+
         return view('pages.propostas.form', array_merge([
             'title' => 'Editar proposta',
             'proposal' => $proposta,
             'action' => route('propostas.update', $proposta),
-            'submitLabel' => 'Salvar alterações',
+            'submitLabel' => 'Salvar alteracoes',
         ], $this->formDependencies($proposta)));
     }
 
@@ -208,30 +230,56 @@ class ProposalController extends Controller
     {
         $payload = ProposalService::payloadFromRequest($request);
         $errors = ProposalService::validate($payload);
-        if ($errors !== []) return back()->withInput()->with('errors_list', $errors);
+        $followupPayload = $this->proposalFollowupPayload($request);
+        if ($followupPayload['error']) {
+            $errors[] = $followupPayload['error'];
+        }
+
+        if ($errors !== []) {
+            return back()->withInput()->with('errors_list', $errors);
+        }
+
         $user = AncoraAuth::user($request);
         ProposalService::update($proposta, $payload, (int) $user->id);
-        $this->logAction($request, 'update_proposta', $proposta->id, 'Atualização da proposta - ' . $proposta->proposal_code);
+        $this->logAction($request, 'update_proposta', $proposta->id, 'Atualizacao da proposta - ' . $proposta->proposal_code);
         $this->recordHistory($proposta->id, $user->id, $user->email, 'update', 'Proposta atualizada.');
+
+        if ($followupPayload['summary']) {
+            $this->recordHistory(
+                $proposta->id,
+                $user->id,
+                $user->email,
+                'followup',
+                $followupPayload['summary'],
+                $followupPayload['payload']
+            );
+        }
+
         return redirect()->route('propostas.show', $proposta)->with('success', 'Proposta atualizada.');
     }
 
     public function destroy(Request $request, Proposal $proposta): RedirectResponse
     {
         $user = AncoraAuth::user($request);
-        $this->logAction($request, 'delete_proposta', $proposta->id, 'Exclusão da proposta - ' . $proposta->proposal_code);
-        $this->recordHistory($proposta->id, $user->id, $user->email, 'delete', 'Proposta excluída.');
+        $this->logAction($request, 'delete_proposta', $proposta->id, 'Exclusao da proposta - ' . $proposta->proposal_code);
+        $this->recordHistory($proposta->id, $user->id, $user->email, 'delete', 'Proposta excluida.');
         $proposta->delete();
-        return redirect()->route('propostas.index')->with('success', 'Proposta excluída.');
+
+        return redirect()->route('propostas.index')->with('success', 'Proposta excluida.');
     }
 
     public function uploadAttachment(Request $request, Proposal $proposta): RedirectResponse
     {
         $errors = ProposalService::attachmentValidation($request->file('attachment_pdf'));
-        if ($errors) return back()->with('error', implode(' ', $errors));
+        if ($errors) {
+            return back()->with('error', implode(' ', $errors));
+        }
+
         $file = $request->file('attachment_pdf');
         $dir = public_path('uploads/propostas/' . $proposta->id);
-        if (!is_dir($dir)) mkdir($dir, 0775, true);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
         $stored = now()->format('Ymd_His') . '_' . Str::random(12) . '.pdf';
         $file->move($dir, $stored);
         $attachment = ProposalAttachment::query()->create([
@@ -246,7 +294,11 @@ class ProposalController extends Controller
         ]);
         $user = AncoraAuth::user($request);
         $this->logAction($request, 'upload_attachment', $attachment->id, 'Upload de anexo PDF na proposta #' . $proposta->id);
-        $this->recordHistory($proposta->id, $user->id, $user->email, 'attachment_upload', 'PDF anexado à proposta.', ['attachment_id' => $attachment->id, 'original_name' => $attachment->original_name]);
+        $this->recordHistory($proposta->id, $user->id, $user->email, 'attachment_upload', 'PDF anexado a proposta.', [
+            'attachment_id' => $attachment->id,
+            'original_name' => $attachment->original_name,
+        ]);
+
         return back()->with('success', 'Anexo enviado com sucesso.');
     }
 
@@ -254,7 +306,8 @@ class ProposalController extends Controller
     {
         abort_if($attachment->proposta_id !== $proposta->id, 404);
         $path = public_path(ltrim($attachment->relative_path, '/'));
-        abort_unless(is_file($path), 404, 'Arquivo não encontrado no servidor.');
+        abort_unless(is_file($path), 404, 'Arquivo nao encontrado no servidor.');
+
         return response()->download($path, $attachment->original_name, ['Content-Type' => 'application/pdf']);
     }
 
@@ -262,13 +315,19 @@ class ProposalController extends Controller
     {
         abort_if($attachment->proposta_id !== $proposta->id, 404);
         $path = public_path(ltrim($attachment->relative_path, '/'));
-        if (is_file($path)) @unlink($path);
+        if (is_file($path)) {
+            @unlink($path);
+        }
         $attachmentId = $attachment->id;
         $originalName = $attachment->original_name;
         $attachment->delete();
         $user = AncoraAuth::user($request);
-        $this->logAction($request, 'delete_attachment', $attachmentId, 'Exclusão de anexo PDF da proposta #' . $proposta->id);
-        $this->recordHistory($proposta->id, $user->id, $user->email, 'attachment_delete', 'PDF removido da proposta.', ['attachment_id' => $attachmentId, 'original_name' => $originalName]);
+        $this->logAction($request, 'delete_attachment', $attachmentId, 'Exclusao de anexo PDF da proposta #' . $proposta->id);
+        $this->recordHistory($proposta->id, $user->id, $user->email, 'attachment_delete', 'PDF removido da proposta.', [
+            'attachment_id' => $attachmentId,
+            'original_name' => $originalName,
+        ]);
+
         return back()->with('success', 'Anexo removido com sucesso.');
     }
 
@@ -277,7 +336,6 @@ class ProposalController extends Controller
         $this->syncProposalContactsFromClientEntities();
 
         $query = Administradora::query()->active();
-
         if (Schema::hasTable('administradoras') && Schema::hasColumn('administradoras', 'client_entity_id')) {
             $query->whereNotNull('client_entity_id');
         }
@@ -348,7 +406,6 @@ class ProposalController extends Controller
     private function isProposalContactRole(?string $roleTag): bool
     {
         $normalized = Str::of(Str::ascii((string) $roleTag))->lower()->squish()->toString();
-
         if ($normalized === '') {
             return false;
         }
@@ -441,6 +498,41 @@ class ProposalController extends Controller
         return null;
     }
 
+    private function proposalFollowupPayload(Request $request): array
+    {
+        $contactType = trim((string) $request->input('followup_contact_type', ''));
+        $note = trim((string) $request->input('followup_summary', ''));
+
+        if ($contactType === '' && $note === '') {
+            return ['error' => null, 'summary' => null, 'payload' => []];
+        }
+
+        $validTypes = [
+            'whatsapp' => 'WhatsApp',
+            'email' => 'E-mail',
+            'telefone' => 'Telefone',
+            'presencial' => 'Presencial',
+        ];
+
+        if ($contactType === '' || !array_key_exists($contactType, $validTypes)) {
+            return ['error' => 'Selecione como o follow-up foi realizado.', 'summary' => null, 'payload' => []];
+        }
+
+        if ($note === '') {
+            return ['error' => 'Descreva o follow-up antes de salvar.', 'summary' => null, 'payload' => []];
+        }
+
+        return [
+            'error' => null,
+            'summary' => 'Follow-up registrado via ' . $validTypes[$contactType] . '.',
+            'payload' => [
+                'contact_type' => $contactType,
+                'contact_type_label' => $validTypes[$contactType],
+                'note' => Str::limit($note, 4000, ''),
+            ],
+        ];
+    }
+
     private function recordHistory(int $proposalId, int $userId, string $email, string $action, string $summary, array $payload = []): void
     {
         ProposalHistory::query()->create([
@@ -449,7 +541,7 @@ class ProposalController extends Controller
             'user_email' => $email,
             'action' => $action,
             'summary' => $summary,
-            'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'payload_json' => $payload !== [] ? $payload : null,
             'created_at' => now(),
         ]);
     }

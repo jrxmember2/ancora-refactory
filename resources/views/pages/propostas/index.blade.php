@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-ancora.section-header title="Propostas" subtitle="Controle comercial com filtros, totais, status, anexos e histórico.">
+<x-ancora.section-header title="Propostas" subtitle="Controle comercial com filtros, totais, status, anexos e historico.">
     <div class="flex gap-3">
         <a href="{{ route('propostas.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
         <a href="{{ route('propostas.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white shadow-theme-sm hover:bg-brand-600"><i class="fa-solid fa-plus"></i> Nova proposta</a>
@@ -9,23 +9,23 @@
 </x-ancora.section-header>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-    <x-ancora.stat-card label="Total filtrado" :value="'R$ '.number_format($totals['proposal_total'], 2, ',', '.')" hint="Somatório do valor proposto no filtro atual." icon="fa-solid fa-sack-dollar" />
-    <x-ancora.stat-card label="Total fechado" :value="'R$ '.number_format($totals['closed_total'], 2, ',', '.')" hint="Somatório das propostas com fechamento informado." icon="fa-solid fa-circle-check" />
+    <x-ancora.stat-card label="Total filtrado" :value="'R$ '.number_format($totals['proposal_total'], 2, ',', '.')" hint="Somatorio do valor proposto no filtro atual." icon="fa-solid fa-sack-dollar" />
+    <x-ancora.stat-card label="Total fechado" :value="'R$ '.number_format($totals['closed_total'], 2, ',', '.')" hint="Somatorio das propostas com fechamento informado." icon="fa-solid fa-circle-check" />
     <x-ancora.stat-card label="Registros" :value="$proposals->total()" hint="Quantidade de propostas encontradas." icon="fa-solid fa-file-lines" />
-    <x-ancora.stat-card label="Página" :value="$proposals->currentPage().' / '.$proposals->lastPage()" hint="Paginação da consulta atual." icon="fa-solid fa-layer-group" />
+    <x-ancora.stat-card label="Pagina" :value="$proposals->currentPage().' / '.$proposals->lastPage()" hint="Paginacao da consulta atual." icon="fa-solid fa-layer-group" />
 </div>
 
 <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar por código, cliente, e-mail..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white" />
+        <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar por codigo, cliente, e-mail..." class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white" />
         <select name="administradora_id" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-            <option value="">Administradora / síndico</option>
+            <option value="">Administradora / sindico</option>
             @foreach($filterOptions['administradoras'] as $item)
                 <option value="{{ $item->id }}" @selected((int)($filters['administradora_id'] ?? 0) === (int)$item->id)>{{ $item->name }}</option>
             @endforeach
         </select>
         <select name="service_id" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 text-sm text-gray-800 dark:border-gray-700 dark:text-white">
-            <option value="">Serviço</option>
+            <option value="">Servico</option>
             @foreach($filterOptions['servicos'] as $item)
                 <option value="{{ $item->id }}" @selected((int)($filters['service_id'] ?? 0) === (int)$item->id)>{{ $item->name }}</option>
             @endforeach
@@ -66,10 +66,10 @@
                     <tr class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
                         <th class="px-6 py-4"><x-ancora.sort-link field="proposal" label="Proposta" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="client" label="Cliente" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
-                        <th class="px-6 py-4"><x-ancora.sort-link field="service" label="Serviço" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
+                        <th class="px-6 py-4"><x-ancora.sort-link field="service" label="Servico" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="status" label="Status" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="proposal_total" label="Valores" :sort="$sortState['sort'] ?? null" :direction="$sortState['direction'] ?? null" /></th>
-                        <th class="px-6 py-4">Ações</th>
+                        <th class="px-6 py-4">Acoes</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -81,21 +81,26 @@
                             </td>
                             <td class="px-6 py-4 align-top">
                                 <div class="font-medium text-gray-900 dark:text-white">{{ $proposal->client_name }}</div>
-                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $proposal->administradora->name ?? '—' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $proposal->administradora->name ?? '-' }}</div>
                             </td>
                             <td class="px-6 py-4 align-top">
-                                <div>{{ $proposal->servico->name ?? '—' }}</div>
-                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $proposal->formaEnvio->name ?? '—' }}</div>
+                                <div>{{ $proposal->servico->name ?? '-' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $proposal->formaEnvio->name ?? '-' }}</div>
                             </td>
                             <td class="px-6 py-4 align-top">
-                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium" style="background-color: {{ ($proposal->statusRetorno->color_hex ?? '#999999') }}20; color: {{ $proposal->statusRetorno->color_hex ?? '#999999' }}">{{ $proposal->statusRetorno->name ?? '—' }}</span>
+                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium" style="background-color: {{ ($proposal->statusRetorno->color_hex ?? '#999999') }}20; color: {{ $proposal->statusRetorno->color_hex ?? '#999999' }}">{{ $proposal->statusRetorno->name ?? '-' }}</span>
                                 @if($proposal->followup_date)
                                     <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Follow-up: {{ optional($proposal->followup_date)->format('d/m/Y') }}</div>
                                 @endif
                             </td>
                             <td class="px-6 py-4 align-top">
-                                <div>Proposta: <strong>R$ {{ number_format((float)$proposal->proposal_total, 2, ',', '.') }}</strong></div>
-                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Fechado: R$ {{ number_format((float)($proposal->closed_total ?? 0), 2, ',', '.') }}</div>
+                                @if($proposal->without_amount)
+                                    <div><strong>Sem valor definido</strong></div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Fechado: sob negociacao</div>
+                                @else
+                                    <div>Proposta: <strong>R$ {{ number_format((float)$proposal->proposal_total, 2, ',', '.') }}</strong></div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Fechado: R$ {{ number_format((float)($proposal->closed_total ?? 0), 2, ',', '.') }}</div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 align-top">
                                 <div class="flex flex-wrap gap-2">

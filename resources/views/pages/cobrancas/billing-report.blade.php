@@ -87,6 +87,9 @@
                                         <td class="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ $row['unit'] }}</td>
                                         <td class="px-3 py-3">
                                             <a href="{{ route('cobrancas.show', $row['id']) }}" class="text-sm font-semibold text-brand-600 dark:text-brand-300">{{ $row['os_number'] }}</a>
+                                            @if(($row['case_mode'] ?? 'condominial') === 'avulsa')
+                                                <div class="mt-1"><span class="rounded-full border border-warning-200 bg-warning-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-warning-800 dark:border-warning-800/70 dark:bg-warning-500/10 dark:text-warning-200">Avulsa</span></div>
+                                            @endif
                                             <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $row['debtor'] }}</div>
                                         </td>
                                         <td class="px-3 py-3 text-sm text-gray-700 dark:text-gray-200">{{ $row['charge_type_label'] }}</td>

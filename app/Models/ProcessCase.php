@@ -49,6 +49,9 @@ class ProcessCase extends Model
     public function closureTypeOption(): BelongsTo { return $this->belongsTo(ProcessCaseOption::class, 'closure_type_option_id'); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
+    public function parties(): HasMany { return $this->hasMany(ProcessCaseParty::class, 'process_case_id')->orderBy('party_type')->orderBy('sort_order')->orderBy('id'); }
+    public function clientParties(): HasMany { return $this->hasMany(ProcessCaseParty::class, 'process_case_id')->where('party_type', 'client')->orderBy('sort_order')->orderBy('id'); }
+    public function adverseParties(): HasMany { return $this->hasMany(ProcessCaseParty::class, 'process_case_id')->where('party_type', 'adverse')->orderBy('sort_order')->orderBy('id'); }
     public function phases(): HasMany { return $this->hasMany(ProcessCasePhase::class, 'process_case_id')->orderByDesc('phase_date')->orderByDesc('phase_time')->orderByDesc('created_at'); }
     public function attachments(): HasMany { return $this->hasMany(ProcessCaseAttachment::class, 'process_case_id')->orderByDesc('created_at'); }
 }

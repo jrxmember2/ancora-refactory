@@ -17,8 +17,8 @@
         <tr><th>Serviço</th><td>{{ $proposal->servico->name ?? '—' }}</td></tr>
         <tr><th>Forma de envio</th><td>{{ $proposal->formaEnvio->name ?? '—' }}</td></tr>
         <tr><th>Status</th><td>{{ $proposal->statusRetorno->name ?? '—' }}</td></tr>
-        <tr><th>Valor da proposta</th><td>R$ {{ number_format((float) $proposal->proposal_total, 2, ',', '.') }}</td></tr>
-        <tr><th>Valor fechado</th><td>R$ {{ number_format((float) ($proposal->closed_total ?? 0), 2, ',', '.') }}</td></tr>
+        <tr><th>Valor da proposta</th><td>{{ $proposal->without_amount ? 'Sem valor definido' : 'R$ ' . number_format((float) $proposal->proposal_total, 2, ',', '.') }}</td></tr>
+        <tr><th>Valor fechado</th><td>{{ $proposal->without_amount ? 'Sem valor definido' : 'R$ ' . number_format((float) ($proposal->closed_total ?? 0), 2, ',', '.') }}</td></tr>
         <tr><th>Telefone</th><td>{{ $proposal->requester_phone ?: '—' }}</td></tr>
         <tr><th>Email</th><td>{{ $proposal->contact_email ?: '—' }}</td></tr>
         <tr><th>Follow-up</th><td>{{ optional($proposal->followup_date)->format('d/m/Y') }}</td></tr>

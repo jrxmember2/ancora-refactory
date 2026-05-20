@@ -1,7 +1,34 @@
 @extends('layouts.app')
 
+@php
+    $historyItems = collect($proposal->history ?? [])->sortByDesc('created_at');
+    $followupItems = $historyItems
+        ->filter(fn ($event) => $event->action === 'followup')
+        ->map(function ($event) {
+            $payload = $event->payload_json;
+            if (is_string($payload)) {
+                $payload = json_decode($payload, true);
+            }
+
+            $payload = is_array($payload) ? $payload : [];
+
+            return (object) [
+                'summary' => $event->summary,
+                'created_at' => $event->created_at,
+                'user_email' => $event->user_email,
+                'contact_type' => $payload['contact_type'] ?? '',
+                'contact_type_label' => $payload['contact_type_label'] ?? '',
+                'note' => $payload['note'] ?? '',
+            ];
+        })
+        ->values();
+    $genericHistory = $historyItems->reject(fn ($event) => $event->action === 'followup');
+    $proposalValueLabel = $proposal->without_amount ? 'Sem valor definido' : 'R$ ' . number_format((float) $proposal->proposal_total, 2, ',', '.');
+    $closedValueLabel = $proposal->without_amount ? 'Sem valor definido' : 'R$ ' . number_format((float) ($proposal->closed_total ?? 0), 2, ',', '.');
+@endphp
+
 @section('content')
-<x-ancora.section-header :title="'Proposta '.$proposal->proposal_code" subtitle="Visualização consolidada da proposta, anexos, histórico e documento premium.">
+<x-ancora.section-header :title="'Proposta '.$proposal->proposal_code" subtitle="Visualizacao consolidada da proposta, anexos, historico e documento premium.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('propostas.edit', $proposal) }}" class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600"><i class="fa-solid fa-pen"></i> Editar</a>
         <a href="{{ route('propostas.print', $proposal) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium dark:border-gray-800"><i class="fa-solid fa-print"></i> Imprimir</a>
@@ -16,17 +43,59 @@
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Cliente</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $proposal->client_name }}</p></div>
                 <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Solicitante</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $proposal->requester_name }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Administradora</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->administradora->name ?? '—' }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Serviço</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->servico->name ?? '—' }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Forma de envio</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->formaEnvio->name ?? '—' }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Status</p><p class="mt-2"><span class="inline-flex rounded-full px-3 py-1 text-xs font-medium" style="background-color: {{ ($proposal->statusRetorno->color_hex ?? '#999999') }}20; color: {{ $proposal->statusRetorno->color_hex ?? '#999999' }}">{{ $proposal->statusRetorno->name ?? '—' }}</span></p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Valor da proposta</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">R$ {{ number_format((float) $proposal->proposal_total, 2, ',', '.') }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Valor fechado</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">R$ {{ number_format((float) ($proposal->closed_total ?? 0), 2, ',', '.') }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Telefone</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->requester_phone ?: '—' }}</p></div>
-                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">E-mail</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->contact_email ?: '—' }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Administradora</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->administradora->name ?? '-' }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Servico</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->servico->name ?? '-' }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Forma de envio</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->formaEnvio->name ?? '-' }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Status</p><p class="mt-2"><span class="inline-flex rounded-full px-3 py-1 text-xs font-medium" style="background-color: {{ ($proposal->statusRetorno->color_hex ?? '#999999') }}20; color: {{ $proposal->statusRetorno->color_hex ?? '#999999' }}">{{ $proposal->statusRetorno->name ?? '-' }}</span></p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Valor da proposta</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $proposalValueLabel }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Valor fechado</p><p class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $closedValueLabel }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Telefone</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->requester_phone ?: '-' }}</p></div>
+                <div><p class="text-xs uppercase tracking-[0.2em] text-gray-400">E-mail</p><p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ $proposal->contact_email ?: '-' }}</p></div>
             </div>
-            @if($proposal->notes)<div class="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800"><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Observações</p><p class="mt-3 whitespace-pre-line text-sm leading-7 text-gray-600 dark:text-gray-300">{{ $proposal->notes }}</p></div>@endif
+            @if($proposal->without_amount)
+                <div class="mt-6 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-sm text-warning-800 dark:border-warning-900/40 dark:bg-warning-950/20 dark:text-warning-200">
+                    Esta proposta foi cadastrada na modalidade <strong>sem valor</strong>.
+                </div>
+            @endif
+            @if($proposal->notes)<div class="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800"><p class="text-xs uppercase tracking-[0.2em] text-gray-400">Observacoes</p><p class="mt-3 whitespace-pre-line text-sm leading-7 text-gray-600 dark:text-gray-300">{{ $proposal->notes }}</p></div>@endif
             @if($proposal->refusal_reason)<div class="mt-6 rounded-2xl border border-error-200 bg-error-50 px-5 py-4 text-sm text-error-700 dark:border-error-900/40 dark:bg-error-950/30 dark:text-error-300"><strong>Motivo da recusa:</strong> {{ $proposal->refusal_reason }}</div>@endif
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Follow-up comercial</h3>
+                <span class="rounded-xl border border-gray-200 px-4 py-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">{{ $followupItems->count() }} registro(s)</span>
+            </div>
+            <div class="mt-4 space-y-3">
+                @forelse($followupItems as $event)
+                    @php
+                        $icon = match ($event->contact_type) {
+                            'whatsapp' => 'fa-brands fa-whatsapp',
+                            'email' => 'fa-solid fa-envelope',
+                            'telefone' => 'fa-solid fa-phone',
+                            'presencial' => 'fa-solid fa-handshake',
+                            default => 'fa-solid fa-comment-dots',
+                        };
+                    @endphp
+                    <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                                    <i class="{{ $icon }}"></i>
+                                    <span>{{ $event->contact_type_label ?: 'Follow-up' }}</span>
+                                </div>
+                                <div class="mt-2 whitespace-pre-line text-sm text-gray-700 dark:text-gray-200">{{ $event->note ?: $event->summary }}</div>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ optional($event->created_at)->format('d/m/Y H:i') }}<br>
+                                {{ $event->user_email }}
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="mt-4"><x-ancora.empty-state icon="fa-solid fa-phone-volume" title="Sem follow-up" subtitle="Os contatos comerciais desta proposta ainda nao foram registrados." /></div>
+                @endforelse
+            </div>
         </div>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -70,8 +139,8 @@
             </div>
         </div>
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Histórico</h3>
-            @if($proposal->history->count())<div class="mt-4 space-y-4">@foreach($proposal->history->sortByDesc('created_at') as $event)<div class="relative pl-5"><div class="absolute top-1 left-0 h-2.5 w-2.5 rounded-full bg-brand-500"></div><div class="text-sm font-medium text-gray-800 dark:text-white">{{ $event->summary }}</div><div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ optional($event->created_at)->format('d/m/Y H:i') }} · {{ $event->user_email }}</div></div>@endforeach</div>@else<div class="mt-4"><x-ancora.empty-state icon="fa-solid fa-clock-rotate-left" title="Sem histórico" subtitle="O histórico desta proposta ainda está vazio." /></div>@endif
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Historico</h3>
+            @if($genericHistory->count())<div class="mt-4 space-y-4">@foreach($genericHistory as $event)<div class="relative pl-5"><div class="absolute top-1 left-0 h-2.5 w-2.5 rounded-full bg-brand-500"></div><div class="text-sm font-medium text-gray-800 dark:text-white">{{ $event->summary }}</div><div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ optional($event->created_at)->format('d/m/Y H:i') }} - {{ $event->user_email }}</div></div>@endforeach</div>@else<div class="mt-4"><x-ancora.empty-state icon="fa-solid fa-clock-rotate-left" title="Sem historico" subtitle="O historico desta proposta ainda esta vazio." /></div>@endif
         </div>
     </div>
 </div>

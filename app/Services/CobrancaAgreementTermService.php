@@ -52,16 +52,149 @@ class CobrancaAgreementTermService
             'installments',
         ]);
 
+        if ($this->isAvulsaCase($case)) {
+            return $this->buildAvulsa($case);
+        }
+
         $templateType = $this->templateType($case);
         $payload = $this->payload($case, $templateType);
 
         return [
+            'case_mode' => $this->isAvulsaCase($case) ? 'avulsa' : 'condominial',
             'template_type' => $templateType,
             'title' => 'Termo de Confissão de Dívida e Acordo Extrajudicial',
             'body_text' => $this->bodyText($payload),
             'payload' => $payload,
             'warnings' => $this->warnings($case, $payload),
         ];
+    }
+
+    private function buildAvulsa(CobrancaCase $case): array
+    {
+        $templateType = $this->templateType($case);
+        $agreementAmount = $this->agreementAmount($case);
+        $email = $this->primaryContact($case, 'email');
+        $phone = $this->primaryContact($case, 'phone');
+        $entry = $this->entryData($case);
+        $installments = $this->agreementInstallments($case, $entry);
+        $signatureCity = $this->cityState($case->debtor_address_json ?? []) ?: 'Vitoria/ES';
+        $payload = [
+            'case_mode' => 'avulsa',
+            'template_type' => $templateType,
+            'creditor' => self::LAW_OFFICE['name'],
+            'debtor_name' => $case->debtor_name_snapshot ?: 'DEVEDOR',
+            'debtor_label' => $this->debtorLabel($case),
+            'debtor_confession_label' => $this->debtorConfessionLabel($case),
+            'agreement_amount' => $agreementAmount,
+            'agreement_amount_money' => $this->money($agreementAmount),
+            'agreement_amount_words' => $this->moneyInWords($agreementAmount),
+            'quota_period' => $this->quotaPeriod($case->quotas),
+            'calc_base_date' => $this->date($case->calc_base_date ?: now()),
+            'payment_plan' => $this->paymentPlanText($entry, $installments, $email, $phone),
+            'has_entry' => $entry !== null,
+            'judicial_case_number' => $case->judicial_case_number,
+            'signature_date' => $this->longDate(now()),
+            'signature_city' => $signatureCity,
+            'forum_city' => $signatureCity,
+            'creditor_signature' => mb_strtoupper(self::LAW_OFFICE['name'], 'UTF-8'),
+            'debtor_signature' => mb_strtoupper((string) ($case->debtor_name_snapshot ?: 'DEVEDOR'), 'UTF-8'),
+            'debtor_qualification' => $this->avulsaDebtorQualification($case, $email, $phone),
+            'law_office' => self::LAW_OFFICE,
+            'witnesses' => self::WITNESSES,
+        ];
+
+        $debtor = $payload['debtor_label'];
+        $confession = $payload['debtor_confession_label'];
+        $judicial = $payload['template_type'] === 'judicial';
+        $paragraphs = [
+            'TERMO DE CONFISSAO DE DIVIDA E ACORDO EXTRAJUDICIAL - COBRANCA AVULSA',
+            self::LAW_OFFICE['name'] . ', inscrita no CNPJ sob o no ' . self::LAW_OFFICE['cnpj'] . ', com sede em ' . self::LAW_OFFICE['address'] . ', neste ato representada por ' . self::LAW_OFFICE['attorney'] . ', ' . self::LAW_OFFICE['attorney_oab'] . ', doravante denominada CREDORA/INTERVENIENTE.',
+            $payload['debtor_qualification'],
+            'As partes acima identificadas firmam o presente instrumento para formalizar a composicao amigavel da divida descrita na OS de cobranca avulsa.',
+            'CLAUSULA PRIMEIRA: ' . $payload['debtor_name'] . ' confessa ser ' . $confession . ' da obrigacao no valor de ' . $payload['agreement_amount_money'] . ' (' . $payload['agreement_amount_words'] . '), referente aos debitos descritos na OS, apurados ate ' . $payload['calc_base_date'] . ', considerando os lancamentos em aberto de ' . $payload['quota_period'] . '.',
+            'CLAUSULA SEGUNDA: O pagamento sera realizado ' . $payload['payment_plan'] . '.',
+            'CLAUSULA TERCEIRA: O atraso de qualquer parcela implica vencimento antecipado do saldo remanescente, acrescido de multa contratual, correcao monetaria, juros e honorarios, observado o que constar na negociacao registrada na OS.',
+            'CLAUSULA QUARTA: O presente termo representa confissao irrevogavel e irretratavel da divida, constituindo titulo executivo extrajudicial na forma da lei.',
+            'CLAUSULA QUINTA: Eventual tolerancia quanto a prazo ou forma de cobranca nao importa em novacao, remissao ou renuncia de direitos.',
+        ];
+
+        if ($judicial) {
+            $paragraphs[] = 'CLAUSULA SEXTA: O acordo sera informado no processo judicial no ' . ($payload['judicial_case_number'] ?: '[INFORMAR NUMERO DO PROCESSO]') . ', para os fins cabiveis, apos a formalizacao desta composicao.';
+            $paragraphs[] = 'CLAUSULA SETIMA: Fica eleito o foro da comarca de ' . $payload['forum_city'] . ' para dirimir eventual controversia decorrente deste instrumento.';
+        } else {
+            $paragraphs[] = 'CLAUSULA SEXTA: Fica eleito o foro da comarca de ' . $payload['forum_city'] . ' para dirimir eventual controversia decorrente deste instrumento.';
+        }
+
+        $paragraphs = array_merge($paragraphs, [
+            'As partes assinam este termo em duas vias de igual teor, juntamente com duas testemunhas.',
+            $payload['signature_city'] . ', ' . $payload['signature_date'] . '.',
+            "________________________________________\n" . $payload['creditor_signature'] . "\nCREDORA/INTERVENIENTE",
+            "________________________________________\n" . $payload['debtor_signature'] . "\n" . $debtor,
+            "TESTEMUNHAS:\n\n________________________________________\n" . self::WITNESSES[0]['name'] . "\nCPF: " . self::WITNESSES[0]['document'] . "\n\n________________________________________\n" . self::WITNESSES[1]['name'] . "\nCPF: " . self::WITNESSES[1]['document'],
+        ]);
+
+        return [
+            'template_type' => $templateType,
+            'title' => 'Termo de Confissao de Divida e Acordo Extrajudicial',
+            'body_text' => implode("\n\n", $paragraphs),
+            'payload' => $payload,
+            'warnings' => $this->avulsaWarnings($case, $payload),
+        ];
+    }
+
+    private function avulsaDebtorQualification(CobrancaCase $case, ?string $email, ?string $phone): string
+    {
+        $name = mb_strtoupper((string) ($case->debtor_name_snapshot ?: 'DEVEDOR'), 'UTF-8');
+        $address = $this->address($case->debtor_address_json ?? []);
+        $document = $case->debtor_cpf_snapshot ?: $case->debtor_cnh_snapshot ?: $case->debtor_document_snapshot;
+        $rg = $case->debtor_rg_snapshot ? ', RG no ' . $case->debtor_rg_snapshot : '';
+        $birthDate = $case->debtor_birth_date ? ', nascido(a) em ' . $case->debtor_birth_date->format('d/m/Y') : '';
+        $contact = collect([
+            $email ? 'e-mail ' . $email : null,
+            $phone ? 'telefone ' . $phone : null,
+        ])->filter()->implode(', ');
+
+        return $name
+            . ($document ? ', inscrito(a) sob o documento ' . $document : '')
+            . $rg
+            . $birthDate
+            . ($address ? ', residente e domiciliado(a) em ' . $address : '')
+            . ($contact ? ', ' . $contact : '')
+            . ', doravante denominado(a) '
+            . $this->debtorLabel($case)
+            . '.';
+    }
+
+    private function avulsaWarnings(CobrancaCase $case, array $payload): array
+    {
+        $warnings = [];
+
+        if (!$case->debtor_name_snapshot) {
+            $warnings[] = 'A cobranca avulsa precisa do nome completo do devedor.';
+        }
+        if (!$case->debtor_cpf_snapshot && !$case->debtor_cnh_snapshot) {
+            $warnings[] = 'Informe CPF ou CNH para qualificar a cobranca avulsa.';
+        }
+        if ($payload['agreement_amount'] <= 0) {
+            $warnings[] = 'Informe o valor do acordo ou debitos atualizados antes de gerar o termo.';
+        }
+        if ($case->quotas->isEmpty()) {
+            $warnings[] = 'Cadastre os debitos em aberto que compoem a negociacao.';
+        }
+        if ($case->installments->isEmpty() && !$case->entry_amount) {
+            $warnings[] = 'Cadastre entrada e/ou parcelas para montar a clausula de pagamento.';
+        }
+        if ($payload['template_type'] === 'judicial' && !$case->judicial_case_number) {
+            $warnings[] = 'Cobranca judicial sem numero do processo.';
+        }
+        $warnings[] = 'Revise a qualificacao do credor da cobranca avulsa antes de enviar o termo definitivo.';
+
+        return $warnings;
+    }
+
+    private function isAvulsaCase(CobrancaCase $case): bool
+    {
+        return (string) ($case->case_mode ?? 'condominial') === 'avulsa';
     }
 
     private function payload(CobrancaCase $case, string $templateType): array
@@ -72,6 +205,9 @@ class CobrancaAgreementTermService
         $entry = $this->entryData($case);
         $installments = $this->agreementInstallments($case, $entry);
         $condominiumCityState = $this->cityState($case->condominium?->address_json ?? []);
+        $signatureCityState = $this->isAvulsaCase($case)
+            ? ($this->cityState($case->debtor_address_json ?? []) ?: 'Vitoria/ES')
+            : ($condominiumCityState ?: 'Vitoria/ES');
 
         return [
             'template_type' => $templateType,

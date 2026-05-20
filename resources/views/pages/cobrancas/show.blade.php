@@ -7,6 +7,27 @@
     $boletoEmailHistories = $case->relationLoaded('emailHistories') ? $case->emailHistories : collect();
     $collectionEmailDefaults = old('email_values', collect(data_get($collectionNotificationState ?? [], 'catalog.emails', []))->pluck('value')->values()->all());
     $collectionPhoneDefaults = old('phone_values', collect(data_get($collectionNotificationState ?? [], 'catalog.phones', []))->pluck('value')->values()->all());
+    $isAvulsa = (string) ($case->case_mode ?? 'condominial') === 'avulsa';
+    $debtorAddress = (array) ($case->debtor_address_json ?? []);
+    $quotaSectionTitle = $isAvulsa ? 'Debitos em aberto' : 'Quotas em aberto';
+    $quotaEmptyTitle = $isAvulsa ? 'Sem debitos' : 'Sem quotas';
+    $quotaEmptySubtitle = $isAvulsa
+        ? 'Ainda nao ha debitos registrados nesta OS.'
+        : 'Ainda nao ha quotas registradas nesta OS.';
+    $debtorDocumentParts = collect([
+        $case->debtor_document_snapshot ?: null,
+        $case->debtor_rg_snapshot ? 'RG ' . $case->debtor_rg_snapshot : null,
+        $case->debtor_birth_date ? 'Nascimento ' . $case->debtor_birth_date->format('d/m/Y') : null,
+    ])->filter()->implode(' · ');
+    $debtorAddressLabel = collect([
+        $debtorAddress['street'] ?? null,
+        $debtorAddress['number'] ?? null,
+        $debtorAddress['complement'] ?? null,
+        $debtorAddress['neighborhood'] ?? null,
+        $debtorAddress['city'] ?? null,
+        $debtorAddress['state'] ?? null,
+        $debtorAddress['zip'] ?? null,
+    ])->filter(fn ($value) => trim((string) $value) !== '')->implode(', ');
 @endphp
 <x-ancora.section-header :title="'OS '.$case->os_number" subtitle="Acompanhe o histórico completo da cobrança, GED, quotas, parcelas e payload operacional.">
     <div class="flex flex-wrap gap-3">
@@ -63,6 +84,30 @@
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr,1fr]">
     <div class="space-y-6">
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            @if($isAvulsa)
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Modalidade</div>
+                        <div class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Cobranca avulsa</div>
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">Sem vinculo condominial nesta OS.</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Devedor avulso</div>
+                        <div class="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{{ $case->debtor_name_snapshot }}</div>
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $debtorDocumentParts !== '' ? $debtorDocumentParts : 'Documento nao informado' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Endereco do devedor</div>
+                        <div class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ $debtorAddressLabel !== '' ? $debtorAddressLabel : 'Endereco nao informado' }}</div>
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">Base do calculo: {{ optional($case->calc_base_date)->format('d/m/Y') ?: '—' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Tipo de cobranca</div>
+                        <div class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ $case->charge_type === 'judicial' ? 'Cobranca judicial' : 'Cobranca extrajudicial' }}</div>
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">Faturamento: {{ $billingLabels[$case->billing_status] ?? $case->billing_status }}</div>
+                    </div>
+                </div>
+            @else
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
                     <div class="text-xs uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">Condomínio / unidade</div>
@@ -85,6 +130,8 @@
                     <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">Faturamento: {{ $billingLabels[$case->billing_status] ?? $case->billing_status }}</div>
                 </div>
             </div>
+
+            @endif
 
             @if($case->notes)
                 <div class="mt-5 rounded-2xl border border-gray-200 p-4 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
@@ -112,7 +159,7 @@
         </div>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Quotas em aberto</h3>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ $quotaSectionTitle }}</h3>
             <div class="mt-4 overflow-x-auto">
                 <table class="min-w-full text-left text-sm">
                     <thead class="border-b border-gray-100 text-xs uppercase tracking-[0.16em] text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -139,7 +186,7 @@
                                 </tr>
                             @endif
                         @empty
-                            <tr><td colspan="5" class="py-6"><x-ancora.empty-state icon="fa-solid fa-list-check" title="Sem quotas" subtitle="Ainda não há quotas registradas nesta OS." /></td></tr>
+                            <tr><td colspan="5" class="py-6"><x-ancora.empty-state icon="fa-solid fa-list-check" :title="$quotaEmptyTitle" :subtitle="$quotaEmptySubtitle" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>

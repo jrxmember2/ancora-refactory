@@ -247,7 +247,7 @@
                         @foreach($block['rows'] as $row)
                             <tr>
                                 <td>{{ $row['unit'] }}</td>
-                                <td>{{ $row['os_number'] }}</td>
+                                <td>{{ $row['os_number'] }}@if(($row['case_mode'] ?? 'condominial') === 'avulsa') (Avulsa)@endif</td>
                                 <td>{{ $row['debtor'] }}</td>
                                 <td>{{ $row['charge_type_label'] }}</td>
                                 <td class="right">{{ $money($row['agreement_total']) }}</td>

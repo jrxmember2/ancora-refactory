@@ -193,6 +193,12 @@
                                 'reason' => 'Sem configuracao para disparo.',
                             ];
                             $batchReason = $batchState['reason'] ?? 'Sem configuracao para disparo.';
+                            $isAvulsa = (string) ($item->case_mode ?? 'condominial') === 'avulsa';
+                            $condominiumLabel = $isAvulsa ? 'Cobranca avulsa' : ($item->condominium?->name ?? 'Condominio nao vinculado');
+                            $unitLabel = $isAvulsa
+                                ? 'Sem vinculo condominial'
+                                : trim(($item->block?->name ? $item->block->name . ' - ' : '') . 'Unidade ' . ($item->unit?->unit_number ?? '-'));
+                            $quotaCountLabel = $item->quotas_count . ' ' . ($isAvulsa ? 'debito(s)' : 'quota(s)');
                         @endphp
                         <tr class="{{ $batchState['available'] ? '' : 'opacity-80' }}">
                             <td class="px-6 py-4 align-top">
@@ -203,8 +209,8 @@
                                     data-collection-batch-checkbox
                                     data-os-number="{{ $item->os_number }}"
                                     data-debtor="{{ $item->debtor_name_snapshot }}"
-                                    data-condominium="{{ $item->condominium?->name ?? 'Condominio nao vinculado' }}"
-                                    data-unit="{{ trim(($item->block?->name ? $item->block->name . ' - ' : '') . 'Unidade ' . ($item->unit?->unit_number ?? '-')) }}"
+                                    data-condominium="{{ $condominiumLabel }}"
+                                    data-unit="{{ $unitLabel }}"
                                     data-email-count="{{ (int) ($batchState['email_count'] ?? 0) }}"
                                     data-phone-count="{{ (int) ($batchState['phone_count'] ?? 0) }}"
                                     data-can-email="{{ !empty($batchState['can_email']) ? '1' : '0' }}"
@@ -220,11 +226,14 @@
                                 <div class="font-semibold text-gray-900 dark:text-white">{{ $item->os_number }}</div>
                                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ optional($item->created_at)->format('d/m/Y') }}</div>
                                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $item->charge_type === 'judicial' ? 'Judicial' : 'Extrajudicial' }}</div>
+                                @if($isAvulsa)
+                                    <div class="mt-2"><span class="rounded-full border border-warning-200 bg-warning-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-warning-800 dark:border-warning-800/70 dark:bg-warning-500/10 dark:text-warning-200">Avulsa</span></div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 align-top">
-                                <div class="font-medium text-gray-900 dark:text-white">{{ $item->condominium?->name ?? 'Condominio nao vinculado' }}</div>
-                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $item->block?->name ? $item->block->name.' - ' : '' }}Unidade {{ $item->unit?->unit_number ?? '-' }}</div>
-                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $item->quotas_count }} quota(s) - {{ $item->attachments_count }} anexo(s)</div>
+                                <div class="font-medium text-gray-900 dark:text-white">{{ $condominiumLabel }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $unitLabel }}</div>
+                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $quotaCountLabel }} - {{ $item->attachments_count }} anexo(s)</div>
                             </td>
                             <td class="px-6 py-4 align-top">
                                 <div class="font-medium text-gray-900 dark:text-white">{{ $item->debtor_name_snapshot }}</div>

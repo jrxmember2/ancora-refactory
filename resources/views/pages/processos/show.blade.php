@@ -105,6 +105,30 @@
                         </div>
                     @endforeach
                 </dl>
+                @if($case->clientParties->isNotEmpty() || $case->adverseParties->isNotEmpty())
+                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                            <div class="text-xs uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Clientes adicionais</div>
+                            <div class="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                                @forelse($case->clientParties as $party)
+                                    <div>{{ $party->name_snapshot }}</div>
+                                @empty
+                                    <div>Nenhum cliente adicional.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
+                            <div class="text-xs uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Adversos adicionais</div>
+                            <div class="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                                @forelse($case->adverseParties as $party)
+                                    <div>{{ $party->name_snapshot }}</div>
+                                @empty
+                                    <div>Nenhum adverso adicional.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 <div class="mt-4 rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
                     <div class="text-xs uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">Observacoes</div>
                     <div class="mt-2 whitespace-pre-line text-sm text-gray-700 dark:text-gray-200">{{ $case->notes ?: 'Nenhuma observacao cadastrada.' }}</div>

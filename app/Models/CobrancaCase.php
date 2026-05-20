@@ -17,6 +17,8 @@ class CobrancaCase extends Model
     protected function casts(): array
     {
         return [
+            'debtor_birth_date' => 'date',
+            'debtor_address_json' => 'array',
             'agreement_total' => 'decimal:2',
             'billing_date' => 'date',
             'entry_due_date' => 'date',

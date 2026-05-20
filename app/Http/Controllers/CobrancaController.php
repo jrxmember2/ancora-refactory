@@ -1215,7 +1215,7 @@ class CobrancaController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
-        [$payload, $errors, $snapshots, $repeaters] = $this->payloadFromRequest($request, null);
+        [$payload, $errors, $snapshots, $repeaters] = $this->payloadFromRequestV2($request, null);
         if ($errors !== []) {
             return back()->withInput()->with('error', implode(' ', $errors));
         }
@@ -1733,6 +1733,9 @@ class CobrancaController extends Controller
 
     private function boletoRequestError(CobrancaCase $case, bool $monetaryStorageReady, ?bool $storageReady = null): ?string
     {
+        if ($this->normalizeCaseMode((string) ($case->case_mode ?? 'condominial')) === 'avulsa') {
+            return 'A modalidade avulsa nao solicita boleto por este fluxo.';
+        }
         if (!($storageReady ?? $this->boletoRequestStorageReady())) {
             return 'Rode a migration do histórico de e-mails da OS antes de solicitar boletos.';
         }
@@ -3471,7 +3474,7 @@ class CobrancaController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
-        [$payload, $errors, $snapshots, $repeaters] = $this->payloadFromRequest($request, $cobranca);
+        [$payload, $errors, $snapshots, $repeaters] = $this->payloadFromRequestV2($request, $cobranca);
         if ($errors !== []) {
             return back()->withInput()->with('error', implode(' ', $errors));
         }
@@ -3693,6 +3696,152 @@ class CobrancaController extends Controller
         }
         if ($invalidEmails = $this->invalidNotificationEmails($request)) {
             $errors[] = 'Revise os e-mails de notificação. Informe apenas endereços válidos.';
+        }
+
+        return [$payload, $errors, ['debtor_summary' => $debtorSnapshot['summary']], $repeaters];
+    }
+
+    private function payloadFromRequestV2(Request $request, ?CobrancaCase $current): array
+    {
+        $caseMode = $this->normalizeCaseMode((string) $request->input('case_mode', $current?->case_mode ?: 'condominial'));
+        $unit = null;
+
+        if ($caseMode === 'condominial') {
+            if ((int) $request->integer('unit_id') > 0) {
+                $unit = ClientUnit::query()->with(['condominium', 'block', 'owner', 'tenant'])->find((int) $request->integer('unit_id'));
+            } elseif ($current?->unit_id) {
+                $unit = ClientUnit::query()->with(['condominium', 'block', 'owner', 'tenant'])->find((int) $current->unit_id);
+            }
+        }
+
+        $workflowStage = $this->normalizeWorkflowStage(trim((string) $request->input('workflow_stage', 'triagem')) ?: 'triagem');
+        $entryStatus = trim((string) $request->input('entry_status', '')) ?: null;
+        if ($entryStatus === '__custom') {
+            $entryStatus = trim((string) $request->input('entry_status_custom', '')) ?: null;
+        }
+        $entryStatus = $entryStatus ? Str::limit($entryStatus, 40, '') : null;
+
+        if ($caseMode === 'avulsa') {
+            $documentSnapshot = $this->avulsaDocumentSnapshot($request);
+            $debtorSnapshot = [
+                'entity_id' => null,
+                'role' => 'avulso',
+                'name' => trim((string) $request->input('avulsa_name', '')),
+                'document' => $documentSnapshot,
+                'cpf' => trim((string) $request->input('avulsa_cpf', '')) ?: null,
+                'cnh' => trim((string) $request->input('avulsa_cnh', '')) ?: null,
+                'rg' => trim((string) $request->input('avulsa_rg', '')) ?: null,
+                'email' => null,
+                'phone' => null,
+                'birth_date' => trim((string) $request->input('avulsa_birth_date', '')) ?: null,
+                'address' => $this->addressSnapshotFromRequest($request),
+                'summary' => trim((string) $request->input('avulsa_name', '')) !== ''
+                    ? trim((string) $request->input('avulsa_name', '')) . ($documentSnapshot ? ' - ' . $documentSnapshot : '')
+                    : '',
+            ];
+        } else {
+            $debtorSnapshot = array_merge($this->resolveDebtorSnapshot($unit, 'owner', [
+                'name' => '',
+                'document' => '',
+                'email' => '',
+                'phone' => '',
+            ]), [
+                'role' => 'owner',
+                'cpf' => null,
+                'cnh' => null,
+                'rg' => null,
+                'birth_date' => null,
+                'address' => null,
+            ]);
+        }
+
+        $payload = [
+            'case_mode' => $caseMode,
+            'condominium_id' => $caseMode === 'condominial' ? $unit?->condominium_id : null,
+            'block_id' => $caseMode === 'condominial' ? $unit?->block_id : null,
+            'unit_id' => $caseMode === 'condominial' ? $unit?->id : null,
+            'debtor_entity_id' => $debtorSnapshot['entity_id'],
+            'debtor_role' => $debtorSnapshot['role'],
+            'debtor_name_snapshot' => $debtorSnapshot['name'],
+            'debtor_document_snapshot' => $debtorSnapshot['document'],
+            'debtor_cpf_snapshot' => $debtorSnapshot['cpf'],
+            'debtor_cnh_snapshot' => $debtorSnapshot['cnh'],
+            'debtor_rg_snapshot' => $debtorSnapshot['rg'],
+            'debtor_birth_date' => $debtorSnapshot['birth_date'],
+            'debtor_address_json' => $debtorSnapshot['address'],
+            'debtor_email_snapshot' => $debtorSnapshot['email'],
+            'debtor_phone_snapshot' => $debtorSnapshot['phone'],
+            'charge_type' => trim((string) $request->input('charge_type', 'extrajudicial')) ?: 'extrajudicial',
+            'agreement_total' => $this->moneyToDb($request->input('agreement_total')),
+            'billing_status' => trim((string) $request->input('billing_status', 'a_faturar')) ?: 'a_faturar',
+            'billing_date' => trim((string) $request->input('billing_date', '')) ?: null,
+            'alert_message' => trim((string) $request->input('alert_message', '')) ?: null,
+            'notes' => trim((string) $request->input('notes', '')) ?: null,
+            'situation' => $this->situationFromWorkflowStage($workflowStage),
+            'workflow_stage' => $workflowStage,
+            'entry_status' => $entryStatus,
+            'entry_due_date' => trim((string) $request->input('entry_due_date', '')) ?: null,
+            'entry_amount' => $this->moneyToDb($request->input('entry_amount')),
+            'fees_amount' => $this->moneyToDb($request->input('fees_amount')),
+            'judicial_case_number' => trim((string) $request->input('judicial_case_number', '')) ?: null,
+            'calc_base_date' => trim((string) $request->input('calc_base_date', '')) ?: null,
+        ];
+
+        $repeaters = [
+            'emails' => $this->emailRowsFromRequest($request),
+            'phones' => $this->phoneRowsFromRequest($request),
+            'quotas' => $this->quotaRowsFromRequest($request),
+            'installments' => $this->installmentRowsFromRequest($request),
+        ];
+
+        $errors = [];
+        if (!array_key_exists($caseMode, $this->caseModeLabels())) {
+            $errors[] = 'Selecione uma modalidade valida para a OS.';
+        }
+        if ($caseMode === 'condominial') {
+            if (!$unit) {
+                $errors[] = 'Selecione a unidade vinculada a OS.';
+            }
+            if ($payload['debtor_name_snapshot'] === '') {
+                $errors[] = 'A unidade selecionada precisa ter um proprietario vinculado para gerar a OS de cobranca.';
+            }
+        } else {
+            if ($payload['debtor_name_snapshot'] === '') {
+                $errors[] = 'Informe o nome completo da cobranca avulsa.';
+            }
+            if (!$payload['debtor_cpf_snapshot'] && !$payload['debtor_cnh_snapshot']) {
+                $errors[] = 'Informe CPF ou CNH na cobranca avulsa.';
+            }
+        }
+        if (!in_array($payload['charge_type'], array_keys($this->chargeTypeLabels()), true)) {
+            $errors[] = 'Selecione um tipo de cobranca valido.';
+        }
+        if (!in_array($payload['workflow_stage'], array_keys($this->workflowStageLabels()), true)) {
+            $errors[] = 'Selecione uma situacao da OS valida.';
+        }
+        if (!in_array($payload['billing_status'], array_keys($this->billingStatusLabels()), true)) {
+            $errors[] = 'Selecione um status de faturamento valido.';
+        }
+        if ($payload['charge_type'] === 'judicial' && empty($payload['judicial_case_number'])) {
+            $errors[] = 'Informe o numero do processo para cobranca judicializada.';
+        }
+        if ($payload['charge_type'] === 'extrajudicial') {
+            $payload['judicial_case_number'] = null;
+        }
+        if ($repeaters['quotas'] === []) {
+            $errors[] = 'Cadastre ao menos uma quota em aberto.';
+        }
+        foreach ($repeaters['installments'] as $index => $installment) {
+            $label = $installment['label'] ?: 'parcela ' . ($index + 1);
+            if ((float) $installment['amount'] > 0 && empty($installment['due_date'])) {
+                $errors[] = 'Informe o vencimento da ' . $label . ' antes de salvar.';
+            }
+            if (!empty($installment['due_date']) && (float) $installment['amount'] <= 0) {
+                $errors[] = 'Informe o valor da ' . $label . ' antes de salvar.';
+            }
+        }
+        if ($this->invalidNotificationEmails($request)) {
+            $errors[] = 'Revise os e-mails de notificacao. Informe apenas enderecos validos.';
         }
 
         return [$payload, $errors, ['debtor_summary' => $debtorSnapshot['summary']], $repeaters];
@@ -3929,6 +4078,7 @@ class CobrancaController extends Controller
                 'blocks' => $selectorBlocks,
                 'units' => $selectorUnits,
             ],
+            'caseModeLabels' => $this->caseModeLabels(),
             'chargeTypeLabels' => $this->chargeTypeLabels(),
             'workflowStageLabels' => $this->workflowStageLabels(),
             'situationLabels' => $this->situationLabels(),
@@ -3942,6 +4092,7 @@ class CobrancaController extends Controller
     private function formData(?CobrancaCase $case = null): array
     {
         $unit = $case?->relationLoaded('unit') ? $case->unit : ($case?->unit_id ? ClientUnit::query()->with(['owner', 'tenant'])->find($case->unit_id) : null);
+        $address = (array) ($case?->debtor_address_json ?? []);
         $storedWorkflowStage = $this->normalizeWorkflowStage((string) ($case?->workflow_stage ?: $this->workflowStageFromSituation($case?->situation)));
         $storedEntryStatus = (string) ($case?->entry_status ?? '');
         $knownEntryStatuses = array_keys($this->entryStatusLabels());
@@ -3951,12 +4102,25 @@ class CobrancaController extends Controller
         $entryStatusCustom = $entryStatusValue === '__custom' ? $storedEntryStatus : '';
 
         return [
+            'case_mode' => old('case_mode', $this->normalizeCaseMode((string) ($case?->case_mode ?? 'condominial'))),
             'unit_id' => old('unit_id', $case?->unit_id),
             'debtor_role' => 'owner',
             'manual_debtor_name' => '',
             'manual_debtor_document' => '',
             'manual_debtor_email' => '',
             'manual_debtor_phone' => '',
+            'avulsa_name' => old('avulsa_name', $case?->debtor_name_snapshot),
+            'avulsa_rg' => old('avulsa_rg', $case?->debtor_rg_snapshot),
+            'avulsa_cpf' => old('avulsa_cpf', $case?->debtor_cpf_snapshot),
+            'avulsa_cnh' => old('avulsa_cnh', $case?->debtor_cnh_snapshot),
+            'avulsa_birth_date' => old('avulsa_birth_date', optional($case?->debtor_birth_date)->format('Y-m-d')),
+            'avulsa_address_zip' => old('avulsa_address_zip', $address['zip'] ?? null),
+            'avulsa_address_street' => old('avulsa_address_street', $address['street'] ?? null),
+            'avulsa_address_number' => old('avulsa_address_number', $address['number'] ?? null),
+            'avulsa_address_complement' => old('avulsa_address_complement', $address['complement'] ?? null),
+            'avulsa_address_neighborhood' => old('avulsa_address_neighborhood', $address['neighborhood'] ?? null),
+            'avulsa_address_city' => old('avulsa_address_city', $address['city'] ?? null),
+            'avulsa_address_state' => old('avulsa_address_state', $address['state'] ?? null),
             'charge_type' => old('charge_type', $case?->charge_type ?: 'extrajudicial'),
             'agreement_total' => old('agreement_total', $case?->agreement_total),
             'billing_status' => old('billing_status', $case?->billing_status ?: 'a_faturar'),
@@ -5536,7 +5700,9 @@ class CobrancaController extends Controller
 
         return [
             'id' => (int) $case->id,
+            'case_mode' => $caseMode,
             'os_number' => (string) $case->os_number,
+            'case_mode' => $caseMode,
             'status' => $this->workflowStageLabels()[$this->normalizeWorkflowStage((string) $case->workflow_stage)] ?? (string) $case->workflow_stage,
             'situation' => $this->situationLabels()[(string) $case->situation] ?? (string) $case->situation,
             'opened_at' => optional($case->created_at)->format('d/m/Y H:i'),
@@ -6035,13 +6201,20 @@ class CobrancaController extends Controller
         $paidCents = (int) $paid['amount_cents'];
         $feesCents = $this->moneyToCents($case->fees_amount ?? 0);
         $projectedCents = max(0, $agreementCents - $paidCents);
+        $caseMode = $this->normalizeCaseMode((string) ($case->case_mode ?? 'condominial'));
 
         $condominium = $case->condominium?->name ?: 'Condomínio não vinculado';
         $block = $case->block?->name ?: 'Sem bloco';
         $unit = $case->unit?->unit_label ?: $case->unit?->unit_number ?: '-';
+        if ($caseMode === 'avulsa') {
+            $condominium = 'Cobranca avulsa';
+            $block = 'Sem vinculo condominial';
+            $unit = 'Avulsa';
+        }
 
         return [
             'id' => (int) $case->id,
+            'case_mode' => $caseMode,
             'os_number' => (string) $case->os_number,
             'condominium_key' => (string) ($case->condominium_id ?: 0) . '|' . $condominium,
             'condominium' => $condominium,
@@ -6172,11 +6345,53 @@ class CobrancaController extends Controller
         ];
     }
 
+    private function caseModeLabels(): array
+    {
+        return [
+            'condominial' => 'Cobranca Condominial',
+            'avulsa' => 'Cobranca Avulsa',
+        ];
+    }
+
+    private function normalizeCaseMode(string $mode): string
+    {
+        return array_key_exists($mode, $this->caseModeLabels()) ? $mode : 'condominial';
+    }
+
+    private function avulsaDocumentSnapshot(Request $request): ?string
+    {
+        $cpf = trim((string) $request->input('avulsa_cpf', ''));
+        if ($cpf !== '') {
+            return $cpf;
+        }
+
+        $cnh = trim((string) $request->input('avulsa_cnh', ''));
+        return $cnh !== '' ? $cnh : null;
+    }
+
+    private function addressSnapshotFromRequest(Request $request): ?array
+    {
+        $address = [
+            'zip' => trim((string) $request->input('avulsa_address_zip', '')) ?: null,
+            'street' => trim((string) $request->input('avulsa_address_street', '')) ?: null,
+            'number' => trim((string) $request->input('avulsa_address_number', '')) ?: null,
+            'complement' => trim((string) $request->input('avulsa_address_complement', '')) ?: null,
+            'neighborhood' => trim((string) $request->input('avulsa_address_neighborhood', '')) ?: null,
+            'city' => trim((string) $request->input('avulsa_address_city', '')) ?: null,
+            'state' => trim((string) $request->input('avulsa_address_state', '')) ?: null,
+        ];
+
+        return collect($address)->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty()
+            ? $address
+            : null;
+    }
+
     private function n8nPayload(CobrancaCase $case): array
     {
         $case->loadMissing(['condominium', 'block', 'unit', 'contacts', 'quotas', 'installments']);
         return [
             'os_number' => $case->os_number,
+            'modalidade' => $this->normalizeCaseMode((string) ($case->case_mode ?? 'condominial')),
             'tipo_cobranca' => $case->charge_type,
             'condominio' => $case->condominium?->name,
             'bloco' => $case->block?->name,
@@ -6184,6 +6399,11 @@ class CobrancaController extends Controller
             'devedor' => [
                 'nome' => $case->debtor_name_snapshot,
                 'documento' => $case->debtor_document_snapshot,
+                'cpf' => $case->debtor_cpf_snapshot,
+                'cnh' => $case->debtor_cnh_snapshot,
+                'rg' => $case->debtor_rg_snapshot,
+                'data_nascimento' => optional($case->debtor_birth_date)->format('Y-m-d'),
+                'endereco' => $case->debtor_address_json,
                 'emails' => $case->contacts->where('contact_type', 'email')->pluck('value')->values()->all(),
                 'telefones' => $case->contacts->where('contact_type', 'phone')->map(fn ($item) => [
                     'numero' => $item->value,

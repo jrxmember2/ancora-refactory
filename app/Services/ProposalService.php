@@ -12,13 +12,16 @@ class ProposalService
 {
     public static function payloadFromRequest(Request $request): array
     {
+        $withoutAmount = $request->boolean('without_amount');
+
         return [
             'proposal_date' => $request->string('proposal_date')->toString() ?: null,
             'client_name' => trim($request->string('client_name')->toString()),
             'administradora_id' => (int) $request->integer('administradora_id'),
             'service_id' => (int) $request->integer('service_id'),
-            'proposal_total' => self::moneyToDb($request->input('proposal_total')),
-            'closed_total' => self::moneyToDb($request->input('closed_total')),
+            'without_amount' => $withoutAmount,
+            'proposal_total' => $withoutAmount ? 0.0 : self::moneyToDb($request->input('proposal_total')),
+            'closed_total' => $withoutAmount ? null : self::moneyToDb($request->input('closed_total')),
             'requester_name' => trim($request->string('requester_name')->toString()),
             'requester_phone' => trim($request->string('requester_phone')->toString()),
             'contact_email' => trim($request->string('contact_email')->toString()),
@@ -40,26 +43,26 @@ class ProposalService
         if (!$payload['proposal_date']) $errors[] = 'Informe a data da proposta.';
         if ($payload['client_name'] === '') $errors[] = 'Informe o cliente.';
         if ($payload['administradora_id'] <= 0) $errors[] = 'Selecione a administradora.';
-        if ($payload['service_id'] <= 0) $errors[] = 'Selecione o serviço.';
-        if ($payload['proposal_total'] === null) $errors[] = 'Informe o valor da proposta.';
+        if ($payload['service_id'] <= 0) $errors[] = 'Selecione o servico.';
+        if (!$payload['without_amount'] && $payload['proposal_total'] === null) $errors[] = 'Informe o valor da proposta.';
         if ($payload['requester_name'] === '') $errors[] = 'Informe o solicitante.';
         if ($payload['send_method_id'] <= 0) $errors[] = 'Selecione a forma de envio.';
         if ($payload['response_status_id'] <= 0) $errors[] = 'Selecione o status.';
 
         if (!empty($payload['contact_email']) && !filter_var($payload['contact_email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Informe um e-mail válido.';
+            $errors[] = 'Informe um e-mail valido.';
         }
 
         if ($payload['has_referral'] && empty($payload['referral_name'])) {
-            $errors[] = 'Informe o nome da indicação.';
+            $errors[] = 'Informe o nome da indicacao.';
         }
 
         $status = StatusRetorno::query()->find($payload['response_status_id']);
-        if ($status?->requires_closed_value && $payload['closed_total'] === null) {
-            $errors[] = 'O valor fechado é obrigatório para o status selecionado.';
+        if (!$payload['without_amount'] && $status?->requires_closed_value && $payload['closed_total'] === null) {
+            $errors[] = 'O valor fechado e obrigatorio para o status selecionado.';
         }
         if ($status?->requires_refusal_reason && empty($payload['refusal_reason'])) {
-            $errors[] = 'O motivo da recusa é obrigatório para o status selecionado.';
+            $errors[] = 'O motivo da recusa e obrigatorio para o status selecionado.';
         }
 
         return $errors;
@@ -98,10 +101,10 @@ class ProposalService
             return $errors;
         }
         if (($file->getSize() ?: 0) > 8 * 1024 * 1024) {
-            $errors[] = 'O arquivo deve ter no máximo 8 MB.';
+            $errors[] = 'O arquivo deve ter no maximo 8 MB.';
         }
         if (strtolower($file->getClientOriginalExtension()) !== 'pdf') {
-            $errors[] = 'Apenas arquivos PDF são permitidos.';
+            $errors[] = 'Apenas arquivos PDF sao permitidos.';
         }
         return $errors;
     }

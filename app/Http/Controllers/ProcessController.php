@@ -225,7 +225,8 @@ class ProcessController extends Controller
                 $inner->where('process_number', 'like', "%{$q}%")
                     ->orWhere('client_name_snapshot', 'like', "%{$q}%")
                     ->orWhere('adverse_name', 'like', "%{$q}%")
-                    ->orWhere('responsible_lawyer', 'like', "%{$q}%");
+                    ->orWhere('responsible_lawyer', 'like', "%{$q}%")
+                    ->orWhereHas('parties', fn ($parties) => $parties->where('name_snapshot', 'like', "%{$q}%"));
             });
         }
         if ($filters['status_option_id']) {
@@ -534,10 +535,14 @@ class ProcessController extends Controller
     {
         $user = AncoraAuth::user($request);
         $case = DB::transaction(function () use ($request, $user) {
-            return ProcessCase::query()->create($this->payloadFromRequest($request, null) + [
+            $case = ProcessCase::query()->create($this->payloadFromRequest($request, null) + [
                 'created_by' => $user?->id,
                 'updated_by' => $user?->id,
             ]);
+
+            $this->syncParties($case, $request);
+
+            return $case;
         });
 
         if ($request->input('_next') === 'phase') {
@@ -560,6 +565,8 @@ class ProcessController extends Controller
             'clientCondominium.syndic',
             'adverse',
             'adverseCondominium',
+            'clientParties.entity',
+            'adverseParties.entity',
             'clientPositionOption',
             'adversePositionOption',
             'natureOption',
@@ -583,6 +590,7 @@ class ProcessController extends Controller
     public function edit(Request $request, ProcessCase $processo): View
     {
         $this->authorizeProcessAccess($request, $processo);
+        $processo->load('parties');
 
         return view('pages.processos.form', [
             'title' => 'Editar processo',
@@ -605,6 +613,7 @@ class ProcessController extends Controller
             $processo->update($this->payloadFromRequest($request, $processo) + [
                 'updated_by' => $user?->id,
             ]);
+            $this->syncParties($processo, $request);
         });
 
         if ($request->input('_next') === 'phase') {
@@ -737,8 +746,12 @@ class ProcessController extends Controller
             'process_number' => ['nullable', 'string', 'max:80'],
             'datajud_court' => ['nullable', 'string', 'max:80'],
             'client_name' => ['nullable', 'string', 'max:190'],
+            'client_parties' => ['nullable', 'array'],
+            'client_parties.*' => ['nullable', 'string', 'max:190'],
             'client_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'adverse_name' => ['nullable', 'string', 'max:190'],
+            'adverse_parties' => ['nullable', 'array'],
+            'adverse_parties.*' => ['nullable', 'string', 'max:190'],
             'adverse_condominium_id' => ['nullable', 'integer', 'exists:client_condominiums,id'],
             'client_lawyer' => ['nullable', 'string', 'max:160'],
             'adverse_lawyer' => ['nullable', 'string', 'max:160'],
@@ -827,8 +840,10 @@ class ProcessController extends Controller
             'action_type_option_id' => old('action_type_option_id', $case?->action_type_option_id),
             'process_type_option_id' => old('process_type_option_id', $case?->process_type_option_id),
             'client_name' => old('client_name', $case?->client_name_snapshot),
+            'client_parties' => old('client_parties', $this->partiesFromCase($case, 'client')),
             'client_condominium_id' => old('client_condominium_id', $case?->client_condominium_id),
             'adverse_name' => old('adverse_name', $case?->adverse_name),
+            'adverse_parties' => old('adverse_parties', $this->partiesFromCase($case, 'adverse')),
             'adverse_condominium_id' => old('adverse_condominium_id', $case?->adverse_condominium_id),
             'client_position_option_id' => old('client_position_option_id', $case?->client_position_option_id),
             'adverse_position_option_id' => old('adverse_position_option_id', $case?->adverse_position_option_id),
@@ -961,6 +976,65 @@ class ProcessController extends Controller
             })
             ->orderBy('name')
             ->first();
+    }
+
+    private function syncParties(ProcessCase $case, Request $request): void
+    {
+        $rows = array_merge(
+            $this->partyRowsFromRequest($request, 'client_parties', 'client'),
+            $this->partyRowsFromRequest($request, 'adverse_parties', 'adverse')
+        );
+
+        $case->parties()->delete();
+
+        if ($rows === []) {
+            return;
+        }
+
+        $case->parties()->createMany($rows);
+    }
+
+    private function partyRowsFromRequest(Request $request, string $field, string $type): array
+    {
+        return collect((array) $request->input($field, []))
+            ->map(function ($value, $index) use ($type) {
+                $name = $this->normalizeWhitespace((string) $value);
+                if ($name === '') {
+                    return null;
+                }
+
+                $entity = $this->resolveEntity($name);
+
+                return [
+                    'party_type' => $type,
+                    'entity_id' => $entity?->id,
+                    'name_snapshot' => Str::limit($entity?->display_name ?: $name, 190, ''),
+                    'sort_order' => $index + 1,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function partiesFromCase(?ProcessCase $case, string $type): array
+    {
+        if (!$case) {
+            return [''];
+        }
+
+        $parties = $case->relationLoaded('parties')
+            ? $case->parties->where('party_type', $type)
+            : $case->parties()->where('party_type', $type)->orderBy('sort_order')->orderBy('id')->get();
+
+        $names = $parties
+            ->pluck('name_snapshot')
+            ->map(fn ($value) => (string) $value)
+            ->filter(fn ($value) => trim($value) !== '')
+            ->values()
+            ->all();
+
+        return $names !== [] ? $names : [''];
     }
 
     private function processHasAdverseCondominiumColumn(): bool

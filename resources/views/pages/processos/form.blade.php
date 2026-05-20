@@ -119,6 +119,26 @@
                 <input name="client_name" list="process-entities" value="{{ $formData['client_name'] }}" class="{{ $inputClass }}" placeholder="Pesquise ou digite o cliente">
             </div>
             <div class="md:col-span-2">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Clientes adicionais</label>
+                    <button type="button" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-party-add="client"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="space-y-3" data-party-container="client">
+                    @foreach(($formData['client_parties'] ?? ['']) as $index => $value)
+                        <div class="flex flex-col gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:flex-row" data-party-row>
+                            <input name="client_parties[{{ $index }}]" list="process-entities" value="{{ $value }}" class="{{ $inputClass }}" placeholder="Cliente adicional">
+                            <button type="button" class="{{ $softButtonClass }} md:w-auto" data-party-remove>Remover</button>
+                        </div>
+                    @endforeach
+                </div>
+                <template data-party-template="client">
+                    <div class="flex flex-col gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:flex-row" data-party-row>
+                        <input name="client_parties[__INDEX__]" list="process-entities" class="{{ $inputClass }}" placeholder="Cliente adicional">
+                        <button type="button" class="{{ $softButtonClass }} md:w-auto" data-party-remove>Remover</button>
+                    </div>
+                </template>
+            </div>
+            <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vinculo com condominio no portal</label>
                 <select name="client_condominium_id" class="{{ $inputClass }}">
                     <option value="">Nao vincular a condominio</option>
@@ -131,6 +151,26 @@
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Adverso</label>
                 <input name="adverse_name" list="process-entities" value="{{ $formData['adverse_name'] }}" class="{{ $inputClass }}" placeholder="Pesquise ou digite um nome livre">
+            </div>
+            <div class="md:col-span-2">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Adversos adicionais</label>
+                    <button type="button" class="rounded-lg border border-brand-300 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10" data-party-add="adverse"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="space-y-3" data-party-container="adverse">
+                    @foreach(($formData['adverse_parties'] ?? ['']) as $index => $value)
+                        <div class="flex flex-col gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:flex-row" data-party-row>
+                            <input name="adverse_parties[{{ $index }}]" list="process-entities" value="{{ $value }}" class="{{ $inputClass }}" placeholder="Adverso adicional">
+                            <button type="button" class="{{ $softButtonClass }} md:w-auto" data-party-remove>Remover</button>
+                        </div>
+                    @endforeach
+                </div>
+                <template data-party-template="adverse">
+                    <div class="flex flex-col gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800 md:flex-row" data-party-row>
+                        <input name="adverse_parties[__INDEX__]" list="process-entities" class="{{ $inputClass }}" placeholder="Adverso adicional">
+                        <button type="button" class="{{ $softButtonClass }} md:w-auto" data-party-remove>Remover</button>
+                    </div>
+                </template>
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Vinculo do adverso com condominio no portal</label>
@@ -267,7 +307,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const label = document.querySelector('[data-judging-body-label]');
     const input = document.querySelector('[data-judging-body-input]');
 
+    function bindPartyButtons(scope) {
+        document.querySelectorAll(`[data-party-container="${scope}"] [data-party-remove]`).forEach((button) => {
+            button.onclick = () => {
+                const rows = document.querySelectorAll(`[data-party-container="${scope}"] [data-party-row]`);
+                if (rows.length <= 1) {
+                    rows[0]?.querySelector('input')?.focus();
+                    rows[0]?.querySelector('input')?.value = '';
+                    return;
+                }
+
+                button.closest('[data-party-row]')?.remove();
+                reindexPartyRows(scope);
+            };
+        });
+    }
+
+    function reindexPartyRows(scope) {
+        document.querySelectorAll(`[data-party-container="${scope}"] [data-party-row] input[name]`).forEach((input, index) => {
+            input.name = `${scope}_parties[${index}]`;
+        });
+    }
+
+    function initPartyRepeater(scope) {
+        const container = document.querySelector(`[data-party-container="${scope}"]`);
+        const template = document.querySelector(`[data-party-template="${scope}"]`);
+        const addButton = document.querySelector(`[data-party-add="${scope}"]`);
+
+        if (!container || !template || !addButton) {
+            return;
+        }
+
+        addButton.addEventListener('click', () => {
+            reindexPartyRows(scope);
+            const index = container.querySelectorAll('[data-party-row]').length;
+            container.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', index));
+            bindPartyButtons(scope);
+        });
+
+        bindPartyButtons(scope);
+        reindexPartyRows(scope);
+    }
+
     if (!typeSelect || !wrapper || !label || !input) {
+        initPartyRepeater('client');
+        initPartyRepeater('adverse');
         return;
     }
 
@@ -300,6 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
     typeSelect.addEventListener('change', syncJudgingBodyField);
     input.addEventListener('input', syncJudgingBodyField);
     syncJudgingBodyField();
+    initPartyRepeater('client');
+    initPartyRepeater('adverse');
 });
 </script>
 @endpush
