@@ -9,15 +9,27 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.11',
-            'date' => '15/05/2026',
-            'label' => 'v2.11 - 15/05/2026',
+            'version' => 'v2.12',
+            'date' => '20/05/2026',
+            'label' => 'v2.12 - 20/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Cobranca avulsa estreia, processos aceitam multiplas partes e propostas ficam mais flexiveis',
+                'items' => [
+                    'O modulo Cobrancas ganha a modalidade Cobranca Avulsa na abertura da OS, com dados proprios do devedor, busca de CEP, endereco completo, termo diferenciado e o mesmo reaproveitamento de contatos, debitos, parcelas e faturamento do fluxo principal.',
+                    'A visualizacao, a listagem e os relatorios de faturamento passam a tratar a OS avulsa como um tipo intencional de cobranca, sem parecer apenas um cadastro sem condominio vinculado.',
+                    'O modulo Processo passa a aceitar mais de um cliente e mais de um adverso no cadastro e na edicao, com repetidores na tela, persistencia dedicada e leitura consolidada no resumo do caso.',
+                    'O modulo Propostas passa a listar primeiro os numeros mais recentes, aceita propostas sem valor definido e ganha follow-up comercial com tipo de contato identificado por icones de WhatsApp, e-mail, telefone ou presencial.',
+                    'A migration de partes adicionais do processo foi ajustada para conviver com a estrutura legada de client_entities sem disparar incompatibilidade 3780 no MySQL durante o deploy.',
+                ],
+            ],
+            [
+                'version' => 'v2.11',
+                'date' => '15/05/2026',
                 'title' => 'Hotfix da migration do Leme Escritorio para compatibilidade com client_condominiums legado',
                 'items' => [
                     'A migration de ai_office_chat_conversations passa a usar client_condominium_id como INT assinado, refletindo a estrutura real do client_condominiums no banco legado da instancia.',

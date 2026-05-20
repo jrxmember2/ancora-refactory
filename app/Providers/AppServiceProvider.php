@@ -60,9 +60,9 @@ class AppServiceProvider extends ServiceProvider
                 'visible_until' => null,
             ];
             $version = config('ancora_version.current', [
-                'version' => 'v1.88',
-                'date' => '09/05/2026',
-                'label' => 'v1.88 - 09/05/2026',
+                'version' => 'v2.12',
+                'date' => '20/05/2026',
+                'label' => 'v2.12 - 20/05/2026',
             ]);
 
             try {
