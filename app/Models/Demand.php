@@ -5,12 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class Demand extends Model
 {
     protected $table = 'demands';
 
     protected $guarded = [];
+
+    public static function createWithGeneratedProtocol(array $attributes): self
+    {
+        return self::withProtocolLock(function () use ($attributes) {
+            $attributes['protocol'] = self::generateNextProtocol();
+
+            /** @var self $demand */
+            $demand = self::query()->create($attributes);
+
+            return $demand;
+        });
+    }
 
     protected function casts(): array
     {
@@ -128,5 +142,41 @@ class Demand extends Model
             'alta' => 'Alta',
             'urgente' => 'Urgente',
         ];
+    }
+
+    private static function generateNextProtocol(?int $year = null): string
+    {
+        $year ??= now()->year;
+        $latestProtocol = self::query()
+            ->where('protocol', 'like', sprintf('DEM-%d-%%', $year))
+            ->orderByRaw("CAST(SUBSTRING_INDEX(protocol, '-', -1) AS UNSIGNED) DESC")
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('protocol');
+
+        $sequence = 1;
+        if (is_string($latestProtocol) && preg_match('/^DEM-\d{4}-(\d+)$/', $latestProtocol, $matches)) {
+            $sequence = ((int) $matches[1]) + 1;
+        }
+
+        return sprintf('DEM-%d-%05d', $year, $sequence);
+    }
+
+    private static function withProtocolLock(callable $callback): mixed
+    {
+        $year = now()->year;
+        $lockName = sprintf('demands-protocol-%d', $year);
+        $result = DB::selectOne('SELECT GET_LOCK(?, 10) AS acquired', [$lockName]);
+        $acquired = (int) ($result->acquired ?? 0);
+
+        if ($acquired !== 1) {
+            throw new RuntimeException('Nao foi possivel reservar o proximo protocolo da demanda.');
+        }
+
+        try {
+            return $callback();
+        } finally {
+            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+        }
     }
 }

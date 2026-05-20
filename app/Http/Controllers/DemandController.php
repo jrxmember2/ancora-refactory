@@ -252,8 +252,7 @@ class DemandController extends Controller
         ) {
             $state = $this->initialStatePayload($tag);
 
-            $demand = Demand::query()->create([
-                'protocol' => $this->nextProtocol(),
+            $demand = Demand::createWithGeneratedProtocol([
                 'origin' => 'internal',
                 'client_portal_user_id' => $portalUser?->id,
                 'client_entity_id' => $selectedEntityId,
@@ -610,14 +609,6 @@ class DemandController extends Controller
             'sla_started_at' => $slaStartedAt,
             'sla_due_at' => $slaStartedAt ? $slaStartedAt->copy()->addHours((int) $tag->sla_hours) : null,
         ];
-    }
-
-    private function nextProtocol(): string
-    {
-        $year = now()->year;
-        $seq = (int) Demand::query()->whereYear('created_at', $year)->lockForUpdate()->count() + 1;
-
-        return sprintf('DEM-%d-%05d', $year, $seq);
     }
 
     private function tagUpdatePayload(Demand $demand, DemandTag $tag): array

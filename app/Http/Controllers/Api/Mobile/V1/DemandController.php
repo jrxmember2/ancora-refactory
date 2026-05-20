@@ -113,8 +113,7 @@ class DemandController extends Controller
             $tag = DemandTag::defaultForStatus('aberta') ?: DemandTag::default();
             $slaStartedAt = $tag?->sla_hours ? now() : null;
 
-            $demand = Demand::query()->create([
-                'protocol' => $this->nextProtocol(),
+            $demand = Demand::createWithGeneratedProtocol([
                 'origin' => 'portal',
                 'client_portal_user_id' => $user->id,
                 'client_entity_id' => $user->client_entity_id,
@@ -265,14 +264,6 @@ class DemandController extends Controller
         abort_unless(is_string($path) && is_file($path), 404);
 
         return response()->download($path, $attachment->original_name);
-    }
-
-    private function nextProtocol(): string
-    {
-        $year = now()->year;
-        $seq = (int) Demand::query()->whereYear('created_at', $year)->lockForUpdate()->count() + 1;
-
-        return sprintf('DEM-%d-%05d', $year, $seq);
     }
 
     private function storeAttachments(Request $request, Demand $demand, ?DemandMessage $message, string $uploadedByType, ?int $portalUserId, ?int $userId, bool $internal): int

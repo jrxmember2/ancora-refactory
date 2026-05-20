@@ -29,8 +29,7 @@ class AutomationDemandService
             $status = (string) config('automation.demand.default_status', 'aguardando_formalizacao_acordo');
             $tag = DemandTag::defaultForStatus($status) ?: DemandTag::default();
             $slaStartedAt = $tag?->sla_hours ? now() : null;
-            $demand = Demand::query()->create([
-                'protocol' => $this->nextProtocol(),
+            $demand = Demand::createWithGeneratedProtocol([
                 'origin' => (string) config('automation.demand.origin', 'automation_whatsapp'),
                 'client_entity_id' => $session->validated_person_id,
                 'client_condominium_id' => $session->condominium_id,
@@ -142,14 +141,6 @@ class AutomationDemandService
             'is_active' => true,
             'sort_order' => 20,
         ]);
-    }
-
-    private function nextProtocol(): string
-    {
-        $year = now()->year;
-        $seq = (int) Demand::query()->whereYear('created_at', $year)->lockForUpdate()->count() + 1;
-
-        return sprintf('DEM-%d-%05d', $year, $seq);
     }
 
     private function addBusinessHours(Carbon $startsAt, int $hours): Carbon
