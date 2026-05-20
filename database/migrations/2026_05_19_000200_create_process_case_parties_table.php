@@ -16,13 +16,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('process_case_id')->constrained('process_cases')->cascadeOnDelete();
             $table->string('party_type', 20);
-            $table->unsignedInteger('entity_id')->nullable();
+            $table->integer('entity_id')->nullable();
             $table->string('name_snapshot', 190);
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
 
             $table->index(['process_case_id', 'party_type', 'sort_order'], 'idx_process_case_parties_case_type_order');
-            $table->foreign('entity_id')->references('id')->on('client_entities')->nullOnDelete();
+            $table->index('entity_id', 'idx_process_case_parties_entity');
         });
     }
 
