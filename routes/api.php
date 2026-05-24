@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\Api\Hub\HubInstanceController;
 use App\Http\Controllers\Api\Hub\V1\AuthController as HubAuthController;
+use App\Http\Controllers\Api\Hub\V1\ClientController as HubClientController;
 use App\Http\Controllers\Api\Hub\V1\CollectionController as HubCollectionController;
+use App\Http\Controllers\Api\Hub\V1\CondominiumController as HubCondominiumController;
 use App\Http\Controllers\Api\Hub\V1\DashboardController as HubDashboardController;
 use App\Http\Controllers\Api\Hub\V1\DemandController as HubDemandController;
 use App\Http\Controllers\Api\Hub\V1\DeviceController as HubDeviceController;
+use App\Http\Controllers\Api\Hub\V1\DocumentController as HubDocumentController;
 use App\Http\Controllers\Api\Hub\V1\NotificationController as HubNotificationController;
 use App\Http\Controllers\Api\Hub\V1\ProcessController as HubProcessController;
+use App\Http\Controllers\Api\Hub\V1\UnitController as HubUnitController;
 use App\Http\Controllers\Api\MobileInstanceController;
 use App\Http\Controllers\Api\Mobile\V1\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\Mobile\V1\CondominiumController as MobileCondominiumController;
@@ -80,6 +84,19 @@ Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
         Route::get('/collections/{collection}/installments', [HubCollectionController::class, 'installments'])->name('collections.installments');
         Route::get('/collections/{collection}/timeline', [HubCollectionController::class, 'timeline'])->name('collections.timeline');
         Route::get('/collections/{collection}/attachments', [HubCollectionController::class, 'attachments'])->name('collections.attachments');
+
+        Route::get('/clients', [HubClientController::class, 'index'])->name('clients.index');
+        Route::get('/clients/{client}', [HubClientController::class, 'show'])->name('clients.show');
+
+        Route::get('/condominiums', [HubCondominiumController::class, 'index'])->name('condominiums.index');
+        Route::get('/condominiums/{condominium}', [HubCondominiumController::class, 'show'])->name('condominiums.show');
+        Route::get('/condominiums/{condominium}/units', [HubCondominiumController::class, 'units'])->name('condominiums.units');
+        Route::get('/condominiums/{condominium}/documents', [HubCondominiumController::class, 'documents'])->name('condominiums.documents');
+
+        Route::get('/units/{unit}', [HubUnitController::class, 'show'])->name('units.show');
+        Route::get('/units/{unit}/documents', [HubUnitController::class, 'documents'])->name('units.documents');
+
+        Route::get('/documents/{document}/download', [HubDocumentController::class, 'download'])->name('documents.download');
     });
 });
 

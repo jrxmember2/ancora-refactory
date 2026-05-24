@@ -77,6 +77,11 @@ import br.com.serratech.ancora.hub.ui.components.AncoraStatusChip
 import br.com.serratech.ancora.hub.ui.screens.biometric.BiometricScreen
 import br.com.serratech.ancora.hub.ui.screens.collections.CollectionDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.collections.CollectionsScreen
+import br.com.serratech.ancora.hub.ui.screens.clients.ClientDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.clients.ClientsScreen
+import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumUnitsScreen
+import br.com.serratech.ancora.hub.ui.screens.clients.UnitDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.common.ModulePlaceholderScreen
 import br.com.serratech.ancora.hub.ui.screens.dashboard.DashboardScreen
 import br.com.serratech.ancora.hub.ui.screens.demands.DemandDetailScreen
@@ -115,6 +120,14 @@ private object AppRoutes {
     const val CollectionDetailBase = "collections/detail"
     const val More = "more"
     const val Clients = "clients"
+    const val ClientDetail = "clients/detail/{clientId}"
+    const val ClientDetailBase = "clients/detail"
+    const val CondominiumDetail = "condominiums/detail/{condominiumId}"
+    const val CondominiumDetailBase = "condominiums/detail"
+    const val CondominiumUnits = "condominiums/{condominiumId}/units"
+    const val CondominiumUnitsBase = "condominiums"
+    const val UnitDetail = "units/detail/{unitId}"
+    const val UnitDetailBase = "units/detail"
     const val Proposals = "proposals"
     const val Contracts = "contracts"
     const val Signer = "signer"
@@ -705,10 +718,109 @@ private fun AppNavHost(
         }
 
         composable(AppRoutes.Clients) {
-            ModulePlaceholderScreen(
-                title = "Clientes",
-                description = "O acesso aos cadastros internos de clientes seguirá evoluindo com telas nativas e filtros próprios.",
-                onBack = { navController.popBackStack() },
+            ClientsScreen(
+                container = container,
+                onOpenClient = { clientId ->
+                    openHubRoute(clientDetailRoute(clientId))
+                },
+                onOpenCondominium = { condominiumId ->
+                    openHubRoute(condominiumDetailRoute(condominiumId))
+                },
+            )
+        }
+
+        composable(
+            route = AppRoutes.ClientDetail,
+            arguments = listOf(
+                navArgument("clientId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val clientId = backStackEntry.arguments?.getLong("clientId") ?: 0L
+            ClientDetailScreen(
+                container = container,
+                clientId = clientId,
+                onOpenCondominium = { condominiumId ->
+                    openHubRoute(condominiumDetailRoute(condominiumId))
+                },
+                onOpenUnit = { unitId ->
+                    openHubRoute(unitDetailRoute(unitId))
+                },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Clients)
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = AppRoutes.CondominiumDetail,
+            arguments = listOf(
+                navArgument("condominiumId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val condominiumId = backStackEntry.arguments?.getLong("condominiumId") ?: 0L
+            CondominiumDetailScreen(
+                container = container,
+                condominiumId = condominiumId,
+                onOpenUnit = { unitId ->
+                    openHubRoute(unitDetailRoute(unitId))
+                },
+                onOpenUnits = { routeCondominiumId ->
+                    openHubRoute(condominiumUnitsRoute(routeCondominiumId))
+                },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Clients)
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = AppRoutes.CondominiumUnits,
+            arguments = listOf(
+                navArgument("condominiumId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val condominiumId = backStackEntry.arguments?.getLong("condominiumId") ?: 0L
+            CondominiumUnitsScreen(
+                container = container,
+                condominiumId = condominiumId,
+                onOpenUnit = { unitId ->
+                    openHubRoute(unitDetailRoute(unitId))
+                },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Clients)
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = AppRoutes.UnitDetail,
+            arguments = listOf(
+                navArgument("unitId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val unitId = backStackEntry.arguments?.getLong("unitId") ?: 0L
+            UnitDetailScreen(
+                container = container,
+                unitId = unitId,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Clients)
+                    }
+                },
             )
         }
 
@@ -884,6 +996,10 @@ private val authenticatedRoutes = setOf(
     AppRoutes.CollectionDetail,
     AppRoutes.More,
     AppRoutes.Clients,
+    AppRoutes.ClientDetail,
+    AppRoutes.CondominiumDetail,
+    AppRoutes.CondominiumUnits,
+    AppRoutes.UnitDetail,
     AppRoutes.Proposals,
     AppRoutes.Contracts,
     AppRoutes.Signer,
@@ -899,6 +1015,10 @@ private fun String.toNavigationRoot(): String = when (this) {
     AppRoutes.DemandDetail -> AppRoutes.Demands
     AppRoutes.ProcessDetail -> AppRoutes.Processes
     AppRoutes.CollectionDetail -> AppRoutes.Collections
+    AppRoutes.ClientDetail,
+    AppRoutes.CondominiumDetail,
+    AppRoutes.CondominiumUnits,
+    AppRoutes.UnitDetail,
     AppRoutes.Notifications,
     AppRoutes.NotificationDetail,
     AppRoutes.Profile,
@@ -920,6 +1040,9 @@ private fun NotificationItem.toNavigationRoute(): String {
         demandId = data["demand_id"]?.toLongOrNull(),
         processId = data["process_id"]?.toLongOrNull(),
         collectionId = data["collection_id"]?.toLongOrNull(),
+        clientId = data["client_id"]?.toLongOrNull(),
+        condominiumId = data["condominium_id"]?.toLongOrNull(),
+        unitId = data["unit_id"]?.toLongOrNull(),
     )
 
     return if (route != null && route != AppRoutes.Notifications) {
@@ -941,6 +1064,9 @@ private fun Bundle?.toPushRoute(): String? {
         demandId = bundleLong("demand_id"),
         processId = bundleLong("process_id"),
         collectionId = bundleLong("collection_id"),
+        clientId = bundleLong("client_id"),
+        condominiumId = bundleLong("condominium_id"),
+        unitId = bundleLong("unit_id"),
     )
     val notificationId = bundleLong("notification_id")
 
@@ -957,12 +1083,21 @@ private fun resolveHubRoute(
     demandId: Long? = null,
     processId: Long? = null,
     collectionId: Long? = null,
+    clientId: Long? = null,
+    condominiumId: Long? = null,
+    unitId: Long? = null,
 ): String? {
     val normalized = normalizeAppRoute(route)
     return when (normalized) {
         AppRoutes.Demands -> demandId?.let(::demandDetailRoute) ?: AppRoutes.Demands
         AppRoutes.Processes -> processId?.let(::processDetailRoute) ?: AppRoutes.Processes
         AppRoutes.Collections -> collectionId?.let(::collectionDetailRoute) ?: AppRoutes.Collections
+        AppRoutes.Clients -> when {
+            clientId != null -> clientDetailRoute(clientId)
+            condominiumId != null -> condominiumDetailRoute(condominiumId)
+            unitId != null -> unitDetailRoute(unitId)
+            else -> AppRoutes.Clients
+        }
         else -> normalized
     }
 }
@@ -982,7 +1117,11 @@ private fun normalizeAppRoute(value: String?): String? {
         raw.startsWith(AppRoutes.NotificationDetailBase) ||
         raw.startsWith(AppRoutes.DemandDetailBase) ||
         raw.startsWith(AppRoutes.ProcessDetailBase) ||
-        raw.startsWith(AppRoutes.CollectionDetailBase)
+        raw.startsWith(AppRoutes.CollectionDetailBase) ||
+        raw.startsWith(AppRoutes.ClientDetailBase) ||
+        raw.startsWith(AppRoutes.CondominiumDetailBase) ||
+        raw.startsWith(AppRoutes.UnitDetailBase) ||
+        raw.matches(Regex("^${AppRoutes.CondominiumUnitsBase}/\\d+/units$"))
     ) {
         return raw
     }
@@ -1000,7 +1139,7 @@ private fun normalizeAppRoute(value: String?): String? {
         "demands", "demandas", "demanda" -> AppRoutes.Demands
         "processes", "processos", "processo" -> AppRoutes.Processes
         "collections", "cobrancas", "cobranca" -> AppRoutes.Collections
-        "clients", "clientes", "cliente" -> AppRoutes.Clients
+        "clients", "clientes", "cliente", "condominios", "condominiums", "condominio", "condominium", "unidades", "units", "unidade", "unit" -> AppRoutes.Clients
         "proposals", "propostas", "proposta" -> AppRoutes.Proposals
         "contracts", "contratos", "contrato" -> AppRoutes.Contracts
         "signer", "assinador", "assinaturas", "assinatura" -> AppRoutes.Signer
@@ -1021,6 +1160,18 @@ private fun processDetailRoute(id: Long): String =
 private fun collectionDetailRoute(id: Long): String =
     "${AppRoutes.CollectionDetailBase}/$id"
 
+private fun clientDetailRoute(id: Long): String =
+    "${AppRoutes.ClientDetailBase}/$id"
+
+private fun condominiumDetailRoute(id: Long): String =
+    "${AppRoutes.CondominiumDetailBase}/$id"
+
+private fun condominiumUnitsRoute(id: Long): String =
+    "${AppRoutes.CondominiumUnitsBase}/$id/units"
+
+private fun unitDetailRoute(id: Long): String =
+    "${AppRoutes.UnitDetailBase}/$id"
+
 private fun notificationDetailRoute(id: Long): String =
     "${AppRoutes.NotificationDetailBase}/$id"
 
@@ -1028,7 +1179,11 @@ private fun isDetailRoute(route: String): Boolean =
     route.startsWith(AppRoutes.NotificationDetailBase) ||
         route.startsWith(AppRoutes.DemandDetailBase) ||
         route.startsWith(AppRoutes.ProcessDetailBase) ||
-        route.startsWith(AppRoutes.CollectionDetailBase)
+        route.startsWith(AppRoutes.CollectionDetailBase) ||
+        route.startsWith(AppRoutes.ClientDetailBase) ||
+        route.startsWith(AppRoutes.CondominiumDetailBase) ||
+        route.startsWith(AppRoutes.UnitDetailBase) ||
+        route.matches(Regex("^${AppRoutes.CondominiumUnitsBase}/\\d+/units$"))
 
 private fun NavHostController.navigateToHubRoute(
     route: String,

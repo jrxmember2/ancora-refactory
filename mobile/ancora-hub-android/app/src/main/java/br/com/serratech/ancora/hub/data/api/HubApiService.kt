@@ -2,10 +2,16 @@ package br.com.serratech.ancora.hub.data.api
 
 import br.com.serratech.ancora.hub.data.dto.AttachmentsResponseDto
 import br.com.serratech.ancora.hub.data.dto.AuthResponseDto
+import br.com.serratech.ancora.hub.data.dto.ClientDetailResponseDto
+import br.com.serratech.ancora.hub.data.dto.ClientDocumentsResponseDto
+import br.com.serratech.ancora.hub.data.dto.ClientListResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionInstallmentsResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionListResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionTimelineResponseDto
+import br.com.serratech.ancora.hub.data.dto.CondominiumDetailResponseDto
+import br.com.serratech.ancora.hub.data.dto.CondominiumListResponseDto
+import br.com.serratech.ancora.hub.data.dto.CondominiumUnitsResponseDto
 import br.com.serratech.ancora.hub.data.dto.DashboardResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandActionResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandDetailResponseDto
@@ -20,11 +26,15 @@ import br.com.serratech.ancora.hub.data.dto.ProcessListResponseDto
 import br.com.serratech.ancora.hub.data.dto.ProcessMovementsResponseDto
 import br.com.serratech.ancora.hub.data.dto.SessionPayloadDto
 import br.com.serratech.ancora.hub.data.dto.SimpleResponseDto
+import br.com.serratech.ancora.hub.data.dto.UnitDetailResponseDto
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
+import retrofit2.Response
 
 interface HubApiService {
     @GET("api/hub/v1/health")
@@ -150,4 +160,48 @@ interface HubApiService {
         @Query("page") page: Int? = null,
         @Query("per_page") perPage: Int? = null,
     ): AttachmentsResponseDto
+
+    @GET("api/hub/v1/clients")
+    suspend fun clients(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("scope") scope: String? = null,
+        @Query("status") status: String? = null,
+        @Query("q") query: String? = null,
+    ): ClientListResponseDto
+
+    @GET("api/hub/v1/clients/{clientId}")
+    suspend fun client(@Path("clientId") clientId: Long): ClientDetailResponseDto
+
+    @GET("api/hub/v1/condominiums")
+    suspend fun condominiums(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("status") status: String? = null,
+        @Query("q") query: String? = null,
+    ): CondominiumListResponseDto
+
+    @GET("api/hub/v1/condominiums/{condominiumId}")
+    suspend fun condominium(@Path("condominiumId") condominiumId: Long): CondominiumDetailResponseDto
+
+    @GET("api/hub/v1/condominiums/{condominiumId}/units")
+    suspend fun condominiumUnits(
+        @Path("condominiumId") condominiumId: Long,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("q") query: String? = null,
+    ): CondominiumUnitsResponseDto
+
+    @GET("api/hub/v1/units/{unitId}")
+    suspend fun unit(@Path("unitId") unitId: Long): UnitDetailResponseDto
+
+    @GET("api/hub/v1/condominiums/{condominiumId}/documents")
+    suspend fun condominiumDocuments(@Path("condominiumId") condominiumId: Long): ClientDocumentsResponseDto
+
+    @GET("api/hub/v1/units/{unitId}/documents")
+    suspend fun unitDocuments(@Path("unitId") unitId: Long): ClientDocumentsResponseDto
+
+    @Streaming
+    @GET("api/hub/v1/documents/{documentId}/download")
+    suspend fun downloadDocument(@Path("documentId") documentId: Long): Response<ResponseBody>
 }

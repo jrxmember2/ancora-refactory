@@ -12,6 +12,7 @@ import br.com.serratech.ancora.hub.data.api.HubApiService
 import br.com.serratech.ancora.hub.data.local.AppPreferencesDataSource
 import br.com.serratech.ancora.hub.data.local.SecureTokenStore
 import br.com.serratech.ancora.hub.data.repository.AuthRepository
+import br.com.serratech.ancora.hub.data.repository.ClientRepository
 import br.com.serratech.ancora.hub.data.repository.CollectionRepository
 import br.com.serratech.ancora.hub.data.repository.DashboardRepository
 import br.com.serratech.ancora.hub.data.repository.DemandRepository
@@ -81,6 +82,7 @@ class AppContainer(application: Application) {
     val demandRepository = DemandRepository(apiService, json)
     val processRepository = ProcessRepository(apiService, json)
     val collectionRepository = CollectionRepository(apiService, json)
+    val clientRepository = ClientRepository(application, apiService, json)
 
     val bootstrapAppUseCase = BootstrapAppUseCase(sessionManager)
     val validateInstanceUseCase = ValidateInstanceUseCase(instanceRepository)
