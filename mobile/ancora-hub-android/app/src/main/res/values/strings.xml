@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Âncora Hub</string>
+    <string name="biometric_title">Desbloquear Âncora Hub</string>
+    <string name="biometric_subtitle">Use sua biometria para acessar o app.</string>
+    <string name="biometric_negative">Entrar com e-mail e senha</string>
+    <string name="session_expired">Sessão expirada. Entre novamente.</string>
+    <string name="session_validation_error">Não foi possível validar sua sessão.</string>
+    <string name="biometric_enable_title">Deseja ativar a biometria?</string>
+    <string name="biometric_enable_message">Use sua biometria para acessar o Âncora Hub com mais agilidade.</string>
+    <string name="biometric_enabled_success">Biometria ativada com sucesso.</string>
+    <string name="biometric_disabled_success">Biometria desativada.</string>
+    <string name="notification_channel_general_name">Notificações do Âncora Hub</string>
+    <string name="notification_channel_general_description">Atualizações internas do escritório enviadas pelo Âncora Hub.</string>
+    <string name="notification_channel_important_name">Avisos importantes</string>
+    <string name="notification_channel_important_description">Comunicados internos com prioridade alta.</string>
+    <string name="notification_fallback_title">Âncora Hub</string>
+</resources>

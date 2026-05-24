@@ -1,5 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\Hub\HubInstanceController;
+use App\Http\Controllers\Api\Hub\V1\AuthController as HubAuthController;
+use App\Http\Controllers\Api\Hub\V1\CollectionController as HubCollectionController;
+use App\Http\Controllers\Api\Hub\V1\DashboardController as HubDashboardController;
+use App\Http\Controllers\Api\Hub\V1\DemandController as HubDemandController;
+use App\Http\Controllers\Api\Hub\V1\DeviceController as HubDeviceController;
+use App\Http\Controllers\Api\Hub\V1\NotificationController as HubNotificationController;
+use App\Http\Controllers\Api\Hub\V1\ProcessController as HubProcessController;
 use App\Http\Controllers\Api\MobileInstanceController;
 use App\Http\Controllers\Api\Mobile\V1\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\Mobile\V1\CondominiumController as MobileCondominiumController;
@@ -30,6 +38,49 @@ Route::post('/integrations/evolution/webhook/{token}/{event?}', EvolutionWebhook
 Route::prefix('mobile')->group(function () {
     Route::get('/health', [MobileInstanceController::class, 'health'])->name('api.mobile.health');
     Route::get('/instance-info', [MobileInstanceController::class, 'instanceInfo'])->name('api.mobile.instance-info');
+});
+
+Route::prefix('hub')->group(function () {
+    Route::get('/health', [HubInstanceController::class, 'health'])->name('api.hub.health');
+    Route::get('/instance-info', [HubInstanceController::class, 'instanceInfo'])->name('api.hub.instance-info');
+});
+
+Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
+    Route::get('/health', [HubInstanceController::class, 'health'])->name('health');
+    Route::post('/auth/login', [HubAuthController::class, 'login'])->name('auth.login');
+
+    Route::middleware('hub.api.auth')->group(function () {
+        Route::post('/auth/logout', [HubAuthController::class, 'logout'])->name('auth.logout');
+        Route::post('/auth/change-password', [HubAuthController::class, 'changePassword'])->name('auth.change-password');
+        Route::get('/me', [HubAuthController::class, 'me'])->name('me');
+        Route::put('/me', [HubAuthController::class, 'updateProfile'])->name('me.update');
+
+        Route::post('/devices/register', [HubDeviceController::class, 'register'])->name('devices.register');
+        Route::post('/devices/unregister', [HubDeviceController::class, 'unregister'])->name('devices.unregister');
+
+        Route::get('/notifications', [HubNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read-all', [HubNotificationController::class, 'readAll'])->name('notifications.read-all');
+        Route::post('/notifications/{notification}/read', [HubNotificationController::class, 'read'])->name('notifications.read');
+
+        Route::get('/dashboard', HubDashboardController::class)->name('dashboard');
+
+        Route::get('/demands', [HubDemandController::class, 'index'])->name('demands.index');
+        Route::get('/demands/{demand}', [HubDemandController::class, 'show'])->name('demands.show');
+        Route::post('/demands/{demand}/reply', [HubDemandController::class, 'reply'])->name('demands.reply');
+        Route::post('/demands/{demand}/status', [HubDemandController::class, 'updateStatus'])->name('demands.status');
+        Route::post('/demands/{demand}/assign', [HubDemandController::class, 'assign'])->name('demands.assign');
+
+        Route::get('/processes', [HubProcessController::class, 'index'])->name('processes.index');
+        Route::get('/processes/{process}', [HubProcessController::class, 'show'])->name('processes.show');
+        Route::get('/processes/{process}/movements', [HubProcessController::class, 'movements'])->name('processes.movements');
+        Route::get('/processes/{process}/attachments', [HubProcessController::class, 'attachments'])->name('processes.attachments');
+
+        Route::get('/collections', [HubCollectionController::class, 'index'])->name('collections.index');
+        Route::get('/collections/{collection}', [HubCollectionController::class, 'show'])->name('collections.show');
+        Route::get('/collections/{collection}/installments', [HubCollectionController::class, 'installments'])->name('collections.installments');
+        Route::get('/collections/{collection}/timeline', [HubCollectionController::class, 'timeline'])->name('collections.timeline');
+        Route::get('/collections/{collection}/attachments', [HubCollectionController::class, 'attachments'])->name('collections.attachments');
+    });
 });
 
 Route::prefix('mobile/v1')->name('api.mobile.v1.')->group(function () {

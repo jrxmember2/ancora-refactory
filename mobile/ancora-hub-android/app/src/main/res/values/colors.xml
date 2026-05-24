@@ -1,0 +1,11 @@
+<resources>
+    <color name="ancora_hub_primary">#8E1C1C</color>
+    <color name="ancora_hub_primary_container">#F7DDD6</color>
+    <color name="ancora_hub_surface">#FFFCF7</color>
+    <color name="ancora_hub_background">#F5F1EA</color>
+    <color name="ancora_hub_text">#1D1A17</color>
+    <color name="ancora_hub_soft">#EDE6DD</color>
+    <color name="ancora_hub_white">#FFFFFF</color>
+    <color name="splash_background">#F5F1EA</color>
+    <color name="ic_launcher_background">#F5F1EA</color>
+</resources>

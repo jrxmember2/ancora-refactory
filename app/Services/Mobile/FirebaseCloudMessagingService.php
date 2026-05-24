@@ -23,6 +23,26 @@ class FirebaseCloudMessagingService
         ]);
     }
 
+    public function sendHubNotificationToToken(string $token, array $notification, array $data = []): array
+    {
+        $type = strtolower(trim((string) ($data['type'] ?? '')));
+        $importantTypes = [
+            'acordo_vencido',
+            'conta_vencida',
+            'contrato_pendente',
+            'nova_demanda',
+            'novo_andamento_processual',
+        ];
+
+        return $this->sendMessageToToken($token, $notification, $data, [
+            'priority' => 'HIGH',
+            'channel_id' => in_array($type, $importantTypes, true)
+                ? 'ancora_hub_important'
+                : 'ancora_hub_general',
+            'click_action' => 'OPEN_APP',
+        ]);
+    }
+
     public function sendDataMessageToToken(string $token, array $data = []): array
     {
         return $this->sendMessageToToken($token, null, $data, [

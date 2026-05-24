@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureInternalAutomationAccess;
 use App\Http\Middleware\AuditUserAction;
 use App\Http\Middleware\EnsureClientPortalAuthenticated;
 use App\Http\Middleware\EnsureClientPortalGuest;
+use App\Http\Middleware\EnsureHubApiAuthenticated;
 use App\Http\Middleware\EnsureMobileApiAuthenticated;
 use App\Http\Middleware\EnsureGuest;
 use App\Http\Middleware\EnsureRoutePermission;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'portal.auth' => EnsureClientPortalAuthenticated::class,
             'portal.guest' => EnsureClientPortalGuest::class,
             'mobile.api.auth' => EnsureMobileApiAuthenticated::class,
+            'hub.api.auth' => EnsureHubApiAuthenticated::class,
             'automation.internal' => EnsureInternalAutomationAccess::class,
         ]);
     })
