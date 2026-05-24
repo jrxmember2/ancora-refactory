@@ -493,9 +493,16 @@ private fun Throwable.toUserFacingMessage(
     defaultMessage: String,
 ): String {
     apiMessageOrNull(json)?.let { message ->
+        hubConfigurationMessageOrNull(message)?.let { mapped ->
+            return mapped
+        }
         if (message.isNotBlank()) {
             return message
         }
+    }
+
+    hubConfigurationMessageOrNull(message)?.let { mapped ->
+        return mapped
     }
 
     return when {
@@ -504,6 +511,32 @@ private fun Throwable.toUserFacingMessage(
         this is IOException -> "Não foi possível se conectar ao Âncora agora. Tente novamente."
         else -> defaultMessage
     }
+}
+
+private fun hubConfigurationMessageOrNull(raw: String?): String? {
+    val candidate = raw
+        ?.trim()
+        ?.lowercase(Locale.ROOT)
+        ?.takeIf { it.isNotBlank() }
+        ?: return null
+
+    val referencesHubTables = listOf(
+        "hub_api_tokens",
+        "hub_device_tokens",
+        "hub_notifications",
+        "hub_push_dispatches",
+        "hub_app_login_logs",
+    ).any(candidate::contains)
+
+    val looksLikeSqlStorageError = candidate.contains("sqlstate[42s02]") ||
+        candidate.contains("base table or view not found") ||
+        candidate.contains("table")
+
+    if (!referencesHubTables || !looksLikeSqlStorageError) {
+        return null
+    }
+
+    return "A instância do Âncora Hub ainda não foi configurada. Peça ao administrador para executar as migrations do Hub."
 }
 
 private fun Throwable.apiMessageOrNull(json: Json): String? {

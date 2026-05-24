@@ -11,9 +11,11 @@ use App\Http\Middleware\EnsureGuest;
 use App\Http\Middleware\EnsureRoutePermission;
 use App\Http\Middleware\EnsureSuperadmin;
 use App\Http\Middleware\TrackAncoraSessionActivity;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -45,4 +47,32 @@ return Application::configure(basePath: dirname(__DIR__))
             'openai_api_key',
             'gemini_api_key',
         ]);
+
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if (!$request->is('api/hub') && !$request->is('api/hub/*')) {
+                return null;
+            }
+
+            $message = mb_strtolower($exception->getMessage(), 'UTF-8');
+            $hubTables = [
+                'hub_api_tokens',
+                'hub_device_tokens',
+                'hub_notifications',
+                'hub_push_dispatches',
+                'hub_app_login_logs',
+            ];
+
+            $referencesMissingHubTable = str_contains($message, 'base table')
+                && collect($hubTables)->contains(
+                    static fn (string $table) => str_contains($message, $table),
+                );
+
+            if (!$referencesMissingHubTable) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'A instância do Âncora Hub ainda não foi configurada. Execute as migrations do Hub antes de acessar o aplicativo.',
+            ], 503);
+        });
     })->create();
