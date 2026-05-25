@@ -83,9 +83,13 @@ import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumUnitsScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.UnitDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.common.ModulePlaceholderScreen
+import br.com.serratech.ancora.hub.ui.screens.contracts.ContractDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.contracts.ContractsScreen
 import br.com.serratech.ancora.hub.ui.screens.dashboard.DashboardScreen
 import br.com.serratech.ancora.hub.ui.screens.demands.DemandDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.demands.DemandsScreen
+import br.com.serratech.ancora.hub.ui.screens.finance.FinanceScreen
+import br.com.serratech.ancora.hub.ui.screens.leme.LemeIaScreen
 import br.com.serratech.ancora.hub.ui.screens.login.LoginScreen
 import br.com.serratech.ancora.hub.ui.screens.more.MoreScreen
 import br.com.serratech.ancora.hub.ui.screens.notifications.NotificationDetailScreen
@@ -93,7 +97,11 @@ import br.com.serratech.ancora.hub.ui.screens.notifications.NotificationsScreen
 import br.com.serratech.ancora.hub.ui.screens.processes.ProcessDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.processes.ProcessesScreen
 import br.com.serratech.ancora.hub.ui.screens.profile.ProfileScreen
+import br.com.serratech.ancora.hub.ui.screens.proposals.ProposalDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.proposals.ProposalsScreen
 import br.com.serratech.ancora.hub.ui.screens.setup.SetupScreen
+import br.com.serratech.ancora.hub.ui.screens.signatures.SignatureDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.signatures.SignaturesScreen
 import br.com.serratech.ancora.hub.ui.theme.AncoraTone
 import br.com.serratech.ancora.hub.ui.theme.spacing
 import java.text.Normalizer
@@ -129,8 +137,14 @@ private object AppRoutes {
     const val UnitDetail = "units/detail/{unitId}"
     const val UnitDetailBase = "units/detail"
     const val Proposals = "proposals"
+    const val ProposalDetail = "proposals/detail/{proposalId}"
+    const val ProposalDetailBase = "proposals/detail"
     const val Contracts = "contracts"
+    const val ContractDetail = "contracts/detail/{contractId}"
+    const val ContractDetailBase = "contracts/detail"
     const val Signer = "signer"
+    const val SignatureDetail = "signatures/detail/{signatureId}"
+    const val SignatureDetailBase = "signatures/detail"
     const val Finance = "finance"
     const val LemeIa = "leme-ia"
     const val Notifications = "notifications"
@@ -825,41 +839,105 @@ private fun AppNavHost(
         }
 
         composable(AppRoutes.Proposals) {
-            ModulePlaceholderScreen(
-                title = "Propostas",
-                description = "A visão mobile de Propostas será aprofundada com foco em consulta rápida e acompanhamento comercial.",
+            ProposalsScreen(
+                container = container,
+                onOpenProposal = { proposalId ->
+                    openHubRoute(proposalDetailRoute(proposalId))
+                },
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = AppRoutes.ProposalDetail,
+            arguments = listOf(
+                navArgument("proposalId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val proposalId = backStackEntry.arguments?.getLong("proposalId") ?: 0L
+            ProposalDetailScreen(
+                container = container,
+                proposalId = proposalId,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Proposals)
+                    }
+                },
             )
         }
 
         composable(AppRoutes.Contracts) {
-            ModulePlaceholderScreen(
-                title = "Contratos",
-                description = "A central de Contratos continuará evoluindo com navegação nativa e ações úteis para o dia a dia.",
+            ContractsScreen(
+                container = container,
+                onOpenContract = { contractId ->
+                    openHubRoute(contractDetailRoute(contractId))
+                },
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = AppRoutes.ContractDetail,
+            arguments = listOf(
+                navArgument("contractId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val contractId = backStackEntry.arguments?.getLong("contractId") ?: 0L
+            ContractDetailScreen(
+                container = container,
+                contractId = contractId,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Contracts)
+                    }
+                },
             )
         }
 
         composable(AppRoutes.Signer) {
-            ModulePlaceholderScreen(
-                title = "Assinador",
-                description = "O módulo de Assinador ganhará experiências próprias para pendências, fluxo de assinatura e acompanhamento.",
+            SignaturesScreen(
+                container = container,
+                onOpenSignature = { signatureId ->
+                    openHubRoute(signatureDetailRoute(signatureId))
+                },
                 onBack = { navController.popBackStack() },
             )
         }
 
+        composable(
+            route = AppRoutes.SignatureDetail,
+            arguments = listOf(
+                navArgument("signatureId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val signatureId = backStackEntry.arguments?.getLong("signatureId") ?: 0L
+            SignatureDetailScreen(
+                container = container,
+                signatureId = signatureId,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigateToHubRoute(AppRoutes.Signer)
+                    }
+                },
+            )
+        }
+
         composable(AppRoutes.Finance) {
-            ModulePlaceholderScreen(
-                title = "Financeiro 360",
-                description = "O Financeiro 360 continuará evoluindo com indicadores e atalhos pensados para uso no celular.",
+            FinanceScreen(
+                container = container,
                 onBack = { navController.popBackStack() },
             )
         }
 
         composable(AppRoutes.LemeIa) {
-            ModulePlaceholderScreen(
-                title = "Leme IA",
-                description = "Os recursos de Leme IA serão expandidos em telas próprias com foco em produtividade do escritório.",
+            LemeIaScreen(
+                container = container,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -1001,8 +1079,11 @@ private val authenticatedRoutes = setOf(
     AppRoutes.CondominiumUnits,
     AppRoutes.UnitDetail,
     AppRoutes.Proposals,
+    AppRoutes.ProposalDetail,
     AppRoutes.Contracts,
+    AppRoutes.ContractDetail,
     AppRoutes.Signer,
+    AppRoutes.SignatureDetail,
     AppRoutes.Finance,
     AppRoutes.LemeIa,
     AppRoutes.Notifications,
@@ -1024,8 +1105,11 @@ private fun String.toNavigationRoot(): String = when (this) {
     AppRoutes.Profile,
     AppRoutes.Clients,
     AppRoutes.Proposals,
+    AppRoutes.ProposalDetail,
     AppRoutes.Contracts,
+    AppRoutes.ContractDetail,
     AppRoutes.Signer,
+    AppRoutes.SignatureDetail,
     AppRoutes.Finance,
     AppRoutes.LemeIa,
     AppRoutes.Settings,
@@ -1043,6 +1127,9 @@ private fun NotificationItem.toNavigationRoute(): String {
         clientId = data["client_id"]?.toLongOrNull(),
         condominiumId = data["condominium_id"]?.toLongOrNull(),
         unitId = data["unit_id"]?.toLongOrNull(),
+        proposalId = data["proposal_id"]?.toLongOrNull(),
+        contractId = data["contract_id"]?.toLongOrNull(),
+        signatureId = data["signature_id"]?.toLongOrNull(),
     )
 
     return if (route != null && route != AppRoutes.Notifications) {
@@ -1067,6 +1154,9 @@ private fun Bundle?.toPushRoute(): String? {
         clientId = bundleLong("client_id"),
         condominiumId = bundleLong("condominium_id"),
         unitId = bundleLong("unit_id"),
+        proposalId = bundleLong("proposal_id"),
+        contractId = bundleLong("contract_id"),
+        signatureId = bundleLong("signature_id"),
     )
     val notificationId = bundleLong("notification_id")
 
@@ -1086,6 +1176,9 @@ private fun resolveHubRoute(
     clientId: Long? = null,
     condominiumId: Long? = null,
     unitId: Long? = null,
+    proposalId: Long? = null,
+    contractId: Long? = null,
+    signatureId: Long? = null,
 ): String? {
     val normalized = normalizeAppRoute(route)
     return when (normalized) {
@@ -1098,6 +1191,9 @@ private fun resolveHubRoute(
             unitId != null -> unitDetailRoute(unitId)
             else -> AppRoutes.Clients
         }
+        AppRoutes.Proposals -> proposalId?.let(::proposalDetailRoute) ?: AppRoutes.Proposals
+        AppRoutes.Contracts -> contractId?.let(::contractDetailRoute) ?: AppRoutes.Contracts
+        AppRoutes.Signer -> signatureId?.let(::signatureDetailRoute) ?: AppRoutes.Signer
         else -> normalized
     }
 }
@@ -1121,6 +1217,9 @@ private fun normalizeAppRoute(value: String?): String? {
         raw.startsWith(AppRoutes.ClientDetailBase) ||
         raw.startsWith(AppRoutes.CondominiumDetailBase) ||
         raw.startsWith(AppRoutes.UnitDetailBase) ||
+        raw.startsWith(AppRoutes.ProposalDetailBase) ||
+        raw.startsWith(AppRoutes.ContractDetailBase) ||
+        raw.startsWith(AppRoutes.SignatureDetailBase) ||
         raw.matches(Regex("^${AppRoutes.CondominiumUnitsBase}/\\d+/units$"))
     ) {
         return raw
@@ -1142,7 +1241,7 @@ private fun normalizeAppRoute(value: String?): String? {
         "clients", "clientes", "cliente", "condominios", "condominiums", "condominio", "condominium", "unidades", "units", "unidade", "unit" -> AppRoutes.Clients
         "proposals", "propostas", "proposta" -> AppRoutes.Proposals
         "contracts", "contratos", "contrato" -> AppRoutes.Contracts
-        "signer", "assinador", "assinaturas", "assinatura" -> AppRoutes.Signer
+        "signer", "signatures", "signature", "assinador", "assinaturas", "assinatura" -> AppRoutes.Signer
         "finance", "financeiro", "financeiro-360", "financeiro360" -> AppRoutes.Finance
         "leme-ia", "lemeia", "ia" -> AppRoutes.LemeIa
         "settings", "configuracoes", "configuracao", "config" -> AppRoutes.Settings
@@ -1172,6 +1271,15 @@ private fun condominiumUnitsRoute(id: Long): String =
 private fun unitDetailRoute(id: Long): String =
     "${AppRoutes.UnitDetailBase}/$id"
 
+private fun proposalDetailRoute(id: Long): String =
+    "${AppRoutes.ProposalDetailBase}/$id"
+
+private fun contractDetailRoute(id: Long): String =
+    "${AppRoutes.ContractDetailBase}/$id"
+
+private fun signatureDetailRoute(id: Long): String =
+    "${AppRoutes.SignatureDetailBase}/$id"
+
 private fun notificationDetailRoute(id: Long): String =
     "${AppRoutes.NotificationDetailBase}/$id"
 
@@ -1183,6 +1291,9 @@ private fun isDetailRoute(route: String): Boolean =
         route.startsWith(AppRoutes.ClientDetailBase) ||
         route.startsWith(AppRoutes.CondominiumDetailBase) ||
         route.startsWith(AppRoutes.UnitDetailBase) ||
+        route.startsWith(AppRoutes.ProposalDetailBase) ||
+        route.startsWith(AppRoutes.ContractDetailBase) ||
+        route.startsWith(AppRoutes.SignatureDetailBase) ||
         route.matches(Regex("^${AppRoutes.CondominiumUnitsBase}/\\d+/units$"))
 
 private fun NavHostController.navigateToHubRoute(

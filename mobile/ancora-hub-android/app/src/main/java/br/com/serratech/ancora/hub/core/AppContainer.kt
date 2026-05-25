@@ -14,11 +14,16 @@ import br.com.serratech.ancora.hub.data.local.SecureTokenStore
 import br.com.serratech.ancora.hub.data.repository.AuthRepository
 import br.com.serratech.ancora.hub.data.repository.ClientRepository
 import br.com.serratech.ancora.hub.data.repository.CollectionRepository
+import br.com.serratech.ancora.hub.data.repository.ContractRepository
 import br.com.serratech.ancora.hub.data.repository.DashboardRepository
 import br.com.serratech.ancora.hub.data.repository.DemandRepository
+import br.com.serratech.ancora.hub.data.repository.FinanceRepository
 import br.com.serratech.ancora.hub.data.repository.InstanceRepository
+import br.com.serratech.ancora.hub.data.repository.LemeRepository
 import br.com.serratech.ancora.hub.data.repository.NotificationRepository
 import br.com.serratech.ancora.hub.data.repository.ProcessRepository
+import br.com.serratech.ancora.hub.data.repository.ProposalRepository
+import br.com.serratech.ancora.hub.data.repository.SignatureRepository
 import br.com.serratech.ancora.hub.domain.usecase.BootstrapAppUseCase
 import br.com.serratech.ancora.hub.domain.usecase.ValidateInstanceUseCase
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -83,6 +88,11 @@ class AppContainer(application: Application) {
     val processRepository = ProcessRepository(apiService, json)
     val collectionRepository = CollectionRepository(apiService, json)
     val clientRepository = ClientRepository(application, apiService, json)
+    val proposalRepository = ProposalRepository(apiService, json)
+    val contractRepository = ContractRepository(application, apiService, json)
+    val signatureRepository = SignatureRepository(apiService, json)
+    val financeRepository = FinanceRepository(apiService, json)
+    val lemeRepository = LemeRepository(apiService, json)
 
     val bootstrapAppUseCase = BootstrapAppUseCase(sessionManager)
     val validateInstanceUseCase = ValidateInstanceUseCase(instanceRepository)

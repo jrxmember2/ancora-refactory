@@ -5,12 +5,17 @@ use App\Http\Controllers\Api\Hub\V1\AuthController as HubAuthController;
 use App\Http\Controllers\Api\Hub\V1\ClientController as HubClientController;
 use App\Http\Controllers\Api\Hub\V1\CollectionController as HubCollectionController;
 use App\Http\Controllers\Api\Hub\V1\CondominiumController as HubCondominiumController;
+use App\Http\Controllers\Api\Hub\V1\ContractController as HubContractController;
 use App\Http\Controllers\Api\Hub\V1\DashboardController as HubDashboardController;
 use App\Http\Controllers\Api\Hub\V1\DemandController as HubDemandController;
 use App\Http\Controllers\Api\Hub\V1\DeviceController as HubDeviceController;
 use App\Http\Controllers\Api\Hub\V1\DocumentController as HubDocumentController;
+use App\Http\Controllers\Api\Hub\V1\FinanceController as HubFinanceController;
+use App\Http\Controllers\Api\Hub\V1\LemeController as HubLemeController;
 use App\Http\Controllers\Api\Hub\V1\NotificationController as HubNotificationController;
 use App\Http\Controllers\Api\Hub\V1\ProcessController as HubProcessController;
+use App\Http\Controllers\Api\Hub\V1\ProposalController as HubProposalController;
+use App\Http\Controllers\Api\Hub\V1\SignatureController as HubSignatureController;
 use App\Http\Controllers\Api\Hub\V1\UnitController as HubUnitController;
 use App\Http\Controllers\Api\MobileInstanceController;
 use App\Http\Controllers\Api\Mobile\V1\AuthController as MobileAuthController;
@@ -97,6 +102,29 @@ Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
         Route::get('/units/{unit}/documents', [HubUnitController::class, 'documents'])->name('units.documents');
 
         Route::get('/documents/{document}/download', [HubDocumentController::class, 'download'])->name('documents.download');
+
+        Route::get('/proposals', [HubProposalController::class, 'index'])->name('proposals.index');
+        Route::get('/proposals/{proposal}', [HubProposalController::class, 'show'])->name('proposals.show');
+
+        Route::get('/contracts', [HubContractController::class, 'index'])->name('contracts.index');
+        Route::get('/contracts/{contract}', [HubContractController::class, 'show'])->name('contracts.show');
+        Route::get('/contracts/{contract}/documents', [HubContractController::class, 'documents'])->name('contracts.documents');
+        Route::get('/contracts/{contract}/download', [HubContractController::class, 'download'])->name('contracts.download');
+
+        Route::get('/signatures', [HubSignatureController::class, 'index'])->name('signatures.index');
+        Route::get('/signatures/{signature}', [HubSignatureController::class, 'show'])->name('signatures.show');
+        Route::post('/signatures/{signature}/sync', [HubSignatureController::class, 'sync'])->name('signatures.sync');
+
+        Route::get('/finance/dashboard', [HubFinanceController::class, 'dashboard'])->name('finance.dashboard');
+        Route::get('/finance/receivables', [HubFinanceController::class, 'receivables'])->name('finance.receivables');
+        Route::get('/finance/payables', [HubFinanceController::class, 'payables'])->name('finance.payables');
+        Route::get('/finance/cashflow', [HubFinanceController::class, 'cashflow'])->name('finance.cashflow');
+
+        Route::get('/leme/conversations', [HubLemeController::class, 'index'])->name('leme.conversations.index');
+        Route::post('/leme/conversations', [HubLemeController::class, 'store'])->name('leme.conversations.store');
+        Route::get('/leme/conversations/{conversation}', [HubLemeController::class, 'show'])->name('leme.conversations.show');
+        Route::post('/leme/conversations/{conversation}/messages', [HubLemeController::class, 'sendMessage'])->name('leme.conversations.messages.store');
+        Route::delete('/leme/conversations/{conversation}', [HubLemeController::class, 'destroy'])->name('leme.conversations.destroy');
     });
 });
 

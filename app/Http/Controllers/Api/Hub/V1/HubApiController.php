@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Hub\HubApiContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 abstract class HubApiController extends Controller
@@ -139,6 +140,15 @@ abstract class HubApiController extends Controller
             ->exists();
     }
 
+    protected function tableExists(string $table): bool
+    {
+        try {
+            return Schema::hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     private function defaultValidationMessages(): array
     {
         return [
@@ -165,6 +175,7 @@ abstract class HubApiController extends Controller
             'app_version' => 'versão do aplicativo',
             'assigned_user_id' => 'responsável',
             'biometric_enabled' => 'proteção por biometria',
+            'client_condominium_id' => 'condomínio',
             'current_password' => 'senha atual',
             'device_name' => 'nome do dispositivo',
             'demand_tag_id' => 'etapa da demanda',
@@ -181,6 +192,7 @@ abstract class HubApiController extends Controller
             'platform' => 'plataforma',
             'priority' => 'prioridade',
             'q' => 'busca',
+            'scope' => 'escopo',
             'status' => 'status',
             'theme_preference' => 'tema',
             'workflow_stage' => 'etapa',

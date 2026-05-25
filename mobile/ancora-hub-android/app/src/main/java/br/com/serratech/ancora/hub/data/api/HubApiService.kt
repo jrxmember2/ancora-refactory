@@ -12,19 +12,35 @@ import br.com.serratech.ancora.hub.data.dto.CollectionTimelineResponseDto
 import br.com.serratech.ancora.hub.data.dto.CondominiumDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.CondominiumListResponseDto
 import br.com.serratech.ancora.hub.data.dto.CondominiumUnitsResponseDto
+import br.com.serratech.ancora.hub.data.dto.ContractDetailResponseDto
+import br.com.serratech.ancora.hub.data.dto.ContractDocumentsResponseDto
+import br.com.serratech.ancora.hub.data.dto.ContractListResponseDto
 import br.com.serratech.ancora.hub.data.dto.DashboardResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandActionResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandListResponseDto
 import br.com.serratech.ancora.hub.data.dto.DeviceRegistrationRequestDto
 import br.com.serratech.ancora.hub.data.dto.DeviceRegistrationResponseDto
+import br.com.serratech.ancora.hub.data.dto.FinanceCashflowResponseDto
+import br.com.serratech.ancora.hub.data.dto.FinanceDashboardResponseDto
+import br.com.serratech.ancora.hub.data.dto.FinancePayablesResponseDto
+import br.com.serratech.ancora.hub.data.dto.FinanceReceivablesResponseDto
 import br.com.serratech.ancora.hub.data.dto.HealthResponseDto
+import br.com.serratech.ancora.hub.data.dto.LemeConversationResponseDto
+import br.com.serratech.ancora.hub.data.dto.LemeConversationsResponseDto
+import br.com.serratech.ancora.hub.data.dto.LemeCreateConversationRequestDto
+import br.com.serratech.ancora.hub.data.dto.LemeSendMessageRequestDto
 import br.com.serratech.ancora.hub.data.dto.LoginRequestDto
 import br.com.serratech.ancora.hub.data.dto.NotificationListResponseDto
 import br.com.serratech.ancora.hub.data.dto.ProcessDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.ProcessListResponseDto
 import br.com.serratech.ancora.hub.data.dto.ProcessMovementsResponseDto
+import br.com.serratech.ancora.hub.data.dto.ProposalDetailResponseDto
+import br.com.serratech.ancora.hub.data.dto.ProposalListResponseDto
 import br.com.serratech.ancora.hub.data.dto.SessionPayloadDto
+import br.com.serratech.ancora.hub.data.dto.SignatureActionResponseDto
+import br.com.serratech.ancora.hub.data.dto.SignatureDetailResponseDto
+import br.com.serratech.ancora.hub.data.dto.SignatureListResponseDto
 import br.com.serratech.ancora.hub.data.dto.SimpleResponseDto
 import br.com.serratech.ancora.hub.data.dto.UnitDetailResponseDto
 import okhttp3.ResponseBody
@@ -204,4 +220,103 @@ interface HubApiService {
     @Streaming
     @GET("api/hub/v1/documents/{documentId}/download")
     suspend fun downloadDocument(@Path("documentId") documentId: Long): Response<ResponseBody>
+
+    @GET("api/hub/v1/proposals")
+    suspend fun proposals(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("status_id") statusId: Long? = null,
+        @Query("service_id") serviceId: Long? = null,
+        @Query("q") query: String? = null,
+    ): ProposalListResponseDto
+
+    @GET("api/hub/v1/proposals/{proposalId}")
+    suspend fun proposal(@Path("proposalId") proposalId: Long): ProposalDetailResponseDto
+
+    @GET("api/hub/v1/contracts")
+    suspend fun contracts(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("status") status: String? = null,
+        @Query("q") query: String? = null,
+    ): ContractListResponseDto
+
+    @GET("api/hub/v1/contracts/{contractId}")
+    suspend fun contract(@Path("contractId") contractId: Long): ContractDetailResponseDto
+
+    @GET("api/hub/v1/contracts/{contractId}/documents")
+    suspend fun contractDocuments(@Path("contractId") contractId: Long): ContractDocumentsResponseDto
+
+    @Streaming
+    @GET("api/hub/v1/contracts/{contractId}/download")
+    suspend fun downloadContractDocument(
+        @Path("contractId") contractId: Long,
+        @Query("kind") kind: String? = null,
+        @Query("reference_id") referenceId: Long? = null,
+    ): Response<ResponseBody>
+
+    @GET("api/hub/v1/signatures")
+    suspend fun signatures(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("status") status: String? = null,
+        @Query("origin") origin: String? = null,
+        @Query("q") query: String? = null,
+    ): SignatureListResponseDto
+
+    @GET("api/hub/v1/signatures/{signatureId}")
+    suspend fun signature(@Path("signatureId") signatureId: Long): SignatureDetailResponseDto
+
+    @POST("api/hub/v1/signatures/{signatureId}/sync")
+    suspend fun syncSignature(@Path("signatureId") signatureId: Long): SignatureActionResponseDto
+
+    @GET("api/hub/v1/finance/dashboard")
+    suspend fun financeDashboard(): FinanceDashboardResponseDto
+
+    @GET("api/hub/v1/finance/receivables")
+    suspend fun financeReceivables(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("filter") filter: String? = null,
+        @Query("q") query: String? = null,
+    ): FinanceReceivablesResponseDto
+
+    @GET("api/hub/v1/finance/payables")
+    suspend fun financePayables(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("filter") filter: String? = null,
+        @Query("q") query: String? = null,
+    ): FinancePayablesResponseDto
+
+    @GET("api/hub/v1/finance/cashflow")
+    suspend fun financeCashflow(
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("period") period: String? = null,
+    ): FinanceCashflowResponseDto
+
+    @GET("api/hub/v1/leme/conversations")
+    suspend fun lemeConversations(): LemeConversationsResponseDto
+
+    @POST("api/hub/v1/leme/conversations")
+    suspend fun createLemeConversation(
+        @Body payload: LemeCreateConversationRequestDto,
+    ): LemeConversationResponseDto
+
+    @GET("api/hub/v1/leme/conversations/{conversationId}")
+    suspend fun lemeConversation(
+        @Path("conversationId") conversationId: Long,
+    ): LemeConversationResponseDto
+
+    @POST("api/hub/v1/leme/conversations/{conversationId}/messages")
+    suspend fun sendLemeMessage(
+        @Path("conversationId") conversationId: Long,
+        @Body payload: LemeSendMessageRequestDto,
+    ): LemeConversationResponseDto
+
+    @retrofit2.http.DELETE("api/hub/v1/leme/conversations/{conversationId}")
+    suspend fun deleteLemeConversation(
+        @Path("conversationId") conversationId: Long,
+    ): SimpleResponseDto
 }
