@@ -118,7 +118,7 @@ fun SetupScreen(
         verticalArrangement = Arrangement.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.logo_ancora_hub),
+            painter = painterResource(R.drawable.logo_ancora_rastreado),
             contentDescription = null,
             modifier = Modifier.fillMaxWidth(0.42f),
         )

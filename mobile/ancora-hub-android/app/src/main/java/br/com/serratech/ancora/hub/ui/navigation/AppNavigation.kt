@@ -243,12 +243,21 @@ class AppViewModel(
 
             val elapsed = System.currentTimeMillis() - startedAt
             val remaining = (2_000L - elapsed).coerceAtLeast(0L)
+
+            _uiState.value = _uiState.value.copy(
+                isSplashVisible = false,
+                isLoading = true,
+                launchDestination = destination,
+                sessionUser = sessionUser,
+                unreadNotifications = unreadCount,
+                feedbackMessage = feedbackMessage,
+            )
+
             if (remaining > 0) {
                 delay(remaining)
             }
 
             _uiState.value = _uiState.value.copy(
-                isSplashVisible = false,
                 isLoading = false,
                 launchDestination = destination,
                 sessionUser = sessionUser,
@@ -1092,7 +1101,7 @@ private fun AppLaunchLoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.76f)),
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.58f)),
     ) {
         Column(
             modifier = Modifier
@@ -1146,12 +1155,12 @@ private fun AncoraHubBackgroundLayer(modifier: Modifier = Modifier) {
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.12f,
+            alpha = 0.26f,
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.90f)),
+                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f)),
         )
     }
 }
