@@ -50,6 +50,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -77,6 +79,7 @@ import br.com.serratech.ancora.hub.ui.components.AncoraCard
 import br.com.serratech.ancora.hub.ui.components.AncoraStatusChip
 import br.com.serratech.ancora.hub.ui.screens.biometric.BiometricScreen
 import br.com.serratech.ancora.hub.ui.screens.collections.CollectionDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.collections.CollectionEditorScreen
 import br.com.serratech.ancora.hub.ui.screens.collections.CollectionsScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.ClientDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.ClientsScreen
@@ -102,6 +105,7 @@ import br.com.serratech.ancora.hub.ui.screens.proposals.ProposalsScreen
 import br.com.serratech.ancora.hub.ui.screens.settings.SettingsScreen
 import br.com.serratech.ancora.hub.ui.screens.setup.SetupScreen
 import br.com.serratech.ancora.hub.ui.screens.signatures.SignatureDetailScreen
+import br.com.serratech.ancora.hub.ui.screens.signatures.SignatureCreateScreen
 import br.com.serratech.ancora.hub.ui.screens.signatures.SignaturesScreen
 import br.com.serratech.ancora.hub.ui.theme.AncoraTone
 import br.com.serratech.ancora.hub.ui.theme.spacing
@@ -125,6 +129,9 @@ private object AppRoutes {
     const val ProcessDetail = "processes/detail/{processId}"
     const val ProcessDetailBase = "processes/detail"
     const val Collections = "collections"
+    const val CollectionCreate = "collections/create"
+    const val CollectionEdit = "collections/edit/{collectionId}"
+    const val CollectionEditBase = "collections/edit"
     const val CollectionDetail = "collections/detail/{collectionId}"
     const val CollectionDetailBase = "collections/detail"
     const val More = "more"
@@ -144,6 +151,7 @@ private object AppRoutes {
     const val ContractDetail = "contracts/detail/{contractId}"
     const val ContractDetailBase = "contracts/detail"
     const val Signer = "signer"
+    const val SignatureCreate = "signatures/create"
     const val SignatureDetail = "signatures/detail/{signatureId}"
     const val SignatureDetailBase = "signatures/detail"
     const val Finance = "finance"
@@ -195,8 +203,8 @@ class AppViewModel(
             var sessionUser: SessionUser? = null
             var unreadCount = 0
             var feedbackMessage: String? = when {
-                launchState.secureStorageInvalidated -> "SessÃ£o expirada. Entre novamente."
-                launchState.localSessionExpired -> "SessÃ£o expirada. Entre novamente."
+                launchState.secureStorageInvalidated -> "Sessão expirada. Entre novamente."
+                launchState.localSessionExpired -> "Sessão expirada. Entre novamente."
                 else -> null
             }
 
@@ -298,14 +306,14 @@ class AppViewModel(
                 launchDestination = LaunchDestination.Login,
                 sessionUser = null,
                 unreadNotifications = 0,
-                feedbackMessage = "SessÃ£o expirada. Entre novamente.",
+                feedbackMessage = "Sessão expirada. Entre novamente.",
                 navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
                 pendingPushRoute = null,
             )
         }
     }
 
-    fun onSessionExpired(message: String = "SessÃ£o expirada. Entre novamente.") {
+    fun onSessionExpired(message: String = "Sessão expirada. Entre novamente.") {
         viewModelScope.launch {
             container.sessionManager.clearSession(clearInstance = false)
             _uiState.value = _uiState.value.copy(
@@ -434,10 +442,10 @@ fun AncoraHubApp(
     ) { }
 
     val navItems = listOf(
-        NavItem(AppRoutes.Dashboard, "InÃ­cio", Icons.Outlined.Home),
+        NavItem(AppRoutes.Dashboard, "Início", Icons.Outlined.Home),
         NavItem(AppRoutes.Demands, "Demandas", Icons.AutoMirrored.Outlined.Assignment),
         NavItem(AppRoutes.Processes, "Processos", Icons.Outlined.Gavel),
-        NavItem(AppRoutes.Collections, "CobranÃ§as", Icons.Outlined.Payments),
+        NavItem(AppRoutes.Collections, "Cobranças", Icons.Outlined.Payments),
         NavItem(AppRoutes.More, "Mais", Icons.Outlined.Widgets),
     )
 
@@ -490,57 +498,62 @@ fun AncoraHubApp(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        bottomBar = {
-            if (!uiState.isLoading && showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
-                AncoraBottomBar(
-                    items = bottomBarItems,
-                    currentRoute = selectedRootRoute,
-                    onNavigate = { route ->
-                        navController.navigateToHubRoute(route)
-                    },
-                )
-            }
-        },
-    ) { padding ->
-        if (uiState.isLoading) {
-            AppLaunchLoadingScreen(modifier = Modifier.padding(padding))
-            return@Scaffold
-        }
+    Box(modifier = Modifier.fillMaxSize()) {
+        AncoraHubBackgroundLayer()
 
-        Row(modifier = Modifier.fillMaxSize()) {
-            if (showNavigationChrome && widthSizeClass != WindowWidthSizeClass.Compact) {
-                NavigationRail(
-                    modifier = Modifier.padding(top = spacing.sm),
-                ) {
-                    navItems.forEach { item ->
-                        NavigationRailItem(
-                            selected = selectedRootRoute == item.route,
-                            onClick = { navController.navigateToHubRoute(item.route) },
-                            icon = {
-                                NavItemIcon(
-                                    item = item,
-                                    showBadge = item.route == AppRoutes.More && uiState.unreadNotifications > 0,
-                                )
-                            },
-                            label = { Text(item.label) },
-                        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            bottomBar = {
+                if (!uiState.isLoading && showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
+                    AncoraBottomBar(
+                        items = bottomBarItems,
+                        currentRoute = selectedRootRoute,
+                        onNavigate = { route ->
+                            navController.navigateToHubRoute(route)
+                        },
+                    )
+                }
+            },
+        ) { padding ->
+            if (uiState.isLoading) {
+                AppLaunchLoadingScreen(modifier = Modifier.padding(padding))
+                return@Scaffold
+            }
+
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (showNavigationChrome && widthSizeClass != WindowWidthSizeClass.Compact) {
+                    NavigationRail(
+                        modifier = Modifier.padding(top = spacing.sm),
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                    ) {
+                        navItems.forEach { item ->
+                            NavigationRailItem(
+                                selected = selectedRootRoute == item.route,
+                                onClick = { navController.navigateToHubRoute(item.route) },
+                                icon = {
+                                    NavItemIcon(
+                                        item = item,
+                                        showBadge = item.route == AppRoutes.More && uiState.unreadNotifications > 0,
+                                    )
+                                },
+                                label = { Text(item.label) },
+                            )
+                        }
                     }
                 }
-            }
 
-            AppNavHost(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(padding),
-                navController = navController,
-                startDestination = startRoute,
-                container = container,
-                appViewModel = appViewModel,
-                uiState = uiState,
-            )
+                AppNavHost(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(padding),
+                    navController = navController,
+                    startDestination = startRoute,
+                    container = container,
+                    appViewModel = appViewModel,
+                    uiState = uiState,
+                )
+            }
         }
     }
 }
@@ -693,7 +706,19 @@ private fun AppNavHost(
         composable(AppRoutes.Collections) {
             CollectionsScreen(
                 container = container,
+                onCreateCollection = { openHubRoute(AppRoutes.CollectionCreate) },
                 onOpenCollection = { collectionId ->
+                    openHubRoute(collectionDetailRoute(collectionId))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(AppRoutes.CollectionCreate) {
+            CollectionEditorScreen(
+                container = container,
+                collectionId = null,
+                onSaved = { collectionId ->
                     openHubRoute(collectionDetailRoute(collectionId))
                 },
                 onBack = { navController.popBackStack() },
@@ -712,11 +737,31 @@ private fun AppNavHost(
             CollectionDetailScreen(
                 container = container,
                 collectionId = collectionId,
+                onEditCollection = { openHubRoute(collectionEditRoute(it)) },
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigateToHubRoute(AppRoutes.Collections)
                     }
                 },
+            )
+        }
+
+        composable(
+            route = AppRoutes.CollectionEdit,
+            arguments = listOf(
+                navArgument("collectionId") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val collectionId = backStackEntry.arguments?.getLong("collectionId")
+            CollectionEditorScreen(
+                container = container,
+                collectionId = collectionId,
+                onSaved = { savedId ->
+                    openHubRoute(collectionDetailRoute(savedId))
+                },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -906,7 +951,18 @@ private fun AppNavHost(
         composable(AppRoutes.Signer) {
             SignaturesScreen(
                 container = container,
+                onCreateSignature = { openHubRoute(AppRoutes.SignatureCreate) },
                 onOpenSignature = { signatureId ->
+                    openHubRoute(signatureDetailRoute(signatureId))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(AppRoutes.SignatureCreate) {
+            SignatureCreateScreen(
+                container = container,
+                onCreated = { signatureId ->
                     openHubRoute(signatureDetailRoute(signatureId))
                 },
                 onBack = { navController.popBackStack() },
@@ -1033,37 +1089,70 @@ private fun NavItemIcon(
 private fun AppLaunchLoadingScreen(modifier: Modifier = Modifier) {
     val spacing = MaterialTheme.spacing
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = spacing.xl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.76f)),
     ) {
-        AncoraCard(bordered = true) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.logo_ancora_hub),
-                    contentDescription = null,
-                    modifier = Modifier.size(160.dp),
-                )
-                AncoraStatusChip(
-                    label = "Inicializando",
-                    tone = AncoraTone.Brand,
-                )
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(spacing.xs))
-                Text(
-                    text = "Preparando o Ã‚ncora Hub...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = spacing.xl),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.logo_ancora_rastreado),
+                contentDescription = null,
+                modifier = Modifier.size(190.dp),
+            )
+            Spacer(modifier = Modifier.height(spacing.lg))
+            Text(
+                text = "âncora hub",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = "powered by Serratech.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(spacing.lg))
+            AncoraStatusChip(
+                label = "Inicializando",
+                tone = AncoraTone.Brand,
+            )
+            Spacer(modifier = Modifier.height(spacing.sm))
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(spacing.sm))
+            Text(
+                text = "Preparando o Âncora Hub...",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+    }
+}
+
+@Composable
+private fun AncoraHubBackgroundLayer(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.background_ancora_hub),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.12f,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.90f)),
+        )
     }
 }
 
@@ -1081,6 +1170,8 @@ private val authenticatedRoutes = setOf(
     AppRoutes.Processes,
     AppRoutes.ProcessDetail,
     AppRoutes.Collections,
+    AppRoutes.CollectionCreate,
+    AppRoutes.CollectionEdit,
     AppRoutes.CollectionDetail,
     AppRoutes.More,
     AppRoutes.Clients,
@@ -1093,6 +1184,7 @@ private val authenticatedRoutes = setOf(
     AppRoutes.Contracts,
     AppRoutes.ContractDetail,
     AppRoutes.Signer,
+    AppRoutes.SignatureCreate,
     AppRoutes.SignatureDetail,
     AppRoutes.Finance,
     AppRoutes.LemeIa,
@@ -1105,7 +1197,10 @@ private val authenticatedRoutes = setOf(
 private fun String.toNavigationRoot(): String = when (this) {
     AppRoutes.DemandDetail -> AppRoutes.Demands
     AppRoutes.ProcessDetail -> AppRoutes.Processes
-    AppRoutes.CollectionDetail -> AppRoutes.Collections
+    AppRoutes.CollectionDetail,
+    AppRoutes.CollectionCreate,
+    AppRoutes.CollectionEdit,
+    -> AppRoutes.Collections
     AppRoutes.ClientDetail,
     AppRoutes.CondominiumDetail,
     AppRoutes.CondominiumUnits,
@@ -1120,6 +1215,7 @@ private fun String.toNavigationRoot(): String = when (this) {
     AppRoutes.ContractDetail,
     AppRoutes.Signer,
     AppRoutes.SignatureDetail,
+    AppRoutes.SignatureCreate,
     AppRoutes.Finance,
     AppRoutes.LemeIa,
     AppRoutes.Settings,
@@ -1255,6 +1351,7 @@ private fun normalizeAppRoute(value: String?): String? {
         raw.startsWith(AppRoutes.NotificationDetailBase) ||
         raw.startsWith(AppRoutes.DemandDetailBase) ||
         raw.startsWith(AppRoutes.ProcessDetailBase) ||
+        raw.startsWith(AppRoutes.CollectionEditBase) ||
         raw.startsWith(AppRoutes.CollectionDetailBase) ||
         raw.startsWith(AppRoutes.ClientDetailBase) ||
         raw.startsWith(AppRoutes.CondominiumDetailBase) ||
@@ -1301,6 +1398,9 @@ private fun processDetailRoute(id: Long): String =
 private fun collectionDetailRoute(id: Long): String =
     "${AppRoutes.CollectionDetailBase}/$id"
 
+private fun collectionEditRoute(id: Long): String =
+    "${AppRoutes.CollectionEditBase}/$id"
+
 private fun clientDetailRoute(id: Long): String =
     "${AppRoutes.ClientDetailBase}/$id"
 
@@ -1328,7 +1428,8 @@ private fun notificationDetailRoute(id: Long): String =
 private fun isDetailRoute(route: String): Boolean =
     route.startsWith(AppRoutes.NotificationDetailBase) ||
         route.startsWith(AppRoutes.DemandDetailBase) ||
-        route.startsWith(AppRoutes.ProcessDetailBase) ||
+    route.startsWith(AppRoutes.ProcessDetailBase) ||
+        route.startsWith(AppRoutes.CollectionEditBase) ||
         route.startsWith(AppRoutes.CollectionDetailBase) ||
         route.startsWith(AppRoutes.ClientDetailBase) ||
         route.startsWith(AppRoutes.CondominiumDetailBase) ||

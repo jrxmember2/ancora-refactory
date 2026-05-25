@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -138,6 +139,7 @@ class SignaturesViewModel(
 fun SignaturesScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
+    onCreateSignature: () -> Unit,
     onOpenSignature: (Long) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -163,6 +165,12 @@ fun SignaturesScreen(
                 }
             },
             actions = {
+                IconButton(onClick = onCreateSignature) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "Nova assinatura",
+                    )
+                }
                 IconButton(onClick = { showFilters = true }) {
                     Icon(
                         imageVector = Icons.Outlined.FilterList,

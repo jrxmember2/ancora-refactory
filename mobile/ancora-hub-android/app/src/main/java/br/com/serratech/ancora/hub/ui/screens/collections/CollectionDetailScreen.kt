@@ -6,18 +6,21 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -25,22 +28,29 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.serratech.ancora.hub.core.AppContainer
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewRequestDto
 import br.com.serratech.ancora.hub.domain.model.CollectionDetail
 import br.com.serratech.ancora.hub.domain.model.CollectionInstallmentItem
 import br.com.serratech.ancora.hub.domain.model.CollectionQuota
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesPreview
 import br.com.serratech.ancora.hub.domain.model.CollectionTimelineItem
 import br.com.serratech.ancora.hub.domain.model.HubAttachment
 import br.com.serratech.ancora.hub.domain.model.PaginationMeta
+import br.com.serratech.ancora.hub.ui.components.AncoraButton
 import br.com.serratech.ancora.hub.ui.components.AncoraCard
 import br.com.serratech.ancora.hub.ui.components.AncoraEmptyState
 import br.com.serratech.ancora.hub.ui.components.AncoraErrorState
+import br.com.serratech.ancora.hub.ui.components.AncoraGhostButton
 import br.com.serratech.ancora.hub.ui.components.AncoraLoadingState
 import br.com.serratech.ancora.hub.ui.components.AncoraSecondaryButton
 import br.com.serratech.ancora.hub.ui.components.AncoraSectionTitle
 import br.com.serratech.ancora.hub.ui.components.AncoraStatusChip
+import br.com.serratech.ancora.hub.ui.components.AncoraTextField
 import br.com.serratech.ancora.hub.ui.components.AncoraTopBar
 import br.com.serratech.ancora.hub.ui.theme.AncoraTone
 import br.com.serratech.ancora.hub.ui.theme.spacing
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
 data class CollectionDetailUiState(
@@ -62,6 +72,9 @@ data class CollectionDetailUiState(
     val attachmentsError: String? = null,
     val attachments: List<HubAttachment> = emptyList(),
     val attachmentMeta: PaginationMeta? = null,
+    val isActionLoading: Boolean = false,
+    val actionMessage: String? = null,
+    val tjesPreview: CollectionTjesPreview? = null,
 )
 
 class CollectionDetailViewModel(
@@ -83,6 +96,7 @@ class CollectionDetailViewModel(
                 installmentsError = null,
                 timelineError = null,
                 attachmentsError = null,
+                actionMessage = null,
             )
 
             runCatching { container.collectionRepository.detail(collectionId) }
@@ -96,6 +110,7 @@ class CollectionDetailViewModel(
                         timelineMeta = null,
                         attachments = emptyList(),
                         attachmentMeta = null,
+                        tjesPreview = null,
                     )
                     loadInstallments(page = 1, append = false)
                     loadTimeline(page = 1, append = false)
@@ -140,6 +155,81 @@ class CollectionDetailViewModel(
 
         viewModelScope.launch {
             loadAttachments(page = meta.currentPage + 1, append = true)
+        }
+    }
+
+    fun previewTjes(payload: CollectionTjesPreviewRequestDto) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isActionLoading = true,
+                actionMessage = null,
+            )
+
+            runCatching {
+                container.collectionRepository.previewTjes(collectionId, payload)
+            }.onSuccess { preview ->
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    tjesPreview = preview,
+                    actionMessage = "Simulação TJES atualizada.",
+                )
+            }.onFailure {
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    actionMessage = it.message ?: "Não foi possível gerar a simulação TJES agora.",
+                )
+            }
+        }
+    }
+
+    fun applyTjes(payload: CollectionTjesPreviewRequestDto, onDone: () -> Unit) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isActionLoading = true,
+                actionMessage = null,
+            )
+
+            runCatching {
+                container.collectionRepository.applyTjes(collectionId, payload)
+            }.onSuccess { (detail, preview) ->
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    item = detail,
+                    tjesPreview = preview ?: uiState.tjesPreview,
+                    actionMessage = "Cálculo TJES aplicado com sucesso.",
+                )
+                onDone()
+                refresh()
+            }.onFailure {
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    actionMessage = it.message ?: "Não foi possível aplicar o cálculo TJES agora.",
+                )
+            }
+        }
+    }
+
+    fun requestBoleto() {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isActionLoading = true,
+                actionMessage = null,
+            )
+
+            runCatching {
+                container.collectionRepository.requestBoleto(collectionId)
+            }.onSuccess { message ->
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    actionMessage = message,
+                )
+                refresh()
+            }.onFailure {
+                uiState = uiState.copy(
+                    isActionLoading = false,
+                    actionMessage = it.message ?: "Não foi possível solicitar o boleto agora.",
+                )
+            }
         }
     }
 
@@ -236,9 +326,11 @@ fun CollectionDetailScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
     collectionId: Long,
+    onEditCollection: (Long) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
+    var showTjesSheet by rememberSaveable { mutableStateOf(false) }
     val viewModel: CollectionDetailViewModel = viewModel(
         key = "collection-detail-$collectionId",
         factory = object : ViewModelProvider.Factory {
@@ -289,24 +381,63 @@ fun CollectionDetailScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        horizontal = spacing.lg,
-                        vertical = spacing.lg,
-                    ),
+                    contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.lg),
                     verticalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    item {
-                        CollectionSummaryCard(item = item)
+                    item { CollectionSummaryCard(item = item) }
+
+                    viewModel.uiState.actionMessage?.let { message ->
+                        item {
+                            AncoraCard(bordered = true) {
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
                     }
 
-                    item {
-                        CollectionInfoCard(item = item)
+                    if (
+                        item.availableActions.canEdit ||
+                        item.availableActions.canCalculateTjes ||
+                        item.availableActions.canRequestBoleto
+                    ) {
+                        item {
+                            AncoraCard {
+                                AncoraSectionTitle(title = "Ações rápidas")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                ) {
+                                    if (item.availableActions.canEdit) {
+                                        AncoraGhostButton(
+                                            text = "Editar OS",
+                                            onClick = { onEditCollection(item.summary.id) },
+                                        )
+                                    }
+                                    if (item.availableActions.canCalculateTjes) {
+                                        AncoraSecondaryButton(
+                                            text = "Calcular TJES",
+                                            onClick = { showTjesSheet = true },
+                                        )
+                                    }
+                                }
+                                if (item.availableActions.canRequestBoleto) {
+                                    AncoraButton(
+                                        text = if (viewModel.uiState.isActionLoading) "Solicitando..." else "Solicitar boleto",
+                                        enabled = !viewModel.uiState.isActionLoading,
+                                        onClick = viewModel::requestBoleto,
+                                    )
+                                }
+                            }
+                        }
                     }
+
+                    item { CollectionInfoCard(item = item) }
 
                     if (item.contacts.isNotEmpty()) {
-                        item {
-                            AncoraSectionTitle(title = "Contatos")
-                        }
+                        item { AncoraSectionTitle(title = "Contatos") }
                         items(item.contacts, key = { contact -> contact.id }) { contact ->
                             AncoraCard(bordered = true) {
                                 Row(
@@ -339,9 +470,7 @@ fun CollectionDetailScreen(
                         }
                     }
 
-                    item {
-                        AncoraSectionTitle(title = "Cotas")
-                    }
+                    item { AncoraSectionTitle(title = "Cotas") }
 
                     if (item.quotas.isEmpty()) {
                         item {
@@ -356,19 +485,13 @@ fun CollectionDetailScreen(
                         }
                     }
 
-                    item {
-                        AgreementCard(item = item)
-                    }
+                    item { AgreementCard(item = item) }
 
-                    item {
-                        AncoraSectionTitle(title = "Parcelas")
-                    }
+                    item { AncoraSectionTitle(title = "Parcelas") }
 
                     when {
                         viewModel.uiState.isInstallmentsLoading && viewModel.uiState.installments.isEmpty() -> {
-                            item {
-                                AncoraLoadingState(label = "Carregando parcelas...")
-                            }
+                            item { AncoraLoadingState(label = "Carregando parcelas...") }
                         }
 
                         viewModel.uiState.installmentsError != null && viewModel.uiState.installments.isEmpty() -> {
@@ -410,15 +533,11 @@ fun CollectionDetailScreen(
                         }
                     }
 
-                    item {
-                        AncoraSectionTitle(title = "Histórico")
-                    }
+                    item { AncoraSectionTitle(title = "Histórico") }
 
                     when {
                         viewModel.uiState.isTimelineLoading && viewModel.uiState.timeline.isEmpty() -> {
-                            item {
-                                AncoraLoadingState(label = "Carregando histórico...")
-                            }
+                            item { AncoraLoadingState(label = "Carregando histórico...") }
                         }
 
                         viewModel.uiState.timelineError != null && viewModel.uiState.timeline.isEmpty() -> {
@@ -460,15 +579,11 @@ fun CollectionDetailScreen(
                         }
                     }
 
-                    item {
-                        AncoraSectionTitle(title = "Anexos")
-                    }
+                    item { AncoraSectionTitle(title = "Anexos") }
 
                     when {
                         viewModel.uiState.isAttachmentsLoading && viewModel.uiState.attachments.isEmpty() -> {
-                            item {
-                                AncoraLoadingState(label = "Carregando anexos...")
-                            }
+                            item { AncoraLoadingState(label = "Carregando anexos...") }
                         }
 
                         viewModel.uiState.attachmentsError != null && viewModel.uiState.attachments.isEmpty() -> {
@@ -512,6 +627,21 @@ fun CollectionDetailScreen(
                 }
             }
         }
+    }
+
+    if (showTjesSheet && viewModel.uiState.item != null) {
+        CollectionTjesSheet(
+            item = viewModel.uiState.item!!,
+            preview = viewModel.uiState.tjesPreview,
+            isLoading = viewModel.uiState.isActionLoading,
+            onDismiss = { showTjesSheet = false },
+            onPreview = viewModel::previewTjes,
+            onApply = { payload ->
+                viewModel.applyTjes(payload) {
+                    showTjesSheet = false
+                }
+            },
+        )
     }
 }
 
@@ -755,6 +885,199 @@ private fun CollectionAttachmentCard(attachment: HubAttachment) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CollectionTjesSheet(
+    item: CollectionDetail,
+    preview: CollectionTjesPreview?,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onPreview: (CollectionTjesPreviewRequestDto) -> Unit,
+    onApply: (CollectionTjesPreviewRequestDto) -> Unit,
+) {
+    val spacing = MaterialTheme.spacing
+    var finalDate by rememberSaveable { mutableStateOf(item.billingDate ?: item.summary.updatedAt?.take(10).orEmpty()) }
+    var interestType by rememberSaveable { mutableStateOf("legal") }
+    var interestRateMonthly by rememberSaveable { mutableStateOf("") }
+    var finePercent by rememberSaveable { mutableStateOf("2,00") }
+    var attorneyFeeType by rememberSaveable { mutableStateOf("percent") }
+    var attorneyFeeValue by rememberSaveable { mutableStateOf("10,00") }
+    var costsAmount by rememberSaveable { mutableStateOf("") }
+    var costsDate by rememberSaveable { mutableStateOf("") }
+    var abatementAmount by rememberSaveable { mutableStateOf("") }
+    var selectedQuotaIds by rememberSaveable { mutableStateOf(item.quotas.map { it.id }) }
+
+    fun payload(): CollectionTjesPreviewRequestDto = CollectionTjesPreviewRequestDto(
+        finalDate = normalizeCollectionDate(finalDate),
+        indexCode = "ATM",
+        quotaIds = selectedQuotaIds,
+        interestType = interestType,
+        interestRateMonthly = normalizeCollectionMoney(interestRateMonthly),
+        finePercent = normalizeCollectionMoney(finePercent),
+        attorneyFeeType = attorneyFeeType,
+        attorneyFeeValue = normalizeCollectionMoney(attorneyFeeValue),
+        costsAmount = normalizeCollectionMoney(costsAmount),
+        costsDate = normalizeCollectionDate(costsDate),
+        abatementAmount = normalizeCollectionMoney(abatementAmount),
+    )
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.md),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            item {
+                Text(
+                    text = "Cálculo TJES",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            }
+
+            item {
+                AncoraCard {
+                    AncoraTextField(
+                        value = finalDate,
+                        onValueChange = { finalDate = it },
+                        label = "Data final",
+                        placeholder = "AAAA-MM-DD",
+                    )
+                    Text(
+                        text = "Tipo de juros",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        listOf(
+                            "legal" to "Legal",
+                            "contractual" to "Contratual",
+                            "none" to "Sem juros",
+                        ).forEach { option ->
+                            FilterChip(
+                                selected = interestType == option.first,
+                                onClick = { interestType = option.first },
+                                label = { Text(option.second) },
+                            )
+                        }
+                    }
+                    if (interestType == "contractual") {
+                        AncoraTextField(
+                            value = interestRateMonthly,
+                            onValueChange = { interestRateMonthly = it },
+                            label = "Juros mensais (%)",
+                            placeholder = "1,00",
+                        )
+                    }
+                    AncoraTextField(
+                        value = finePercent,
+                        onValueChange = { finePercent = it },
+                        label = "Multa (%)",
+                        placeholder = "2,00",
+                    )
+                    Text(
+                        text = "Honorários",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        listOf(
+                            "percent" to "Percentual",
+                            "fixed" to "Fixo",
+                            "none" to "Sem honorários",
+                        ).forEach { option ->
+                            FilterChip(
+                                selected = attorneyFeeType == option.first,
+                                onClick = { attorneyFeeType = option.first },
+                                label = { Text(option.second) },
+                            )
+                        }
+                    }
+                    if (attorneyFeeType != "none") {
+                        AncoraTextField(
+                            value = attorneyFeeValue,
+                            onValueChange = { attorneyFeeValue = it },
+                            label = if (attorneyFeeType == "percent") "Honorários (%)" else "Honorários fixos",
+                            placeholder = if (attorneyFeeType == "percent") "10,00" else "500,00",
+                        )
+                    }
+                    AncoraTextField(
+                        value = costsAmount,
+                        onValueChange = { costsAmount = it },
+                        label = "Custas",
+                        placeholder = "0,00",
+                    )
+                    AncoraTextField(
+                        value = costsDate,
+                        onValueChange = { costsDate = it },
+                        label = "Data das custas",
+                        placeholder = "AAAA-MM-DD",
+                    )
+                    AncoraTextField(
+                        value = abatementAmount,
+                        onValueChange = { abatementAmount = it },
+                        label = "Abatimento",
+                        placeholder = "0,00",
+                    )
+                }
+            }
+
+            if (item.quotas.isNotEmpty()) {
+                item {
+                    AncoraCard {
+                        AncoraSectionTitle(title = "Cotas incluídas")
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                            item.quotas.forEach { quota ->
+                                FilterChip(
+                                    selected = selectedQuotaIds.contains(quota.id),
+                                    onClick = {
+                                        selectedQuotaIds = if (selectedQuotaIds.contains(quota.id)) {
+                                            selectedQuotaIds - quota.id
+                                        } else {
+                                            selectedQuotaIds + quota.id
+                                        }
+                                    },
+                                    label = {
+                                        Text("${quota.referenceLabel} · ${quota.originalAmountLabel ?: "Sem valor"}")
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            preview?.let { currentPreview ->
+                item {
+                    AncoraCard(bordered = true) {
+                        AncoraSectionTitle(title = "Resumo da simulação")
+                        CollectionDetailRow("Data final", currentPreview.summary.finalDate)
+                        CollectionDetailRow("Total do débito", currentPreview.summary.debitTotal)
+                        CollectionDetailRow("Honorários", currentPreview.summary.attorneyFee)
+                        CollectionDetailRow("Taxa de boleto", currentPreview.summary.boletoFee)
+                        CollectionDetailRow("Total geral", currentPreview.summary.grandTotal)
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    AncoraSecondaryButton(
+                        text = if (isLoading) "Processando..." else "Simular",
+                        enabled = !isLoading,
+                        onClick = { onPreview(payload()) },
+                    )
+                    AncoraButton(
+                        text = if (isLoading) "Aplicando..." else "Aplicar cálculo",
+                        enabled = !isLoading,
+                        onClick = { onApply(payload()) },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun CollectionDetailRow(label: String, value: String?) {
     if (value.isNullOrBlank()) {
@@ -772,4 +1095,31 @@ private fun CollectionDetailRow(label: String, value: String?) {
             style = MaterialTheme.typography.bodyLarge,
         )
     }
+}
+
+private fun normalizeCollectionMoney(value: String): Double? {
+    val raw = value.trim()
+    if (raw.isBlank()) {
+        return null
+    }
+
+    return raw
+        .replace(".", "")
+        .replace(",", ".")
+        .toDoubleOrNull()
+}
+
+private fun normalizeCollectionDate(value: String): String? {
+    val raw = value.trim()
+    if (raw.isBlank()) {
+        return null
+    }
+
+    return runCatching {
+        if (raw.contains("/")) {
+            LocalDate.parse(raw, DateTimeFormatter.ofPattern("dd/MM/yyyy")).toString()
+        } else {
+            LocalDate.parse(raw).toString()
+        }
+    }.getOrNull() ?: raw
 }

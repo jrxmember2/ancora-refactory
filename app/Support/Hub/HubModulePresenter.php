@@ -104,9 +104,11 @@ class HubModulePresenter
             'available_actions' => array_merge([
                 'can_reply' => false,
                 'can_update_status' => false,
+                'can_move' => false,
                 'can_assign' => false,
             ], $actions),
             'status_options' => $options['status_options'] ?? [],
+            'tag_options' => $options['tag_options'] ?? [],
             'assignees' => $options['assignees'] ?? [],
             'closed_at' => $demand->closed_at?->toAtomString(),
             'closed_at_br' => $demand->closed_at?->format('d/m/Y H:i'),
@@ -310,6 +312,8 @@ class HubModulePresenter
         return [
             'id' => (int) $case->id,
             'os_number' => (string) ($case->os_number ?: ('OS #' . $case->id)),
+            'condominium_id' => $case->condominium_id ? (int) $case->condominium_id : null,
+            'unit_id' => $case->unit_id ? (int) $case->unit_id : null,
             'condominium_name' => $case->condominium?->name ?: 'Condomínio não informado',
             'unit_label' => (string) ($case->unit?->unit_label ?: $case->unit?->unit_number ?: 'Sem unidade'),
             'debtor_name' => (string) ($case->debtor_name_snapshot ?: $case->debtor?->display_name ?: 'Não informado'),

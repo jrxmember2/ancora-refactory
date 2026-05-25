@@ -7,7 +7,11 @@ import br.com.serratech.ancora.hub.data.dto.ClientDocumentsResponseDto
 import br.com.serratech.ancora.hub.data.dto.ClientListResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionInstallmentsResponseDto
+import br.com.serratech.ancora.hub.data.dto.CollectionActionResponseDto
 import br.com.serratech.ancora.hub.data.dto.CollectionListResponseDto
+import br.com.serratech.ancora.hub.data.dto.CollectionCreateRequestDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewEnvelopeDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewRequestDto
 import br.com.serratech.ancora.hub.data.dto.CollectionTimelineResponseDto
 import br.com.serratech.ancora.hub.data.dto.CondominiumDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.CondominiumListResponseDto
@@ -17,6 +21,7 @@ import br.com.serratech.ancora.hub.data.dto.ContractDocumentsResponseDto
 import br.com.serratech.ancora.hub.data.dto.ContractListResponseDto
 import br.com.serratech.ancora.hub.data.dto.DashboardResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandActionResponseDto
+import br.com.serratech.ancora.hub.data.dto.DemandCreateRequestDto
 import br.com.serratech.ancora.hub.data.dto.DemandDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandListResponseDto
 import br.com.serratech.ancora.hub.data.dto.DeviceRegistrationRequestDto
@@ -43,10 +48,14 @@ import br.com.serratech.ancora.hub.data.dto.SignatureDetailResponseDto
 import br.com.serratech.ancora.hub.data.dto.SignatureListResponseDto
 import br.com.serratech.ancora.hub.data.dto.SimpleResponseDto
 import br.com.serratech.ancora.hub.data.dto.UnitDetailResponseDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
@@ -96,6 +105,9 @@ interface HubApiService {
         @Query("q") query: String? = null,
     ): DemandListResponseDto
 
+    @POST("api/hub/v1/demands")
+    suspend fun createDemand(@Body payload: DemandCreateRequestDto): DemandActionResponseDto
+
     @GET("api/hub/v1/demands/{demandId}")
     suspend fun demand(@Path("demandId") demandId: Long): DemandDetailResponseDto
 
@@ -109,6 +121,12 @@ interface HubApiService {
     suspend fun updateDemandStatus(
         @Path("demandId") demandId: Long,
         @Body payload: Map<String, String>,
+    ): DemandActionResponseDto
+
+    @POST("api/hub/v1/demands/{demandId}/move")
+    suspend fun moveDemand(
+        @Path("demandId") demandId: Long,
+        @Body payload: Map<String, Long>,
     ): DemandActionResponseDto
 
     @POST("api/hub/v1/demands/{demandId}/assign")
@@ -153,8 +171,34 @@ interface HubApiService {
         @Query("q") query: String? = null,
     ): CollectionListResponseDto
 
+    @POST("api/hub/v1/collections")
+    suspend fun createCollection(@Body payload: CollectionCreateRequestDto): CollectionActionResponseDto
+
     @GET("api/hub/v1/collections/{collectionId}")
     suspend fun collection(@Path("collectionId") collectionId: Long): CollectionDetailResponseDto
+
+    @retrofit2.http.PUT("api/hub/v1/collections/{collectionId}")
+    suspend fun updateCollection(
+        @Path("collectionId") collectionId: Long,
+        @Body payload: CollectionCreateRequestDto,
+    ): CollectionActionResponseDto
+
+    @POST("api/hub/v1/collections/{collectionId}/tjes/preview")
+    suspend fun collectionTjesPreview(
+        @Path("collectionId") collectionId: Long,
+        @Body payload: CollectionTjesPreviewRequestDto,
+    ): CollectionTjesPreviewEnvelopeDto
+
+    @POST("api/hub/v1/collections/{collectionId}/tjes/apply")
+    suspend fun collectionTjesApply(
+        @Path("collectionId") collectionId: Long,
+        @Body payload: CollectionTjesPreviewRequestDto,
+    ): CollectionActionResponseDto
+
+    @POST("api/hub/v1/collections/{collectionId}/boleto/request")
+    suspend fun requestCollectionBoleto(
+        @Path("collectionId") collectionId: Long,
+    ): SimpleResponseDto
 
     @GET("api/hub/v1/collections/{collectionId}/installments")
     suspend fun collectionInstallments(
@@ -263,6 +307,17 @@ interface HubApiService {
         @Query("origin") origin: String? = null,
         @Query("q") query: String? = null,
     ): SignatureListResponseDto
+
+    @Multipart
+    @POST("api/hub/v1/signatures")
+    suspend fun createSignature(
+        @Part documentFile: MultipartBody.Part,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody?,
+        @Part("category") category: RequestBody?,
+        @Part("signers_json") signersJson: RequestBody,
+        @Part("signer_message") signerMessage: RequestBody?,
+    ): SignatureActionResponseDto
 
     @GET("api/hub/v1/signatures/{signatureId}")
     suspend fun signature(@Path("signatureId") signatureId: Long): SignatureDetailResponseDto

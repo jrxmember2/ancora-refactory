@@ -41,9 +41,12 @@ return [
     ],
 
     'fcm' => [
-        'enabled' => env('FCM_ENABLED', false),
-        'project_id' => env('FCM_PROJECT_ID', ''),
-        'service_account_json_base64' => env('FCM_SERVICE_ACCOUNT_JSON_BASE64', ''),
+        'enabled' => env('FCM_ENABLED', env('SERVICES_FCM_ENABLED', false)),
+        'project_id' => env('FCM_PROJECT_ID', env('SERVICES_FCM_PROJECT_ID', '')),
+        'service_account_json_base64' => env(
+            'FCM_SERVICE_ACCOUNT_JSON_BASE64',
+            env('SERVICES_FCM_SERVICE_ACCOUNT_JSON_BASE64', ''),
+        ),
     ],
 
 ];

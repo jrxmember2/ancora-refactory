@@ -130,6 +130,26 @@ class DemandDetailViewModel(
         }
     }
 
+    fun move(tagId: Long, onDone: () -> Unit) {
+        viewModelScope.launch {
+            uiState = uiState.copy(isSaving = true, error = null)
+            runCatching { container.demandRepository.move(demandId, tagId) }
+                .onSuccess { detail ->
+                    uiState = uiState.copy(
+                        isSaving = false,
+                        item = detail,
+                    )
+                    onDone()
+                }
+                .onFailure {
+                    uiState = uiState.copy(
+                        isSaving = false,
+                        error = it.message ?: "Não foi possível mover a demanda agora.",
+                    )
+                }
+        }
+    }
+
     fun assign(userId: Long, onDone: () -> Unit) {
         viewModelScope.launch {
             uiState = uiState.copy(isSaving = true, error = null)
@@ -160,6 +180,7 @@ fun DemandDetailScreen(
 ) {
     var showReplyDialog by rememberSaveable { mutableStateOf(false) }
     var showStatusDialog by rememberSaveable { mutableStateOf(false) }
+    var showMoveDialog by rememberSaveable { mutableStateOf(false) }
     var showAssignDialog by rememberSaveable { mutableStateOf(false) }
     val spacing = MaterialTheme.spacing
     val viewModel: DemandDetailViewModel = viewModel(
@@ -297,6 +318,7 @@ fun DemandDetailScreen(
 
                     if (
                         item.availableActions.canReply ||
+                        item.availableActions.canMove ||
                         item.availableActions.canUpdateStatus ||
                         item.availableActions.canAssign
                     ) {
@@ -315,6 +337,13 @@ fun DemandDetailScreen(
                                         text = "Atualizar status",
                                         enabled = !viewModel.uiState.isSaving,
                                         onClick = { showStatusDialog = true },
+                                    )
+                                }
+                                if (item.availableActions.canMove && item.tagOptions.isNotEmpty()) {
+                                    AncoraSecondaryButton(
+                                        text = "Mover demanda",
+                                        enabled = !viewModel.uiState.isSaving,
+                                        onClick = { showMoveDialog = true },
                                     )
                                 }
                                 if (item.availableActions.canAssign) {
@@ -406,6 +435,20 @@ fun DemandDetailScreen(
             onConfirm = { value ->
                 viewModel.updateStatus(value) {
                     showStatusDialog = false
+                }
+            },
+        )
+    }
+
+    if (showMoveDialog && detail != null && detail.tagOptions.isNotEmpty()) {
+        SelectTagDialog(
+            title = "Mover demanda",
+            options = detail.tagOptions,
+            isSaving = viewModel.uiState.isSaving,
+            onDismiss = { showMoveDialog = false },
+            onConfirm = { tagId ->
+                viewModel.move(tagId) {
+                    showMoveDialog = false
                 }
             },
         )
@@ -574,6 +617,52 @@ private fun SelectAssigneeDialog(
                 text = if (isSaving) "Salvando..." else "Salvar",
                 enabled = !isSaving && selectedUserId > 0L,
                 onClick = { onConfirm(selectedUserId) },
+            )
+        },
+        dismissButton = {
+            AncoraGhostButton(
+                text = "Cancelar",
+                enabled = !isSaving,
+                onClick = onDismiss,
+            )
+        },
+    )
+}
+
+@Composable
+private fun SelectTagDialog(
+    title: String,
+    options: List<FilterValueOption>,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    var selectedValue by rememberSaveable(options.firstOrNull()?.value) {
+        mutableStateOf(options.firstOrNull()?.value)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.sm),
+            ) {
+                options.forEach { option ->
+                    FilterChip(
+                        selected = selectedValue == option.value,
+                        onClick = { selectedValue = option.value },
+                        label = { Text(option.label) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            AncoraGhostButton(
+                text = if (isSaving) "Movendo..." else "Mover demanda",
+                enabled = !isSaving && !selectedValue.isNullOrBlank(),
+                onClick = { onConfirm(selectedValue?.toLongOrNull() ?: 0L) },
             )
         },
         dismissButton = {

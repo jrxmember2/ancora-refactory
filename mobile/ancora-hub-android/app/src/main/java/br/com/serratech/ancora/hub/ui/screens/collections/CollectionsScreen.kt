@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -62,6 +63,7 @@ data class CollectionsUiState(
         workflowStages = emptyList(),
         situations = emptyList(),
         billingStatuses = emptyList(),
+        canCreate = false,
     ),
     val query: String = "",
     val workflowStage: String? = null,
@@ -158,6 +160,7 @@ class CollectionsViewModel(
 fun CollectionsScreen(
     modifier: Modifier = Modifier,
     container: AppContainer,
+    onCreateCollection: () -> Unit = {},
     onOpenCollection: (Long) -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
@@ -186,6 +189,14 @@ fun CollectionsScreen(
                 }
             },
             actions = {
+                if (viewModel.uiState.filters.canCreate) {
+                    IconButton(onClick = onCreateCollection) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = "Nova OS",
+                        )
+                    }
+                }
                 IconButton(onClick = { showFilters = true }) {
                     Icon(
                         imageVector = Icons.Outlined.FilterList,

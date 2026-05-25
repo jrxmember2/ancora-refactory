@@ -4,18 +4,32 @@ import br.com.serratech.ancora.hub.data.api.HubApiService
 import br.com.serratech.ancora.hub.data.dto.AttachmentsResponseDto
 import br.com.serratech.ancora.hub.data.dto.AttachmentDto
 import br.com.serratech.ancora.hub.data.dto.CollectionAgreementDto
+import br.com.serratech.ancora.hub.data.dto.CollectionActionResponseDto
+import br.com.serratech.ancora.hub.data.dto.CollectionAvailableActionsDto
 import br.com.serratech.ancora.hub.data.dto.CollectionContactDto
+import br.com.serratech.ancora.hub.data.dto.CollectionCreateRequestDto
 import br.com.serratech.ancora.hub.data.dto.CollectionDetailDto
 import br.com.serratech.ancora.hub.data.dto.CollectionFiltersDto
 import br.com.serratech.ancora.hub.data.dto.CollectionInstallmentDto
 import br.com.serratech.ancora.hub.data.dto.CollectionInstallmentsResponseDto
+import br.com.serratech.ancora.hub.data.dto.CollectionListActionsDto
 import br.com.serratech.ancora.hub.data.dto.CollectionListResponseDto
+import br.com.serratech.ancora.hub.data.dto.CollectionOptionsDto
+import br.com.serratech.ancora.hub.data.dto.CollectionQuotaInputDto
 import br.com.serratech.ancora.hub.data.dto.CollectionQuotaDto
 import br.com.serratech.ancora.hub.data.dto.CollectionSummaryDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesItemDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewEnvelopeDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesPreviewRequestDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesSettingsDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesSummaryDto
+import br.com.serratech.ancora.hub.data.dto.CollectionTjesTotalsDto
 import br.com.serratech.ancora.hub.data.dto.CollectionTimelineDto
 import br.com.serratech.ancora.hub.data.dto.CollectionTimelineResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandActionResponseDto
 import br.com.serratech.ancora.hub.data.dto.DemandActionsDto
+import br.com.serratech.ancora.hub.data.dto.DemandCreateRequestDto
 import br.com.serratech.ancora.hub.data.dto.DemandDetailDto
 import br.com.serratech.ancora.hub.data.dto.DemandFiltersDto
 import br.com.serratech.ancora.hub.data.dto.DemandListResponseDto
@@ -37,6 +51,7 @@ import br.com.serratech.ancora.hub.data.dto.UserOptionDto
 import br.com.serratech.ancora.hub.data.dto.ValueLabelDto
 import br.com.serratech.ancora.hub.domain.model.AttachmentPage
 import br.com.serratech.ancora.hub.domain.model.CollectionAgreementInfo
+import br.com.serratech.ancora.hub.domain.model.CollectionAvailableActions
 import br.com.serratech.ancora.hub.domain.model.CollectionContact
 import br.com.serratech.ancora.hub.domain.model.CollectionDetail
 import br.com.serratech.ancora.hub.domain.model.CollectionFilters
@@ -44,7 +59,13 @@ import br.com.serratech.ancora.hub.domain.model.CollectionInstallmentItem
 import br.com.serratech.ancora.hub.domain.model.CollectionInstallmentPage
 import br.com.serratech.ancora.hub.domain.model.CollectionListData
 import br.com.serratech.ancora.hub.domain.model.CollectionListItem
+import br.com.serratech.ancora.hub.domain.model.CollectionOptions
 import br.com.serratech.ancora.hub.domain.model.CollectionQuota
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesItem
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesPreview
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesSettings
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesSummary
+import br.com.serratech.ancora.hub.domain.model.CollectionTjesTotals
 import br.com.serratech.ancora.hub.domain.model.CollectionTimelineItem
 import br.com.serratech.ancora.hub.domain.model.CollectionTimelinePage
 import br.com.serratech.ancora.hub.domain.model.DemandAvailableActions
@@ -113,6 +134,26 @@ class DemandRepository(
         )
     }
 
+    suspend fun create(
+        categoryId: Long,
+        title: String,
+        description: String,
+        priority: String,
+        assignedUserId: Long? = null,
+        demandTagId: Long? = null,
+    ): DemandDetail = mutateDemand {
+        api.createDemand(
+            DemandCreateRequestDto(
+                categoryId = categoryId,
+                demandTagId = demandTagId,
+                priority = priority,
+                assignedUserId = assignedUserId,
+                subject = title,
+                description = description,
+            ),
+        )
+    }
+
     suspend fun reply(demandId: Long, message: String): DemandDetail = mutateDemand {
         api.replyDemand(
             demandId = demandId,
@@ -124,6 +165,13 @@ class DemandRepository(
         api.updateDemandStatus(
             demandId = demandId,
             payload = mapOf("status" to status),
+        )
+    }
+
+    suspend fun move(demandId: Long, demandTagId: Long): DemandDetail = mutateDemand {
+        api.moveDemand(
+            demandId = demandId,
+            payload = mapOf("demand_tag_id" to demandTagId),
         )
     }
 
@@ -341,18 +389,97 @@ class CollectionRepository(
             throwable,
         )
     }
+
+    suspend fun create(payload: CollectionCreateRequestDto): CollectionDetail = try {
+        api.createCollection(payload).item?.toDomain()
+            ?: throw UserFacingException("Não foi possível criar a OS agora.")
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toModuleFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível criar a OS agora.",
+            ),
+            throwable,
+        )
+    }
+
+    suspend fun update(
+        collectionId: Long,
+        payload: CollectionCreateRequestDto,
+    ): CollectionDetail = try {
+        api.updateCollection(collectionId, payload).item?.toDomain()
+            ?: throw UserFacingException("Não foi possível atualizar a OS agora.")
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toModuleFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível atualizar a OS agora.",
+            ),
+            throwable,
+        )
+    }
+
+    suspend fun previewTjes(
+        collectionId: Long,
+        payload: CollectionTjesPreviewRequestDto,
+    ): CollectionTjesPreview = try {
+        api.collectionTjesPreview(collectionId, payload).preview?.toDomain()
+            ?: throw UserFacingException("Não foi possível gerar a simulação TJES agora.")
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toModuleFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível gerar a simulação TJES agora.",
+            ),
+            throwable,
+        )
+    }
+
+    suspend fun applyTjes(
+        collectionId: Long,
+        payload: CollectionTjesPreviewRequestDto,
+    ): Pair<CollectionDetail, CollectionTjesPreview?> = try {
+        val response = api.collectionTjesApply(collectionId, payload)
+        val item = response.item?.toDomain()
+            ?: throw UserFacingException("Não foi possível aplicar o cálculo TJES agora.")
+
+        item to response.preview?.toDomain()
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toModuleFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível aplicar o cálculo TJES agora.",
+            ),
+            throwable,
+        )
+    }
+
+    suspend fun requestBoleto(collectionId: Long): String = try {
+        api.requestCollectionBoleto(collectionId).message ?: "Solicitação de boleto enviada com sucesso."
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toModuleFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível solicitar o boleto agora.",
+            ),
+            throwable,
+        )
+    }
 }
 
 private fun DemandListResponseDto.toDomain(): DemandListData = DemandListData(
     items = items.map { it.toDomain() },
     meta = meta.toDomain(),
-    filters = filters.toDomain(),
+    filters = filters.toDomain(canCreate = actions.canCreate),
 )
 
-private fun DemandFiltersDto.toDomain(): DemandFilters = DemandFilters(
+private fun DemandFiltersDto.toDomain(canCreate: Boolean): DemandFilters = DemandFilters(
     statuses = statuses.map { it.toDomain() },
     priorities = priorities.map { it.toDomain() },
+    categories = categories.map { it.toDomain() },
+    tags = tags.map { it.toDomain() },
     assignees = assignees.map { it.toDomain() },
+    canCreate = canCreate,
 )
 
 private fun DemandSummaryDto.toDomain(): DemandListItem = DemandListItem(
@@ -393,6 +520,7 @@ private fun DemandDetailDto.toDomain(): DemandDetail = DemandDetail(
     attachments = attachments.map { it.toDomain() },
     availableActions = availableActions.toDomain(),
     statusOptions = statusOptions.map { it.toDomain() },
+    tagOptions = tagOptions.map { it.toDomain() },
     assignees = assignees.map { it.toDomain() },
     closedAt = closedAt,
     closedAtBr = closedAtBr,
@@ -438,6 +566,7 @@ private fun DemandMessageDto.toDomain(): DemandMessageItem = DemandMessageItem(
 private fun DemandActionsDto.toDomain(): DemandAvailableActions = DemandAvailableActions(
     canReply = canReply,
     canUpdateStatus = canUpdateStatus,
+    canMove = canMove,
     canAssign = canAssign,
 )
 
@@ -555,18 +684,21 @@ private fun AttachmentsResponseDto.toDomain(): AttachmentPage = AttachmentPage(
 private fun CollectionListResponseDto.toDomain(): CollectionListData = CollectionListData(
     items = items.map { it.toDomain() },
     meta = meta.toDomain(),
-    filters = filters.toDomain(),
+    filters = filters.toDomain(actions),
 )
 
-private fun CollectionFiltersDto.toDomain(): CollectionFilters = CollectionFilters(
+private fun CollectionFiltersDto.toDomain(actions: CollectionListActionsDto): CollectionFilters = CollectionFilters(
     workflowStages = workflowStages.map { it.toDomain() },
     situations = situations.map { it.toDomain() },
     billingStatuses = billingStatuses.map { it.toDomain() },
+    canCreate = actions.canCreate,
 )
 
 private fun CollectionSummaryDto.toDomain(): CollectionListItem = CollectionListItem(
     id = id,
     osNumber = osNumber,
+    condominiumId = condominiumId,
+    unitId = unitId,
     condominiumName = condominiumName,
     unitLabel = unitLabel,
     debtorName = debtorName,
@@ -603,11 +735,15 @@ private fun CollectionDetailDto.toDomain(): CollectionDetail = CollectionDetail(
     contacts = contacts.map { it.toDomain() },
     quotas = quotas.map { it.toDomain() },
     agreement = agreement.toDomain(),
+    availableActions = availableActions.toDomain(),
+    options = options.toDomain(),
 )
 
 private fun CollectionDetailDto.toSummary(): CollectionListItem = CollectionListItem(
     id = id,
     osNumber = osNumber,
+    condominiumId = condominiumId,
+    unitId = unitId,
     condominiumName = condominiumName,
     unitLabel = unitLabel,
     debtorName = debtorName,
@@ -653,6 +789,18 @@ private fun CollectionAgreementDto.toDomain(): CollectionAgreementInfo = Collect
     signatureRequestsCount = signatureRequestsCount,
 )
 
+private fun CollectionAvailableActionsDto.toDomain(): CollectionAvailableActions = CollectionAvailableActions(
+    canEdit = canEdit,
+    canCalculateTjes = canCalculateTjes,
+    canRequestBoleto = canRequestBoleto,
+)
+
+private fun CollectionOptionsDto.toDomain(): CollectionOptions = CollectionOptions(
+    chargeTypes = chargeTypes.map { it.toDomain() },
+    workflowStages = workflowStages.map { it.toDomain() },
+    billingStatuses = billingStatuses.map { it.toDomain() },
+)
+
 private fun CollectionInstallmentsResponseDto.toDomain(): CollectionInstallmentPage = CollectionInstallmentPage(
     items = items.map { it.toDomain() },
     meta = meta.toDomain(),
@@ -682,6 +830,56 @@ private fun CollectionTimelineDto.toDomain(): CollectionTimelineItem = Collectio
     userName = userName,
     createdAt = createdAt,
     createdAtBr = createdAtBr,
+)
+
+private fun CollectionTjesPreviewDto.toDomain(): CollectionTjesPreview = CollectionTjesPreview(
+    settings = settings.toDomain(),
+    items = items.map { it.toDomain() },
+    totals = totals.toDomain(),
+    summary = summary.toDomain(),
+)
+
+private fun CollectionTjesSettingsDto.toDomain(): CollectionTjesSettings = CollectionTjesSettings(
+    indexLabel = indexLabel,
+    finalDate = finalDate,
+    interestLabel = interestLabel,
+    attorneyFeeLabel = attorneyFeeLabel,
+)
+
+private fun CollectionTjesItemDto.toDomain(): CollectionTjesItem = CollectionTjesItem(
+    quotaId = quotaId,
+    referenceLabel = referenceLabel,
+    dueDate = dueDate,
+    original = original,
+    factor = factor,
+    corrected = corrected,
+    interestPercent = interestPercent,
+    interest = interest,
+    fine = fine,
+    total = total,
+)
+
+private fun CollectionTjesTotalsDto.toDomain(): CollectionTjesTotals = CollectionTjesTotals(
+    original = original,
+    corrected = corrected,
+    interest = interest,
+    fine = fine,
+    costsCorrected = costsCorrected,
+    boletoFee = boletoFee,
+    boletoCancellationFee = boletoCancellationFee,
+    abatement = abatement,
+    debitTotal = debitTotal,
+    attorneyFee = attorneyFee,
+    grandTotal = grandTotal,
+)
+
+private fun CollectionTjesSummaryDto.toDomain(): CollectionTjesSummary = CollectionTjesSummary(
+    debitTotal = debitTotal,
+    attorneyFee = attorneyFee,
+    boletoFee = boletoFee,
+    boletoCancellationFee = boletoCancellationFee,
+    grandTotal = grandTotal,
+    finalDate = finalDate,
 )
 
 private fun PaginationDto.toDomain(): PaginationMeta = PaginationMeta(

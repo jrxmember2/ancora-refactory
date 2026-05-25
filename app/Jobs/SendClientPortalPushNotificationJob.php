@@ -42,8 +42,12 @@ class SendClientPortalPushNotificationJob implements ShouldQueue
         $errors = [];
 
         foreach ($devices as $device) {
-            $result = $fcmService->sendDataMessageToToken(
+            $result = $fcmService->sendToToken(
                 token: (string) $device->fcm_token,
+                notification: [
+                    'title' => $notification->title,
+                    'body' => $notification->body,
+                ],
                 data: array_merge((array) $notification->data, [
                     'title' => $notification->title,
                     'body' => $notification->body,

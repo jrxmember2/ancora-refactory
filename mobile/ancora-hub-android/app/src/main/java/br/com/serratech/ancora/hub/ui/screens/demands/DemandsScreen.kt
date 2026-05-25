@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +52,7 @@ import br.com.serratech.ancora.hub.ui.components.AncoraSearchBar
 import br.com.serratech.ancora.hub.ui.components.AncoraSecondaryButton
 import br.com.serratech.ancora.hub.ui.components.AncoraSectionTitle
 import br.com.serratech.ancora.hub.ui.components.AncoraStatusChip
+import br.com.serratech.ancora.hub.ui.components.AncoraTextField
 import br.com.serratech.ancora.hub.ui.components.AncoraTopBar
 import br.com.serratech.ancora.hub.ui.theme.AncoraTone
 import br.com.serratech.ancora.hub.ui.theme.spacing
@@ -58,10 +61,18 @@ import kotlinx.coroutines.launch
 data class DemandsUiState(
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
+    val isCreating: Boolean = false,
     val error: String? = null,
     val items: List<DemandListItem> = emptyList(),
     val meta: PaginationMeta? = null,
-    val filters: DemandFilters = DemandFilters(emptyList(), emptyList(), emptyList()),
+    val filters: DemandFilters = DemandFilters(
+        statuses = emptyList(),
+        priorities = emptyList(),
+        categories = emptyList(),
+        tags = emptyList(),
+        assignees = emptyList(),
+        canCreate = false,
+    ),
     val query: String = "",
     val status: String? = null,
     val priority: String? = null,
@@ -119,6 +130,39 @@ class DemandsViewModel(
         }
     }
 
+    fun createDemand(
+        categoryId: Long,
+        title: String,
+        description: String,
+        priority: String,
+        assignedUserId: Long?,
+        demandTagId: Long?,
+        onCreated: (Long) -> Unit,
+    ) {
+        viewModelScope.launch {
+            uiState = uiState.copy(isCreating = true, error = null)
+            runCatching {
+                container.demandRepository.create(
+                    categoryId = categoryId,
+                    title = title,
+                    description = description,
+                    priority = priority,
+                    assignedUserId = assignedUserId,
+                    demandTagId = demandTagId,
+                )
+            }.onSuccess { detail ->
+                uiState = uiState.copy(isCreating = false)
+                refresh()
+                onCreated(detail.summary.id)
+            }.onFailure {
+                uiState = uiState.copy(
+                    isCreating = false,
+                    error = it.message ?: "Não foi possível cadastrar a demanda agora.",
+                )
+            }
+        }
+    }
+
     private suspend fun loadPage(page: Int, append: Boolean) {
         uiState = uiState.copy(
             isLoading = !append,
@@ -162,6 +206,7 @@ fun DemandsScreen(
 ) {
     val spacing = MaterialTheme.spacing
     var showFilters by rememberSaveable { mutableStateOf(false) }
+    var showCreateDialog by rememberSaveable { mutableStateOf(false) }
     val viewModel: DemandsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -185,6 +230,14 @@ fun DemandsScreen(
                 }
             },
             actions = {
+                if (viewModel.uiState.filters.canCreate) {
+                    IconButton(onClick = { showCreateDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = "Nova demanda",
+                        )
+                    }
+                }
                 IconButton(onClick = { showFilters = true }) {
                     Icon(
                         imageVector = Icons.Outlined.FilterList,
@@ -299,6 +352,30 @@ fun DemandsScreen(
             onAssigneeChange = viewModel::updateAssignee,
         )
     }
+
+    if (showCreateDialog) {
+        CreateDemandDialog(
+            categories = viewModel.uiState.filters.categories,
+            priorities = viewModel.uiState.filters.priorities,
+            tags = viewModel.uiState.filters.tags,
+            assignees = viewModel.uiState.filters.assignees,
+            isSaving = viewModel.uiState.isCreating,
+            onDismiss = { showCreateDialog = false },
+            onSubmit = { categoryId, title, description, priority, assigneeId, tagId ->
+                viewModel.createDemand(
+                    categoryId = categoryId,
+                    title = title,
+                    description = description,
+                    priority = priority,
+                    assignedUserId = assigneeId,
+                    demandTagId = tagId,
+                ) { demandId ->
+                    showCreateDialog = false
+                    onOpenDemand(demandId)
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -395,6 +472,113 @@ private fun DemandCard(
             )
         }
     }
+}
+
+@Composable
+private fun CreateDemandDialog(
+    categories: List<FilterValueOption>,
+    priorities: List<FilterValueOption>,
+    tags: List<FilterValueOption>,
+    assignees: List<HubUserOption>,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (
+        categoryId: Long,
+        title: String,
+        description: String,
+        priority: String,
+        assignedUserId: Long?,
+        demandTagId: Long?,
+    ) -> Unit,
+) {
+    var title by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var selectedCategoryId by rememberSaveable(categories.firstOrNull()?.value) {
+        mutableStateOf(categories.firstOrNull()?.value?.toLongOrNull())
+    }
+    var selectedPriority by rememberSaveable(priorities.firstOrNull()?.value) {
+        mutableStateOf(priorities.firstOrNull()?.value ?: "normal")
+    }
+    var selectedTagId by rememberSaveable(tags.firstOrNull()?.value) {
+        mutableStateOf(tags.firstOrNull()?.value?.toLongOrNull())
+    }
+    var selectedAssigneeId by rememberSaveable { mutableStateOf<Long?>(assignees.firstOrNull()?.id) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nova demanda") },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.md),
+            ) {
+                AncoraTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = "Título",
+                    placeholder = "Informe um resumo objetivo",
+                )
+                AncoraTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = "Descrição",
+                    placeholder = "Descreva o que precisa ser tratado",
+                    singleLine = false,
+                )
+                FilterValueSection(
+                    title = "Categoria",
+                    options = categories,
+                    selectedValue = selectedCategoryId?.toString(),
+                    onSelect = { value -> selectedCategoryId = value?.toLongOrNull() },
+                )
+                FilterValueSection(
+                    title = "Prioridade",
+                    options = priorities,
+                    selectedValue = selectedPriority,
+                    onSelect = { value -> selectedPriority = value ?: "normal" },
+                )
+                if (tags.isNotEmpty()) {
+                    FilterValueSection(
+                        title = "Etapa inicial",
+                        options = tags,
+                        selectedValue = selectedTagId?.toString(),
+                        onSelect = { value -> selectedTagId = value?.toLongOrNull() },
+                    )
+                }
+                AssigneeSection(
+                    assignees = assignees,
+                    selectedId = selectedAssigneeId,
+                    onSelect = { selectedAssigneeId = it },
+                )
+            }
+        },
+        confirmButton = {
+            AncoraGhostButton(
+                text = if (isSaving) "Salvando..." else "Cadastrar demanda",
+                enabled = !isSaving &&
+                    selectedCategoryId != null &&
+                    title.isNotBlank() &&
+                    description.isNotBlank(),
+                onClick = {
+                    onSubmit(
+                        selectedCategoryId ?: 0L,
+                        title.trim(),
+                        description.trim(),
+                        selectedPriority,
+                        selectedAssigneeId,
+                        selectedTagId,
+                    )
+                },
+            )
+        },
+        dismissButton = {
+            AncoraGhostButton(
+                text = "Cancelar",
+                enabled = !isSaving,
+                onClick = onDismiss,
+            )
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

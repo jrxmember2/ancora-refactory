@@ -1,6 +1,6 @@
 # Âncora Hub
 
-Aplicativo Android nativo do escritório para acesso interno ao ecossistema Âncora, com autenticação própria em `/api/hub/v1`, biometria, notificações push, navegação mobile e módulos internos voltados para operação diária.
+Aplicativo Android nativo do escritório para acesso interno ao ecossistema Âncora, com autenticação própria em `/api/hub/v1`, biometria, notificações push, navegação mobile e módulos internos voltados para a operação diária.
 
 ## Visão geral
 
@@ -81,10 +81,14 @@ O app segue a arquitetura base do `Âncora Clientes`, adaptada para uso interno 
 Exemplo de configuração no backend:
 
 ```env
-SERVICES_FCM_ENABLED=true
-SERVICES_FCM_PROJECT_ID=seu-project-id
-SERVICES_FCM_SERVICE_ACCOUNT_JSON_BASE64=base64_da_service_account
+FCM_ENABLED=true
+FCM_PROJECT_ID=seu-project-id
+FCM_SERVICE_ACCOUNT_JSON_BASE64=base64_da_service_account
 ```
+
+Compatibilidade:
+
+- O backend também aceita `SERVICES_FCM_ENABLED`, `SERVICES_FCM_PROJECT_ID` e `SERVICES_FCM_SERVICE_ACCOUNT_JSON_BASE64`.
 
 ## Como testar push
 
@@ -164,9 +168,9 @@ Depois de trocar os assets, gere um novo build.
 
 Arquivos principais:
 
-- `app/src/main/res/drawable/logo_ancora_hub.png`
-- `app/src/main/res/drawable/splash_logo.xml`
-- `app/src/main/res/values/themes.xml`
+- `app/src/main/res/drawable/logo_ancora_rastreado.png`
+- `app/src/main/res/drawable/background_ancora_hub.png`
+- `app/src/main/java/.../ui/navigation/AppNavigation.kt`
 
 Depois de trocar os assets da splash, gere um novo build e valide o tempo mínimo de 2 segundos.
 
@@ -187,7 +191,7 @@ Depois de trocar os assets da splash, gere um novo build e valide o tempo mínim
 - Sem biometria ativa: valida `/api/hub/v1/me` na abertura e entra
 - Com biometria: sessão renovável por uso com inatividade de 30 dias
 - Sem biometria: sessão renovável por uso com inatividade de 24 horas
-- `401` da API: sessão local é limpa e o app volta para o login
+- `401` da API: a sessão local é limpa e o app volta para o login
 
 ## Troubleshooting
 

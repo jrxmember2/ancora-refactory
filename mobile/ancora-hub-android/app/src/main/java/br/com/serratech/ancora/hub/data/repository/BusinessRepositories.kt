@@ -77,7 +77,11 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 
 class ProposalRepository(
@@ -261,6 +265,43 @@ class SignatureRepository(
             throwable.toBusinessFacingMessage(
                 json = json,
                 defaultMessage = "Não foi possível carregar a assinatura agora.",
+            ),
+            throwable,
+        )
+    }
+
+    suspend fun create(
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+        title: String,
+        description: String?,
+        category: String?,
+        signerMessage: String?,
+        signers: List<SignatureDraftSignerPayload>,
+    ): SignatureDetail = try {
+        val documentPart = MultipartBody.Part.createFormData(
+            "document_file",
+            fileName,
+            bytes.toRequestBody((mimeType.ifBlank { "application/pdf" }).toMediaTypeOrNull()),
+        )
+
+        val response = api.createSignature(
+            documentFile = documentPart,
+            title = title.toRequestBody("text/plain".toMediaTypeOrNull()),
+            description = description?.takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaTypeOrNull()),
+            category = category?.takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaTypeOrNull()),
+            signersJson = json.encodeToString(signers).toRequestBody("application/json".toMediaTypeOrNull()),
+            signerMessage = signerMessage?.takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaTypeOrNull()),
+        )
+
+        response.item?.toDomain()
+            ?: throw UserFacingException("Não foi possível iniciar a assinatura agora.")
+    } catch (throwable: Throwable) {
+        throw UserFacingException(
+            throwable.toBusinessFacingMessage(
+                json = json,
+                defaultMessage = "Não foi possível enviar o documento para assinatura agora.",
             ),
             throwable,
         )
@@ -795,4 +836,14 @@ private fun Throwable.apiMessageOrNull(json: Json): String? {
 @Serializable
 private data class BusinessApiMessageDto(
     val message: String? = null,
+)
+
+@Serializable
+data class SignatureDraftSignerPayload(
+    val name: String,
+    val email: String,
+    val phone: String? = null,
+    val document_number: String? = null,
+    val role_label: String,
+    val order_index: Int? = null,
 )

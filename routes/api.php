@@ -74,9 +74,11 @@ Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
         Route::get('/dashboard', HubDashboardController::class)->name('dashboard');
 
         Route::get('/demands', [HubDemandController::class, 'index'])->name('demands.index');
+        Route::post('/demands', [HubDemandController::class, 'store'])->name('demands.store');
         Route::get('/demands/{demand}', [HubDemandController::class, 'show'])->name('demands.show');
         Route::post('/demands/{demand}/reply', [HubDemandController::class, 'reply'])->name('demands.reply');
         Route::post('/demands/{demand}/status', [HubDemandController::class, 'updateStatus'])->name('demands.status');
+        Route::post('/demands/{demand}/move', [HubDemandController::class, 'move'])->name('demands.move');
         Route::post('/demands/{demand}/assign', [HubDemandController::class, 'assign'])->name('demands.assign');
 
         Route::get('/processes', [HubProcessController::class, 'index'])->name('processes.index');
@@ -85,7 +87,12 @@ Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
         Route::get('/processes/{process}/attachments', [HubProcessController::class, 'attachments'])->name('processes.attachments');
 
         Route::get('/collections', [HubCollectionController::class, 'index'])->name('collections.index');
+        Route::post('/collections', [HubCollectionController::class, 'store'])->name('collections.store');
         Route::get('/collections/{collection}', [HubCollectionController::class, 'show'])->name('collections.show');
+        Route::put('/collections/{collection}', [HubCollectionController::class, 'update'])->name('collections.update');
+        Route::post('/collections/{collection}/tjes/preview', [HubCollectionController::class, 'monetaryPreview'])->name('collections.tjes.preview');
+        Route::post('/collections/{collection}/tjes/apply', [HubCollectionController::class, 'monetaryApply'])->name('collections.tjes.apply');
+        Route::post('/collections/{collection}/boleto/request', [HubCollectionController::class, 'requestBoleto'])->name('collections.boleto.request');
         Route::get('/collections/{collection}/installments', [HubCollectionController::class, 'installments'])->name('collections.installments');
         Route::get('/collections/{collection}/timeline', [HubCollectionController::class, 'timeline'])->name('collections.timeline');
         Route::get('/collections/{collection}/attachments', [HubCollectionController::class, 'attachments'])->name('collections.attachments');
@@ -112,6 +119,7 @@ Route::prefix('hub/v1')->name('api.hub.v1.')->group(function () {
         Route::get('/contracts/{contract}/download', [HubContractController::class, 'download'])->name('contracts.download');
 
         Route::get('/signatures', [HubSignatureController::class, 'index'])->name('signatures.index');
+        Route::post('/signatures', [HubSignatureController::class, 'store'])->name('signatures.store');
         Route::get('/signatures/{signature}', [HubSignatureController::class, 'show'])->name('signatures.show');
         Route::post('/signatures/{signature}/sync', [HubSignatureController::class, 'sync'])->name('signatures.sync');
 

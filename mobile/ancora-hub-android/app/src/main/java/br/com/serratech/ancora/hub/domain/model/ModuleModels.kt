@@ -43,7 +43,10 @@ data class DemandListData(
 data class DemandFilters(
     val statuses: List<FilterValueOption>,
     val priorities: List<FilterValueOption>,
+    val categories: List<FilterValueOption>,
+    val tags: List<FilterValueOption>,
     val assignees: List<HubUserOption>,
+    val canCreate: Boolean,
 )
 
 data class DemandListItem(
@@ -84,6 +87,7 @@ data class DemandDetail(
     val attachments: List<HubAttachment>,
     val availableActions: DemandAvailableActions,
     val statusOptions: List<FilterValueOption>,
+    val tagOptions: List<FilterValueOption>,
     val assignees: List<HubUserOption>,
     val closedAt: String?,
     val closedAtBr: String?,
@@ -108,6 +112,7 @@ data class DemandMessageItem(
 data class DemandAvailableActions(
     val canReply: Boolean,
     val canUpdateStatus: Boolean,
+    val canMove: Boolean,
     val canAssign: Boolean,
 )
 
@@ -208,11 +213,14 @@ data class CollectionFilters(
     val workflowStages: List<FilterValueOption>,
     val situations: List<FilterValueOption>,
     val billingStatuses: List<FilterValueOption>,
+    val canCreate: Boolean,
 )
 
 data class CollectionListItem(
     val id: Long,
     val osNumber: String,
+    val condominiumId: Long?,
+    val unitId: Long?,
     val condominiumName: String,
     val unitLabel: String,
     val debtorName: String,
@@ -249,6 +257,20 @@ data class CollectionDetail(
     val contacts: List<CollectionContact>,
     val quotas: List<CollectionQuota>,
     val agreement: CollectionAgreementInfo,
+    val availableActions: CollectionAvailableActions,
+    val options: CollectionOptions,
+)
+
+data class CollectionAvailableActions(
+    val canEdit: Boolean,
+    val canCalculateTjes: Boolean,
+    val canRequestBoleto: Boolean,
+)
+
+data class CollectionOptions(
+    val chargeTypes: List<FilterValueOption>,
+    val workflowStages: List<FilterValueOption>,
+    val billingStatuses: List<FilterValueOption>,
 )
 
 data class CollectionContact(
@@ -306,4 +328,54 @@ data class CollectionTimelineItem(
     val userName: String?,
     val createdAt: String?,
     val createdAtBr: String?,
+)
+
+data class CollectionTjesPreview(
+    val settings: CollectionTjesSettings,
+    val items: List<CollectionTjesItem>,
+    val totals: CollectionTjesTotals,
+    val summary: CollectionTjesSummary,
+)
+
+data class CollectionTjesSettings(
+    val indexLabel: String?,
+    val finalDate: String?,
+    val interestLabel: String?,
+    val attorneyFeeLabel: String?,
+)
+
+data class CollectionTjesItem(
+    val quotaId: Long,
+    val referenceLabel: String,
+    val dueDate: String?,
+    val original: String?,
+    val factor: String?,
+    val corrected: String?,
+    val interestPercent: String?,
+    val interest: String?,
+    val fine: String?,
+    val total: String?,
+)
+
+data class CollectionTjesTotals(
+    val original: String?,
+    val corrected: String?,
+    val interest: String?,
+    val fine: String?,
+    val costsCorrected: String?,
+    val boletoFee: String?,
+    val boletoCancellationFee: String?,
+    val abatement: String?,
+    val debitTotal: String?,
+    val attorneyFee: String?,
+    val grandTotal: String?,
+)
+
+data class CollectionTjesSummary(
+    val debitTotal: String?,
+    val attorneyFee: String?,
+    val boletoFee: String?,
+    val boletoCancellationFee: String?,
+    val grandTotal: String?,
+    val finalDate: String?,
 )
