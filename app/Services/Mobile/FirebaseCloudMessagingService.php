@@ -26,20 +26,12 @@ class FirebaseCloudMessagingService
     public function sendHubNotificationToToken(string $token, array $notification, array $data = []): array
     {
         $type = strtolower(trim((string) ($data['type'] ?? '')));
-        $importantTypes = [
-            'acordo_vencido',
-            'conta_vencida',
-            'contrato_pendente',
-            'nova_demanda',
-            'novo_andamento_processual',
-        ];
+        $module = strtolower(trim((string) ($data['module'] ?? '')));
 
         return $this->sendMessageToToken($token, $notification, $data, [
             'priority' => 'HIGH',
-            'channel_id' => in_array($type, $importantTypes, true)
-                ? 'ancora_hub_important'
-                : 'ancora_hub_general',
-            'click_action' => 'OPEN_APP',
+            'channel_id' => $this->resolveHubChannelId($type, $module),
+            'click_action' => 'OPEN_HUB_ROUTE',
         ]);
     }
 
@@ -196,6 +188,31 @@ class FirebaseCloudMessagingService
         return collect($data)
             ->mapWithKeys(fn ($value, $key) => [(string) $key => is_scalar($value) || $value === null ? (string) ($value ?? '') : json_encode($value)])
             ->all();
+    }
+
+    private function resolveHubChannelId(string $type, string $module): string
+    {
+        if ($module === 'demandas' || in_array($type, ['nova_demanda', 'resposta_demanda'], true)) {
+            return 'ancora_hub_demands';
+        }
+
+        if ($module === 'processos' || in_array($type, ['novo_andamento_processual', 'processo_atualizado'], true)) {
+            return 'ancora_hub_processes';
+        }
+
+        if ($module === 'cobrancas' || in_array($type, ['cobranca_apta_judicializacao', 'acordo_vencido'], true)) {
+            return 'ancora_hub_collections';
+        }
+
+        if ($module === 'financeiro' || $type === 'conta_vencida') {
+            return 'ancora_hub_finance';
+        }
+
+        if (in_array($module, ['assinador', 'contratos'], true) || in_array($type, ['assinatura_concluida', 'contrato_pendente'], true)) {
+            return 'ancora_hub_signatures';
+        }
+
+        return 'ancora_hub_general';
     }
 
     private function responseIndicatesInvalidToken(mixed $payload): bool

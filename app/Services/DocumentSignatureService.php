@@ -13,6 +13,7 @@ use App\Models\DocumentSignatureRequest;
 use App\Models\DocumentSignatureSigner;
 use App\Models\ElectronicSignatureDocument;
 use App\Models\User;
+use App\Services\Hub\HubNotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class DocumentSignatureService
         private readonly AssinafyService $assinafy,
         private readonly ContractPdfService $contractPdfService,
         private readonly CobrancaAgreementPdfService $agreementPdfService,
+        private readonly HubNotificationService $hubNotifications,
     ) {
     }
 
@@ -99,6 +101,11 @@ class DocumentSignatureService
                 'updated_by' => $user->id,
             ])->save();
         }
+
+        $this->hubNotifications->notifyPendingContract(
+            $contract->fresh(['client', 'condominium', 'responsible']),
+            $request
+        );
 
         return $request->fresh(['signers', 'events', 'creator', 'updater']);
     }
@@ -560,11 +567,15 @@ class DocumentSignatureService
 
         if ($request->signable instanceof Contract) {
             $contract = $request->signable;
-            if ($request->status === 'certificated' && !in_array($contract->status, ['ativo', 'rescindido', 'cancelado', 'arquivado'], true)) {
-                $contract->forceFill([
-                    'status' => 'assinado',
-                    'updated_by' => $actor?->id ?: $request->updated_by,
-                ])->save();
+            if ($request->status === 'certificated' && $previousStatus !== 'certificated') {
+                if (!in_array($contract->status, ['ativo', 'rescindido', 'cancelado', 'arquivado'], true)) {
+                    $contract->forceFill([
+                        'status' => 'assinado',
+                        'updated_by' => $actor?->id ?: $request->updated_by,
+                    ])->save();
+                }
+
+                $this->hubNotifications->notifySignatureCompleted($request->fresh(['signable']));
             }
 
             return;
@@ -576,6 +587,10 @@ class DocumentSignatureService
                 'status' => $request->status,
                 'updated_by' => $actor?->id ?: $request->updated_by ?: $request->created_by,
             ])->save();
+
+            if ($request->status === 'certificated' && $previousStatus !== 'certificated') {
+                $this->hubNotifications->notifySignatureCompleted($request->fresh(['signable']));
+            }
 
             return;
         }
@@ -594,6 +609,7 @@ class DocumentSignatureService
             ])->save();
 
             $this->recordCaseTimeline($case, 'termo', 'Todas as assinaturas do termo foram concluídas via Assinafy.', $actor, now());
+            $this->hubNotifications->notifySignatureCompleted($request->fresh(['signable']));
         }
     }
 

@@ -16,8 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -102,8 +102,8 @@ fun CondominiumDetailScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    var openingDocumentId by mutableLongStateOf(0L)
-    var actionError by mutableStateOf<String?>(null)
+    var openingDocumentId by rememberSaveable { mutableStateOf(0L) }
+    var actionError by rememberSaveable { mutableStateOf<String?>(null) }
     val viewModel: CondominiumDetailViewModel = viewModel(
         key = "condominium-detail-$condominiumId",
         factory = simpleFactory { CondominiumDetailViewModel(container, condominiumId) },

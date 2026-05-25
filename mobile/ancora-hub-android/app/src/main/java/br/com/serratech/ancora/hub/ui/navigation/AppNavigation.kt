@@ -1,10 +1,11 @@
-package br.com.serratech.ancora.hub.ui.navigation
+﻿package br.com.serratech.ancora.hub.ui.navigation
 
 import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,7 +83,6 @@ import br.com.serratech.ancora.hub.ui.screens.clients.ClientsScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.CondominiumUnitsScreen
 import br.com.serratech.ancora.hub.ui.screens.clients.UnitDetailScreen
-import br.com.serratech.ancora.hub.ui.screens.common.ModulePlaceholderScreen
 import br.com.serratech.ancora.hub.ui.screens.contracts.ContractDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.contracts.ContractsScreen
 import br.com.serratech.ancora.hub.ui.screens.dashboard.DashboardScreen
@@ -99,6 +99,7 @@ import br.com.serratech.ancora.hub.ui.screens.processes.ProcessesScreen
 import br.com.serratech.ancora.hub.ui.screens.profile.ProfileScreen
 import br.com.serratech.ancora.hub.ui.screens.proposals.ProposalDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.proposals.ProposalsScreen
+import br.com.serratech.ancora.hub.ui.screens.settings.SettingsScreen
 import br.com.serratech.ancora.hub.ui.screens.setup.SetupScreen
 import br.com.serratech.ancora.hub.ui.screens.signatures.SignatureDetailScreen
 import br.com.serratech.ancora.hub.ui.screens.signatures.SignaturesScreen
@@ -194,8 +195,8 @@ class AppViewModel(
             var sessionUser: SessionUser? = null
             var unreadCount = 0
             var feedbackMessage: String? = when {
-                launchState.secureStorageInvalidated -> "Sessão expirada. Entre novamente."
-                launchState.localSessionExpired -> "Sessão expirada. Entre novamente."
+                launchState.secureStorageInvalidated -> "SessÃ£o expirada. Entre novamente."
+                launchState.localSessionExpired -> "SessÃ£o expirada. Entre novamente."
                 else -> null
             }
 
@@ -297,14 +298,14 @@ class AppViewModel(
                 launchDestination = LaunchDestination.Login,
                 sessionUser = null,
                 unreadNotifications = 0,
-                feedbackMessage = "Sessão expirada. Entre novamente.",
+                feedbackMessage = "SessÃ£o expirada. Entre novamente.",
                 navigationTarget = NavigationTarget(AppRoutes.Login, clearBackStack = true),
                 pendingPushRoute = null,
             )
         }
     }
 
-    fun onSessionExpired(message: String = "Sessão expirada. Entre novamente.") {
+    fun onSessionExpired(message: String = "SessÃ£o expirada. Entre novamente.") {
         viewModelScope.launch {
             container.sessionManager.clearSession(clearInstance = false)
             _uiState.value = _uiState.value.copy(
@@ -329,6 +330,10 @@ class AppViewModel(
 
     fun onUnreadCountChanged(count: Int) {
         _uiState.value = _uiState.value.copy(unreadNotifications = count.coerceAtLeast(0))
+    }
+
+    fun onSessionUserUpdated(user: SessionUser) {
+        _uiState.value = _uiState.value.copy(sessionUser = user)
     }
 
     fun logout() {
@@ -429,10 +434,10 @@ fun AncoraHubApp(
     ) { }
 
     val navItems = listOf(
-        NavItem(AppRoutes.Dashboard, "Início", Icons.Outlined.Home),
+        NavItem(AppRoutes.Dashboard, "InÃ­cio", Icons.Outlined.Home),
         NavItem(AppRoutes.Demands, "Demandas", Icons.AutoMirrored.Outlined.Assignment),
         NavItem(AppRoutes.Processes, "Processos", Icons.Outlined.Gavel),
-        NavItem(AppRoutes.Collections, "Cobranças", Icons.Outlined.Payments),
+        NavItem(AppRoutes.Collections, "CobranÃ§as", Icons.Outlined.Payments),
         NavItem(AppRoutes.More, "Mais", Icons.Outlined.Widgets),
     )
 
@@ -985,9 +990,14 @@ private fun AppNavHost(
         }
 
         composable(AppRoutes.Settings) {
-            ModulePlaceholderScreen(
-                title = "Configurações",
-                description = "A área de Configurações receberá preferências do aparelho e do uso do aplicativo nas próximas etapas.",
+            SettingsScreen(
+                container = container,
+                sessionUser = uiState.sessionUser,
+                onUserUpdated = appViewModel::onSessionUserUpdated,
+                onOpenInstanceSettings = { navController.navigate(AppRoutes.SetupChange) },
+                onLogout = appViewModel::logout,
+                onBiometricDisabled = appViewModel::onBiometricDisabled,
+                onSessionExpired = appViewModel::onSessionExpired,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -1048,7 +1058,7 @@ private fun AppLaunchLoadingScreen(modifier: Modifier = Modifier) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(spacing.xs))
                 Text(
-                    text = "Preparando o Âncora Hub...",
+                    text = "Preparando o Ã‚ncora Hub...",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1180,6 +1190,8 @@ private fun resolveHubRoute(
     contractId: Long? = null,
     signatureId: Long? = null,
 ): String? {
+    hubDeepLinkToAppRoute(route)?.let { return it }
+
     val normalized = normalizeAppRoute(route)
     return when (normalized) {
         AppRoutes.Demands -> demandId?.let(::demandDetailRoute) ?: AppRoutes.Demands
@@ -1205,6 +1217,36 @@ private fun Bundle.bundleLong(key: String): Long? {
     }
 
     return getLong(key).takeIf { it > 0L }
+}
+
+private fun hubDeepLinkToAppRoute(value: String?): String? {
+    val raw = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (!raw.startsWith("hub://", ignoreCase = true)) {
+        return null
+    }
+
+    val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return AppRoutes.Notifications
+    val host = uri.host?.lowercase().orEmpty()
+    val segment = uri.pathSegments.firstOrNull()?.toLongOrNull()
+
+    return when (host) {
+        "notifications" -> segment?.let(::notificationDetailRoute) ?: AppRoutes.Notifications
+        "demands" -> segment?.let(::demandDetailRoute) ?: AppRoutes.Demands
+        "processes" -> segment?.let(::processDetailRoute) ?: AppRoutes.Processes
+        "collections" -> segment?.let(::collectionDetailRoute) ?: AppRoutes.Collections
+        "clients" -> segment?.let(::clientDetailRoute) ?: AppRoutes.Clients
+        "condominiums" -> segment?.let(::condominiumDetailRoute) ?: AppRoutes.Clients
+        "units" -> segment?.let(::unitDetailRoute) ?: AppRoutes.Clients
+        "proposals" -> segment?.let(::proposalDetailRoute) ?: AppRoutes.Proposals
+        "contracts" -> segment?.let(::contractDetailRoute) ?: AppRoutes.Contracts
+        "signatures" -> segment?.let(::signatureDetailRoute) ?: AppRoutes.Signer
+        "finance" -> AppRoutes.Finance
+        "leme", "leme-ia" -> AppRoutes.LemeIa
+        "dashboard", "home", "inicio" -> AppRoutes.Dashboard
+        "profile", "perfil" -> AppRoutes.Profile
+        "settings", "configuracoes", "configuracao" -> AppRoutes.Settings
+        else -> AppRoutes.Notifications
+    }
 }
 
 private fun normalizeAppRoute(value: String?): String? {
@@ -1300,7 +1342,8 @@ private fun NavHostController.navigateToHubRoute(
     route: String,
     clearBackStack: Boolean = false,
 ) {
-    val targetRoute = normalizeAppRoute(route)
+    val targetRoute = hubDeepLinkToAppRoute(route)
+        ?: normalizeAppRoute(route)
         ?: route.takeIf(::isDetailRoute)
         ?: AppRoutes.Notifications
 

@@ -13,7 +13,7 @@ class HubPushTestCommand extends Command
         {--title=Teste de push}
         {--body=Seu app Âncora Hub recebeu uma notificação de teste.}
         {--type=notificacao_geral}
-        {--route=notifications}
+        {--route=hub://notifications}
         {--module=hub}';
 
     protected $description = 'Registra uma notificação de teste para um usuário interno do Âncora Hub';

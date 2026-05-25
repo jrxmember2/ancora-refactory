@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -160,7 +161,7 @@ fun DemandsScreen(
     onBack: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
-    var showFilters by mutableStateOf(false)
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val viewModel: DemandsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

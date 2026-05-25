@@ -47,6 +47,7 @@ class EnsureHubApiAuthenticated
     private function unauthorizedResponse(): JsonResponse
     {
         return response()->json([
+            'ok' => false,
             'message' => 'Sessão inválida ou expirada.',
         ], 401);
     }

@@ -26,8 +26,8 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -226,8 +226,8 @@ fun ClientsScreen(
     onOpenClient: (Long) -> Unit,
     onOpenCondominium: (Long) -> Unit,
 ) {
-    var selectedTab by mutableIntStateOf(0)
-    var showClientFilters by mutableStateOf(false)
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var showClientFilters by rememberSaveable { mutableStateOf(false) }
     val clientsViewModel: ClientsViewModel = viewModel(
         factory = simpleFactory { ClientsViewModel(container) },
     )

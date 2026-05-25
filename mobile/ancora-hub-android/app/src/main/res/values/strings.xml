@@ -9,9 +9,18 @@
     <string name="biometric_enable_message">Use sua biometria para acessar o Âncora Hub com mais agilidade.</string>
     <string name="biometric_enabled_success">Biometria ativada com sucesso.</string>
     <string name="biometric_disabled_success">Biometria desativada.</string>
-    <string name="notification_channel_general_name">Notificações do Âncora Hub</string>
-    <string name="notification_channel_general_description">Atualizações internas do escritório enviadas pelo Âncora Hub.</string>
-    <string name="notification_channel_important_name">Avisos importantes</string>
-    <string name="notification_channel_important_description">Comunicados internos com prioridade alta.</string>
-    <string name="notification_fallback_title">Âncora Hub</string>
+
+    <string name="notification_channel_general_name">Geral</string>
+    <string name="notification_channel_general_description">Notificações gerais do Âncora Hub.</string>
+    <string name="notification_channel_demands_name">Demandas</string>
+    <string name="notification_channel_demands_description">Atualizações de demandas do escritório.</string>
+    <string name="notification_channel_processes_name">Processos</string>
+    <string name="notification_channel_processes_description">Movimentações e avisos dos processos.</string>
+    <string name="notification_channel_collections_name">Cobranças</string>
+    <string name="notification_channel_collections_description">Alertas e atualizações das cobranças.</string>
+    <string name="notification_channel_finance_name">Financeiro</string>
+    <string name="notification_channel_finance_description">Avisos importantes do Financeiro 360.</string>
+    <string name="notification_channel_signatures_name">Assinaturas</string>
+    <string name="notification_channel_signatures_description">Notificações de contratos e assinaturas eletrônicas.</string>
+    <string name="notification_fallback_title">Notificação do Âncora Hub</string>
 </resources>

@@ -100,7 +100,6 @@ class DemandController extends HubApiController
             $request,
             routeNames: ['demandas.reply'],
             moduleSlugs: ['demandas'],
-            forbiddenMessage: 'Você não possui permissão para responder demandas.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -160,7 +159,6 @@ class DemandController extends HubApiController
             $request,
             routeNames: ['demandas.update', 'demandas.tag.update'],
             moduleSlugs: ['demandas'],
-            forbiddenMessage: 'Você não possui permissão para atualizar o status desta demanda.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -227,7 +225,6 @@ class DemandController extends HubApiController
             $request,
             routeNames: ['demandas.update'],
             moduleSlugs: ['demandas'],
-            forbiddenMessage: 'Você não possui permissão para atribuir esta demanda.',
         );
 
         if ($user instanceof JsonResponse) {

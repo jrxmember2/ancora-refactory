@@ -125,7 +125,6 @@ class SignatureController extends HubApiController
             $request,
             routeNames: ['assinador.signatures.sync', 'contratos.signatures.sync'],
             moduleSlugs: ['assinador', 'contratos'],
-            forbiddenMessage: 'Você não possui permissão para sincronizar assinaturas.',
         );
 
         if ($user instanceof JsonResponse) {

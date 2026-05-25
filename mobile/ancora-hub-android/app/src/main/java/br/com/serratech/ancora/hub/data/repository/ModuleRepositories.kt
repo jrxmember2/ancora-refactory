@@ -727,7 +727,7 @@ private fun Throwable.toModuleFacingMessage(
 
     return when {
         this is HttpException && code() == 401 -> "Sessão expirada. Entre novamente."
-        this is HttpException && code() == 403 -> "Você não possui permissão para acessar este módulo."
+        this is HttpException && code() == 403 -> "Você não possui permissão para acessar este recurso."
         else -> defaultMessage
     }
 }

@@ -1,5 +1,6 @@
 package br.com.serratech.ancora.hub
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,7 +23,7 @@ class MainActivity : FragmentActivity() {
         val app = application as AncoraHubApplication
         appViewModel = ViewModelProvider(
             this,
-            appViewModelFactory(app.container, intent?.extras),
+            appViewModelFactory(app.container, intent.toNavigationPayload()),
         )[AppViewModel::class.java]
 
         splashScreen.setKeepOnScreenCondition {
@@ -39,11 +40,26 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (::appViewModel.isInitialized) {
-            appViewModel.applyNotificationIntent(intent.extras)
+            appViewModel.applyNotificationIntent(intent.toNavigationPayload())
         }
     }
+}
+
+private fun Intent?.toNavigationPayload(): Bundle? {
+    if (this == null) {
+        return null
+    }
+
+    val payload = this.extras?.let(::Bundle) ?: Bundle()
+    val dataRoute = this.dataString?.trim().orEmpty()
+
+    if (dataRoute.isNotEmpty() && payload.getString("route").isNullOrBlank()) {
+        payload.putString("route", dataRoute)
+    }
+
+    return payload.takeIf { it.keySet().isNotEmpty() }
 }

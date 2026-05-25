@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -99,7 +100,7 @@ fun SignatureDetailScreen(
     signatureId: Long,
     onBack: () -> Unit,
 ) {
-    var actionError by mutableStateOf<String?>(null)
+    var actionError by rememberSaveable { mutableStateOf<String?>(null) }
     val viewModel: SignatureDetailViewModel = viewModel(
         key = "signature-detail-$signatureId",
         factory = object : ViewModelProvider.Factory {

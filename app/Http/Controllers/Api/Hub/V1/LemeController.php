@@ -26,7 +26,6 @@ class LemeController extends HubApiController
             $request,
             routeNames: ['ia.office-chat.index'],
             moduleSlugs: ['ia'],
-            forbiddenMessage: 'Você não possui permissão para acessar o Leme IA.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -60,7 +59,6 @@ class LemeController extends HubApiController
             $request,
             routeNames: ['ia.office-chat.index', 'ia.office-chat.ask'],
             moduleSlugs: ['ia'],
-            forbiddenMessage: 'Você não possui permissão para iniciar novas conversas no Leme IA.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -120,7 +118,6 @@ class LemeController extends HubApiController
             $request,
             routeNames: ['ia.office-chat.show', 'ia.office-chat.index'],
             moduleSlugs: ['ia'],
-            forbiddenMessage: 'Você não possui permissão para abrir esta conversa do Leme IA.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -146,7 +143,6 @@ class LemeController extends HubApiController
             $request,
             routeNames: ['ia.office-chat.ask'],
             moduleSlugs: ['ia'],
-            forbiddenMessage: 'Você não possui permissão para enviar mensagens no Leme IA.',
         );
 
         if ($user instanceof JsonResponse) {
@@ -223,7 +219,6 @@ class LemeController extends HubApiController
             $request,
             routeNames: ['ia.office-chat.delete'],
             moduleSlugs: ['ia'],
-            forbiddenMessage: 'Você não possui permissão para limpar esta conversa do Leme IA.',
         );
 
         if ($user instanceof JsonResponse) {

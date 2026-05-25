@@ -136,6 +136,14 @@ class HubApiPresenter
     public static function notificationRouteValue(HubNotification $notification): ?string
     {
         $data = $notification->data_json ?? [];
+        $explicitRoute = is_string($data['route'] ?? null)
+            ? trim((string) $data['route'])
+            : '';
+
+        if ($explicitRoute !== '' && Str::startsWith(Str::lower($explicitRoute), 'hub://')) {
+            return $explicitRoute;
+        }
+
         $candidate = self::routeCandidateValue(
             route: $data['route'] ?? null,
             screen: $data['screen'] ?? null,
@@ -144,7 +152,7 @@ class HubApiPresenter
             actionUrl: $notification->action_url,
         );
 
-        return self::normalizeRouteAlias($candidate);
+        return self::deepLinkForNotification($notification, $candidate);
     }
 
     public static function appRouteForModule(?string $slug): ?string
@@ -265,14 +273,66 @@ class HubApiPresenter
         return null;
     }
 
+    private static function deepLinkForNotification(HubNotification $notification, mixed $candidate): ?string
+    {
+        $normalized = self::normalizeRouteAlias($candidate);
+        $data = $notification->data_json ?? [];
+
+        $demandId = self::integerValue($data['demand_id'] ?? null)
+            ?? self::entityIdFor($notification, 'Demand');
+        $processId = self::integerValue($data['process_id'] ?? null)
+            ?? self::entityIdFor($notification, 'ProcessCase');
+        $collectionId = self::integerValue($data['collection_id'] ?? null)
+            ?? self::entityIdFor($notification, 'CobrancaCase');
+        $clientId = self::integerValue($data['client_id'] ?? null);
+        $condominiumId = self::integerValue($data['condominium_id'] ?? null);
+        $unitId = self::integerValue($data['unit_id'] ?? null);
+        $proposalId = self::integerValue($data['proposal_id'] ?? null);
+        $contractId = self::integerValue($data['contract_id'] ?? null)
+            ?? self::entityIdFor($notification, 'Contract');
+        $signatureId = self::integerValue($data['signature_id'] ?? null)
+            ?? self::entityIdFor($notification, 'DocumentSignatureRequest');
+        $receivableId = self::integerValue($data['receivable_id'] ?? null)
+            ?? self::entityIdFor($notification, 'FinancialReceivable');
+        $payableId = self::integerValue($data['payable_id'] ?? null)
+            ?? self::entityIdFor($notification, 'FinancialPayable');
+
+        return match ($normalized) {
+            'dashboard' => self::hubRoute('dashboard'),
+            'profile' => self::hubRoute('profile'),
+            'demands' => self::hubRoute($demandId ? "demands/{$demandId}" : 'demands'),
+            'processes' => self::hubRoute($processId ? "processes/{$processId}" : 'processes'),
+            'collections' => self::hubRoute($collectionId ? "collections/{$collectionId}" : 'collections'),
+            'clients' => self::hubRoute(match (true) {
+                $clientId !== null => "clients/{$clientId}",
+                $condominiumId !== null => "condominiums/{$condominiumId}",
+                $unitId !== null => "units/{$unitId}",
+                default => 'clients',
+            }),
+            'proposals' => self::hubRoute($proposalId ? "proposals/{$proposalId}" : 'proposals'),
+            'contracts' => self::hubRoute($contractId ? "contracts/{$contractId}" : 'contracts'),
+            'signer' => self::hubRoute($signatureId ? "signatures/{$signatureId}" : 'signatures'),
+            'finance' => self::hubRoute(match (true) {
+                $receivableId !== null => "finance/receivables/{$receivableId}",
+                $payableId !== null => "finance/payables/{$payableId}",
+                default => 'finance',
+            }),
+            'leme-ia' => self::hubRoute('leme'),
+            'settings' => self::hubRoute('settings'),
+            'notifications' => self::hubRoute("notifications/{$notification->id}"),
+            default => self::hubRoute("notifications/{$notification->id}"),
+        };
+    }
+
     private static function routeAliasFromType(mixed $type): ?string
     {
         $value = Str::of((string) $type)->lower()->ascii()->replace([' ', '-'], '_')->toString();
 
         return match ($value) {
-            'nova_demanda', 'demand_created', 'demand_status_changed', 'demand_new_message' => 'demands',
+            'nova_demanda', 'resposta_demanda', 'demand_created', 'demand_status_changed', 'demand_new_message' => 'demands',
             'novo_andamento_processual', 'process_new_phase', 'processo_atualizado', 'process_status_changed' => 'processes',
-            'acordo_vencido', 'conta_vencida' => 'collections',
+            'cobranca_apta_judicializacao', 'acordo_vencido' => 'collections',
+            'conta_vencida' => 'finance',
             'assinatura_concluida' => 'signer',
             'contrato_pendente' => 'contracts',
             default => null,
@@ -310,6 +370,40 @@ class HubApiPresenter
             'more', 'mais' => 'more',
             default => null,
         };
+    }
+
+    private static function entityIdFor(HubNotification $notification, string $classBasename): ?int
+    {
+        $entityType = trim((string) $notification->entity_type);
+        if ($entityType === '') {
+            return null;
+        }
+
+        if ($entityType === $classBasename || Str::endsWith($entityType, '\\' . $classBasename)) {
+            return $notification->entity_id ? (int) $notification->entity_id : null;
+        }
+
+        return null;
+    }
+
+    private static function integerValue(mixed $value): ?int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            $parsed = (int) $value;
+
+            return $parsed > 0 ? $parsed : null;
+        }
+
+        return null;
+    }
+
+    private static function hubRoute(string $path): string
+    {
+        return 'hub://' . ltrim($path, '/');
     }
 
     private static function accessibleModules(User $user): Collection

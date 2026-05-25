@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -157,9 +158,9 @@ fun DemandDetailScreen(
     demandId: Long,
     onBack: () -> Unit,
 ) {
-    var showReplyDialog by mutableStateOf(false)
-    var showStatusDialog by mutableStateOf(false)
-    var showAssignDialog by mutableStateOf(false)
+    var showReplyDialog by rememberSaveable { mutableStateOf(false) }
+    var showStatusDialog by rememberSaveable { mutableStateOf(false) }
+    var showAssignDialog by rememberSaveable { mutableStateOf(false) }
     val spacing = MaterialTheme.spacing
     val viewModel: DemandDetailViewModel = viewModel(
         key = "demand-detail-$demandId",
@@ -463,7 +464,7 @@ private fun ReplyDemandDialog(
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
 ) {
-    var message by mutableStateOf("")
+    var message by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -503,7 +504,7 @@ private fun SelectStatusDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var selectedValue by mutableStateOf(currentValue)
+    var selectedValue by rememberSaveable(currentValue) { mutableStateOf(currentValue) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -547,7 +548,9 @@ private fun SelectAssigneeDialog(
     onDismiss: () -> Unit,
     onConfirm: (Long) -> Unit,
 ) {
-    var selectedUserId by mutableStateOf(currentUserId ?: assignees.firstOrNull()?.id ?: 0L)
+    var selectedUserId by rememberSaveable(currentUserId, assignees.firstOrNull()?.id) {
+        mutableStateOf(currentUserId ?: assignees.firstOrNull()?.id ?: 0L)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

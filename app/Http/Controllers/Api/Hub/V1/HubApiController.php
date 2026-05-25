@@ -27,6 +27,7 @@ abstract class HubApiController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
+                'ok' => false,
                 'message' => $validator->errors()->first(),
                 'errors' => $validator->errors(),
             ], 422);
@@ -38,29 +39,40 @@ abstract class HubApiController extends Controller
     protected function unauthorizedResponse(string $message = 'Sessão inválida ou expirada.'): JsonResponse
     {
         return response()->json([
+            'ok' => false,
             'message' => $message,
         ], 401);
     }
 
-    protected function forbiddenResponse(string $message = 'Você não possui permissão para acessar este módulo.'): JsonResponse
+    protected function forbiddenResponse(?string $message = null): JsonResponse
     {
         return response()->json([
-            'message' => $message,
+            'ok' => false,
+            'message' => 'Você não possui permissão para acessar este recurso.',
         ], 403);
     }
 
     protected function notFoundResponse(string $message = 'Recurso não encontrado.'): JsonResponse
     {
         return response()->json([
+            'ok' => false,
             'message' => $message,
         ], 404);
+    }
+
+    protected function serverErrorResponse(string $message = 'Não foi possível concluir a solicitação agora. Tente novamente.'): JsonResponse
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => $message,
+        ], 500);
     }
 
     protected function requireAuthorizedUser(
         Request $request,
         array $routeNames = [],
         array $moduleSlugs = [],
-        string $forbiddenMessage = 'Você não possui permissão para acessar este módulo.',
+        string $forbiddenMessage = 'Você não possui permissão para acessar este recurso.',
     ): User|JsonResponse {
         $user = HubApiContext::user($request);
 
