@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -5,7 +7,31 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
-if (file('google-services.json').exists()) {
+def ancoraHubApplicationId = 'br.com.serratech.ancora.hub'
+def googleServicesFile = file('google-services.json')
+def hasMatchingGoogleServicesClient = false
+
+if (googleServicesFile.exists()) {
+    try {
+        def parsed = new JsonSlurper().parse(googleServicesFile)
+        def clients = parsed?.client ?: []
+        hasMatchingGoogleServicesClient = clients.any { client ->
+            client?.client_info?.android_client_info?.package_name == ancoraHubApplicationId
+        }
+
+        if (!hasMatchingGoogleServicesClient) {
+            logger.lifecycle(
+                "Aviso: google-services.json ignorado no Âncora Hub porque não possui um client para '${ancoraHubApplicationId}'.",
+            )
+        }
+    } catch (Exception exception) {
+        logger.lifecycle(
+            "Aviso: não foi possível validar o google-services.json do Âncora Hub. A integração Firebase será ignorada nesta build.",
+        )
+    }
+}
+
+if (hasMatchingGoogleServicesClient) {
     apply plugin: 'com.google.gms.google-services'
 }
 
@@ -14,7 +40,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId 'br.com.serratech.ancora.hub'
+        applicationId ancoraHubApplicationId
         minSdk 26
         targetSdk 34
         versionCode 1
