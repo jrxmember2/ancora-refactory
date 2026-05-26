@@ -4,6 +4,6 @@
         <bitmap
             android:antialias="true"
             android:gravity="center"
-            android:src="@drawable/logo_ancora_hub" />
+            android:src="@drawable/logo_ancora_rastreado" />
     </item>
 </layer-list>

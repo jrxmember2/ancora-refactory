@@ -242,7 +242,7 @@ class AppViewModel(
             }
 
             val elapsed = System.currentTimeMillis() - startedAt
-            val remaining = (2_000L - elapsed).coerceAtLeast(0L)
+            val remaining = (4_000L - elapsed).coerceAtLeast(0L)
 
             _uiState.value = _uiState.value.copy(
                 isSplashVisible = false,

@@ -8,8 +8,8 @@
 
     <style name="Theme.AncoraHub.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
-        <item name="windowSplashScreenAnimationDuration">400</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_placeholder</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
         <item name="postSplashScreenTheme">@style/Theme.AncoraHub</item>
         <item name="android:navigationBarColor">@color/splash_background</item>
     </style>
