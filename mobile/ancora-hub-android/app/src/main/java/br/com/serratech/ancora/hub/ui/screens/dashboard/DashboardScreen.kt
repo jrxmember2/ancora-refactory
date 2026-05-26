@@ -1,10 +1,10 @@
 package br.com.serratech.ancora.hub.ui.screens.dashboard
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -185,7 +185,7 @@ private fun DashboardContent(
 ) {
     val spacing = MaterialTheme.spacing
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val gridCardWidth = if (screenWidthDp < 390) 150 else 172
+    val cardWidth = ((screenWidthDp - 56) / 2).coerceAtLeast(148)
     val currentUser = sessionUser ?: data.user
     val updatedAtLabel = data.updatedAt.toUpdatedAtLabel()
 
@@ -283,7 +283,7 @@ private fun DashboardContent(
                             tone = ancoraToneFromAccent(alert.accent),
                             statusLabel = alert.actionLabel,
                             enabled = !alert.route.isNullOrBlank(),
-                            modifier = Modifier.width(gridCardWidth.dp),
+                            modifier = Modifier.width(cardWidth.dp),
                             onClick = {
                                 alert.route?.let(onOpenRoute)
                             },
@@ -316,7 +316,7 @@ private fun DashboardContent(
                         value = card.value.toString(),
                         description = card.description,
                         tone = ancoraToneFromAccent(card.accent),
-                        modifier = Modifier.width(gridCardWidth.dp),
+                        modifier = Modifier.width(cardWidth.dp),
                         onClick = if (card.isClickable && !route.isNullOrBlank()) {
                             { onOpenRoute(route) }
                         } else {
@@ -351,7 +351,7 @@ private fun DashboardContent(
                         tone = action.tone,
                         icon = action.icon,
                         enabled = action.enabled,
-                        modifier = Modifier.width(gridCardWidth.dp),
+                        modifier = Modifier.width(cardWidth.dp),
                         onClick = action.onClick,
                     )
                 }
@@ -375,7 +375,7 @@ private fun DashboardContent(
                             tone = ancoraToneFromAccent(shortcut.accent),
                             statusLabel = "Disponível",
                             enabled = !shortcut.route.isNullOrBlank(),
-                            modifier = Modifier.width(gridCardWidth.dp),
+                            modifier = Modifier.width(cardWidth.dp),
                             onClick = {
                                 shortcut.route?.let(onOpenRoute) ?: onOpenMore()
                             },
@@ -416,7 +416,11 @@ private fun DashboardContent(
                 ) {
                     AncoraStatusChip(
                         label = if (notification.readAt == null) "Não lida" else "Lida",
-                        tone = if (notification.readAt == null) AncoraTone.Brand else AncoraTone.Neutral,
+                        tone = if (notification.readAt == null) {
+                            AncoraTone.Brand
+                        } else {
+                            AncoraTone.Neutral
+                        },
                     )
                     Text(
                         text = notification.title,

@@ -24,7 +24,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.AncoraHub.Splash">
+            android:theme="@style/Theme.AncoraHub">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

@@ -2,7 +2,9 @@ package br.com.serratech.ancora.hub.ui.screens.settings
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,10 +19,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -87,7 +91,8 @@ private class SettingsViewModel(
                 baseUrl = container.preferences.instanceBaseUrl(),
                 biometricEnabled = container.preferences.isBiometricEnabled(),
                 hasRegisteredDevice = container.preferences.fcmToken().isNotBlank(),
-                lastValidatedAt = container.sessionManager.cachedLastValidatedAt().takeIf { it.isNotBlank() },
+                lastValidatedAt = container.sessionManager.cachedLastValidatedAt()
+                    .takeIf { it.isNotBlank() },
             )
         }
     }
@@ -119,7 +124,8 @@ private class SettingsViewModel(
                 uiState = uiState.copy(
                     isTestingConnection = false,
                     connectionState = ConnectionState.Error,
-                    connectionMessage = error.message ?: "Não foi possível validar a conexão com esta instância agora.",
+                    connectionMessage = error.message
+                        ?: "Não foi possível validar a conexão com esta instância agora.",
                 )
             }
         }
@@ -140,7 +146,8 @@ private class SettingsViewModel(
                     onUserUpdated(result.user)
                     uiState = uiState.copy(
                         isRefreshingUser = false,
-                        lastValidatedAt = container.sessionManager.cachedLastValidatedAt().takeIf { it.isNotBlank() },
+                        lastValidatedAt = container.sessionManager.cachedLastValidatedAt()
+                            .takeIf { it.isNotBlank() },
                         feedbackMessage = "Dados do usuário atualizados com sucesso.",
                     )
                 }
@@ -214,7 +221,10 @@ fun SettingsScreen(
         },
     )
 
-    var notificationsGranted by rememberSaveable { mutableStateOf(context.notificationsPermissionGranted()) }
+    var notificationsGranted by rememberSaveable {
+        mutableStateOf(context.notificationsPermissionGranted())
+    }
+    var showAboutDialog by rememberSaveable { mutableStateOf(false) }
 
     val notificationsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -227,6 +237,17 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.load()
+    }
+
+    if (showAboutDialog) {
+        AboutDialog(
+            versionName = BuildConfig.VERSION_NAME,
+            onDismiss = { showAboutDialog = false },
+            onOpenWebsite = {
+                showAboutDialog = false
+                context.openExternalLink("https://www.serratech.tec.br")
+            },
+        )
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -243,220 +264,303 @@ fun SettingsScreen(
         )
 
         when {
-            viewModel.uiState.isLoading -> AncoraLoadingState(
-                label = "Carregando configurações...",
-            )
+            viewModel.uiState.isLoading -> {
+                AncoraLoadingState(label = "Carregando configurações...")
+            }
 
-            sessionUser == null -> AncoraEmptyState(
-                title = "Usuário não encontrado.",
-                message = "Não foi possível recuperar os dados da sua sessão para abrir as configurações.",
-            )
+            sessionUser == null -> {
+                AncoraEmptyState(
+                    title = "Usuário não encontrado.",
+                    message = "Não foi possível recuperar os dados da sua sessão para abrir as configurações.",
+                )
+            }
 
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    horizontal = spacing.lg,
-                    vertical = spacing.lg,
-                ),
-                verticalArrangement = Arrangement.spacedBy(spacing.md),
-            ) {
-                item {
-                    AncoraCard(bordered = true) {
-                        AncoraStatusChip(
-                            label = "Ajustes do aplicativo",
-                            tone = AncoraTone.Brand,
-                        )
-                        Text(
-                            text = "Configure o Âncora Hub para o uso diário do escritório.",
-                            style = MaterialTheme.typography.headlineSmall,
-                        )
-                        Text(
-                            text = "Você pode validar a instância, revisar biometria, conferir notificações e manter seus dados atualizados sem sair do app.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        viewModel.uiState.feedbackMessage?.let { message ->
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    AncoraCard {
-                        AncoraSectionTitle(title = "Endereço da instância")
-                        SettingsDetailRow(
-                            label = "Endereço do Âncora",
-                            value = viewModel.uiState.baseUrl.ifBlank { "Ainda não configurado." },
-                        )
-                        viewModel.uiState.connectionMessage?.let { message ->
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        horizontal = spacing.lg,
+                        vertical = spacing.lg,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                ) {
+                    item {
+                        AncoraCard(bordered = true) {
                             AncoraStatusChip(
-                                label = when (viewModel.uiState.connectionState) {
-                                    ConnectionState.Success -> "Conexão validada"
-                                    ConnectionState.Error -> "Falha na conexão"
-                                    ConnectionState.Idle -> "Sem teste recente"
-                                },
-                                tone = when (viewModel.uiState.connectionState) {
-                                    ConnectionState.Success -> AncoraTone.Success
-                                    ConnectionState.Error -> AncoraTone.Error
-                                    ConnectionState.Idle -> AncoraTone.Neutral
-                                },
+                                label = "Ajustes do aplicativo",
+                                tone = AncoraTone.Brand,
                             )
                             Text(
-                                text = message,
+                                text = "Configure o Âncora Hub para o uso diário do escritório.",
+                                style = MaterialTheme.typography.headlineSmall,
+                            )
+                            Text(
+                                text = "Você pode validar a instância, revisar biometria, conferir notificações e manter seus dados atualizados sem sair do app.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (viewModel.uiState.connectionState == ConnectionState.Error) {
-                                    MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            viewModel.uiState.feedbackMessage?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        AncoraCard {
+                            AncoraSectionTitle(title = "Endereço da instância")
+                            SettingsDetailRow(
+                                label = "Endereço do Âncora",
+                                value = viewModel.uiState.baseUrl.ifBlank { "Ainda não configurado." },
+                            )
+                            viewModel.uiState.connectionMessage?.let { message ->
+                                AncoraStatusChip(
+                                    label = when (viewModel.uiState.connectionState) {
+                                        ConnectionState.Success -> "Conexão validada"
+                                        ConnectionState.Error -> "Falha na conexão"
+                                        ConnectionState.Idle -> "Sem teste recente"
+                                    },
+                                    tone = when (viewModel.uiState.connectionState) {
+                                        ConnectionState.Success -> AncoraTone.Success
+                                        ConnectionState.Error -> AncoraTone.Error
+                                        ConnectionState.Idle -> AncoraTone.Neutral
+                                    },
+                                )
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (viewModel.uiState.connectionState == ConnectionState.Error) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
+                            AncoraSecondaryButton(
+                                text = "Testar conexão com a instância",
+                                enabled = !viewModel.uiState.isTestingConnection,
+                                onClick = viewModel::testConnection,
+                            )
+                            AncoraGhostButton(
+                                text = "Alterar endereço do Âncora",
+                                onClick = onOpenInstanceSettings,
+                            )
+                        }
+                    }
+
+                    item {
+                        AncoraCard {
+                            AncoraSectionTitle(title = "Segurança e sessão")
+                            AncoraStatusChip(
+                                label = if (viewModel.uiState.biometricEnabled) {
+                                    "Biometria ativa"
                                 } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    "Biometria inativa"
+                                },
+                                tone = if (viewModel.uiState.biometricEnabled) {
+                                    AncoraTone.Success
+                                } else {
+                                    AncoraTone.Neutral
+                                },
+                            )
+                            SettingsDetailRow(
+                                label = "Política de sessão",
+                                value = "Renovável por uso com janela de ${sessionUser.sessionPolicy.inactiveExpiresInLabel}.",
+                            )
+                            SettingsDetailRow(
+                                label = "Proteção local",
+                                value = if (viewModel.uiState.biometricEnabled) {
+                                    "Token protegido por biometria neste aparelho."
+                                } else {
+                                    "O acesso volta para login quando a sessão expira."
+                                },
+                            )
+                            viewModel.uiState.lastValidatedAt?.let {
+                                SettingsDetailRow(
+                                    label = "Última validação",
+                                    value = it.prettyDateTime(),
+                                )
+                            }
+                            if (viewModel.uiState.biometricEnabled) {
+                                AncoraSecondaryButton(
+                                    text = "Desativar biometria",
+                                    onClick = {
+                                        viewModel.disableBiometric(
+                                            onCompleted = onBiometricDisabled,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        AncoraCard {
+                            AncoraSectionTitle(title = "Notificações")
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                AncoraStatusChip(
+                                    label = if (notificationsGranted) {
+                                        "Ativas no aparelho"
+                                    } else {
+                                        "Permissão pendente"
+                                    },
+                                    tone = if (notificationsGranted) {
+                                        AncoraTone.Success
+                                    } else {
+                                        AncoraTone.Warning
+                                    },
+                                )
+                            }
+                            SettingsDetailRow(
+                                label = "Registro do dispositivo",
+                                value = if (viewModel.uiState.hasRegisteredDevice) {
+                                    "Dispositivo já sinalizado para receber push."
+                                } else {
+                                    "O dispositivo ainda não confirmou o registro para push."
+                                },
+                            )
+                            AncoraSecondaryButton(
+                                text = if (notificationsGranted) {
+                                    "Atualizar registro do dispositivo"
+                                } else {
+                                    "Ativar notificações"
+                                },
+                                onClick = {
+                                    if (
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        !notificationsGranted
+                                    ) {
+                                        notificationsPermissionLauncher.launch(
+                                            Manifest.permission.POST_NOTIFICATIONS,
+                                        )
+                                    } else {
+                                        notificationsGranted = true
+                                        viewModel.registerNotifications(notificationsGranted = true)
+                                    }
                                 },
                             )
                         }
-                        AncoraSecondaryButton(
-                            text = "Testar conexão com a instância",
-                            enabled = !viewModel.uiState.isTestingConnection,
-                            onClick = viewModel::testConnection,
-                        )
-                        AncoraGhostButton(
-                            text = "Alterar endereço do Âncora",
-                            onClick = onOpenInstanceSettings,
-                        )
                     }
-                }
 
-                item {
-                    AncoraCard {
-                        AncoraSectionTitle(title = "Segurança e sessão")
-                        AncoraStatusChip(
-                            label = if (viewModel.uiState.biometricEnabled) {
-                                "Biometria ativa"
-                            } else {
-                                "Biometria inativa"
-                            },
-                            tone = if (viewModel.uiState.biometricEnabled) {
-                                AncoraTone.Success
-                            } else {
-                                AncoraTone.Neutral
-                            },
-                        )
-                        SettingsDetailRow(
-                            label = "Política de sessão",
-                            value = "Renovável por uso com janela de ${sessionUser.sessionPolicy.inactiveExpiresInLabel}.",
-                        )
-                        SettingsDetailRow(
-                            label = "Proteção local",
-                            value = if (viewModel.uiState.biometricEnabled) {
-                                "Token protegido por biometria neste aparelho."
-                            } else {
-                                "O acesso volta para login quando a sessão expira."
-                            },
-                        )
-                        viewModel.uiState.lastValidatedAt?.let {
+                    item {
+                        AncoraCard {
+                            AncoraSectionTitle(title = "Dados do usuário")
+                            SettingsDetailRow(label = "Usuário", value = sessionUser.name)
+                            SettingsDetailRow(label = "E-mail", value = sessionUser.email)
                             SettingsDetailRow(
-                                label = "Última validação",
-                                value = it.prettyDateTime(),
+                                label = "Permissão",
+                                value = if (sessionUser.isSuperadmin) {
+                                    "Acesso completo"
+                                } else {
+                                    "${sessionUser.modules.count { it.enabled }} módulos liberados"
+                                },
                             )
-                        }
-                        if (viewModel.uiState.biometricEnabled) {
                             AncoraSecondaryButton(
-                                text = "Desativar biometria",
+                                text = if (viewModel.uiState.isRefreshingUser) {
+                                    "Atualizando..."
+                                } else {
+                                    "Atualizar dados do usuário"
+                                },
+                                enabled = !viewModel.uiState.isRefreshingUser,
                                 onClick = {
-                                    viewModel.disableBiometric(
-                                        onCompleted = onBiometricDisabled,
+                                    viewModel.refreshUserData(
+                                        onUserUpdated = onUserUpdated,
+                                        onSessionExpired = onSessionExpired,
                                     )
                                 },
                             )
                         }
                     }
-                }
 
-                item {
-                    AncoraCard {
-                        AncoraSectionTitle(title = "Notificações")
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.NotificationsActive,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            AncoraStatusChip(
-                                label = if (notificationsGranted) "Ativas no aparelho" else "Permissão pendente",
-                                tone = if (notificationsGranted) AncoraTone.Success else AncoraTone.Warning,
+                    item {
+                        AncoraCard {
+                            AncoraSectionTitle(title = "Dados do app")
+                            SettingsDetailRow(label = "Aplicativo", value = "Âncora Hub")
+                            SettingsDetailRow(label = "Versão", value = BuildConfig.VERSION_NAME)
+                            SettingsDetailRow(label = "Pacote", value = BuildConfig.APPLICATION_ID)
+                            SettingsDetailRow(label = "API", value = "/api/hub/v1")
+                            SettingsDetailRow(label = "Site", value = "www.serratech.tec.br")
+                            AncoraSecondaryButton(
+                                text = "Sobre",
+                                onClick = { showAboutDialog = true },
                             )
                         }
-                        SettingsDetailRow(
-                            label = "Registro do dispositivo",
-                            value = if (viewModel.uiState.hasRegisteredDevice) {
-                                "Dispositivo já sinalizado para receber push."
-                            } else {
-                                "O dispositivo ainda não confirmou o registro para push."
-                            },
-                        )
-                        AncoraSecondaryButton(
-                            text = if (notificationsGranted) "Atualizar registro do dispositivo" else "Ativar notificações",
-                            onClick = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationsGranted) {
-                                    notificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                } else {
-                                    notificationsGranted = true
-                                    viewModel.registerNotifications(notificationsGranted = true)
-                                }
-                            },
+                    }
+
+                    item {
+                        AncoraButton(
+                            text = "Sair",
+                            onClick = onLogout,
                         )
                     }
-                }
-
-                item {
-                    AncoraCard {
-                        AncoraSectionTitle(title = "Dados do usuário")
-                        SettingsDetailRow(label = "Usuário", value = sessionUser.name)
-                        SettingsDetailRow(label = "E-mail", value = sessionUser.email)
-                        SettingsDetailRow(
-                            label = "Permissão",
-                            value = if (sessionUser.isSuperadmin) {
-                                "Acesso completo"
-                            } else {
-                                "${sessionUser.modules.count { it.enabled }} módulos liberados"
-                            },
-                        )
-                        AncoraSecondaryButton(
-                            text = if (viewModel.uiState.isRefreshingUser) "Atualizando..." else "Atualizar dados do usuário",
-                            enabled = !viewModel.uiState.isRefreshingUser,
-                            onClick = {
-                                viewModel.refreshUserData(
-                                    onUserUpdated = onUserUpdated,
-                                    onSessionExpired = onSessionExpired,
-                                )
-                            },
-                        )
-                    }
-                }
-
-                item {
-                    AncoraCard {
-                        AncoraSectionTitle(title = "Dados do app")
-                        SettingsDetailRow(label = "Aplicativo", value = "Âncora Hub")
-                        SettingsDetailRow(label = "Versão", value = BuildConfig.VERSION_NAME)
-                        SettingsDetailRow(label = "Pacote", value = BuildConfig.APPLICATION_ID)
-                        SettingsDetailRow(label = "API", value = "/api/hub/v1")
-                    }
-                }
-
-                item {
-                    AncoraButton(
-                        text = "Sair",
-                        onClick = onLogout,
-                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AboutDialog(
+    versionName: String,
+    onDismiss: () -> Unit,
+    onOpenWebsite: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Sobre",
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.sm)) {
+                Text(
+                    text = "Âncora Hub",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    text = "Versão $versionName",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "Desenvolvido por Serratech.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "Produto nativo Android para a operação mobile do escritório.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Site: www.serratech.tec.br",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenWebsite) {
+                Text("Abrir site")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Fechar")
+            }
+        },
+    )
 }
 
 @Composable
@@ -495,6 +599,16 @@ private fun Context.notificationsPermissionGranted(): Boolean {
         this,
         Manifest.permission.POST_NOTIFICATIONS,
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun Context.openExternalLink(url: String) {
+    runCatching {
+        startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
 }
 
 private fun String.prettyDateTime(): String = runCatching {

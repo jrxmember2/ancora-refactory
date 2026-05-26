@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
 import br.com.serratech.ancora.hub.ui.navigation.AncoraHubApp
@@ -16,7 +15,6 @@ class MainActivity : FragmentActivity() {
     private lateinit var appViewModel: AppViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -25,10 +23,6 @@ class MainActivity : FragmentActivity() {
             this,
             appViewModelFactory(app.container, intent.toNavigationPayload()),
         )[AppViewModel::class.java]
-
-        splashScreen.setKeepOnScreenCondition {
-            appViewModel.uiState.value.isSplashVisible
-        }
 
         setContent {
             AncoraHubTheme {

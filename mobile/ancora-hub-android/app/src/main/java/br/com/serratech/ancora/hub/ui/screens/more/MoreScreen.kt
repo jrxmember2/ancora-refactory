@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -224,6 +225,7 @@ fun MoreScreen(
                         description = item.description,
                         tone = item.tone,
                         enabled = item.enabled,
+                        modifier = Modifier.fillMaxWidth(),
                         icon = item.icon,
                         statusLabel = item.statusLabel,
                         onClick = item.onClick,

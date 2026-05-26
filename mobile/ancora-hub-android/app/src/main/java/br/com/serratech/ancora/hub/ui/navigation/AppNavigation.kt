@@ -45,8 +45,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -197,7 +200,6 @@ class AppViewModel(
 
     fun bootstrap() {
         viewModelScope.launch {
-            val startedAt = System.currentTimeMillis()
             val launchState = container.sessionManager.resolveLaunchState()
             var destination = launchState.launchDestination
             var sessionUser: SessionUser? = null
@@ -241,23 +243,8 @@ class AppViewModel(
                 else -> Unit
             }
 
-            val elapsed = System.currentTimeMillis() - startedAt
-            val remaining = (4_000L - elapsed).coerceAtLeast(0L)
-
             _uiState.value = _uiState.value.copy(
                 isSplashVisible = false,
-                isLoading = true,
-                launchDestination = destination,
-                sessionUser = sessionUser,
-                unreadNotifications = unreadCount,
-                feedbackMessage = feedbackMessage,
-            )
-
-            if (remaining > 0) {
-                delay(remaining)
-            }
-
-            _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 launchDestination = destination,
                 sessionUser = sessionUser,
@@ -443,6 +430,7 @@ fun AncoraHubApp(
     val uiState by appViewModel.uiState.collectAsState()
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    var launchLoadingElapsed by rememberSaveable { mutableStateOf(false) }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route.orEmpty()
     val startRoute = uiState.launchDestination.toAppRoute()
@@ -457,6 +445,12 @@ fun AncoraHubApp(
         NavItem(AppRoutes.Collections, "Cobranças", Icons.Outlined.Payments),
         NavItem(AppRoutes.More, "Mais", Icons.Outlined.Widgets),
     )
+    val showLaunchLoading = uiState.isLoading || !launchLoadingElapsed
+
+    LaunchedEffect(Unit) {
+        delay(4_000L)
+        launchLoadingElapsed = true
+    }
 
     LaunchedEffect(uiState.feedbackMessage) {
         uiState.feedbackMessage?.let { message ->
@@ -465,8 +459,8 @@ fun AncoraHubApp(
         }
     }
 
-    LaunchedEffect(uiState.navigationTarget, currentRoute, uiState.isLoading) {
-        if (uiState.isLoading || currentRoute.isBlank()) {
+    LaunchedEffect(uiState.navigationTarget, currentRoute, showLaunchLoading) {
+        if (showLaunchLoading || currentRoute.isBlank()) {
             return@LaunchedEffect
         }
 
@@ -514,7 +508,7 @@ fun AncoraHubApp(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             bottomBar = {
-                if (!uiState.isLoading && showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
+                if (!showLaunchLoading && showNavigationChrome && widthSizeClass == WindowWidthSizeClass.Compact) {
                     AncoraBottomBar(
                         items = bottomBarItems,
                         currentRoute = selectedRootRoute,
@@ -525,7 +519,7 @@ fun AncoraHubApp(
                 }
             },
         ) { padding ->
-            if (uiState.isLoading) {
+            if (showLaunchLoading) {
                 AppLaunchLoadingScreen(modifier = Modifier.padding(padding))
                 return@Scaffold
             }
@@ -1101,7 +1095,7 @@ private fun AppLaunchLoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.58f)),
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.34f)),
     ) {
         Column(
             modifier = Modifier
@@ -1155,12 +1149,12 @@ private fun AncoraHubBackgroundLayer(modifier: Modifier = Modifier) {
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.26f,
+            alpha = 0.44f,
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f)),
+                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.42f)),
         )
     }
 }
