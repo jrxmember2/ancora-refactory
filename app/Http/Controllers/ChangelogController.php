@@ -9,15 +9,28 @@ class ChangelogController extends Controller
     public function index(): View
     {
         $currentVersion = config('ancora_version.current', [
-            'version' => 'v2.12',
-            'date' => '20/05/2026',
-            'label' => 'v2.12 - 20/05/2026',
+            'version' => 'v2.13',
+            'date' => '28/05/2026',
+            'label' => 'v2.13 - 28/05/2026',
         ]);
 
         $releases = [
             [
                 'version' => $currentVersion['version'],
                 'date' => $currentVersion['date'],
+                'title' => 'Financeiro 360 ganha recorrencia em contas a receber, baixa rapida e sincronizacao financeira por contrato',
+                'items' => [
+                    'Contas a Receber passa a aceitar recorrencia manual no cadastro, com serie controlada por ocorrencias ou data final, preservando o fluxo avulso para titulos unicos.',
+                    'Ao vincular um contrato no cadastro de recebivel, o usuario pode importar a agenda financeira do contrato e gerar automaticamente mensalidades, parcelas ou cobrancas unicas sem recriar titulos ja existentes.',
+                    'Os recebiveis passam a registrar metadados de serie e recorrencia para melhorar rastreabilidade, previsao e manutencao futura das grades financeiras.',
+                    'A listagem de Contas a Receber ganha baixa rapida por titulo, acelerando o controle operacional dos recebidos sem exigir entrada na tela de detalhe.',
+                    'O dashboard do Financeiro 360 passa a exibir previsao consolidada de recebimento por mes, trimestre, semestre e ano, separando previsto, recebido e saldo a receber.',
+                    'O modulo Contratos ganha o fluxo Salvar e update financeiro para renovacoes e ajustes, atualizando os lancamentos do mes atual em diante e protegendo titulos que ja possuem baixa ou movimentacao vinculada.',
+                ],
+            ],
+            [
+                'version' => 'v2.12',
+                'date' => '20/05/2026',
                 'title' => 'Cobranca avulsa estreia, processos aceitam multiplas partes e propostas ficam mais flexiveis',
                 'items' => [
                     'O modulo Cobrancas ganha a modalidade Cobranca Avulsa na abertura da OS, com dados proprios do devedor, busca de CEP, endereco completo, termo diferenciado e o mesmo reaproveitamento de contatos, debitos, parcelas e faturamento do fluxo principal.',
