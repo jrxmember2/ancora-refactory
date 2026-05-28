@@ -369,6 +369,7 @@
         <a href="{{ route('contratos.index') }}" class="rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</a>
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">Salvar contrato</button>
         @if($mode === 'edit' && $item)
+            <button type="submit" data-contract-submit-action="refresh_open_future" class="rounded-xl border border-brand-300 bg-brand-50 px-5 py-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Salvar e update financeiro</button>
             <button type="button" id="open-contract-pdf-modal" class="rounded-xl border border-success-300 bg-success-50 px-5 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
         @else
             <button type="submit" name="generate_pdf_now" value="1" class="rounded-xl border border-success-300 bg-success-50 px-5 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Salvar e gerar PDF</button>
@@ -1354,13 +1355,27 @@ document.addEventListener('DOMContentLoaded', function () {
         ensureEditorInput();
         confirmNoFinancialInput.value = '0';
         financialActionInput.value = '';
+        const requestedFinancialAction = event.submitter?.dataset?.contractSubmitAction || '';
+        if (requestedFinancialAction) {
+            financialActionInput.value = requestedFinancialAction;
+        }
 
         const result = refreshContractFields({ isInit: false, source: 'submit' });
         const messages = buildClientValidationErrors(result.state, result.config);
+
+        if (requestedFinancialAction === 'refresh_open_future' && (!result.state.generateFinancialEntries || !result.state.isActiveOrSigned)) {
+            messages.push('Para atualizar o Financeiro 360, o contrato precisa estar como ativo/assinado com geracao financeira habilitada.');
+        }
+
         showClientValidationErrors(messages);
 
         if (messages.length) {
             event.preventDefault();
+            return;
+        }
+
+        if (requestedFinancialAction === 'refresh_open_future') {
+            enableDisabledFieldsBeforeSubmit();
             return;
         }
 

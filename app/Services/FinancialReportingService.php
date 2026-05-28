@@ -21,6 +21,14 @@ class FinancialReportingService
         $now = now();
         $monthStart = Carbon::create($year, $now->month, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
+        $quarterStart = $monthStart->copy()->startOfQuarter();
+        $quarterEnd = $monthStart->copy()->endOfQuarter();
+        $semesterStart = $monthStart->month <= 6
+            ? Carbon::create($year, 1, 1)->startOfDay()
+            : Carbon::create($year, 7, 1)->startOfDay();
+        $semesterEnd = $semesterStart->copy()->addMonths(5)->endOfMonth();
+        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
 
         $receivables = FinancialReceivable::query()->with(['client', 'condominium', 'contract'])->get();
         $payables = FinancialPayable::query()->with(['supplier'])->get();
@@ -114,6 +122,13 @@ class FinancialReportingService
             'custas_sem_reembolso' => FinancialProcessCost::query()->whereIn('status', ['lancado', 'pago'])->take(8)->get(),
         ];
 
+        $forecast = [
+            'mes' => $this->receivableForecastSnapshot($receivables, $monthStart, $monthEnd),
+            'trimestre' => $this->receivableForecastSnapshot($receivables, $quarterStart, $quarterEnd),
+            'semestre' => $this->receivableForecastSnapshot($receivables, $semesterStart, $semesterEnd),
+            'ano' => $this->receivableForecastSnapshot($receivables, $yearStart, $yearEnd),
+        ];
+
         return [
             'summary' => [
                 'receita_mes' => (float) $receivables->filter(fn (FinancialReceivable $item) => $item->due_date && $item->due_date->between($monthStart, $monthEnd))->sum('final_amount'),
@@ -132,6 +147,7 @@ class FinancialReportingService
                 'inadimplencia' => $inadimplenciaValor,
             ],
             'alerts' => $alerts,
+            'forecast' => $forecast,
             'charts' => [
                 'months' => $chartMonths,
                 'receita_mensal' => $receitaMensal,
@@ -155,6 +171,27 @@ class FinancialReportingService
         $debits = (float) $account->transactions()->whereIn('transaction_type', ['saida', 'reembolso', 'repasse'])->sum('amount');
 
         return round((float) $account->opening_balance + $entries - $debits, 2);
+    }
+
+    private function receivableForecastSnapshot(Collection $receivables, Carbon $from, Carbon $to): array
+    {
+        $scheduled = $receivables->filter(
+            fn (FinancialReceivable $item) => $item->due_date && $item->due_date->between($from, $to)
+        );
+        $received = $receivables->filter(
+            fn (FinancialReceivable $item) => $item->received_at && $item->received_at->between($from, $to)
+        );
+
+        return [
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'previsto' => round((float) $scheduled->sum('final_amount'), 2),
+            'recebido' => round((float) $received->sum('received_amount'), 2),
+            'recebiveis' => round((float) $scheduled->sum(
+                fn (FinancialReceivable $item) => max(0, (float) $item->final_amount - (float) $item->received_amount)
+            ), 2),
+            'titulos' => $scheduled->count(),
+        ];
     }
 
     public function dreData(?Carbon $from = null, ?Carbon $to = null): array

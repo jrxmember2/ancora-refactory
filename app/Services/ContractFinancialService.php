@@ -19,6 +19,7 @@ class ContractFinancialService
     public function __construct(
         private readonly FinancialCodeService $codeService,
         private readonly FinancialLedgerService $ledgerService,
+        private readonly FinancialReceivableSeriesService $seriesService,
     ) {
     }
 
@@ -108,6 +109,86 @@ class ContractFinancialService
         return DB::transaction(fn () => $this->syncFinancialEntries($contract, $userId, true));
     }
 
+    public function importFinancialEntriesFromContract(Contract $contract, ?int $userId = null): array
+    {
+        return DB::transaction(function () use ($contract, $userId) {
+            $contract->loadMissing(['client', 'condominium', 'unit', 'responsible', 'financialAccount']);
+
+            return $this->persistSchedule(
+                $contract,
+                $this->seriesService->buildContractRows($contract),
+                $userId
+            );
+        });
+    }
+
+    public function createMissingFinancialEntriesForPeriod(
+        Contract $contract,
+        Carbon $from,
+        Carbon $to,
+        ?int $userId = null
+    ): array {
+        return DB::transaction(function () use ($contract, $from, $to, $userId) {
+            $contract->loadMissing(['client', 'condominium', 'unit', 'responsible', 'financialAccount']);
+
+            return $this->persistSchedule(
+                $contract,
+                $this->seriesService->buildContractRowsInRange($contract, $from, $to),
+                $userId
+            );
+        });
+    }
+
+    public function refreshOpenAndFutureFinancialEntries(
+        Contract $contract,
+        ?int $userId = null,
+        ?Carbon $from = null
+    ): array {
+        return DB::transaction(function () use ($contract, $userId, $from) {
+            $contract->loadMissing(['client', 'condominium', 'unit', 'responsible', 'financialAccount']);
+
+            if (!$this->canGenerateAutomatically($contract)) {
+                return [
+                    'created' => collect(),
+                    'skipped' => collect(),
+                    'deleted' => 0,
+                    'protected' => collect(),
+                ];
+            }
+
+            $windowStart = ($from ?: now()->startOfMonth())->copy()->startOfDay();
+            $schedule = array_values(array_filter(
+                $this->seriesService->buildContractRows($contract),
+                fn (array $row) => $row['due_date']->gte($windowStart)
+            ));
+
+            $existing = FinancialReceivable::query()
+                ->where('contract_id', $contract->id)
+                ->whereDate('due_date', '>=', $windowStart->toDateString())
+                ->with('transactions')
+                ->get();
+
+            $protected = $existing->filter(fn (FinancialReceivable $receivable) => $this->isProtectedReceivable($receivable));
+            $deletableIds = $existing
+                ->reject(fn (FinancialReceivable $receivable) => $this->isProtectedReceivable($receivable))
+                ->pluck('id')
+                ->all();
+
+            $deleted = $this->deleteReceivableSet($deletableIds);
+
+            $sync = $this->persistSchedule(
+                $contract,
+                $schedule,
+                $userId
+            );
+
+            $sync['deleted'] = $deleted;
+            $sync['protected'] = $protected->values();
+
+            return $sync;
+        });
+    }
+
     private function syncFinancialEntries(Contract $contract, ?int $userId, bool $recreate): array
     {
         $contract->loadMissing(['client', 'condominium', 'unit', 'responsible', 'financialAccount']);
@@ -129,68 +210,9 @@ class ContractFinancialService
             $deleted = $this->deleteExistingEntries($contract);
         }
 
-        $schedule = $this->buildSchedule($contract);
-        $created = collect();
-        $skipped = collect();
-
-        foreach ($schedule as $row) {
-            $exists = FinancialReceivable::query()
-                ->where('contract_id', $contract->id)
-                ->whereDate('due_date', $row['due_date']->toDateString())
-                ->where('billing_type', $row['billing_type'])
-                ->exists();
-
-            if ($exists) {
-                $skipped->push($row['due_date']->toDateString());
-                continue;
-            }
-
-            $receivable = FinancialReceivable::query()->create([
-                'code' => $this->codeService->next('financial_receivables', 'entry_prefix', 'REC'),
-                'title' => $row['title'],
-                'reference' => $row['reference'],
-                'billing_type' => $row['billing_type'],
-                'client_id' => $contract->client_id,
-                'condominium_id' => $contract->condominium_id,
-                'unit_id' => $contract->unit_id,
-                'contract_id' => $contract->id,
-                'process_id' => $contract->process_id,
-                'category_id' => $this->resolveCategoryId($contract, $row['billing_type']),
-                'cost_center_id' => $this->resolveCostCenterId($contract),
-                'account_id' => $this->resolveFinancialAccountIdForContract($contract),
-                'original_amount' => $row['amount'],
-                'final_amount' => $row['amount'],
-                'due_date' => $row['due_date']->toDateString(),
-                'competence_date' => $row['competence_date']->toDateString(),
-                'payment_method' => $contract->payment_method,
-                'status' => 'aberto',
-                'generate_collection' => !$this->paymentMethodDispensesFinancialAccount((string) $contract->payment_method),
-                'responsible_user_id' => $contract->responsible_user_id,
-                'created_by' => $userId,
-                'updated_by' => $userId,
-                'notes' => $row['notes'],
-            ]);
-
-            if (!empty($row['installment_number']) && !empty($row['installment_total'])) {
-                FinancialInstallment::query()->create([
-                    'code' => $this->codeService->next('financial_installments', 'entry_prefix', 'PAR'),
-                    'title' => $row['reference'],
-                    'client_id' => $contract->client_id,
-                    'condominium_id' => $contract->condominium_id,
-                    'unit_id' => $contract->unit_id,
-                    'contract_id' => $contract->id,
-                    'receivable_id' => $receivable->id,
-                    'installment_number' => $row['installment_number'],
-                    'installment_total' => $row['installment_total'],
-                    'amount' => $row['amount'],
-                    'due_date' => $row['due_date']->toDateString(),
-                    'status' => 'aberto',
-                ]);
-            }
-
-            $this->ledgerService->syncReceivable($receivable);
-            $created->push($receivable);
-        }
+        $sync = $this->persistSchedule($contract, $this->buildSchedule($contract), $userId);
+        $created = $sync['created'];
+        $skipped = $sync['skipped'];
 
         Log::info('contracts.financial.sync', [
             'contract_id' => $contract->id,
@@ -221,32 +243,133 @@ class ContractFinancialService
             ->where('contract_id', $contract->id)
             ->pluck('id');
 
-        if ($receivableIds->isEmpty()) {
-            return 0;
-        }
-
-        FinancialInstallment::query()
-            ->where('contract_id', $contract->id)
-            ->orWhereIn('receivable_id', $receivableIds)
-            ->orWhereIn('parent_receivable_id', $receivableIds)
-            ->delete();
-
-        return FinancialReceivable::query()
-            ->where('contract_id', $contract->id)
-            ->delete();
+        return $this->deleteReceivableSet($receivableIds->all(), $contract->id);
     }
 
     private function buildSchedule(Contract $contract): array
     {
-        $billingType = (string) $contract->billing_type;
-        $dueDay = max(1, min(31, (int) ($contract->due_day ?: 10)));
+        return $this->seriesService->buildContractRows($contract);
+    }
 
-        return match ($billingType) {
-            'mensal' => $this->buildMonthlySchedule($contract, $dueDay),
-            'parcelada' => $this->buildInstallmentSchedule($contract, $dueDay),
-            'unica' => $this->buildSingleSchedule($contract, $dueDay),
-            default => [],
-        };
+    private function persistSchedule(Contract $contract, array $schedule, ?int $userId = null): array
+    {
+        $created = collect();
+        $skipped = collect();
+        $seriesGroup = $this->seriesService->makeSeriesGroup('contract-' . $contract->id);
+
+        foreach ($schedule as $row) {
+            $exists = FinancialReceivable::query()
+                ->where('contract_id', $contract->id)
+                ->whereDate('due_date', $row['due_date']->toDateString())
+                ->where('billing_type', $row['billing_type'])
+                ->exists();
+
+            if ($exists) {
+                $skipped->push($row['due_date']->toDateString());
+                continue;
+            }
+
+            $notes = collect([
+                trim((string) ($row['notes'] ?? '')) ?: null,
+                trim((string) ($contract->financial_notes ?? '')) ?: null,
+            ])->filter()->implode("\n\n");
+
+            $receivable = FinancialReceivable::query()->create([
+                'code' => $this->codeService->next('financial_receivables', 'entry_prefix', 'REC'),
+                'title' => $row['title'],
+                'reference' => $row['reference'],
+                'billing_type' => $row['billing_type'],
+                'client_id' => $contract->client_id,
+                'condominium_id' => $contract->condominium_id,
+                'unit_id' => $contract->unit_id,
+                'contract_id' => $contract->id,
+                'process_id' => $contract->process_id,
+                'category_id' => $this->resolveCategoryId($contract, $row['billing_type']),
+                'cost_center_id' => $this->resolveCostCenterId($contract),
+                'account_id' => $this->resolveFinancialAccountIdForContract($contract),
+                'original_amount' => $row['amount'],
+                'final_amount' => $row['amount'],
+                'due_date' => $row['due_date']->toDateString(),
+                'competence_date' => $row['competence_date']->toDateString(),
+                'payment_method' => $contract->payment_method,
+                'recurrence' => $row['recurrence'] ?? null,
+                'series_group' => $seriesGroup,
+                'series_index' => $row['series_index'] ?? null,
+                'series_total' => $row['series_total'] ?? null,
+                'status' => 'aberto',
+                'generate_collection' => !$this->paymentMethodDispensesFinancialAccount((string) $contract->payment_method),
+                'responsible_user_id' => $contract->responsible_user_id,
+                'created_by' => $userId,
+                'updated_by' => $userId,
+                'notes' => $notes !== '' ? $notes : null,
+            ]);
+
+            if (!empty($row['installment_number']) && !empty($row['installment_total'])) {
+                FinancialInstallment::query()->create([
+                    'code' => $this->codeService->next('financial_installments', 'entry_prefix', 'PAR'),
+                    'title' => $row['reference'],
+                    'client_id' => $contract->client_id,
+                    'condominium_id' => $contract->condominium_id,
+                    'unit_id' => $contract->unit_id,
+                    'contract_id' => $contract->id,
+                    'receivable_id' => $receivable->id,
+                    'installment_number' => $row['installment_number'],
+                    'installment_total' => $row['installment_total'],
+                    'amount' => $row['amount'],
+                    'due_date' => $row['due_date']->toDateString(),
+                    'status' => 'aberto',
+                ]);
+            }
+
+            $this->ledgerService->syncReceivable($receivable);
+            $created->push($receivable);
+        }
+
+        return [
+            'created' => $created,
+            'skipped' => $skipped,
+            'deleted' => 0,
+        ];
+    }
+
+    private function deleteReceivableSet(array $receivableIds, ?int $contractId = null): int
+    {
+        $receivableIds = array_values(array_filter(array_map('intval', $receivableIds)));
+        if ($receivableIds === [] && !$contractId) {
+            return 0;
+        }
+
+        FinancialInstallment::query()
+            ->where(function ($query) use ($contractId, $receivableIds) {
+                if ($contractId) {
+                    $query->where('contract_id', $contractId);
+                }
+                if ($receivableIds !== []) {
+                    $method = $contractId ? 'orWhereIn' : 'whereIn';
+                    $query->{$method}('receivable_id', $receivableIds)
+                        ->orWhereIn('parent_receivable_id', $receivableIds);
+                }
+            })
+            ->delete();
+
+        return FinancialReceivable::query()
+            ->where(function ($query) use ($contractId, $receivableIds) {
+                if ($contractId) {
+                    $query->where('contract_id', $contractId);
+                }
+                if ($receivableIds !== []) {
+                    $method = $contractId ? 'orWhereIn' : 'whereIn';
+                    $query->{$method}('id', $receivableIds);
+                }
+            })
+            ->delete();
+    }
+
+    private function isProtectedReceivable(FinancialReceivable $receivable): bool
+    {
+        return (float) $receivable->received_amount > 0
+            || in_array($receivable->status, ['recebido', 'parcial'], true)
+            || $receivable->transactions->isNotEmpty();
     }
 
     private function buildMonthlySchedule(Contract $contract, int $dueDay): array

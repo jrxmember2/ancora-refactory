@@ -9,6 +9,7 @@ use App\Http\Requests\StoreFinancialReceivableRequest;
 use App\Http\Requests\UpdateFinancialAccountRequest;
 use App\Http\Requests\UpdateFinancialPayableRequest;
 use App\Http\Requests\UpdateFinancialReceivableRequest;
+use App\Models\Contract;
 use App\Models\FinancialAccount;
 use App\Models\FinancialAttachment;
 use App\Models\FinancialCategory;
@@ -22,10 +23,12 @@ use App\Models\FinancialReimbursement;
 use App\Models\FinancialSetting;
 use App\Models\FinancialStatement;
 use App\Models\FinancialTransaction;
+use App\Services\ContractFinancialService;
 use App\Services\FinancialBillingService;
 use App\Services\FinancialCodeService;
 use App\Services\FinancialLedgerService;
 use App\Services\FinancialPdfService;
+use App\Services\FinancialReceivableSeriesService;
 use App\Services\FinancialReportingService;
 use App\Support\AncoraAuth;
 use App\Support\BrazilianCurrencyFormatter;
@@ -41,6 +44,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -52,6 +56,8 @@ class FinancialController extends Controller
         private readonly FinancialReportingService $reportingService,
         private readonly FinancialLedgerService $ledgerService,
         private readonly FinancialBillingService $billingService,
+        private readonly ContractFinancialService $contractFinancialService,
+        private readonly FinancialReceivableSeriesService $receivableSeriesService,
         private readonly FinancialCodeService $codeService,
         private readonly FinancialPdfService $pdfService,
     ) {
@@ -206,17 +212,47 @@ class FinancialController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
+        if ($request->boolean('import_contract_schedule') && $request->filled('contract_id')) {
+            $contract = Contract::query()->findOrFail((int) $request->input('contract_id'));
+            $errors = $this->contractFinancialService->validateFinancialData($contract->toArray());
+            if ($errors !== []) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Nao foi possivel importar o financeiro do contrato. Revise os dados financeiros do contrato antes de continuar.')
+                    ->with('errors_list', array_values(array_unique($errors)));
+            }
+
+            $result = $this->contractFinancialService->importFinancialEntriesFromContract($contract, $user->id);
+            $created = $result['created']->count();
+            $skipped = $result['skipped']->count();
+
+            if ($created === 0 && $skipped === 0) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'O contrato selecionado nao possui agenda financeira suficiente para gerar contas a receber.');
+            }
+
+            return redirect()
+                ->route('financeiro.receivables.index')
+                ->with('success', 'Importacao concluida: ' . $created . ' conta(s) criada(s) e ' . $skipped . ' pulada(s) por duplicidade.');
+        }
+
         $payload = $this->normalizedReceivablePayload($request);
-        $payload['code'] = trim((string) ($payload['code'] ?? '')) !== ''
-            ? $payload['code']
-            : $this->codeService->next('financial_receivables', 'entry_prefix', 'REC');
-        $payload['created_by'] = $user->id;
-        $payload['updated_by'] = $user->id;
+        $result = $this->storeReceivableSeries(
+            $payload,
+            $request,
+            $user->id
+        );
 
-        $item = FinancialReceivable::query()->create($payload);
-        $this->ledgerService->syncReceivable($item);
+        if ($result['created']->count() === 1 && $result['series_total'] === 1) {
+            return redirect()
+                ->route('financeiro.receivables.show', $result['created']->first())
+                ->with('success', 'Conta a receber criada com sucesso.');
+        }
 
-        return redirect()->route('financeiro.receivables.show', $item)->with('success', 'Conta a receber criada com sucesso.');
+        return redirect()
+            ->route('financeiro.receivables.index')
+            ->with('success', $result['created']->count() . ' conta(s) a receber criada(s) na serie.');
     }
 
     public function receivablesShow(FinancialReceivable $receivable): View
@@ -265,11 +301,14 @@ class FinancialController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
-        $clone = $receivable->replicate(['code', 'received_amount', 'received_at', 'status']);
+        $clone = $receivable->replicate(['code', 'received_amount', 'received_at', 'status', 'series_group', 'series_index', 'series_total']);
         $clone->code = $this->codeService->next('financial_receivables', 'entry_prefix', 'REC');
         $clone->status = 'aberto';
         $clone->received_amount = 0;
         $clone->received_at = null;
+        $clone->series_group = null;
+        $clone->series_index = null;
+        $clone->series_total = null;
         $clone->created_by = $user->id;
         $clone->updated_by = $user->id;
         $clone->save();
@@ -1194,6 +1233,7 @@ class FinancialController extends Controller
             'due_date' => $request->input('due_date') ?: null,
             'competence_date' => $request->input('competence_date') ?: null,
             'payment_method' => trim((string) $request->input('payment_method', '')) ?: null,
+            'recurrence' => trim((string) $request->input('recurrence', '')) ?: null,
             'status' => trim((string) $request->input('status', FinancialSettings::get('default_receivable_status', 'aberto'))),
             'collection_stage' => trim((string) $request->input('collection_stage', '')) ?: null,
             'generate_collection' => $request->boolean('generate_collection'),
@@ -1363,6 +1403,79 @@ class FinancialController extends Controller
         }
     }
 
+    private function storeReceivableSeries(array $payload, Request $request, int $userId): array
+    {
+        $occurrences = $request->filled('occurrences') ? max(1, (int) $request->input('occurrences')) : null;
+        $repeatUntil = $request->filled('repeat_until')
+            ? Carbon::parse((string) $request->input('repeat_until'))->startOfDay()
+            : null;
+        $rows = $this->receivableSeriesService->buildManualRows(
+            $payload,
+            $payload['recurrence'] ?? null,
+            $occurrences,
+            $repeatUntil
+        );
+
+        $seriesTotal = count($rows);
+        $seriesGroup = $seriesTotal > 1 ? $this->receivableSeriesService->makeSeriesGroup('manual') : null;
+        $created = collect();
+
+        DB::transaction(function () use ($payload, $rows, $seriesGroup, $seriesTotal, $userId, $created) {
+            foreach ($rows as $index => $row) {
+                $itemPayload = array_merge($payload, [
+                    'code' => $this->receivableCodeForSeries($payload['code'] ?? null, $index, $seriesTotal),
+                    'title' => $row['title'],
+                    'reference' => $row['reference'],
+                    'billing_type' => $row['billing_type'],
+                    'original_amount' => $row['amount'],
+                    'final_amount' => round(
+                        $row['amount']
+                        + (float) ($payload['interest_amount'] ?? 0)
+                        + (float) ($payload['penalty_amount'] ?? 0)
+                        + (float) ($payload['correction_amount'] ?? 0)
+                        - (float) ($payload['discount_amount'] ?? 0),
+                        2
+                    ),
+                    'due_date' => $row['due_date']->toDateString(),
+                    'competence_date' => $row['competence_date']->toDateString(),
+                    'recurrence' => $row['recurrence'] ?? ($payload['recurrence'] ?? null),
+                    'series_group' => $seriesGroup,
+                    'series_index' => $seriesTotal > 1 ? ($row['series_index'] ?? ($index + 1)) : null,
+                    'series_total' => $seriesTotal > 1 ? ($row['series_total'] ?? $seriesTotal) : null,
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+
+                $item = FinancialReceivable::query()->create($itemPayload);
+                $this->ledgerService->syncReceivable($item);
+                $created->push($item);
+            }
+        });
+
+        return [
+            'created' => $created,
+            'series_total' => $seriesTotal,
+        ];
+    }
+
+    private function receivableCodeForSeries(?string $requestedCode, int $index, int $seriesTotal): string
+    {
+        $requestedCode = trim((string) $requestedCode);
+        if ($requestedCode === '') {
+            return $this->codeService->next('financial_receivables', 'entry_prefix', 'REC');
+        }
+
+        if ($seriesTotal <= 1) {
+            return $requestedCode;
+        }
+
+        $suffix = '-' . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+        $baseLength = max(1, 60 - strlen($suffix));
+        $base = Str::limit($requestedCode, $baseLength, '');
+
+        return $base . $suffix;
+    }
+
     private function createInstallmentsForReceivable(Request $request, FinancialReceivable $receivable, int $totalInstallments, Carbon $firstDueDate): RedirectResponse
     {
         $user = AncoraAuth::user($request);
@@ -1379,6 +1492,7 @@ class FinancialController extends Controller
 
             $base = floor(($remaining / $totalInstallments) * 100) / 100;
             $allocated = 0.0;
+            $seriesGroup = $this->receivableSeriesService->makeSeriesGroup('installment');
 
             for ($i = 1; $i <= $totalInstallments; $i++) {
                 $amount = $i === $totalInstallments ? round($remaining - $allocated, 2) : round($base, 2);
@@ -1402,6 +1516,10 @@ class FinancialController extends Controller
                     'final_amount' => $amount,
                     'due_date' => $dueDate->toDateString(),
                     'competence_date' => $dueDate->copy()->startOfMonth()->toDateString(),
+                    'recurrence' => $totalInstallments > 1 ? 'mensal' : 'unica',
+                    'series_group' => $seriesGroup,
+                    'series_index' => $i,
+                    'series_total' => $totalInstallments,
                     'status' => 'aberto',
                     'generate_collection' => true,
                     'notes' => 'Parcela criada a partir de ' . ($receivable->code ?: ('#' . $receivable->id)) . '.',

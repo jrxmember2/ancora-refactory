@@ -1056,7 +1056,7 @@ class ContractController extends Controller
                 ->with('error', 'Confirme que deseja salvar este contrato como ativo/assinado sem gerar lancamentos automaticos no Financeiro 360.');
         }
 
-        if ($this->needsExistingEntriesDecision($payload, $contract) && !in_array((string) $request->input('financial_entries_action', ''), ['maintain', 'recreate'], true)) {
+        if ($this->needsExistingEntriesDecision($payload, $contract) && !in_array((string) $request->input('financial_entries_action', ''), ['maintain', 'recreate', 'refresh_open_future'], true)) {
             return back()
                 ->withInput()
                 ->with('error', 'Escolha se deseja manter os lancamentos financeiros atuais ou recria-los antes de concluir a alteracao do contrato.');
@@ -1157,6 +1157,18 @@ class ContractController extends Controller
             ];
         }
 
+        if ($action === 'refresh_open_future') {
+            $sync = $this->contractFinancialService->refreshOpenAndFutureFinancialEntries($contract, $userId);
+
+            return [
+                'created' => $sync['created']->count(),
+                'skipped' => $sync['skipped']->count(),
+                'deleted' => (int) ($sync['deleted'] ?? 0),
+                'protected' => (int) (($sync['protected'] ?? collect())->count()),
+                'mode' => 'refresh_open_future',
+            ];
+        }
+
         if ($this->contractFinancialService->hasFinancialEntries($contract)) {
             $result['mode'] = 'existing';
             return $result;
@@ -1189,6 +1201,12 @@ class ContractController extends Controller
 
         if ($mode === 'recreate') {
             return ' Financeiro 360 atualizado: ' . $created . ' lancamento(s) criado(s), ' . $deleted . ' registro(s) anterior(es) removido(s) e ' . $skipped . ' item(ns) pulado(s).';
+        }
+
+        if ($mode === 'refresh_open_future') {
+            $protected = (int) ($financialSync['protected'] ?? 0);
+
+            return ' Financeiro 360 atualizado a partir do mes atual: ' . $created . ' lancamento(s) criado(s), ' . $deleted . ' aberto(s) substituido(s), ' . $skipped . ' mantido(s) por duplicidade e ' . $protected . ' protegido(s) por baixa/movimentacao.';
         }
 
         if ($mode === 'generate' && ($created > 0 || $skipped > 0)) {

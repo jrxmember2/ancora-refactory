@@ -28,6 +28,8 @@ class FinancialReceivable extends Model
             'received_amount' => 'decimal:2',
             'due_date' => 'date',
             'received_at' => 'datetime',
+            'series_index' => 'integer',
+            'series_total' => 'integer',
             'last_collection_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

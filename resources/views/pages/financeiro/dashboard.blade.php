@@ -3,6 +3,7 @@
 @section('content')
 @php
     $summary = $data['summary'];
+    $forecast = $data['forecast'];
     $charts = $data['charts'];
     $alerts = $data['alerts'];
     $money = fn ($value) => 'R$ ' . number_format((float) $value, 2, ',', '.');
@@ -44,6 +45,37 @@
     <x-ancora.stat-card label="Contas vencidas" :value="$summary['contas_vencidas']" hint="Receber e pagar em atraso." icon="fa-solid fa-calendar-xmark" />
     <x-ancora.stat-card label="Contas a vencer" :value="$summary['contas_a_vencer']" hint="Janela dos proximos dias." icon="fa-solid fa-bell" />
     <x-ancora.stat-card label="Inadimplencia" :value="$money($summary['inadimplencia'])" hint="Saldo total em atraso." icon="fa-solid fa-ban" />
+</div>
+
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Previsao de recebimento</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Controle consolidado de previsto, recebido e saldo a receber por janela de tempo.</p>
+        </div>
+    </div>
+    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        @foreach(['mes' => 'Mes', 'trimestre' => 'Trimestre', 'semestre' => 'Semestre', 'ano' => 'Ano'] as $key => $label)
+            <div class="rounded-2xl border border-gray-200 px-5 py-4 dark:border-gray-800">
+                <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $label }}</div>
+                <div class="mt-3 space-y-2 text-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-gray-500 dark:text-gray-400">Previsto</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ $money($forecast[$key]['previsto']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-gray-500 dark:text-gray-400">Recebido</span>
+                        <span class="font-medium text-success-700 dark:text-success-300">{{ $money($forecast[$key]['recebido']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-gray-500 dark:text-gray-400">Recebiveis</span>
+                        <span class="font-medium text-brand-700 dark:text-brand-200">{{ $money($forecast[$key]['recebiveis']) }}</span>
+                    </div>
+                    <div class="pt-2 text-xs text-gray-500 dark:text-gray-400">{{ $forecast[$key]['titulos'] }} titulo(s) na janela</div>
+                </div>
+            </div>
+        @endforeach
+    </div>
 </div>
 
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">

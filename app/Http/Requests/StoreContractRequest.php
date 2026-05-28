@@ -56,7 +56,7 @@ class StoreContractRequest extends FormRequest
             'version_notes' => ['nullable', 'string', 'max:255'],
             'generate_pdf_now' => ['nullable', 'boolean'],
             'confirm_active_without_financial' => ['nullable', 'boolean'],
-            'financial_entries_action' => ['nullable', 'string', Rule::in(['maintain', 'recreate'])],
+            'financial_entries_action' => ['nullable', 'string', Rule::in(['maintain', 'recreate', 'refresh_open_future'])],
         ];
     }
 }
