@@ -83,7 +83,7 @@
                         <th class="px-6 py-4"><x-ancora.sort-link field="end" label="Termino" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="status" label="Status" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="responsible" label="Responsavel" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
-                        <th class="px-6 py-4 text-right">Acoes</th>
+                        <th class="px-6 py-4 text-right w-[240px] min-w-[240px]">Acoes</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -102,24 +102,24 @@
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->indefinite_term ? 'Prazo indeterminado' : (optional($item->end_date)->format('d/m/Y') ?: '-') }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $statusLabels[$item->status] ?? $item->status }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->responsible?->name ?: '-' }}</td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-wrap justify-end gap-2">
+                            <td class="px-6 py-4 align-top">
+                                <div class="ml-auto grid w-full max-w-[240px] min-w-[220px] grid-cols-2 gap-2">
                                     @if(($filters['scope'] ?? 'active') === 'trash')
                                         <form method="post" action="{{ route('contratos.restore', $item->id) }}">
                                             @csrf
-                                            <button class="rounded-lg border border-success-300 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Restaurar</button>
+                                            <button class="inline-flex w-full items-center justify-center rounded-lg border border-success-300 px-3 py-2 text-center text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Restaurar</button>
                                         </form>
                                     @else
-                                        <a href="{{ route('contratos.show', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Visualizar</a>
-                                        <a href="{{ route('contratos.edit', $item) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Editar</a>
-                                        <a href="{{ route('contratos.show', ['contrato' => $item, 'tab' => 'historico']) }}" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Historico</a>
-                                        <form method="post" action="{{ route('contratos.duplicate', $item) }}">@csrf<button class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Duplicar</button></form>
+                                        <a href="{{ route('contratos.show', $item) }}" class="inline-flex w-full items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Visualizar</a>
+                                        <a href="{{ route('contratos.edit', $item) }}" class="inline-flex w-full items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Editar</a>
+                                        <a href="{{ route('contratos.show', ['contrato' => $item, 'tab' => 'historico']) }}" class="inline-flex w-full items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Historico</a>
+                                        <form method="post" action="{{ route('contratos.duplicate', $item) }}">@csrf<button class="inline-flex w-full items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Duplicar</button></form>
                                         @if($item->final_pdf_path)
-                                            <a href="{{ route('contratos.download-pdf', $item) }}" class="rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white">PDF</a>
+                                            <a href="{{ route('contratos.download-pdf', $item) }}" class="inline-flex w-full items-center justify-center rounded-lg bg-brand-500 px-3 py-2 text-center text-xs font-medium text-white">PDF</a>
                                         @elseif($item->template_id && $item->content_html)
-                                            <form method="post" action="{{ route('contratos.generate-pdf', $item) }}">@csrf<button class="rounded-lg border border-success-300 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Gerar PDF</button></form>
+                                            <form method="post" action="{{ route('contratos.generate-pdf', $item) }}">@csrf<button class="inline-flex w-full items-center justify-center rounded-lg border border-success-300 px-3 py-2 text-center text-xs font-medium text-success-700 dark:border-success-800 dark:text-success-300">Gerar PDF</button></form>
                                         @endif
-                                        <button type="button" onclick="document.getElementById('delete-contract-{{ $item->id }}').showModal()" class="rounded-lg border border-error-300 px-3 py-2 text-xs font-medium text-error-700 dark:border-error-800 dark:text-error-300">Excluir</button>
+                                        <button type="button" onclick="document.getElementById('delete-contract-{{ $item->id }}').showModal()" class="inline-flex w-full items-center justify-center rounded-lg border border-error-300 px-3 py-2 text-center text-xs font-medium text-error-700 dark:border-error-800 dark:text-error-300">Excluir</button>
                                         <dialog id="delete-contract-{{ $item->id }}" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
                                             <form method="post" action="{{ route('contratos.delete', $item) }}" class="p-6">
                                                 @csrf
