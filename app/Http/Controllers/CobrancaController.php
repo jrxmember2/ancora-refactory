@@ -6417,7 +6417,7 @@ class CobrancaController extends Controller
             ->orderBy('cobranca_cases.os_number')
             ->get()
             ->map(fn (CobrancaCase $case) => $this->billingReportRow($case, $filters))
-            ->filter(fn (array $row) => $row['eligible_for_report'] && $row['included_in_period'])
+            ->filter(fn (array $row) => $row['eligible_for_report'])
             ->values();
 
         return [
@@ -6574,41 +6574,32 @@ class CobrancaController extends Controller
             ];
         }
 
-        $entryInstallment = $case->installments->first(function (CobrancaCaseInstallment $installment) {
-            return $installment->installment_type === 'entrada'
-                && $this->moneyToCents($installment->amount ?? 0) > 0;
-        });
+        $entryInstallment = $this->billingEntryCandidateInstallment($case);
         if ($entryInstallment) {
+            $allInstallments = $case->installments
+                ->filter(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0)
+                ->values();
+            $singleInstallment = $allInstallments->count() === 1;
             $isPaid = $this->billingInstallmentIsPaid($entryInstallment);
+            $label = 'Entrada';
+            $paymentType = 'entrada';
+
+            if ($singleInstallment) {
+                $label = 'Parcela unica';
+                $paymentType = 'parcela_unica';
+            } elseif ($entryInstallment->installment_type !== 'entrada') {
+                $label = '1ª parcela do acordo';
+                $paymentType = 'primeira_parcela';
+            }
 
             return [
                 'eligible_for_report' => $isPaid,
                 'amount_cents' => $this->moneyToCents($entryInstallment->amount ?? 0),
-                'label' => 'Entrada',
-                'payment_type' => 'entrada',
+                'label' => $label,
+                'payment_type' => $paymentType,
                 'paid_date' => $entryInstallment->paid_at
                     ? Carbon::parse($entryInstallment->paid_at)
                     : ($isPaid && $entryInstallment->due_date ? Carbon::parse($entryInstallment->due_date) : null),
-            ];
-        }
-
-        $installments = $case->installments
-            ->filter(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0)
-            ->values();
-
-        if ($installments->count() === 1) {
-            /** @var CobrancaCaseInstallment $singleInstallment */
-            $singleInstallment = $installments->first();
-            $isPaid = $this->billingInstallmentIsPaid($singleInstallment);
-
-            return [
-                'eligible_for_report' => $isPaid,
-                'amount_cents' => $this->moneyToCents($singleInstallment->amount ?? 0),
-                'label' => 'Parcela unica',
-                'payment_type' => 'parcela_unica',
-                'paid_date' => $singleInstallment->paid_at
-                    ? Carbon::parse($singleInstallment->paid_at)
-                    : ($isPaid && $singleInstallment->due_date ? Carbon::parse($singleInstallment->due_date) : null),
             ];
         }
 
@@ -6629,6 +6620,30 @@ class CobrancaController extends Controller
     private function billingInstallmentIsPaid(CobrancaCaseInstallment $installment): bool
     {
         return !empty($installment->paid_at) || (string) $installment->status === 'paga';
+    }
+
+    private function billingEntryCandidateInstallment(CobrancaCase $case): ?CobrancaCaseInstallment
+    {
+        $installments = $case->installments
+            ->filter(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0)
+            ->sortBy(function (CobrancaCaseInstallment $installment) {
+                $dueDate = optional($installment->due_date)->format('Y-m-d') ?: '9999-12-31';
+                $number = str_pad((string) ($installment->installment_number ?? 0), 4, '0', STR_PAD_LEFT);
+
+                return $dueDate . '|' . $number . '|' . $installment->id;
+            })
+            ->values();
+
+        if ($installments->isEmpty()) {
+            return null;
+        }
+
+        $entryInstallment = $installments->first(fn (CobrancaCaseInstallment $installment) => $installment->installment_type === 'entrada');
+        if ($entryInstallment) {
+            return $entryInstallment;
+        }
+
+        return $installments->first();
     }
 
     private function billingDateFallsWithinFilters(mixed $date, array $filters): bool
