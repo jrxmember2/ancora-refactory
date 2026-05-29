@@ -6561,12 +6561,13 @@ class CobrancaController extends Controller
     {
         $entryCents = $this->moneyToCents($case->entry_amount ?? 0);
         if ($entryCents > 0) {
+            $isPaid = $this->billingEntryIsPaid($case);
             $paidDate = $case->entry_paid_at
                 ? Carbon::parse($case->entry_paid_at)
-                : ($this->billingEntryIsPaid($case) && $case->entry_due_date ? Carbon::parse($case->entry_due_date) : null);
+                : ($isPaid && $case->entry_due_date ? Carbon::parse($case->entry_due_date) : null);
 
             return [
-                'eligible_for_report' => $this->billingEntryIsPaid($case),
+                'eligible_for_report' => $isPaid,
                 'amount_cents' => $entryCents,
                 'label' => 'Entrada',
                 'payment_type' => 'entrada',
@@ -6580,7 +6581,7 @@ class CobrancaController extends Controller
                 ->filter(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0)
                 ->values();
             $singleInstallment = $allInstallments->count() === 1;
-            $isPaid = $this->billingInstallmentIsPaid($entryInstallment);
+            $isPaid = $this->billingInstallmentIsPaid($entryInstallment) || $this->billingLegacyActiveAgreementFallback($case);
             $label = 'Entrada';
             $paymentType = 'entrada';
 
@@ -6614,12 +6615,72 @@ class CobrancaController extends Controller
 
     private function billingEntryIsPaid(CobrancaCase $case): bool
     {
-        return !empty($case->entry_paid_at) || (string) $case->entry_status === 'pago';
+        return !empty($case->entry_paid_at)
+            || $this->billingLooksPaidStatus((string) $case->entry_status)
+            || $this->billingLegacyActiveAgreementFallback($case);
     }
 
     private function billingInstallmentIsPaid(CobrancaCaseInstallment $installment): bool
     {
-        return !empty($installment->paid_at) || (string) $installment->status === 'paga';
+        return !empty($installment->paid_at) || $this->billingLooksPaidStatus((string) $installment->status);
+    }
+
+    private function billingLooksPaidStatus(?string $status): bool
+    {
+        $token = $this->billingStatusToken($status);
+        if ($token === '') {
+            return false;
+        }
+
+        if (str_contains($token, 'boleto')) {
+            return false;
+        }
+
+        if (Str::contains($token, ['nao_pago', 'inadimpl', 'pendente', 'aguardando'])) {
+            return false;
+        }
+
+        if (in_array($token, ['pago', 'paga', 'quitado', 'quitada', 'recebido', 'recebida', 'liquidado', 'liquidada', 'compensado', 'compensada', 'confirmado', 'confirmada'], true)) {
+            return true;
+        }
+
+        return Str::contains($token, ['pago', 'paga', 'quitad', 'recebid', 'liquid', 'compens', 'confirmad']);
+    }
+
+    private function billingStatusToken(?string $status): string
+    {
+        $token = Str::lower(trim(Str::ascii((string) $status)));
+        $token = preg_replace('/[^a-z0-9]+/', '_', $token) ?: $token;
+
+        return trim($token, '_');
+    }
+
+    private function billingLegacyActiveAgreementFallback(CobrancaCase $case): bool
+    {
+        if ((string) $case->billing_status !== 'a_faturar') {
+            return false;
+        }
+
+        $workflowStage = $this->normalizeWorkflowStage((string) $case->workflow_stage);
+        $situation = (string) $case->situation;
+
+        if (in_array($workflowStage, ['acordo_inadimplido', 'judicializado', 'pago_encerrado', 'cancelado'], true)) {
+            return false;
+        }
+
+        if (in_array($situation, ['acordo_nao_pago', 'ajuizado', 'pago_encerrado', 'cancelado'], true)) {
+            return false;
+        }
+
+        if (!in_array($workflowStage, ['acordo_ativo'], true) && !in_array($situation, ['em_pagamento_acordo', 'acordo_renegociado'], true)) {
+            return false;
+        }
+
+        if ($this->moneyToCents($case->entry_amount ?? 0) > 0) {
+            return true;
+        }
+
+        return $case->installments->contains(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0);
     }
 
     private function billingEntryCandidateInstallment(CobrancaCase $case): ?CobrancaCaseInstallment
