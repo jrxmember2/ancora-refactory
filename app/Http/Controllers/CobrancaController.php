@@ -6383,15 +6383,6 @@ class CobrancaController extends Controller
         $from = trim((string) $request->input('billing_date_from', ''));
         $to = trim((string) $request->input('billing_date_to', ''));
 
-        if ($from === '' && $to === '') {
-            $from = now()->startOfMonth()->toDateString();
-            $to = now()->endOfMonth()->toDateString();
-        } elseif ($from === '' && $to !== '') {
-            $from = Carbon::parse($to)->startOfMonth()->toDateString();
-        } elseif ($to === '' && $from !== '') {
-            $to = Carbon::parse($from)->endOfMonth()->toDateString();
-        }
-
         return [
             'billing_status' => 'a_faturar',
             'condominium_id' => (int) $request->integer('condominium_id'),
@@ -6419,14 +6410,6 @@ class CobrancaController extends Controller
             $query->where('cobranca_cases.charge_type', $filters['charge_type']);
         }
 
-        if ($filters['billing_date_from'] !== '') {
-            $query->whereDate('cobranca_cases.billing_date', '>=', $filters['billing_date_from']);
-        }
-
-        if ($filters['billing_date_to'] !== '') {
-            $query->whereDate('cobranca_cases.billing_date', '<=', $filters['billing_date_to']);
-        }
-
         $rows = $query
             ->orderBy('billing_condominium_sort.name')
             ->orderBy('billing_block_sort.name')
@@ -6434,7 +6417,7 @@ class CobrancaController extends Controller
             ->orderBy('cobranca_cases.os_number')
             ->get()
             ->map(fn (CobrancaCase $case) => $this->billingReportRow($case, $filters))
-            ->filter(fn (array $row) => $row['eligible_for_report'])
+            ->filter(fn (array $row) => $row['eligible_for_report'] && $row['included_in_period'])
             ->values();
 
         return [
@@ -6547,6 +6530,7 @@ class CobrancaController extends Controller
         return [
             'id' => (int) $case->id,
             'eligible_for_report' => (bool) $paid['eligible_for_report'],
+            'included_in_period' => $this->billingDateFallsWithinFilters($paid['paid_date'], $filters),
             'case_mode' => $caseMode,
             'os_number' => (string) $case->os_number,
             'condominium_key' => (string) ($case->condominium_id ?: 0) . '|' . $condominium,
@@ -6649,13 +6633,14 @@ class CobrancaController extends Controller
 
     private function billingDateFallsWithinFilters(mixed $date, array $filters): bool
     {
+        $from = !empty($filters['billing_date_from']) ? Carbon::parse((string) $filters['billing_date_from'])->startOfDay() : null;
+        $to = !empty($filters['billing_date_to']) ? Carbon::parse((string) $filters['billing_date_to'])->endOfDay() : null;
+
         if (!$date) {
-            return false;
+            return $from === null && $to === null;
         }
 
         $date = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse((string) $date)->startOfDay();
-        $from = !empty($filters['billing_date_from']) ? Carbon::parse((string) $filters['billing_date_from'])->startOfDay() : null;
-        $to = !empty($filters['billing_date_to']) ? Carbon::parse((string) $filters['billing_date_to'])->endOfDay() : null;
 
         if ($from && $date->lt($from)) {
             return false;
@@ -6804,7 +6789,7 @@ class CobrancaController extends Controller
             return 'Ate ' . Carbon::parse($to)->format('d/m/Y');
         }
 
-        return now()->translatedFormat('F/Y');
+        return 'Sem filtro de periodo';
     }
 
     private function billingReportType(): string
