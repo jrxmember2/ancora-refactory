@@ -17,6 +17,7 @@ class CobrancaCaseInstallment extends Model
     {
         return [
             'due_date' => 'date',
+            'paid_at' => 'date',
             'amount' => 'decimal:2',
             'created_at' => 'datetime',
         ];

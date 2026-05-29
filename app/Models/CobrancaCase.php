@@ -22,6 +22,7 @@ class CobrancaCase extends Model
             'agreement_total' => 'decimal:2',
             'billing_date' => 'date',
             'entry_due_date' => 'date',
+            'entry_paid_at' => 'date',
             'entry_amount' => 'decimal:2',
             'fees_amount' => 'decimal:2',
             'calc_base_date' => 'date',

@@ -11,24 +11,26 @@
     $money = fn ($value) => 'R$ ' . number_format((float) $value, 2, ',', '.');
     $date = now()->format('d/m/Y H:i');
     $filterParts = [];
-    if (($filters['billing_status'] ?? '') !== '') {
-        $filterParts[] = 'Faturamento: ' . ($filterOptions['billingStatuses'][$filters['billing_status']] ?? $filters['billing_status']);
-    }
+    $filterParts[] = 'Periodo: ' . ($periodLabel ?? '-');
     if (($filters['charge_type'] ?? '') !== '') {
         $filterParts[] = 'Tipo: ' . ($filterOptions['chargeTypes'][$filters['charge_type']] ?? $filters['charge_type']);
     }
-    if (($filters['billing_date_from'] ?? '') !== '') {
-        $filterParts[] = 'Faturado de: ' . \Illuminate\Support\Carbon::parse($filters['billing_date_from'])->format('d/m/Y');
+    if ((int) ($filters['condominium_id'] ?? 0) > 0) {
+        $condominiumName = collect($filterOptions['condominiums'] ?? [])->firstWhere('id', (int) $filters['condominium_id'])->name ?? null;
+        if ($condominiumName) {
+            $filterParts[] = 'Condominio: ' . $condominiumName;
+        }
     }
-    if (($filters['billing_date_to'] ?? '') !== '') {
-        $filterParts[] = 'Faturado até: ' . \Illuminate\Support\Carbon::parse($filters['billing_date_to'])->format('d/m/Y');
+    $snapshotMeta = null;
+    if (($snapshotRecord->id ?? null)) {
+        $snapshotMeta = 'Snapshot #' . $snapshotRecord->id . ' · ' . (optional($snapshotRecord->generated_at ?? null)->format('d/m/Y H:i') ?: '-');
     }
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <title>Relatório de Faturamento de Cobrança</title>
+    <title>Relatorio de Faturamento de Cobranca</title>
     <style>
         @page {
             size: A4 landscape;
@@ -164,6 +166,28 @@
             font-weight: 800;
         }
 
+        .detail {
+            background: #fcfcfd;
+        }
+
+        .chip {
+            display: inline-block;
+            margin: 1px 4px 1px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            padding: 2px 6px;
+        }
+
+        .paid-entry {
+            color: #b91c1c;
+            font-weight: 800;
+        }
+
+        .paid-generic {
+            color: #047857;
+            font-weight: 800;
+        }
+
         .grand-total {
             margin-top: 16px;
             border: 2px solid #941415;
@@ -185,12 +209,6 @@
             font-size: 8px;
             text-align: center;
         }
-
-        @media print {
-            .no-print {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body @if($autoPrint ?? false) onload="window.print()" @endif>
@@ -198,8 +216,11 @@
         <header class="header">
             <img src="{{ $logo }}" alt="Logo" class="logo">
             <div>
-                <h1>Relatório de Faturamento de Cobrança</h1>
+                <h1>Relatorio de Faturamento de Cobranca</h1>
                 <div class="meta">Emitido em {{ $date }}{{ $filterParts ? ' · ' . implode(' · ', $filterParts) : '' }}</div>
+                @if($snapshotMeta)
+                    <div class="meta">{{ $snapshotMeta }}</div>
+                @endif
             </div>
         </header>
 
@@ -221,7 +242,7 @@
                 <div class="value">{{ $money($totals['projected_amount']) }}</div>
             </div>
             <div class="box">
-                <div class="label">Honorários</div>
+                <div class="label">Honorarios</div>
                 <div class="value">{{ $money($totals['fees_amount']) }}</div>
             </div>
         </section>
@@ -240,7 +261,7 @@
                             <th class="right">Acordo</th>
                             <th class="right">Recebido</th>
                             <th class="right">Projetado</th>
-                            <th class="right">Honorários</th>
+                            <th class="right">Honorarios</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -254,6 +275,33 @@
                                 <td class="right">{{ $money($row['paid_amount']) }}<br><span class="muted">{{ $row['paid_label'] }}</span></td>
                                 <td class="right">{{ $money($row['projected_amount']) }}</td>
                                 <td class="right">{{ $money($row['fees_amount']) }}</td>
+                            </tr>
+                            <tr class="detail">
+                                <td colspan="8">
+                                    <div><strong>Cotas cobradas:</strong>
+                                        @forelse($row['quota_details'] as $quota)
+                                            <span class="chip">{{ $quota['reference'] }} · {{ $quota['due_date'] ?: '-' }} · {{ $quota['amount'] }}</span>
+                                        @empty
+                                            <span class="muted">Sem cotas vinculadas.</span>
+                                        @endforelse
+                                    </div>
+                                    <div style="margin-top: 4px;"><strong>Parcelamento:</strong>
+                                        @forelse($row['payment_plan_details'] as $payment)
+                                            <span class="chip">
+                                                {{ $payment['label'] }} · {{ $payment['due_date'] ?: '-' }} · {{ $payment['amount'] }}
+                                                @if($payment['is_entry'] && $payment['is_paid'])
+                                                    <span class="paid-entry">PAGO</span>
+                                                @elseif($payment['is_paid'])
+                                                    <span class="paid-generic">PAGO</span>
+                                                @else
+                                                    <span class="muted">{{ $payment['status_label'] }}</span>
+                                                @endif
+                                            </span>
+                                        @empty
+                                            <span class="muted">Sem parcelas cadastradas.</span>
+                                        @endforelse
+                                    </div>
+                                </td>
                             </tr>
                         @endforeach
                         <tr class="subtotal">
@@ -275,7 +323,7 @@
                 <div><div class="label">Total dos acordos</div><div class="value">{{ $money($totals['agreement_total']) }}</div></div>
                 <div><div class="label">Total recebido</div><div class="value">{{ $money($totals['paid_amount']) }}</div></div>
                 <div><div class="label">Total projetado</div><div class="value">{{ $money($totals['projected_amount']) }}</div></div>
-                <div><div class="label">Total honorários</div><div class="value">{{ $money($totals['fees_amount']) }}</div></div>
+                <div><div class="label">Total honorarios</div><div class="value">{{ $money($totals['fees_amount']) }}</div></div>
             </div>
         </section>
 

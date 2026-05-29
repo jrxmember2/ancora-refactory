@@ -22,6 +22,7 @@ use App\Models\CobrancaMonetaryUpdate;
 use App\Models\CobrancaMonetaryUpdateItem;
 use App\Models\CobrancaStandaloneMonetaryUpdate;
 use App\Models\CobrancaStandaloneMonetaryUpdateItem;
+use App\Models\FinancialReport;
 use App\Services\CobrancaCollectionNotificationService;
 use App\Services\CobrancaAgreementTermService;
 use App\Services\CobrancaMonetaryUpdateService;
@@ -3647,6 +3648,7 @@ class CobrancaController extends Controller
             'workflow_stage' => $workflowStage,
             'entry_status' => $entryStatus,
             'entry_due_date' => trim((string) $request->input('entry_due_date', '')) ?: null,
+            'entry_paid_at' => $this->resolveEntryPaidAt($current, $entryStatus),
             'entry_amount' => $this->moneyToDb($request->input('entry_amount')),
             'fees_amount' => $this->moneyToDb($request->input('fees_amount')),
             'judicial_case_number' => trim((string) $request->input('judicial_case_number', '')) ?: null,
@@ -3781,6 +3783,7 @@ class CobrancaController extends Controller
             'workflow_stage' => $workflowStage,
             'entry_status' => $entryStatus,
             'entry_due_date' => trim((string) $request->input('entry_due_date', '')) ?: null,
+            'entry_paid_at' => $this->resolveEntryPaidAt($current, $entryStatus),
             'entry_amount' => $this->moneyToDb($request->input('entry_amount')),
             'fees_amount' => $this->moneyToDb($request->input('fees_amount')),
             'judicial_case_number' => trim((string) $request->input('judicial_case_number', '')) ?: null,
@@ -3958,6 +3961,22 @@ class CobrancaController extends Controller
 
     private function syncChildren(CobrancaCase $case, array $repeaters): void
     {
+        $existingInstallments = CobrancaCaseInstallment::query()
+            ->where('cobranca_case_id', $case->id)
+            ->get();
+        $existingInstallmentsByFingerprint = [];
+        foreach ($existingInstallments as $installment) {
+            $fingerprint = $this->billingInstallmentFingerprint([
+                'label' => $installment->label,
+                'installment_type' => $installment->installment_type,
+                'installment_number' => $installment->installment_number,
+                'due_date' => optional($installment->due_date)->format('Y-m-d'),
+                'amount' => $installment->amount,
+            ]);
+            $existingInstallmentsByFingerprint[$fingerprint] ??= [];
+            $existingInstallmentsByFingerprint[$fingerprint][] = $installment;
+        }
+
         CobrancaCaseContact::query()->where('cobranca_case_id', $case->id)->delete();
         CobrancaCaseQuota::query()->where('cobranca_case_id', $case->id)->delete();
         CobrancaCaseInstallment::query()->where('cobranca_case_id', $case->id)->delete();
@@ -3997,6 +4016,12 @@ class CobrancaController extends Controller
             ]);
         }
         foreach ($repeaters['installments'] as $index => $row) {
+            $fingerprint = $this->billingInstallmentFingerprint($row);
+            $matchedInstallment = $existingInstallmentsByFingerprint[$fingerprint][0] ?? null;
+            if ($matchedInstallment) {
+                array_shift($existingInstallmentsByFingerprint[$fingerprint]);
+            }
+
             CobrancaCaseInstallment::query()->create([
                 'cobranca_case_id' => $case->id,
                 'label' => $row['label'] ?: 'Parcela ' . ($index + 1),
@@ -4005,9 +4030,52 @@ class CobrancaController extends Controller
                 'due_date' => $row['due_date'],
                 'amount' => $row['amount'],
                 'status' => $row['status'],
+                'paid_at' => $this->resolveInstallmentPaidAt($matchedInstallment, $row),
                 'created_at' => now(),
             ]);
         }
+    }
+
+    private function billingInstallmentFingerprint(array $row): string
+    {
+        return implode('|', [
+            Str::lower(trim((string) ($row['label'] ?? ''))),
+            trim((string) ($row['installment_type'] ?? 'parcela')),
+            (string) ((int) ($row['installment_number'] ?? 0)),
+            trim((string) ($row['due_date'] ?? '')),
+            (string) $this->moneyToCents($row['amount'] ?? 0),
+        ]);
+    }
+
+    private function resolveInstallmentPaidAt(?CobrancaCaseInstallment $currentInstallment, array $row): ?string
+    {
+        $status = trim((string) ($row['status'] ?? ''));
+        if ($status !== 'paga') {
+            return null;
+        }
+
+        if ($currentInstallment?->paid_at) {
+            return Carbon::parse($currentInstallment->paid_at)->toDateString();
+        }
+
+        return now()->toDateString();
+    }
+
+    private function resolveEntryPaidAt(?CobrancaCase $current, ?string $entryStatus): ?string
+    {
+        if ($entryStatus === 'pago') {
+            if ($current?->entry_paid_at) {
+                return Carbon::parse($current->entry_paid_at)->toDateString();
+            }
+
+            return now()->toDateString();
+        }
+
+        if ($current?->entry_paid_at && $entryStatus !== null && $entryStatus === (string) $current->entry_status) {
+            return Carbon::parse($current->entry_paid_at)->toDateString();
+        }
+
+        return null;
     }
 
     private function recordTimeline(CobrancaCase $case, string $eventType, string $description, Request $request, $timestamp): void
@@ -6111,7 +6179,7 @@ class CobrancaController extends Controller
         };
     }
 
-    private function billingReportData(Request $request): array
+    private function legacyBillingReportData(Request $request): array
     {
         $filters = [
             'billing_status' => trim((string) $request->input('billing_status', 'a_faturar')),
@@ -6194,7 +6262,7 @@ class CobrancaController extends Controller
         ];
     }
 
-    private function billingReportRow(CobrancaCase $case): array
+    private function legacyBillingReportRow(CobrancaCase $case): array
     {
         $paid = $this->billingPaidSnapshot($case);
         $agreementCents = $this->moneyToCents($case->agreement_total ?? 0);
@@ -6236,7 +6304,7 @@ class CobrancaController extends Controller
         ];
     }
 
-    private function billingPaidSnapshot(CobrancaCase $case): array
+    private function legacyBillingPaidSnapshot(CobrancaCase $case): array
     {
         $entryCents = $this->moneyToCents($case->entry_amount ?? 0);
         if ($entryCents > 0) {
@@ -6275,7 +6343,7 @@ class CobrancaController extends Controller
         ];
     }
 
-    private function billingRowsTotals($rows): array
+    private function legacyBillingRowsTotals($rows): array
     {
         $rows = collect($rows);
 
@@ -6286,6 +6354,499 @@ class CobrancaController extends Controller
             'projected_amount' => (float) $rows->sum('projected_amount'),
             'fees_amount' => (float) $rows->sum('fees_amount'),
         ];
+    }
+
+    private function billingReportData(Request $request): array
+    {
+        $snapshotId = (int) $request->integer('snapshot_id');
+
+        if ($snapshotId > 0) {
+            return $this->billingSnapshotReportData($snapshotId);
+        }
+
+        $filters = $this->billingNormalizedFilters($request);
+        $viewData = $this->billingLiveReportData($filters);
+
+        if (
+            $request->routeIs('cobrancas.billing.report.pdf')
+            && !$viewData['snapshotMode']
+            && ($viewData['totals']['cases_count'] ?? 0) > 0
+        ) {
+            $viewData['snapshotRecord'] = $this->storeBillingReportSnapshot($request, $viewData);
+        }
+
+        return $viewData;
+    }
+
+    private function billingNormalizedFilters(Request $request): array
+    {
+        $from = trim((string) $request->input('billing_date_from', ''));
+        $to = trim((string) $request->input('billing_date_to', ''));
+
+        if ($from === '' && $to === '') {
+            $from = now()->startOfMonth()->toDateString();
+            $to = now()->endOfMonth()->toDateString();
+        } elseif ($from === '' && $to !== '') {
+            $from = Carbon::parse($to)->startOfMonth()->toDateString();
+        } elseif ($to === '' && $from !== '') {
+            $to = Carbon::parse($from)->endOfMonth()->toDateString();
+        }
+
+        return [
+            'billing_status' => 'a_faturar',
+            'condominium_id' => (int) $request->integer('condominium_id'),
+            'charge_type' => trim((string) $request->input('charge_type', '')),
+            'billing_date_from' => $from,
+            'billing_date_to' => $to,
+        ];
+    }
+
+    private function billingLiveReportData(array $filters): array
+    {
+        $query = CobrancaCase::query()
+            ->select('cobranca_cases.*')
+            ->leftJoin('client_condominiums as billing_condominium_sort', 'billing_condominium_sort.id', '=', 'cobranca_cases.condominium_id')
+            ->leftJoin('client_condominium_blocks as billing_block_sort', 'billing_block_sort.id', '=', 'cobranca_cases.block_id')
+            ->leftJoin('client_units as billing_unit_sort', 'billing_unit_sort.id', '=', 'cobranca_cases.unit_id')
+            ->with(['condominium', 'block', 'unit', 'quotas', 'installments'])
+            ->where('cobranca_cases.billing_status', 'a_faturar');
+
+        if ((int) $filters['condominium_id'] > 0) {
+            $query->where('cobranca_cases.condominium_id', (int) $filters['condominium_id']);
+        }
+
+        if ($filters['charge_type'] !== '') {
+            $query->where('cobranca_cases.charge_type', $filters['charge_type']);
+        }
+
+        if ($filters['billing_date_from'] !== '') {
+            $query->whereDate('cobranca_cases.billing_date', '>=', $filters['billing_date_from']);
+        }
+
+        if ($filters['billing_date_to'] !== '') {
+            $query->whereDate('cobranca_cases.billing_date', '<=', $filters['billing_date_to']);
+        }
+
+        $rows = $query
+            ->orderBy('billing_condominium_sort.name')
+            ->orderBy('billing_block_sort.name')
+            ->orderBy('billing_unit_sort.unit_number')
+            ->orderBy('cobranca_cases.os_number')
+            ->get()
+            ->map(fn (CobrancaCase $case) => $this->billingReportRow($case, $filters))
+            ->filter(fn (array $row) => $row['eligible_for_report'])
+            ->values();
+
+        return [
+            'filters' => $filters,
+            'filterOptions' => $this->billingFilterOptions(),
+            'rows' => $rows,
+            'groups' => $this->billingRowsGroups($rows),
+            'totals' => $this->billingRowsTotals($rows),
+            'periodLabel' => $this->billingPeriodLabel($filters),
+            'projectedReferenceDate' => now()->toDateString(),
+            'recentSnapshots' => $this->billingRecentSnapshots(),
+            'snapshotMode' => false,
+            'snapshotRecord' => null,
+        ];
+    }
+
+    private function billingSnapshotReportData(int $snapshotId): array
+    {
+        /** @var FinancialReport|null $snapshot */
+        $snapshot = FinancialReport::query()
+            ->with('generator')
+            ->where('report_type', $this->billingReportType())
+            ->find($snapshotId);
+
+        abort_unless($snapshot, 404);
+
+        $payload = (array) ($snapshot->summary_json ?? []);
+        $filters = (array) ($payload['filters'] ?? []);
+        $rows = collect($payload['rows'] ?? [])->values();
+
+        return [
+            'filters' => $filters,
+            'filterOptions' => $this->billingFilterOptions(),
+            'rows' => $rows,
+            'groups' => collect($payload['groups'] ?? [])->values(),
+            'totals' => (array) ($payload['totals'] ?? $this->billingRowsTotals($rows)),
+            'periodLabel' => (string) (($payload['meta']['period_label'] ?? null) ?: $this->billingPeriodLabel($filters)),
+            'projectedReferenceDate' => (string) (($payload['meta']['projected_reference_date'] ?? null) ?: now()->toDateString()),
+            'recentSnapshots' => $this->billingRecentSnapshots(),
+            'snapshotMode' => true,
+            'snapshotRecord' => $snapshot,
+        ];
+    }
+
+    private function billingFilterOptions(): array
+    {
+        return [
+            'condominiums' => DB::table('client_condominiums')->orderBy('name')->get(['id', 'name']),
+            'chargeTypes' => $this->chargeTypeLabels(),
+            'billingStatuses' => $this->billingStatusLabels(),
+        ];
+    }
+
+    private function billingRowsGroups($rows)
+    {
+        return collect($rows)
+            ->groupBy('condominium_key')
+            ->map(function ($condominiumRows) {
+                $condominiumRows = collect($condominiumRows);
+
+                return [
+                    'condominium' => (string) ($condominiumRows->first()['condominium'] ?? 'Condominio nao vinculado'),
+                    'totals' => $this->billingRowsTotals($condominiumRows),
+                    'blocks' => $condominiumRows
+                        ->groupBy('block_key')
+                        ->map(function ($blockRows) {
+                            $blockRows = collect($blockRows);
+
+                            return [
+                                'block' => (string) ($blockRows->first()['block'] ?? 'Sem bloco'),
+                                'rows' => $blockRows->values(),
+                                'totals' => $this->billingRowsTotals($blockRows),
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->values();
+    }
+
+    private function billingReportRow(CobrancaCase $case, array $filters): array
+    {
+        $paid = $this->billingPaidSnapshot($case);
+        $agreementCents = $this->moneyToCents($case->agreement_total ?? 0);
+        $feesCents = $this->moneyToCents($case->fees_amount ?? 0);
+        $paidInPeriodCents = $paid['eligible_for_report'] && $this->billingDateFallsWithinFilters($paid['paid_date'], $filters)
+            ? (int) $paid['amount_cents']
+            : 0;
+        $projectedCents = $this->billingProjectedAmountCents($case);
+        $caseMode = $this->normalizeCaseMode((string) ($case->case_mode ?? 'condominial'));
+
+        $condominium = $case->condominium?->name ?: 'Condominio nao vinculado';
+        $block = $case->block?->name ?: 'Sem bloco';
+        $unit = $case->unit?->unit_label ?: $case->unit?->unit_number ?: '-';
+        if ($caseMode === 'avulsa') {
+            $condominium = 'Cobranca avulsa';
+            $block = 'Sem vinculo condominial';
+            $unit = 'Avulsa';
+        }
+
+        $paidDateDisplay = $paid['paid_date'] instanceof Carbon ? $paid['paid_date']->format('d/m/Y') : null;
+        $paidLabel = 'Entrada ou parcela unica ainda nao paga';
+        if ($paid['eligible_for_report']) {
+            $paidLabel = $paid['label'] . ($paidDateDisplay ? ' paga em ' . $paidDateDisplay : ' paga');
+            if ($paidInPeriodCents === 0 && $paidDateDisplay) {
+                $paidLabel .= ' (fora do periodo)';
+            }
+        }
+
+        return [
+            'id' => (int) $case->id,
+            'eligible_for_report' => (bool) $paid['eligible_for_report'],
+            'case_mode' => $caseMode,
+            'os_number' => (string) $case->os_number,
+            'condominium_key' => (string) ($case->condominium_id ?: 0) . '|' . $condominium,
+            'condominium' => $condominium,
+            'block_key' => (string) ($case->block_id ?: 0) . '|' . $block,
+            'block' => $block,
+            'unit' => (string) $unit,
+            'debtor' => (string) ($case->debtor_name_snapshot ?: '-'),
+            'charge_type' => (string) $case->charge_type,
+            'charge_type_label' => $this->chargeTypeLabels()[$case->charge_type] ?? (string) $case->charge_type,
+            'billing_status' => (string) $case->billing_status,
+            'billing_status_label' => $this->billingStatusLabels()[$case->billing_status] ?? (string) $case->billing_status,
+            'billing_date' => optional($case->billing_date)->format('d/m/Y'),
+            'agreement_total' => $this->decimalFromCents($agreementCents),
+            'paid_amount' => $this->decimalFromCents($paidInPeriodCents),
+            'paid_label' => $paidLabel,
+            'payment_type' => (string) $paid['payment_type'],
+            'payment_date' => $paidDateDisplay,
+            'projected_amount' => $this->decimalFromCents($projectedCents),
+            'fees_amount' => $this->decimalFromCents($feesCents),
+            'installments_count' => (int) $case->installments->count(),
+            'quota_details' => $this->billingQuotaDetails($case),
+            'payment_plan_details' => $this->billingPaymentPlanDetails($case),
+        ];
+    }
+
+    private function billingPaidSnapshot(CobrancaCase $case): array
+    {
+        $entryCents = $this->moneyToCents($case->entry_amount ?? 0);
+        if ($entryCents > 0) {
+            $paidDate = $case->entry_paid_at
+                ? Carbon::parse($case->entry_paid_at)
+                : ($this->billingEntryIsPaid($case) && $case->entry_due_date ? Carbon::parse($case->entry_due_date) : null);
+
+            return [
+                'eligible_for_report' => $this->billingEntryIsPaid($case),
+                'amount_cents' => $entryCents,
+                'label' => 'Entrada',
+                'payment_type' => 'entrada',
+                'paid_date' => $paidDate,
+            ];
+        }
+
+        $entryInstallment = $case->installments->first(function (CobrancaCaseInstallment $installment) {
+            return $installment->installment_type === 'entrada'
+                && $this->moneyToCents($installment->amount ?? 0) > 0;
+        });
+        if ($entryInstallment) {
+            $isPaid = $this->billingInstallmentIsPaid($entryInstallment);
+
+            return [
+                'eligible_for_report' => $isPaid,
+                'amount_cents' => $this->moneyToCents($entryInstallment->amount ?? 0),
+                'label' => 'Entrada',
+                'payment_type' => 'entrada',
+                'paid_date' => $entryInstallment->paid_at
+                    ? Carbon::parse($entryInstallment->paid_at)
+                    : ($isPaid && $entryInstallment->due_date ? Carbon::parse($entryInstallment->due_date) : null),
+            ];
+        }
+
+        $installments = $case->installments
+            ->filter(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0) > 0)
+            ->values();
+
+        if ($installments->count() === 1) {
+            /** @var CobrancaCaseInstallment $singleInstallment */
+            $singleInstallment = $installments->first();
+            $isPaid = $this->billingInstallmentIsPaid($singleInstallment);
+
+            return [
+                'eligible_for_report' => $isPaid,
+                'amount_cents' => $this->moneyToCents($singleInstallment->amount ?? 0),
+                'label' => 'Parcela unica',
+                'payment_type' => 'parcela_unica',
+                'paid_date' => $singleInstallment->paid_at
+                    ? Carbon::parse($singleInstallment->paid_at)
+                    : ($isPaid && $singleInstallment->due_date ? Carbon::parse($singleInstallment->due_date) : null),
+            ];
+        }
+
+        return [
+            'eligible_for_report' => false,
+            'amount_cents' => 0,
+            'label' => 'Entrada ou parcela unica',
+            'payment_type' => 'nenhum',
+            'paid_date' => null,
+        ];
+    }
+
+    private function billingEntryIsPaid(CobrancaCase $case): bool
+    {
+        return !empty($case->entry_paid_at) || (string) $case->entry_status === 'pago';
+    }
+
+    private function billingInstallmentIsPaid(CobrancaCaseInstallment $installment): bool
+    {
+        return !empty($installment->paid_at) || (string) $installment->status === 'paga';
+    }
+
+    private function billingDateFallsWithinFilters(mixed $date, array $filters): bool
+    {
+        if (!$date) {
+            return false;
+        }
+
+        $date = $date instanceof Carbon ? $date->copy()->startOfDay() : Carbon::parse((string) $date)->startOfDay();
+        $from = !empty($filters['billing_date_from']) ? Carbon::parse((string) $filters['billing_date_from'])->startOfDay() : null;
+        $to = !empty($filters['billing_date_to']) ? Carbon::parse((string) $filters['billing_date_to'])->endOfDay() : null;
+
+        if ($from && $date->lt($from)) {
+            return false;
+        }
+
+        if ($to && $date->gt($to)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function billingProjectedAmountCents(CobrancaCase $case): int
+    {
+        $workflowStage = $this->normalizeWorkflowStage((string) $case->workflow_stage);
+        if (in_array($workflowStage, ['acordo_inadimplido', 'cancelado', 'pago_encerrado'], true)) {
+            return 0;
+        }
+
+        $today = now()->startOfDay();
+
+        return (int) $case->installments
+            ->filter(function (CobrancaCaseInstallment $installment) use ($today) {
+                if ($this->moneyToCents($installment->amount ?? 0) <= 0 || !$installment->due_date) {
+                    return false;
+                }
+
+                if ($this->billingInstallmentIsPaid($installment)) {
+                    return false;
+                }
+
+                return Carbon::parse($installment->due_date)->startOfDay()->gt($today);
+            })
+            ->sum(fn (CobrancaCaseInstallment $installment) => $this->moneyToCents($installment->amount ?? 0));
+    }
+
+    private function billingQuotaDetails(CobrancaCase $case): array
+    {
+        return $case->quotas
+            ->map(function (CobrancaCaseQuota $item) {
+                $amount = $item->updated_amount ?? $item->original_amount;
+
+                return [
+                    'reference' => (string) ($item->reference_label ?: 'Cota'),
+                    'due_date' => optional($item->due_date)->format('d/m/Y'),
+                    'amount' => $this->centsToMoney($this->moneyToCents($amount ?? 0)),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function billingPaymentPlanDetails(CobrancaCase $case): array
+    {
+        $hasExplicitEntry = $this->moneyToCents($case->entry_amount ?? 0) > 0;
+        $items = collect();
+
+        if ($hasExplicitEntry && $case->entry_due_date) {
+            $items->push([
+                'sort_key' => optional($case->entry_due_date)->format('Y-m-d') . '|0000',
+                'label' => 'Entrada',
+                'due_date' => optional($case->entry_due_date)->format('d/m/Y'),
+                'amount' => $this->centsToMoney($this->moneyToCents($case->entry_amount ?? 0)),
+                'is_entry' => true,
+                'is_paid' => $this->billingEntryIsPaid($case),
+                'status_label' => $this->billingEntryIsPaid($case)
+                    ? 'PAGO'
+                    : ($this->entryStatusLabels()[$case->entry_status] ?? ((string) $case->entry_status ?: 'Pendente')),
+            ]);
+        }
+
+        $singleInstallment = !$hasExplicitEntry && $case->installments->filter(fn (CobrancaCaseInstallment $item) => $this->moneyToCents($item->amount ?? 0) > 0)->count() === 1;
+
+        foreach ($case->installments as $installment) {
+            if ($this->moneyToCents($installment->amount ?? 0) <= 0 || !$installment->due_date) {
+                continue;
+            }
+
+            if ($hasExplicitEntry && $installment->installment_type === 'entrada') {
+                continue;
+            }
+
+            $label = trim((string) ($installment->label ?: ''));
+            if ($singleInstallment) {
+                $label = 'Parcela unica';
+            } elseif ($label === '') {
+                $label = $installment->installment_type === 'entrada'
+                    ? 'Entrada'
+                    : 'Parcela ' . ($installment->installment_number ?: 1);
+            }
+
+            $items->push([
+                'sort_key' => optional($installment->due_date)->format('Y-m-d') . '|' . str_pad((string) ($installment->installment_number ?? 0), 4, '0', STR_PAD_LEFT),
+                'label' => $label,
+                'due_date' => optional($installment->due_date)->format('d/m/Y'),
+                'amount' => $this->centsToMoney($this->moneyToCents($installment->amount ?? 0)),
+                'is_entry' => $installment->installment_type === 'entrada',
+                'is_paid' => $this->billingInstallmentIsPaid($installment),
+                'status_label' => $this->billingInstallmentIsPaid($installment)
+                    ? 'PAGO'
+                    : ($this->installmentStatusLabels()[$installment->status] ?? ucfirst(str_replace('_', ' ', (string) $installment->status))),
+            ]);
+        }
+
+        return $items
+            ->sortBy('sort_key')
+            ->values()
+            ->map(fn (array $item) => Arr::except($item, ['sort_key']))
+            ->all();
+    }
+
+    private function billingRowsTotals($rows): array
+    {
+        $rows = collect($rows);
+
+        return [
+            'cases_count' => $rows->count(),
+            'agreement_total' => round((float) $rows->sum('agreement_total'), 2),
+            'paid_amount' => round((float) $rows->sum('paid_amount'), 2),
+            'projected_amount' => round((float) $rows->sum('projected_amount'), 2),
+            'fees_amount' => round((float) $rows->sum('fees_amount'), 2),
+        ];
+    }
+
+    private function billingPeriodLabel(array $filters): string
+    {
+        $from = trim((string) ($filters['billing_date_from'] ?? ''));
+        $to = trim((string) ($filters['billing_date_to'] ?? ''));
+
+        if ($from !== '' && $to !== '') {
+            $fromDate = Carbon::parse($from);
+            $toDate = Carbon::parse($to);
+
+            if ($fromDate->isSameMonth($toDate) && $fromDate->day === 1 && $toDate->day === $fromDate->copy()->endOfMonth()->day) {
+                return $fromDate->translatedFormat('F/Y');
+            }
+
+            return $fromDate->format('d/m/Y') . ' a ' . $toDate->format('d/m/Y');
+        }
+
+        if ($from !== '') {
+            return 'A partir de ' . Carbon::parse($from)->format('d/m/Y');
+        }
+
+        if ($to !== '') {
+            return 'Ate ' . Carbon::parse($to)->format('d/m/Y');
+        }
+
+        return now()->translatedFormat('F/Y');
+    }
+
+    private function billingReportType(): string
+    {
+        return 'cobranca_billing_report';
+    }
+
+    private function billingRecentSnapshots(int $limit = 6)
+    {
+        return FinancialReport::query()
+            ->with('generator')
+            ->where('report_type', $this->billingReportType())
+            ->orderByDesc('generated_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    private function storeBillingReportSnapshot(Request $request, array $viewData): FinancialReport
+    {
+        $user = AncoraAuth::user($request);
+        $filters = (array) ($viewData['filters'] ?? []);
+
+        return FinancialReport::query()->create([
+            'report_type' => $this->billingReportType(),
+            'title' => 'Relatorio de faturamento de cobranca - ' . ucfirst($this->billingPeriodLabel($filters)),
+            'filters_json' => $filters,
+            'summary_json' => [
+                'filters' => $filters,
+                'rows' => collect($viewData['rows'] ?? [])->values()->all(),
+                'groups' => collect($viewData['groups'] ?? [])->values()->all(),
+                'totals' => (array) ($viewData['totals'] ?? []),
+                'meta' => [
+                    'period_label' => $viewData['periodLabel'] ?? $this->billingPeriodLabel($filters),
+                    'projected_reference_date' => $viewData['projectedReferenceDate'] ?? now()->toDateString(),
+                    'generated_at' => now()->toIso8601String(),
+                    'rule_label' => 'Somente OS a faturar com entrada ou parcela unica paga.',
+                ],
+            ],
+            'generated_by' => $user?->id,
+            'generated_at' => now(),
+        ]);
     }
 
     private function billingReportPdfResponse(array $viewData): ?BinaryFileResponse
