@@ -14,7 +14,11 @@
     <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <input type="date" name="from" value="{{ $from->format('Y-m-d') }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
         <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
-        <div class="flex gap-3 xl:col-span-2">
+        <select name="basis" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+            <option value="caixa" @selected(($basis ?? 'caixa') === 'caixa')>Regime de caixa (recebido/pago)</option>
+            <option value="competencia" @selected(($basis ?? 'caixa') === 'competencia')>Regime de competencia (a receber/pagar)</option>
+        </select>
+        <div class="flex gap-3">
             <button class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Atualizar DRE</button>
         </div>
     </form>

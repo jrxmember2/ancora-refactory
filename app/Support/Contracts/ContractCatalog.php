@@ -124,6 +124,10 @@ class ContractCatalog
         return [
             'default_city' => 'Vitoria',
             'default_state' => 'ES',
+            'contracted_party_name' => '',
+            'contracted_party_document' => '52.816.983/0001-32',
+            'contracted_party_representative' => 'REBECA DA SILVA PAULA',
+            'contracted_party_representative_document' => 'OAB/ES sob o nº. 25.057',
             'signature_text' => '________________________________________',
             'footer_text' => 'Documento gerado pelo sistema Ancora.',
             'show_logo' => '1',

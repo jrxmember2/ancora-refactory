@@ -122,6 +122,57 @@ class ContractFinancialService
         });
     }
 
+    /**
+     * Gera, sob demanda, um recebivel de honorario de exito (billing_type 'exito') a partir de
+     * uma base de ganho e um percentual. Acao manual e explicita: nao ha gatilho automatico no
+     * encerramento do processo, para nao criar lancamento financeiro sem revisao humana.
+     */
+    public function generateSuccessFeeReceivable(
+        Contract $contract,
+        float $baseAmount,
+        float $percentage,
+        ?Carbon $dueDate = null,
+        ?int $userId = null
+    ): FinancialReceivable {
+        $amount = round(max(0.0, $baseAmount) * max(0.0, $percentage) / 100, 2);
+        $due = ($dueDate ?: now())->copy()->startOfDay();
+
+        return DB::transaction(function () use ($contract, $amount, $percentage, $baseAmount, $due, $userId) {
+            $contract->loadMissing(['client', 'condominium', 'unit', 'responsible', 'financialAccount']);
+
+            $receivable = FinancialReceivable::query()->create([
+                'code' => $this->codeService->next('financial_receivables', 'entry_prefix', 'REC'),
+                'title' => $contract->title . ' - Honorario de exito',
+                'reference' => 'Honorario de exito',
+                'billing_type' => 'exito',
+                'client_id' => $contract->client_id,
+                'condominium_id' => $contract->condominium_id,
+                'unit_id' => $contract->unit_id,
+                'contract_id' => $contract->id,
+                'process_id' => $contract->process_id,
+                'category_id' => $this->resolveCategoryId($contract, 'honorario'),
+                'cost_center_id' => $this->resolveCostCenterId($contract),
+                'account_id' => $this->resolveFinancialAccountIdForContract($contract),
+                'original_amount' => $amount,
+                'final_amount' => $amount,
+                'due_date' => $due->toDateString(),
+                'competence_date' => $due->copy()->startOfMonth()->toDateString(),
+                'payment_method' => $contract->payment_method,
+                'status' => 'aberto',
+                'generate_collection' => !$this->paymentMethodDispensesFinancialAccount((string) $contract->payment_method),
+                'responsible_user_id' => $contract->responsible_user_id,
+                'created_by' => $userId,
+                'updated_by' => $userId,
+                'notes' => 'Honorario de exito gerado a partir do contrato ' . ($contract->code ?: ('#' . $contract->id))
+                    . ' (' . number_format($percentage, 2, ',', '.') . '% sobre ' . number_format($baseAmount, 2, ',', '.') . ').',
+            ]);
+
+            $this->ledgerService->syncReceivable($receivable);
+
+            return $receivable;
+        });
+    }
+
     public function createMissingFinancialEntriesForPeriod(
         Contract $contract,
         Carbon $from,
@@ -372,143 +423,6 @@ class ContractFinancialService
             || $receivable->transactions->isNotEmpty();
     }
 
-    private function buildMonthlySchedule(Contract $contract, int $dueDay): array
-    {
-        $amount = round((float) ($contract->monthly_value ?: 0), 2);
-        if ($amount <= 0) {
-            return [];
-        }
-
-        $monthsStep = $this->recurrenceMonths((string) ($contract->recurrence ?: 'mensal'));
-        $start = $contract->start_date?->copy()->startOfDay() ?: now()->startOfDay();
-        $firstDueDate = $this->firstDueDate($start, $dueDay);
-        $end = $contract->indefinite_term || !$contract->end_date
-            ? max($firstDueDate->copy(), now()->copy()->startOfDay())->addMonthsNoOverflow(11)->endOfMonth()
-            : $contract->end_date->copy()->endOfDay();
-
-        $schedule = [];
-        $cursor = $firstDueDate->copy();
-
-        while ($cursor->lte($end)) {
-            if ($contract->indefinite_term && $cursor->lt(now()->startOfDay())) {
-                $cursor->addMonthsNoOverflow($monthsStep);
-                continue;
-            }
-
-            $schedule[] = [
-                'title' => $contract->title . ' - ' . $this->competenceLabel($cursor),
-                'reference' => $this->competenceLabel($cursor),
-                'billing_type' => 'mensalidade',
-                'amount' => $amount,
-                'due_date' => $cursor->copy(),
-                'competence_date' => $cursor->copy()->startOfMonth(),
-                'notes' => 'Gerado automaticamente a partir do contrato ' . ($contract->code ?: ('#' . $contract->id)) . '.',
-            ];
-
-            $cursor->addMonthsNoOverflow($monthsStep);
-        }
-
-        return $schedule;
-    }
-
-    private function buildInstallmentSchedule(Contract $contract, int $dueDay): array
-    {
-        $count = max(0, (int) ($contract->installment_quantity ?: 0));
-        $total = round((float) ($contract->total_value ?: 0), 2);
-        if ($count < 1 || $total <= 0) {
-            return [];
-        }
-
-        $start = $contract->start_date?->copy()->startOfDay() ?: now()->startOfDay();
-        $firstDueDate = $this->firstDueDate($start, $dueDay);
-        $amounts = $this->splitAmount($total, $count);
-        $schedule = [];
-
-        for ($index = 0; $index < $count; $index++) {
-            $dueDate = $firstDueDate->copy()->addMonthsNoOverflow($index);
-            $number = $index + 1;
-            $schedule[] = [
-                'title' => $contract->title . ' - Parcela ' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '/' . str_pad((string) $count, 2, '0', STR_PAD_LEFT),
-                'reference' => 'Parcela ' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '/' . str_pad((string) $count, 2, '0', STR_PAD_LEFT),
-                'billing_type' => 'parcela',
-                'amount' => $amounts[$index],
-                'due_date' => $dueDate,
-                'competence_date' => $dueDate->copy()->startOfMonth(),
-                'installment_number' => $number,
-                'installment_total' => $count,
-                'notes' => 'Gerado automaticamente a partir do contrato ' . ($contract->code ?: ('#' . $contract->id)) . '.',
-            ];
-        }
-
-        return $schedule;
-    }
-
-    private function buildSingleSchedule(Contract $contract, int $dueDay): array
-    {
-        $amount = round((float) ($contract->total_value ?: 0), 2);
-        if ($amount <= 0) {
-            return [];
-        }
-
-        $start = $contract->start_date?->copy()->startOfDay() ?: now()->startOfDay();
-        $dueDate = $this->firstDueDate($start, $dueDay);
-
-        return [[
-            'title' => $contract->title,
-            'reference' => 'Parcela unica',
-            'billing_type' => $this->singleBillingType($contract),
-            'amount' => $amount,
-            'due_date' => $dueDate,
-            'competence_date' => $dueDate->copy()->startOfMonth(),
-            'notes' => 'Gerado automaticamente a partir do contrato ' . ($contract->code ?: ('#' . $contract->id)) . '.',
-        ]];
-    }
-
-    private function splitAmount(float $total, int $count): array
-    {
-        $totalCents = (int) round($total * 100);
-        $base = intdiv($totalCents, $count);
-        $remainder = $totalCents % $count;
-        $amounts = [];
-
-        for ($index = 0; $index < $count; $index++) {
-            $cents = $base + ($index < $remainder ? 1 : 0);
-            $amounts[] = round($cents / 100, 2);
-        }
-
-        return $amounts;
-    }
-
-    private function recurrenceMonths(string $recurrence): int
-    {
-        return match ($recurrence) {
-            'bimestral' => 2,
-            'trimestral' => 3,
-            'semestral' => 6,
-            'anual' => 12,
-            default => 1,
-        };
-    }
-
-    private function firstDueDate(Carbon $start, int $dueDay): Carbon
-    {
-        $candidate = $start->copy()->day(min($dueDay, $start->daysInMonth));
-        if ($candidate->lt($start)) {
-            $nextMonth = $start->copy()->addMonthNoOverflow()->startOfMonth();
-            return $nextMonth->copy()->day(min($dueDay, $nextMonth->daysInMonth));
-        }
-
-        return $candidate;
-    }
-
-    private function singleBillingType(Contract $contract): string
-    {
-        return in_array($this->normalize((string) $contract->type), [
-            $this->normalize('Termo de acordo'),
-            $this->normalize('Confissao de divida'),
-        ], true) ? 'parcela' : 'honorario';
-    }
-
     private function resolveCategoryId(Contract $contract, string $billingType): ?int
     {
         $future = trim((string) ($contract->financial_category_future ?? ''));
@@ -573,11 +487,6 @@ class ContractFinancialService
     private function paymentMethodDispensesFinancialAccount(string $paymentMethod): bool
     {
         return in_array($this->normalize($paymentMethod), ['especie', 'dinheiro'], true);
-    }
-
-    private function competenceLabel(Carbon $date): string
-    {
-        return $date->copy()->startOfMonth()->translatedFormat('m/Y');
     }
 
     private function normalize(string $value): string

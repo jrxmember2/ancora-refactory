@@ -119,9 +119,11 @@ class ContractRenderService
             'rendered_header_html' => $this->renderDocumentFragment((string) ($contract->template?->header_html ?? ''), $variables),
             'rendered_qualification_html' => $this->renderDocumentFragment((string) ($contract->template?->qualification_html ?? ''), $variables),
             'rendered_footer_html' => $this->renderDocumentFragment((string) ($contract->template?->footer_html ?? ''), $variables),
-            'content_html' => $contentHtml !== null && trim($contentHtml) !== ''
-                ? $this->renderHtml($contentHtml, $variables)
-                : $this->renderHtml((string) $contract->content_html, $variables),
+            'content_html' => $this->stripUnresolvedPlaceholders(
+                $contentHtml !== null && trim($contentHtml) !== ''
+                    ? $this->renderHtml($contentHtml, $variables)
+                    : $this->renderHtml((string) $contract->content_html, $variables)
+            ),
             'date_long' => $dateLong,
             'location_label' => trim($city . ($state !== '' ? '/' . strtolower($state) : '')),
             'client_label' => $contract->client?->display_name ?: ($contract->condominium?->name ?: 'Nao informado'),
@@ -404,7 +406,16 @@ class ContractRenderService
     {
         $html = trim($html);
 
-        return $html === '' ? '' : $this->renderHtml($html, $variables);
+        return $html === '' ? '' : $this->stripUnresolvedPlaceholders($this->renderHtml($html, $variables));
+    }
+
+    /**
+     * Remove placeholders {{variavel}} que nao foram resolvidos, evitando que o documento
+     * final exiba marcadores crus. Preserva os marcadores de pagina ja convertidos em <span>.
+     */
+    private function stripUnresolvedPlaceholders(string $html): string
+    {
+        return preg_replace('/\{\{\s*[A-Za-z0-9_.-]+\s*\}\}/u', '', $html) ?? $html;
     }
 
     private function documentTitle(Contract $contract): string
@@ -467,12 +478,26 @@ class ContractRenderService
 
     private function contractedParty(array $brand): array
     {
-        $name = trim((string) ($brand['company_name'] ?? self::DEFAULT_CONTRACTED_PARTY['name'])) ?: self::DEFAULT_CONTRACTED_PARTY['name'];
+        // Dados da Contratada agora vem das configuracoes de Contratos (tela de configuracoes),
+        // com fallback para os valores historicos para nao alterar contratos ja emitidos.
+        $name = trim((string) ContractSettings::get('contracted_party_name', ''))
+            ?: trim((string) ($brand['company_name'] ?? ''))
+            ?: self::DEFAULT_CONTRACTED_PARTY['name'];
+        $document = trim((string) ContractSettings::get('contracted_party_document', self::DEFAULT_CONTRACTED_PARTY['document']));
+        $representative = trim((string) ContractSettings::get('contracted_party_representative', self::DEFAULT_CONTRACTED_PARTY['responsible']));
+        $representativeDocument = trim((string) ContractSettings::get('contracted_party_representative_document', self::DEFAULT_CONTRACTED_PARTY['responsible_document']));
+
+        $responsibleLine = $representative;
+        if ($representative !== '' && $representativeDocument !== '') {
+            $responsibleLine = $representative . ', inscrita na ' . $representativeDocument;
+        } elseif ($representative === '') {
+            $responsibleLine = $representativeDocument;
+        }
 
         return $this->partyCard('Contratada', array_values(array_filter([
                 ['label' => 'Nome', 'value' => $name, 'wide' => true],
-                ['label' => 'CNPJ', 'value' => self::DEFAULT_CONTRACTED_PARTY['document'], 'wide' => true],
-                ['label' => 'Responsavel', 'value' => self::DEFAULT_CONTRACTED_PARTY['responsible'] . ', inscrita na ' . self::DEFAULT_CONTRACTED_PARTY['responsible_document'], 'wide' => true],
+                ['label' => 'CNPJ', 'value' => $document, 'wide' => true],
+                ['label' => 'Responsavel', 'value' => $responsibleLine, 'wide' => true],
                 ['label' => 'Endereco', 'value' => trim((string) ($brand['company_address'] ?? '')), 'wide' => true],
                 ['label' => 'E-mail', 'value' => trim((string) ($brand['company_email'] ?? '')), 'wide' => false],
                 ['label' => 'Telefone', 'value' => trim((string) ($brand['company_phone'] ?? '')), 'wide' => false],

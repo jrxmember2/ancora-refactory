@@ -114,6 +114,18 @@
                     @endforeach
                 </select>
             </label>
+            @if(($mode ?? 'create') !== 'edit')
+            <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                <span>Qtde. de ocorrencias</span>
+                <input type="number" min="1" max="240" name="occurrences" value="{{ old('occurrences', '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700" placeholder="Ex.: 12">
+                <span class="block text-xs text-gray-400">Com recorrencia, gera N contas a pagar. Ignore para conta unica.</span>
+            </label>
+            <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                <span>Repetir ate</span>
+                <input type="date" name="repeat_until" value="{{ old('repeat_until', '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <span class="block text-xs text-gray-400">Alternativa a quantidade: repete ate esta data.</span>
+            </label>
+            @endif
             <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
                 <span>Responsavel</span>
                 <select name="responsible_user_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">

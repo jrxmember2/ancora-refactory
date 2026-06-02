@@ -269,6 +269,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::post('/{contrato}/duplicar', [ContractController::class, 'duplicate'])->name('contratos.duplicate')->middleware('ancora.route:contratos.duplicate');
         Route::post('/{contrato}/arquivar', [ContractController::class, 'archive'])->name('contratos.archive')->middleware('ancora.route:contratos.archive');
         Route::post('/{contrato}/rescindir', [ContractController::class, 'rescind'])->name('contratos.rescind')->middleware('ancora.route:contratos.rescind');
+        Route::post('/{contrato}/honorario-exito', [ContractController::class, 'generateSuccessFee'])->name('contratos.success-fee.generate')->middleware('ancora.route:contratos.update');
         Route::post('/{contrato}/gerar-pdf', [ContractController::class, 'generatePdf'])->name('contratos.generate-pdf')->middleware('ancora.route:contratos.generate-pdf');
         Route::get('/{contrato}/pdf', [ContractController::class, 'downloadPdf'])->name('contratos.download-pdf')->middleware('ancora.route:contratos.download-pdf');
         Route::get('/{contrato}/versoes/{version}', [ContractController::class, 'viewVersion'])->name('contratos.versions.view')->middleware('ancora.route:contratos.versions.view');

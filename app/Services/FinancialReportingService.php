@@ -42,9 +42,12 @@ class FinancialReportingService
         $pendingMonth = $receivables->filter(fn (FinancialReceivable $item) => $item->due_date && $item->due_date->between($monthStart, $monthEnd) && !in_array($item->status, ['recebido', 'cancelado'], true));
         $overdue = $receivables->filter(fn (FinancialReceivable $item) => $item->due_date && $item->due_date->isPast() && !in_array($item->status, ['recebido', 'cancelado'], true));
         $payablesMonth = $payables->filter(fn (FinancialPayable $item) => $item->due_date && $item->due_date->between($monthStart, $monthEnd));
+        // Espelha a regra real de geracao automatica (ContractFinancialService::canGenerateAutomatically):
+        // somente contratos ativos/assinados efetivamente faturam. Contratos aguardando assinatura
+        // ainda nao geram lancamentos e por isso nao entram neste indicador.
         $contractsFaturando = Contract::query()
             ->where('generate_financial_entries', true)
-            ->whereIn('status', ['ativo', 'assinado', 'aguardando_assinatura'])
+            ->whereIn('status', ['ativo', 'assinado'])
             ->count();
 
         $incomeTransactions = $transactions->where('transaction_type', 'entrada');
@@ -194,17 +197,15 @@ class FinancialReportingService
         ];
     }
 
-    public function dreData(?Carbon $from = null, ?Carbon $to = null): array
+    /**
+     * @param string $basis 'caixa' (regime de caixa, padrao — baseado nas movimentacoes
+     *                       efetivamente lancadas) ou 'competencia' (regime de competencia —
+     *                       baseado em contas a receber/pagar pela data de competencia).
+     */
+    public function dreData(?Carbon $from = null, ?Carbon $to = null, string $basis = 'caixa'): array
     {
-        $query = FinancialTransaction::query()->with('category');
-        if ($from) {
-            $query->whereDate('transaction_date', '>=', $from->toDateString());
-        }
-        if ($to) {
-            $query->whereDate('transaction_date', '<=', $to->toDateString());
-        }
+        $basis = $basis === 'competencia' ? 'competencia' : 'caixa';
 
-        $transactions = $query->get();
         $groups = [];
         foreach (FinancialCatalog::dreGroups() as $key => $label) {
             $groups[$key] = [
@@ -214,12 +215,10 @@ class FinancialReportingService
             ];
         }
 
-        foreach ($transactions as $transaction) {
-            $group = $transaction->category?->dre_group ?: ($transaction->transaction_type === 'entrada' ? 'receita_bruta' : 'despesas_operacionais');
-            $signal = $transaction->transaction_type === 'entrada' ? 1 : -1;
-            $amount = round($signal * (float) $transaction->amount, 2);
-            $groups[$group]['amount'] += $amount;
-            $groups[$group]['items'][] = $transaction;
+        if ($basis === 'competencia') {
+            $this->accumulateCompetenceGroups($groups, $from, $to);
+        } else {
+            $this->accumulateCashGroups($groups, $from, $to);
         }
 
         $receitaBruta = $groups['receita_bruta']['amount'];
@@ -235,6 +234,7 @@ class FinancialReportingService
         $resultado = $receitaLiquida - $custos - $despesas + $resultadoFinanceiro + $outrosResultados;
 
         return [
+            'basis' => $basis,
             'groups' => $groups,
             'summary' => [
                 'receita_bruta' => $receitaBruta,
@@ -245,6 +245,74 @@ class FinancialReportingService
                 'lucro' => $resultado,
             ],
         ];
+    }
+
+    /**
+     * Regime de caixa: usa as movimentacoes (financial_transactions) efetivamente lancadas.
+     * Transferencias entre contas e ajustes internos ficam de fora (nao sao receita/despesa).
+     */
+    private function accumulateCashGroups(array &$groups, ?Carbon $from, ?Carbon $to): void
+    {
+        $query = FinancialTransaction::query()->with('category');
+        if ($from) {
+            $query->whereDate('transaction_date', '>=', $from->toDateString());
+        }
+        if ($to) {
+            $query->whereDate('transaction_date', '<=', $to->toDateString());
+        }
+
+        foreach ($query->get() as $transaction) {
+            if (in_array($transaction->transaction_type, ['transferencia', 'ajuste'], true)) {
+                continue;
+            }
+
+            $signal = $transaction->transaction_type === 'entrada' ? 1 : -1;
+            $this->assignToDreGroup($groups, $signal, $transaction->category?->dre_group, (float) $transaction->amount, $transaction);
+        }
+    }
+
+    /**
+     * Regime de competencia: usa contas a receber (receita) e a pagar (despesa) pela data de
+     * competencia, independentemente de ja terem sido recebidas/pagas. Itens cancelados ficam de fora.
+     */
+    private function accumulateCompetenceGroups(array &$groups, ?Carbon $from, ?Carbon $to): void
+    {
+        $receivables = FinancialReceivable::query()
+            ->with('category')
+            ->where('status', '!=', 'cancelado')
+            ->when($from, fn ($query) => $query->whereDate('competence_date', '>=', $from->toDateString()))
+            ->when($to, fn ($query) => $query->whereDate('competence_date', '<=', $to->toDateString()))
+            ->get();
+
+        foreach ($receivables as $receivable) {
+            $this->assignToDreGroup($groups, 1, $receivable->category?->dre_group, (float) $receivable->final_amount, $receivable);
+        }
+
+        $payables = FinancialPayable::query()
+            ->with('category')
+            ->where('status', '!=', 'cancelado')
+            ->when($from, fn ($query) => $query->whereDate('competence_date', '>=', $from->toDateString()))
+            ->when($to, fn ($query) => $query->whereDate('competence_date', '<=', $to->toDateString()))
+            ->get();
+
+        foreach ($payables as $payable) {
+            $this->assignToDreGroup($groups, -1, $payable->category?->dre_group, (float) $payable->amount, $payable);
+        }
+    }
+
+    /**
+     * Soma um valor ao grupo DRE adequado, aplicando o sinal (receita +1 / despesa -1) e caindo
+     * em um grupo padrao quando a categoria nao tem grupo ou tem um grupo desconhecido.
+     */
+    private function assignToDreGroup(array &$groups, int $signal, ?string $dreGroup, float $amount, $item): void
+    {
+        $group = $dreGroup;
+        if (!$group || !array_key_exists($group, $groups)) {
+            $group = $signal === 1 ? 'receita_bruta' : 'despesas_operacionais';
+        }
+
+        $groups[$group]['amount'] += round($signal * $amount, 2);
+        $groups[$group]['items'][] = $item;
     }
 
     public function accountabilityData(?int $clientId = null, ?int $condominiumId = null, ?Carbon $from = null, ?Carbon $to = null): array

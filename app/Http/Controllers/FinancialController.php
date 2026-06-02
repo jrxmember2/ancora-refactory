@@ -45,6 +45,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -486,16 +487,17 @@ class FinancialController extends Controller
         abort_unless($user, 401);
 
         $payload = $this->normalizedPayablePayload($request);
-        $payload['code'] = trim((string) ($payload['code'] ?? '')) !== ''
-            ? $payload['code']
-            : $this->codeService->next('financial_payables', 'entry_prefix', 'PAG');
-        $payload['created_by'] = $user->id;
-        $payload['updated_by'] = $user->id;
+        $result = $this->storePayableSeries($payload, $request, $user->id);
 
-        $item = FinancialPayable::query()->create($payload);
-        $this->ledgerService->syncPayable($item);
+        if ($result['created']->count() === 1 && $result['series_total'] === 1) {
+            return redirect()
+                ->route('financeiro.payables.show', $result['created']->first())
+                ->with('success', 'Conta a pagar criada com sucesso.');
+        }
 
-        return redirect()->route('financeiro.payables.show', $item)->with('success', 'Conta a pagar criada com sucesso.');
+        return redirect()
+            ->route('financeiro.payables.index')
+            ->with('success', $result['created']->count() . ' conta(s) a pagar criada(s) na serie.');
     }
 
     public function payablesShow(FinancialPayable $payable): View
@@ -880,7 +882,7 @@ class FinancialController extends Controller
             'type' => ['required', 'string'],
             'name' => ['required', 'string', 'max:180'],
             'description' => ['nullable', 'string', 'max:255'],
-            'dre_group' => ['nullable', 'string', 'max:80'],
+            'dre_group' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::dreGroups()))],
             'color_hex' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -903,7 +905,7 @@ class FinancialController extends Controller
             'type' => ['required', 'string'],
             'name' => ['required', 'string', 'max:180'],
             'description' => ['nullable', 'string', 'max:255'],
-            'dre_group' => ['nullable', 'string', 'max:80'],
+            'dre_group' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::dreGroups()))],
             'color_hex' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -1122,12 +1124,14 @@ class FinancialController extends Controller
     {
         $from = $request->filled('from') ? Carbon::parse($request->input('from'))->startOfDay() : now()->startOfYear();
         $to = $request->filled('to') ? Carbon::parse($request->input('to'))->endOfDay() : now()->endOfMonth();
+        $basis = $request->input('basis') === 'competencia' ? 'competencia' : 'caixa';
 
         return view('pages.financeiro.dre.index', array_merge($this->financialFormOptions(), [
             'title' => 'DRE',
             'from' => $from,
             'to' => $to,
-            'data' => $this->reportingService->dreData($from, $to),
+            'basis' => $basis,
+            'data' => $this->reportingService->dreData($from, $to, $basis),
         ]));
     }
 
@@ -1135,11 +1139,13 @@ class FinancialController extends Controller
     {
         $from = $request->filled('from') ? Carbon::parse($request->input('from'))->startOfDay() : now()->startOfYear();
         $to = $request->filled('to') ? Carbon::parse($request->input('to'))->endOfDay() : now()->endOfMonth();
+        $basis = $request->input('basis') === 'competencia' ? 'competencia' : 'caixa';
         $payload = [
             'title' => 'DRE',
             'from' => $from,
             'to' => $to,
-            'data' => $this->reportingService->dreData($from, $to),
+            'basis' => $basis,
+            'data' => $this->reportingService->dreData($from, $to, $basis),
             'brand' => \App\Support\AncoraSettings::brand(),
             'pdfMode' => true,
         ];
@@ -1463,6 +1469,84 @@ class FinancialController extends Controller
         $requestedCode = trim((string) $requestedCode);
         if ($requestedCode === '') {
             return $this->codeService->next('financial_receivables', 'entry_prefix', 'REC');
+        }
+
+        if ($seriesTotal <= 1) {
+            return $requestedCode;
+        }
+
+        $suffix = '-' . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+        $baseLength = max(1, 60 - strlen($suffix));
+        $base = Str::limit($requestedCode, $baseLength, '');
+
+        return $base . $suffix;
+    }
+
+    /**
+     * Gera contas a pagar recorrentes/em serie, espelhando o comportamento das contas a
+     * receber. Reaproveita o motor de series (FinancialReceivableSeriesService), mapeando o
+     * valor da conta a pagar ('amount') para a chave 'original_amount' esperada pelo motor.
+     */
+    private function storePayableSeries(array $payload, Request $request, int $userId): array
+    {
+        $occurrences = $request->filled('occurrences') ? max(1, (int) $request->input('occurrences')) : null;
+        $repeatUntil = $request->filled('repeat_until')
+            ? Carbon::parse((string) $request->input('repeat_until'))->startOfDay()
+            : null;
+
+        $seriesPayload = array_merge($payload, [
+            'original_amount' => (float) ($payload['amount'] ?? 0),
+            'reference' => null,
+            'billing_type' => null,
+        ]);
+
+        $rows = $this->receivableSeriesService->buildManualRows(
+            $seriesPayload,
+            $payload['recurrence'] ?? null,
+            $occurrences,
+            $repeatUntil
+        );
+
+        $seriesTotal = count($rows);
+        $seriesGroup = $seriesTotal > 1 ? $this->receivableSeriesService->makeSeriesGroup('payable') : null;
+        $created = collect();
+
+        DB::transaction(function () use ($payload, $rows, $seriesGroup, $seriesTotal, $userId, $created) {
+            foreach ($rows as $index => $row) {
+                $itemPayload = array_merge($payload, [
+                    'code' => $this->payableCodeForSeries($payload['code'] ?? null, $index, $seriesTotal),
+                    'title' => trim((string) ($row['title'] ?? '')) !== '' ? $row['title'] : ($payload['title'] ?? ''),
+                    'amount' => $row['amount'],
+                    'due_date' => $row['due_date']->toDateString(),
+                    'competence_date' => $row['competence_date']->toDateString(),
+                    'recurrence' => $row['recurrence'] ?? ($payload['recurrence'] ?? null),
+                    'series_group' => $seriesGroup,
+                    'series_index' => $seriesTotal > 1 ? ($row['series_index'] ?? ($index + 1)) : null,
+                    'series_total' => $seriesTotal > 1 ? ($row['series_total'] ?? $seriesTotal) : null,
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+
+                // 'reference' nao existe em financial_payables; garantimos que nao vai no insert.
+                unset($itemPayload['reference']);
+
+                $item = FinancialPayable::query()->create($itemPayload);
+                $this->ledgerService->syncPayable($item);
+                $created->push($item);
+            }
+        });
+
+        return [
+            'created' => $created,
+            'series_total' => $seriesTotal,
+        ];
+    }
+
+    private function payableCodeForSeries(?string $requestedCode, int $index, int $seriesTotal): string
+    {
+        $requestedCode = trim((string) $requestedCode);
+        if ($requestedCode === '') {
+            return $this->codeService->next('financial_payables', 'entry_prefix', 'PAG');
         }
 
         if ($seriesTotal <= 1) {

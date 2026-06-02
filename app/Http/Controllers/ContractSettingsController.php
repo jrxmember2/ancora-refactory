@@ -59,6 +59,10 @@ class ContractSettingsController extends Controller
         $request->validate([
             'default_city' => ['nullable', 'string', 'max:120'],
             'default_state' => ['nullable', 'string', 'max:10'],
+            'contracted_party_name' => ['nullable', 'string', 'max:255'],
+            'contracted_party_document' => ['nullable', 'string', 'max:40'],
+            'contracted_party_representative' => ['nullable', 'string', 'max:255'],
+            'contracted_party_representative_document' => ['nullable', 'string', 'max:120'],
             'signature_text' => ['nullable', 'string', 'max:255'],
             'footer_text' => ['nullable', 'string', 'max:255'],
             'show_logo' => ['nullable', 'boolean'],

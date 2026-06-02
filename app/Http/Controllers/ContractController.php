@@ -168,11 +168,33 @@ class ContractController extends Controller
             'indefinite_term' => true,
         ];
 
+        $title = 'Novo contrato';
+        $parent = $request->filled('parent')
+            ? Contract::query()->find((int) $request->input('parent'))
+            : null;
+
+        // Quando criado a partir de um contrato existente, ja nasce como aditivo vinculado,
+        // herdando as partes do contrato-pai para manter a coerencia do vinculo.
+        if ($parent) {
+            $title = 'Novo aditivo';
+            $draft = array_merge($draft, [
+                'parent_contract_id' => $parent->id,
+                'type' => 'Aditivo contratual',
+                'client_id' => $parent->client_id,
+                'condominium_id' => $parent->condominium_id,
+                'unit_id' => $parent->unit_id,
+                'syndico_entity_id' => $parent->syndico_entity_id,
+                'category_id' => $parent->category_id,
+                'responsible_user_id' => $parent->responsible_user_id,
+            ]);
+        }
+
         return view('pages.contratos.form', array_merge($this->formOptions(), [
-            'title' => 'Novo contrato',
+            'title' => $title,
             'mode' => 'create',
             'item' => null,
             'draft' => $draft,
+            'parentContract' => $parent,
             'previewHtml' => old('content_html', ''),
             'formAlerts' => [],
             'pdfAppendixAttachments' => collect(),
@@ -283,6 +305,8 @@ class ContractController extends Controller
             'updater',
             'versions.generator',
             'attachments.uploader',
+            'parentContract',
+            'amendments',
         ];
         if ($signatureStorageReady) {
             $relations = array_merge($relations, [
@@ -480,6 +504,40 @@ class ContractController extends Controller
         ]);
 
         return redirect()->route('contratos.show', $contrato)->with('success', 'Contrato marcado como rescindido.');
+    }
+
+    public function generateSuccessFee(Request $request, Contract $contrato): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+        abort_unless($contrato->billing_type === 'honorarios_sobre_exito', 422);
+
+        $validated = $request->validate([
+            'base_amount' => ['required', 'string', 'max:40'],
+            'success_fee_percentage' => ['required', 'string', 'max:20'],
+            'due_date' => ['nullable', 'date'],
+        ]);
+
+        $base = (float) $this->renderService->moneyFromInput($validated['base_amount']);
+        $percentage = (float) $this->renderService->moneyFromInput($validated['success_fee_percentage']);
+
+        if ($base <= 0 || $percentage <= 0) {
+            return back()->with('error', 'Informe a base do ganho e o percentual de exito, ambos maiores que zero.');
+        }
+
+        try {
+            $receivable = $this->contractFinancialService->generateSuccessFeeReceivable(
+                $contrato,
+                $base,
+                $percentage,
+                $request->filled('due_date') ? Carbon::parse((string) $request->input('due_date')) : now(),
+                $user->id
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Nao foi possivel gerar o honorario de exito: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Honorario de exito gerado com sucesso: ' . ($receivable->code ?: ('#' . $receivable->id)) . '.');
     }
 
     public function resolvePreview(Request $request): JsonResponse
@@ -897,6 +955,7 @@ class ContractController extends Controller
             'type' => trim((string) $value('type')),
             'category_id' => $value('category_id'),
             'template_id' => $value('template_id'),
+            'parent_contract_id' => $value('parent_contract_id'),
             'client_id' => $data['client_id'] ?? $value('client_id'),
             'condominium_id' => $condominiumId,
             'syndico_entity_id' => $data['syndico_entity_id'] ?? $value('syndico_entity_id'),
@@ -921,6 +980,7 @@ class ContractController extends Controller
             'next_adjustment_date' => $value('next_adjustment_date'),
             'penalty_value' => $this->renderService->moneyFromInput($value('penalty_value')),
             'penalty_percentage' => $this->renderService->moneyFromInput($value('penalty_percentage')),
+            'success_fee_percentage' => $this->renderService->moneyFromInput($value('success_fee_percentage')),
             'generate_financial_entries' => $booleanValue('generate_financial_entries', false),
             'financial_account_id' => $value('financial_account_id'),
             'payment_method' => trim((string) ($value('payment_method') ?? '')) ?: null,

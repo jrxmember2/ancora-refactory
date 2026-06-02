@@ -29,6 +29,7 @@ class Contract extends Model
             'next_adjustment_date' => 'date',
             'penalty_value' => 'decimal:2',
             'penalty_percentage' => 'decimal:2',
+            'success_fee_percentage' => 'decimal:2',
             'generate_financial_entries' => 'boolean',
             'final_pdf_generated_at' => 'datetime',
             'created_at' => 'datetime',
@@ -45,6 +46,16 @@ class Contract extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(ContractTemplate::class, 'template_id');
+    }
+
+    public function parentContract(): BelongsTo
+    {
+        return $this->belongsTo(Contract::class, 'parent_contract_id');
+    }
+
+    public function amendments(): HasMany
+    {
+        return $this->hasMany(Contract::class, 'parent_contract_id')->orderBy('id');
     }
 
     public function client(): BelongsTo

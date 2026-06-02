@@ -30,6 +30,8 @@ class StoreFinancialPayableRequest extends FormRequest
             'status' => ['required', 'string', Rule::in(array_keys(FinancialCatalog::payableStatuses()))],
             'payment_method' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::paymentMethods()))],
             'recurrence' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::recurrences()))],
+            'occurrences' => ['nullable', 'integer', 'min:1', 'max:240'],
+            'repeat_until' => ['nullable', 'date', 'after_or_equal:due_date'],
             'notes' => ['nullable', 'string'],
             'responsible_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ];

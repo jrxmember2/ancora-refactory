@@ -36,6 +36,14 @@
 
     <input type="hidden" name="confirm_active_without_financial" value="0" data-contract-confirm-no-financial>
     <input type="hidden" name="financial_entries_action" value="" data-contract-financial-action>
+    <input type="hidden" name="parent_contract_id" value="{{ $valueOf('parent_contract_id') }}">
+
+    @if(!empty($parentContract ?? null))
+        <div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-200">
+            Este documento sera salvo como <strong>aditivo</strong> vinculado ao contrato
+            <a href="{{ route('contratos.show', $parentContract) }}" class="font-semibold underline">{{ $parentContract->code ?: $parentContract->title }}</a>.
+        </div>
+    @endif
 
     @if(!empty($formAlerts))
         <div class="space-y-3">
@@ -299,6 +307,11 @@
                             <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Ao ativar, o sistema cria automaticamente os lancamentos financeiros quando o contrato for salvo como assinado ou ativo.</span>
                         </span>
                     </label>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">% de honorario de exito</label>
+                        <input name="success_fee_percentage" value="{{ $valueOf('success_fee_percentage') ? number_format((float) $valueOf('success_fee_percentage'), 2, ',', '.') : '' }}" class="{{ $inputClass }}" placeholder="0,00">
+                        <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Usado nos contratos de honorarios sobre exito para gerar o recebivel ao final.</span>
+                    </div>
                     <div data-contract-field="cost_center_future">
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Centro de custo futuro</label>
                         <input name="cost_center_future" id="contract-cost-center-future" data-contract-input="cost_center_future" value="{{ $valueOf('cost_center_future') }}" class="{{ $inputClass }}">

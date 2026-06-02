@@ -13,6 +13,7 @@
             <a href="{{ route('contratos.download-pdf', $item) }}" class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Baixar PDF</a>
         @endif
         <a href="{{ route('contratos.edit', $item) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Editar</a>
+        <a href="{{ route('contratos.create', ['parent' => $item->id]) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Novo aditivo</a>
         <a href="{{ route('contratos.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
     </div>
 </x-ancora.section-header>
@@ -130,6 +131,54 @@
                     <div><span class="text-gray-500">Categoria financeira futura:</span> {{ $item->financial_category_future ?: 'Nao informada' }}</div>
                 </div>
             </div>
+
+            @if($item->parentContract || $item->amendments->isNotEmpty())
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Vinculos e aditivos</h3>
+                <div class="mt-4 space-y-2 text-sm">
+                    @if($item->parentContract)
+                        <div>
+                            <span class="text-gray-500">Aditivo do contrato:</span>
+                            <a href="{{ route('contratos.show', $item->parentContract) }}" class="font-medium text-brand-600 underline dark:text-brand-300">{{ $item->parentContract->code ?: $item->parentContract->title }}</a>
+                        </div>
+                    @endif
+                    @if($item->amendments->isNotEmpty())
+                        <div class="text-gray-500">Aditivos vinculados:</div>
+                        <ul class="space-y-1">
+                            @foreach($item->amendments as $amendment)
+                                <li>
+                                    <a href="{{ route('contratos.show', $amendment) }}" class="font-medium text-brand-600 underline dark:text-brand-300">{{ $amendment->code ?: $amendment->title }}</a>
+                                    <span class="text-xs text-gray-400">({{ $statusLabels[$amendment->status] ?? $amendment->status }})</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            @if($item->billing_type === 'honorarios_sobre_exito')
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Honorario de exito</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Gere o recebivel de exito ao final do processo, informando a base do ganho e o percentual.</p>
+                <form method="post" action="{{ route('contratos.success-fee.generate', $item) }}" class="mt-4 space-y-3">
+                    @csrf
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Base do ganho (R$)</label>
+                        <input name="base_amount" required placeholder="R$ 0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">% de exito</label>
+                        <input name="success_fee_percentage" required value="{{ $item->success_fee_percentage ? number_format((float) $item->success_fee_percentage, 2, ',', '.') : '' }}" placeholder="0,00" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Vencimento</label>
+                        <input type="date" name="due_date" value="{{ now()->format('Y-m-d') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                    </div>
+                    <button class="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Gerar honorario de exito</button>
+                </form>
+            </div>
+            @endif
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Acoes rapidas</h3>

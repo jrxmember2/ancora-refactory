@@ -70,6 +70,29 @@
         </div>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Dados da Contratada</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Usados no bloco "Contratada" dos documentos gerados. Se em branco, usa o nome da empresa do branding.</p>
+            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome / Razao social</label>
+                    <input name="contracted_party_name" value="{{ $settings['contracted_party_name'] }}" class="{{ $inputClass }}">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">CNPJ</label>
+                    <input name="contracted_party_document" value="{{ $settings['contracted_party_document'] }}" class="{{ $inputClass }}">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Responsavel</label>
+                    <input name="contracted_party_representative" value="{{ $settings['contracted_party_representative'] }}" class="{{ $inputClass }}">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Inscricao do responsavel (ex.: OAB/ES no 25.057)</label>
+                    <input name="contracted_party_representative_document" value="{{ $settings['contracted_party_representative_document'] }}" class="{{ $inputClass }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Layout e assinatura</h3>
             <div class="mt-5 space-y-4">
                 <div>
