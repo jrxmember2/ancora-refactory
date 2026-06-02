@@ -11,11 +11,15 @@ use App\Models\Demand;
 use App\Models\ProcessCase;
 use App\Models\User;
 use App\Support\Agenda\AgendaCatalog;
+use App\Support\Agenda\IcsBuilder;
 use App\Support\AncoraAuth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AgendaController extends Controller
@@ -50,6 +54,12 @@ class AgendaController extends Controller
             $weeks[] = $week;
         }
 
+        $user = AncoraAuth::user($request);
+        $feedUrl = null;
+        if ($user && Schema::hasColumn('users', 'calendar_feed_token')) {
+            $feedUrl = route('agenda.feed', ['token' => $this->feedTokenForUser($user)]);
+        }
+
         return view('pages.agenda.calendar', [
             'title' => 'Agenda',
             'reference' => $reference,
@@ -57,7 +67,51 @@ class AgendaController extends Controller
             'prevMonth' => $reference->copy()->subMonthNoOverflow(),
             'nextMonth' => $reference->copy()->addMonthNoOverflow(),
             'typeLabels' => AgendaCatalog::types(),
+            'feedUrl' => $feedUrl,
         ]);
+    }
+
+    public function feed(string $token): Response
+    {
+        abort_unless(Schema::hasColumn('users', 'calendar_feed_token'), 404);
+
+        $user = User::query()->where('calendar_feed_token', $token)->first();
+        abort_unless($user, 404);
+
+        $events = AgendaEvent::query()
+            ->where('status', '!=', 'cancelado')
+            ->forUser((int) $user->id)
+            ->whereBetween('start_at', [now()->subDays(30)->startOfDay(), now()->addDays(180)->endOfDay()])
+            ->orderBy('start_at')
+            ->get();
+
+        $ics = IcsBuilder::calendar($events, 'Agenda Ancora - ' . $user->name);
+
+        return response($ics, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'inline; filename="agenda.ics"',
+        ]);
+    }
+
+    public function downloadIcs(AgendaEvent $evento): Response
+    {
+        $ics = IcsBuilder::singleEvent($evento);
+
+        return response($ics, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="compromisso-' . $evento->id . '.ics"',
+        ]);
+    }
+
+    private function feedTokenForUser(User $user): string
+    {
+        $token = trim((string) ($user->calendar_feed_token ?? ''));
+        if ($token === '') {
+            $token = Str::lower(Str::random(48));
+            $user->forceFill(['calendar_feed_token' => $token])->save();
+        }
+
+        return $token;
     }
 
     public function index(Request $request): View

@@ -29,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Datas por extenso (translatedFormat/diffForHumans) em portugues do Brasil em todo o app.
+        \Carbon\Carbon::setLocale('pt_BR');
+
         Demand::observe(DemandObserver::class);
         DemandMessage::observe(DemandMessageObserver::class);
         ProcessCase::observe(ProcessCaseObserver::class);

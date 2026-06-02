@@ -243,6 +243,7 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/{evento}/editar', [AgendaController::class, 'edit'])->name('agenda.edit')->middleware('ancora.route:agenda.edit');
         Route::match(['post', 'put'], '/{evento}', [AgendaController::class, 'update'])->name('agenda.update')->middleware('ancora.route:agenda.update');
         Route::post('/{evento}/concluir', [AgendaController::class, 'complete'])->name('agenda.complete')->middleware('ancora.route:agenda.complete');
+        Route::get('/{evento}/ics', [AgendaController::class, 'downloadIcs'])->name('agenda.ics')->middleware('ancora.route:agenda.show');
         Route::match(['post', 'delete'], '/{evento}/excluir', [AgendaController::class, 'destroy'])->name('agenda.delete')->middleware('ancora.route:agenda.delete');
     });
 
@@ -498,3 +499,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
+
+// Feed ICS publico da agenda (assinatura no Google/Outlook/Apple). Autenticado por token na URL,
+// sem sessao, pois os apps de calendario buscam o arquivo sem cookies.
+Route::get('agenda/feed/{token}.ics', [AgendaController::class, 'feed'])
+    ->name('agenda.feed')
+    ->where('token', '[A-Za-z0-9]+');

@@ -8,6 +8,18 @@
     </div>
 </x-ancora.section-header>
 
+@if(!empty($feedUrl))
+<details class="mb-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+    <summary class="cursor-pointer text-sm font-semibold text-gray-900 dark:text-white">Assinar no Google Agenda / Outlook / Apple</summary>
+    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Copie o link abaixo e adicione como "assinar por URL" no seu app de calendario. Ele atualiza sozinho com seus prazos e compromissos.</p>
+    <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input id="agenda-feed-url" type="text" readonly value="{{ $feedUrl }}" class="h-11 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+        <button type="button" onclick="const i=document.getElementById('agenda-feed-url');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='Copiado!';" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Copiar link</button>
+    </div>
+    <p class="mt-2 text-xs text-gray-400">Mantenha este link privado: quem tiver acesso vera seus compromissos.</p>
+</details>
+@endif
+
 <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <div class="mb-4 flex items-center justify-between">
         <a href="{{ route('agenda.calendar', ['month' => $prevMonth->format('Y-m')]) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">&larr; {{ $prevMonth->translatedFormat('M/Y') }}</a>

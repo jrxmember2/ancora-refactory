@@ -17,9 +17,13 @@
   no painel via `View::composer` (mesmo padrão do `processMovementNotification`, guardado).
 - Teste isolado do `AgendaService` (derivação de atrasado/próximos).
 
-## Fase 1.5 — Feed ICS (Nível 1, sem OAuth) 🟢
-- Link de assinatura `.ics` por usuário (`/agenda/feed/{token}.ics`) + `.ics` por evento.
+## Fase 1.5 — Feed ICS (Nível 1, sem OAuth) 🟢 ← **concluída**
+- Link de assinatura `.ics` por usuário (`/agenda/feed/{token}.ics`, rota pública por token) + `.ics`
+  por evento (`agenda.ics`). Token em `users.calendar_feed_token` (gerado sob demanda na tela do calendário).
+- `App\Support\Agenda\IcsBuilder` (RFC 5545: CRLF, escaping, UTC, dia inteiro). Card "Assinar no
+  Google/Outlook/Apple" no calendário + botão "Adicionar ao calendário (.ics)" no evento.
 - Assinável no Google Calendar / Outlook / Apple. Somente leitura (Âncora→calendário), sem credenciais.
+- Obs.: locale do Carbon fixado em pt_BR no `AppServiceProvider` (meses por extenso em portugues).
 
 ## Fase 2 — Push via OAuth (Nível 2, uma via) 🟡
 - Conectar conta Google (Google Cloud + escopo `calendar.events`) e Microsoft (Azure AD + `Calendars.ReadWrite`).

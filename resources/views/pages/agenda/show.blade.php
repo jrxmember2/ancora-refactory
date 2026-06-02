@@ -8,6 +8,7 @@
             <button class="rounded-xl bg-success-500 px-4 py-3 text-sm font-medium text-white">Concluir</button>
         </form>
         @endif
+        <a href="{{ route('agenda.ics', $item) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Adicionar ao calendario (.ics)</a>
         <a href="{{ route('agenda.edit', $item) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Editar</a>
         <a href="{{ route('agenda.calendar') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Voltar</a>
     </div>
