@@ -15,6 +15,7 @@ use App\Support\AncoraAuth;
 use App\Support\AncoraMenu;
 use App\Support\AncoraSettings;
 use App\Support\ProcessMovementNotifier;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -51,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
             ];
             $menuGroups = [];
             $processMovementNotification = null;
+            $agendaSummary = null;
             $onlineUsersCount = 0;
             $systemAlert = [
                 'is_active' => false,
@@ -84,6 +86,9 @@ class AppServiceProvider extends ServiceProvider
                 if ($user && $request && $canSeeProcessNotifications && AncoraAuth::hasModule($request, 'processos')) {
                     $processMovementNotification = app(ProcessMovementNotifier::class)->forUser($user);
                 }
+                if ($user && $request && AncoraAuth::hasModule($request, 'agenda') && Schema::hasTable('agenda_events')) {
+                    $agendaSummary = app(\App\Services\AgendaService::class)->panelSummary($user);
+                }
             } catch (\Throwable) {
                 // Error pages can be rendered before session or database services are available.
             }
@@ -92,6 +97,7 @@ class AppServiceProvider extends ServiceProvider
                 ->with('ancoraAuthUser', $user)
                 ->with('ancoraMenuGroups', $menuGroups)
                 ->with('processMovementNotification', $processMovementNotification)
+                ->with('agendaSummary', $agendaSummary)
                 ->with('ancoraOnlineUsersCount', $onlineUsersCount)
                 ->with('globalSystemAlert', $systemAlert)
                 ->with('ancoraVersion', $version);

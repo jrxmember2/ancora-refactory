@@ -18,6 +18,10 @@
                 <button class="{{ $softButtonClass }}">Sincronizar DataJud</button>
             </form>
         @endif
+        @php $canAgenda = ($ancoraAuthUser?->isSuperadmin()) || in_array('agenda.create', (array) session('auth_user.route_permissions', []), true); @endphp
+        @if($canAgenda)
+            <a href="{{ route('agenda.create', ['process' => $case->id]) }}" class="{{ $softButtonClass }}">Novo prazo</a>
+        @endif
         <a href="{{ route('processos.edit', $case) }}" class="{{ $softButtonClass }}">Editar</a>
         <a href="{{ route('processos.index') }}" class="{{ $softButtonClass }}">Voltar</a>
     </div>

@@ -79,6 +79,15 @@ class AncoraMenu
                             ['label' => 'Novo processo', 'path' => route('processos.create')],
                         ],
                     ] : null,
+                    $has('agenda') ? [
+                        'label' => 'Agenda',
+                        'icon' => 'fa-solid fa-calendar-days',
+                        'subItems' => [
+                            ['label' => 'Calendario', 'path' => route('agenda.calendar')],
+                            ['label' => 'Lista', 'path' => route('agenda.index')],
+                            ['label' => 'Novo compromisso', 'path' => route('agenda.create')],
+                        ],
+                    ] : null,
                     $has('contratos') ? [
                         'label' => 'Contratos',
                         'icon' => 'fa-solid fa-file-contract',

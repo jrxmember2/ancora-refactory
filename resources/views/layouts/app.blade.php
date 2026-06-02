@@ -80,6 +80,7 @@
                 @endif
                 @include('layouts.partials.system-alert')
                 @include('layouts.partials.process-movement-notification')
+                @include('layouts.partials.agenda-alert')
                 @yield('content')
             </main>
         </div>

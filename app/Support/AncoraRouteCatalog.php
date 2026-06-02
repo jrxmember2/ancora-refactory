@@ -173,6 +173,20 @@ class AncoraRouteCatalog
                     'cobrancas.email-history.download' => 'Baixar anexo do e-mail da OS',
                 ],
             ],
+            'agenda' => [
+                'label' => 'Agenda',
+                'routes' => [
+                    'agenda.calendar' => 'Acessar calendario da agenda',
+                    'agenda.index' => 'Listar compromissos e prazos',
+                    'agenda.create' => 'Novo compromisso ou prazo',
+                    'agenda.store' => 'Salvar compromisso ou prazo',
+                    'agenda.show' => 'Visualizar compromisso ou prazo',
+                    'agenda.edit' => 'Editar compromisso ou prazo',
+                    'agenda.update' => 'Atualizar compromisso ou prazo',
+                    'agenda.complete' => 'Concluir compromisso ou prazo',
+                    'agenda.delete' => 'Excluir compromisso ou prazo',
+                ],
+            ],
             'processos' => [
                 'label' => 'Processos',
                 'routes' => [

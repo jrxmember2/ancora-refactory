@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AiOfficeChatController;
 use App\Http\Controllers\ClientExportController;
 use App\Http\Controllers\ClientPortalUserController;
@@ -231,6 +232,18 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/{processo}/anexos/{attachment}/download', [ProcessController::class, 'downloadAttachment'])->name('processos.attachments.download')->middleware('ancora.route:processos.attachments.download');
         Route::match(['post', 'delete'], '/{processo}/anexos/{attachment}', [ProcessController::class, 'deleteAttachment'])->name('processos.attachments.delete')->middleware('ancora.route:processos.attachments.delete');
         Route::post('/{processo}/datajud/sincronizar', [ProcessController::class, 'syncDataJud'])->name('processos.datajud.sync')->middleware('ancora.route:processos.datajud.sync');
+    });
+
+    Route::prefix('agenda')->group(function () {
+        Route::get('/', [AgendaController::class, 'calendar'])->name('agenda.calendar')->middleware('ancora.route:agenda.calendar');
+        Route::get('/lista', [AgendaController::class, 'index'])->name('agenda.index')->middleware('ancora.route:agenda.index');
+        Route::get('/novo', [AgendaController::class, 'create'])->name('agenda.create')->middleware('ancora.route:agenda.create');
+        Route::post('/store', [AgendaController::class, 'store'])->name('agenda.store')->middleware('ancora.route:agenda.store');
+        Route::get('/{evento}', [AgendaController::class, 'show'])->name('agenda.show')->middleware('ancora.route:agenda.show');
+        Route::get('/{evento}/editar', [AgendaController::class, 'edit'])->name('agenda.edit')->middleware('ancora.route:agenda.edit');
+        Route::match(['post', 'put'], '/{evento}', [AgendaController::class, 'update'])->name('agenda.update')->middleware('ancora.route:agenda.update');
+        Route::post('/{evento}/concluir', [AgendaController::class, 'complete'])->name('agenda.complete')->middleware('ancora.route:agenda.complete');
+        Route::match(['post', 'delete'], '/{evento}/excluir', [AgendaController::class, 'destroy'])->name('agenda.delete')->middleware('ancora.route:agenda.delete');
     });
 
     Route::prefix('contratos')->group(function () {
