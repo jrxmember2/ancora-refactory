@@ -93,8 +93,8 @@
 </div>
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/index.global.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/locales/pt-br.global.min.js"></script>
+<script src="{{ asset('vendor/fullcalendar/index.global.min.js') }}"></script>
+<script src="{{ asset('vendor/fullcalendar/locales/pt-br.global.min.js') }}"></script>
 <script>
 (function(){
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
