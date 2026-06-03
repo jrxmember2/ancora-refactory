@@ -60,12 +60,16 @@ return new class extends Migration
         DB::statement('UPDATE ai_document_chunks SET title = reference_label WHERE title IS NULL AND reference_label IS NOT NULL');
         DB::statement('UPDATE ai_document_chunks SET content = chunk_text WHERE content IS NULL AND chunk_text IS NOT NULL');
 
-        if (Schema::hasTable('ai_global_documents')) {
-            DB::statement('UPDATE ai_document_chunks c INNER JOIN ai_global_documents g ON g.id = c.ai_global_document_id SET c.document_date = g.document_date WHERE c.document_date IS NULL');
-        }
+        // Backfill com UPDATE ... JOIN (sintaxe MySQL). Em outros drivers (ex.: SQLite nos testes)
+        // nao ha dados legados a preencher, entao e ignorado com seguranca.
+        if (DB::getDriverName() === 'mysql') {
+            if (Schema::hasTable('ai_global_documents')) {
+                DB::statement('UPDATE ai_document_chunks c INNER JOIN ai_global_documents g ON g.id = c.ai_global_document_id SET c.document_date = g.document_date WHERE c.document_date IS NULL');
+            }
 
-        if (Schema::hasTable('client_attachments') && Schema::hasColumn('client_attachments', 'document_date')) {
-            DB::statement('UPDATE ai_document_chunks c INNER JOIN client_attachments a ON a.id = c.client_attachment_id SET c.document_date = a.document_date WHERE c.document_date IS NULL');
+            if (Schema::hasTable('client_attachments') && Schema::hasColumn('client_attachments', 'document_date')) {
+                DB::statement('UPDATE ai_document_chunks c INNER JOIN client_attachments a ON a.id = c.client_attachment_id SET c.document_date = a.document_date WHERE c.document_date IS NULL');
+            }
         }
 
         DB::table('ai_document_chunks')

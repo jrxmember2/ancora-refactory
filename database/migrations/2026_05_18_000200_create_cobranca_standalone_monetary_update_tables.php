@@ -158,6 +158,10 @@ return new class extends Migration
 
     private function foreignKeyExists(string $tableName, string $constraintName): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return true;
+        }
+
         $schema = (string) DB::getDatabaseName();
 
         return DB::table('information_schema.TABLE_CONSTRAINTS')
@@ -170,6 +174,10 @@ return new class extends Migration
 
     private function indexExists(string $tableName, string $indexName): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return true;
+        }
+
         $schema = (string) DB::getDatabaseName();
 
         return DB::table('information_schema.STATISTICS')
@@ -202,6 +210,10 @@ return new class extends Migration
 
     private function columnTypeDefinition(string $tableName, string $columnName): ?string
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return null; // sem MODIFY de tipo fora do MySQL
+        }
+
         $schema = (string) DB::getDatabaseName();
 
         $column = DB::table('information_schema.COLUMNS')

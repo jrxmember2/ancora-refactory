@@ -21,8 +21,10 @@ return new class extends Migration
             });
         }
 
-        $referenceType = $this->referenceColumnType('client_entities', 'id') ?: 'INT';
-        DB::statement("ALTER TABLE administradoras MODIFY client_entity_id {$referenceType} NULL");
+        if (DB::getDriverName() === 'mysql') {
+            $referenceType = $this->referenceColumnType('client_entities', 'id') ?: 'INT';
+            DB::statement("ALTER TABLE administradoras MODIFY client_entity_id {$referenceType} NULL");
+        }
 
         if (!$this->indexExists('administradoras', 'idx_administradoras_client_entity')) {
             Schema::table('administradoras', function (Blueprint $table) {
@@ -58,6 +60,10 @@ return new class extends Migration
 
     private function foreignKeyExists(string $table, string $constraint): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return true; // fora do MySQL, evita ADD CONSTRAINT (DDL especifico)
+        }
+
         return DB::table('information_schema.TABLE_CONSTRAINTS')
             ->where('CONSTRAINT_SCHEMA', DB::getDatabaseName())
             ->where('TABLE_NAME', $table)
@@ -68,6 +74,10 @@ return new class extends Migration
 
     private function dropForeignIfExists(string $table, string $constraint): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if ($this->foreignKeyExists($table, $constraint)) {
             DB::statement("ALTER TABLE {$table} DROP FOREIGN KEY {$constraint}");
         }
@@ -75,6 +85,10 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return true; // fora do MySQL, pula a criacao de indice via reconciliacao
+        }
+
         return DB::table('information_schema.STATISTICS')
             ->where('TABLE_SCHEMA', DB::getDatabaseName())
             ->where('TABLE_NAME', $table)

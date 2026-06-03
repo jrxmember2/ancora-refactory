@@ -231,6 +231,12 @@ return new class extends Migration
 
     private function repairPartialProcessCasesTable(): void
     {
+        // Reconciliacao de bancos MySQL legados (DDL MODIFY/FOREIGN KEY). Em outros drivers
+        // (ex.: SQLite nos testes) o schema ja nasce correto via Schema::create.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if (!Schema::hasTable('process_cases')) {
             return;
         }

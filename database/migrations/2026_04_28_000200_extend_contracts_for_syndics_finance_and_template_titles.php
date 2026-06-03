@@ -115,6 +115,10 @@ return new class extends Migration
 
     private function foreignExists(string $table, string $name): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return true; // fora do MySQL, pula a adicao de FK via reconciliacao
+        }
+
         $database = DB::getDatabaseName();
 
         return DB::table('information_schema.TABLE_CONSTRAINTS')

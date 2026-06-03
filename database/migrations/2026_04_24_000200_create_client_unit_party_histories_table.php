@@ -108,6 +108,11 @@ return new class extends Migration
 
     private function repairForeignKeys(): void
     {
+        // Reconciliacao de bancos MySQL legados (DDL MODIFY/FOREIGN KEY). Ignorada em outros drivers.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if (!Schema::hasTable('client_unit_party_histories')) {
             return;
         }
