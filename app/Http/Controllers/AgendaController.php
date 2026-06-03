@@ -231,6 +231,9 @@ class AgendaController extends Controller
                 'start_at' => $start->format('Y-m-d H:i:s'),
                 'end_at' => $hasEnd ? $start->copy()->addMinutes($duration)->format('Y-m-d H:i:s') : null,
                 'recurrence_group' => $group,
+                // Sem responsavel explicito, assume o criador para que o push (Agenda -> Google)
+                // va para o calendario de quem criou o compromisso.
+                'responsible_user_id' => $payload['responsible_user_id'] ?? $user->id,
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
             ]));
