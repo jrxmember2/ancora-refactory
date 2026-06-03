@@ -20,6 +20,7 @@
             ['key' => 'ai', 'label' => 'Inteligencia Artificial', 'icon' => 'fa-solid fa-brain', 'description' => 'OpenAI, Gemini, prompts e base legal', 'href' => route('config.ai.index')],
             ['key' => 'evolution', 'label' => 'EvolutionAPI', 'icon' => 'fa-brands fa-whatsapp', 'description' => 'Credenciais, webhook, templates e testes', 'href' => route('config.evolution.index')],
             ['key' => 'push', 'label' => 'Notificacoes Push', 'icon' => 'fa-solid fa-bell', 'description' => 'Disparo mobile para o app Android', 'href' => route('config.push.index')],
+            ['key' => 'logs', 'label' => 'Logs', 'icon' => 'fa-solid fa-clock-rotate-left', 'description' => 'Rastreabilidade e auditoria do sistema', 'href' => route('logs.index')],
         ];
     @endphp
 

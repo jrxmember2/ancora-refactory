@@ -24,61 +24,9 @@ class AncoraMenu
         $groups = [
             [
                 'title' => 'Principal',
+                // Hub fixo no topo; demais itens em ordem alfabetica (submenus tambem).
                 'items' => array_values(array_filter([
                     ['label' => 'Hub', 'path' => route('hub'), 'icon' => 'fa-solid fa-house'],
-                    $has('propostas') ? [
-                        'label' => 'Propostas',
-                        'icon' => 'fa-solid fa-file-signature',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('propostas.dashboard')],
-                            ['label' => 'Lista', 'path' => route('propostas.index')],
-                            ['label' => 'Nova proposta', 'path' => route('propostas.create')],
-                        ],
-                    ] : null,
-                    $has('clientes') ? [
-                        'label' => 'Clientes',
-                        'icon' => 'fa-solid fa-users',
-                        'subItems' => [
-                            ['label' => 'Visao geral', 'path' => route('clientes.index')],
-                            ['label' => 'Avulsos', 'path' => route('clientes.avulsos')],
-                            ['label' => 'Parceiros / fornecedores', 'path' => route('clientes.contatos')],
-                            ['label' => 'Condominos', 'path' => route('clientes.condominos')],
-                            ['label' => 'Portal do Cliente', 'path' => route('clientes.portal-users.index')],
-                            ['label' => 'Condominios', 'path' => route('clientes.condominios')],
-                            ['label' => 'Unidades', 'path' => route('clientes.unidades')],
-                        ],
-                    ] : null,
-                    $has('cobrancas') ? [
-                        'label' => 'Cobranca',
-                        'icon' => 'fa-solid fa-money-bill-wave',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('cobrancas.dashboard')],
-                            ['label' => 'Lista de OS', 'path' => route('cobrancas.index')],
-                            ['label' => 'Nova OS', 'path' => route('cobrancas.create')],
-                            ['label' => 'TJES avulso', 'path' => route('cobrancas.monetary.standalone.index')],
-                            ['label' => 'Faturamento', 'path' => route('cobrancas.billing.report')],
-                            ['label' => 'Importar inadimplencia', 'path' => route('cobrancas.import.index')],
-                        ],
-                    ] : null,
-                    $has('demandas') ? [
-                        'label' => 'Demandas',
-                        'icon' => 'fa-solid fa-inbox',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('demandas.dashboard')],
-                            ['label' => 'Kanban', 'path' => route('demandas.kanban')],
-                            ['label' => 'Lista', 'path' => route('demandas.index')],
-                        ],
-                    ] : null,
-                    $has('processos') ? [
-                        'label' => 'Processos',
-                        'icon' => 'fa-solid fa-scale-balanced',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('processos.dashboard')],
-                            ['label' => 'Lista', 'path' => route('processos.index')],
-                            ['label' => 'Importacao', 'path' => route('processos.import.index')],
-                            ['label' => 'Novo processo', 'path' => route('processos.create')],
-                        ],
-                    ] : null,
                     $has('agenda') ? [
                         'label' => 'Agenda',
                         'icon' => 'fa-solid fa-calendar-days',
@@ -86,20 +34,6 @@ class AncoraMenu
                             ['label' => 'Calendario', 'path' => route('agenda.calendar')],
                             ['label' => 'Lista', 'path' => route('agenda.index')],
                             ['label' => 'Novo compromisso', 'path' => route('agenda.create')],
-                        ],
-                    ] : null,
-                    $has('contratos') ? [
-                        'label' => 'Contratos',
-                        'icon' => 'fa-solid fa-file-contract',
-                        'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('contratos.dashboard')],
-                            ['label' => 'Contratos', 'path' => route('contratos.index')],
-                            ['label' => 'Novo contrato', 'path' => route('contratos.create')],
-                            ['label' => 'Templates', 'path' => route('contratos.templates.index')],
-                            ['label' => 'Categorias', 'path' => route('contratos.categories.index')],
-                            ['label' => 'Variaveis', 'path' => route('contratos.variables.index')],
-                            ['label' => 'Relatorios', 'path' => route('contratos.reports.index')],
-                            ['label' => 'Configuracoes', 'path' => route('contratos.settings.index')],
                         ],
                     ] : null,
                     $has('assinador') ? [
@@ -111,40 +45,107 @@ class AncoraMenu
                             ['label' => 'Nova assinatura', 'path' => route('assinador.create')],
                         ],
                     ] : null,
+                    $has('clientes') ? [
+                        'label' => 'Clientes',
+                        'icon' => 'fa-solid fa-users',
+                        'subItems' => [
+                            ['label' => 'Avulsos', 'path' => route('clientes.avulsos')],
+                            ['label' => 'Condominios', 'path' => route('clientes.condominios')],
+                            ['label' => 'Condominos', 'path' => route('clientes.condominos')],
+                            ['label' => 'Parceiros / fornecedores', 'path' => route('clientes.contatos')],
+                            ['label' => 'Portal do Cliente', 'path' => route('clientes.portal-users.index')],
+                            ['label' => 'Unidades', 'path' => route('clientes.unidades')],
+                            ['label' => 'Visao geral', 'path' => route('clientes.index')],
+                        ],
+                    ] : null,
+                    $has('cobrancas') ? [
+                        'label' => 'Cobranca',
+                        'icon' => 'fa-solid fa-money-bill-wave',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('cobrancas.dashboard')],
+                            ['label' => 'Faturamento', 'path' => route('cobrancas.billing.report')],
+                            ['label' => 'Importar inadimplencia', 'path' => route('cobrancas.import.index')],
+                            ['label' => 'Lista de OS', 'path' => route('cobrancas.index')],
+                            ['label' => 'Nova OS', 'path' => route('cobrancas.create')],
+                            ['label' => 'TJES avulso', 'path' => route('cobrancas.monetary.standalone.index')],
+                        ],
+                    ] : null,
+                    $has('contratos') ? [
+                        'label' => 'Contratos',
+                        'icon' => 'fa-solid fa-file-contract',
+                        'subItems' => [
+                            ['label' => 'Categorias', 'path' => route('contratos.categories.index')],
+                            ['label' => 'Configuracoes', 'path' => route('contratos.settings.index')],
+                            ['label' => 'Contratos', 'path' => route('contratos.index')],
+                            ['label' => 'Dashboard', 'path' => route('contratos.dashboard')],
+                            ['label' => 'Novo contrato', 'path' => route('contratos.create')],
+                            ['label' => 'Relatorios', 'path' => route('contratos.reports.index')],
+                            ['label' => 'Templates', 'path' => route('contratos.templates.index')],
+                            ['label' => 'Variaveis', 'path' => route('contratos.variables.index')],
+                        ],
+                    ] : null,
+                    $has('demandas') ? [
+                        'label' => 'Demandas',
+                        'icon' => 'fa-solid fa-inbox',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('demandas.dashboard')],
+                            ['label' => 'Kanban', 'path' => route('demandas.kanban')],
+                            ['label' => 'Lista', 'path' => route('demandas.index')],
+                        ],
+                    ] : null,
                     $has('financeiro') ? [
                         'label' => 'Financeiro 360',
                         'icon' => 'fa-solid fa-chart-pie',
                         'subItems' => [
-                            ['label' => 'Dashboard', 'path' => route('financeiro.dashboard')],
-                            ['label' => 'Fluxo de Caixa', 'path' => route('financeiro.cash-flow.index')],
-                            ['label' => 'Contas a Receber', 'path' => route('financeiro.receivables.index')],
-                            ['label' => 'Contas a Pagar', 'path' => route('financeiro.payables.index')],
-                            ['label' => 'Faturamento', 'path' => route('financeiro.billing.index')],
                             ['label' => 'Bancos e Contas', 'path' => route('financeiro.accounts.index')],
-                            ['label' => 'Conciliacao Bancaria', 'path' => route('financeiro.reconciliation.index')],
-                            ['label' => 'Cobrancas', 'path' => route('financeiro.collection.index')],
-                            ['label' => 'Inadimplencia', 'path' => route('financeiro.delinquency.index')],
-                            ['label' => 'Centros de Custo', 'path' => route('financeiro.cost-centers.index')],
                             ['label' => 'Categorias Financeiras', 'path' => route('financeiro.categories.index')],
-                            ['label' => 'Parcelamentos', 'path' => route('financeiro.installments.index')],
-                            ['label' => 'Reembolsos', 'path' => route('financeiro.reimbursements.index')],
-                            ['label' => 'Custas Processuais', 'path' => route('financeiro.process-costs.index')],
-                            ['label' => 'Prestacao de Contas', 'path' => route('financeiro.accountability.index')],
-                            ['label' => 'DRE', 'path' => route('financeiro.dre.index')],
-                            ['label' => 'Relatorios', 'path' => route('financeiro.reports.index')],
+                            ['label' => 'Centros de Custo', 'path' => route('financeiro.cost-centers.index')],
+                            ['label' => 'Cobrancas', 'path' => route('financeiro.collection.index')],
+                            ['label' => 'Conciliacao Bancaria', 'path' => route('financeiro.reconciliation.index')],
                             ['label' => 'Configuracoes', 'path' => route('financeiro.settings.index')],
+                            ['label' => 'Contas a Pagar', 'path' => route('financeiro.payables.index')],
+                            ['label' => 'Contas a Receber', 'path' => route('financeiro.receivables.index')],
+                            ['label' => 'Custas Processuais', 'path' => route('financeiro.process-costs.index')],
+                            ['label' => 'Dashboard', 'path' => route('financeiro.dashboard')],
+                            ['label' => 'DRE', 'path' => route('financeiro.dre.index')],
+                            ['label' => 'Faturamento', 'path' => route('financeiro.billing.index')],
+                            ['label' => 'Fluxo de Caixa', 'path' => route('financeiro.cash-flow.index')],
+                            ['label' => 'Inadimplencia', 'path' => route('financeiro.delinquency.index')],
+                            ['label' => 'Parcelamentos', 'path' => route('financeiro.installments.index')],
+                            ['label' => 'Prestacao de Contas', 'path' => route('financeiro.accountability.index')],
+                            ['label' => 'Reembolsos', 'path' => route('financeiro.reimbursements.index')],
+                            ['label' => 'Relatorios', 'path' => route('financeiro.reports.index')],
+                        ],
+                    ] : null,
+                    $has('processos') ? [
+                        'label' => 'Processos',
+                        'icon' => 'fa-solid fa-scale-balanced',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('processos.dashboard')],
+                            ['label' => 'Importacao', 'path' => route('processos.import.index')],
+                            ['label' => 'Lista', 'path' => route('processos.index')],
+                            ['label' => 'Novo processo', 'path' => route('processos.create')],
+                        ],
+                    ] : null,
+                    $has('propostas') ? [
+                        'label' => 'Propostas',
+                        'icon' => 'fa-solid fa-file-signature',
+                        'subItems' => [
+                            ['label' => 'Dashboard', 'path' => route('propostas.dashboard')],
+                            ['label' => 'Lista', 'path' => route('propostas.index')],
+                            ['label' => 'Nova proposta', 'path' => route('propostas.create')],
                         ],
                     ] : null,
                 ])),
             ],
             [
                 'title' => 'Administracao',
+                // Itens em ordem alfabetica. Versionamento foi para o menu do usuario (Novidades)
+                // e Logs virou aba dentro de Configuracoes.
                 'items' => array_values(array_filter([
                     $has('busca') ? ['label' => 'Busca', 'path' => route('busca'), 'icon' => 'fa-solid fa-magnifying-glass'] : null,
-                    $canRoute('ia.office-chat.index') ? ['label' => 'Leme Escritorio', 'path' => route('ia.office-chat.index'), 'icon' => 'fa-solid fa-comments'] : null,
                     $has('config') ? ['label' => 'Configuracoes', 'path' => route('config.index'), 'icon' => 'fa-solid fa-gear'] : null,
-                    ['label' => 'Versionamento', 'path' => route('changelog.index'), 'icon' => 'fa-solid fa-code-branch'],
-                    $has('logs') ? ['label' => 'Logs', 'path' => route('logs.index'), 'icon' => 'fa-solid fa-clock-rotate-left'] : null,
+                    $canRoute('ia.office-chat.index') ? ['label' => 'Leme Escritorio', 'path' => route('ia.office-chat.index'), 'icon' => 'fa-solid fa-comments'] : null,
                 ])),
             ],
         ];
@@ -159,8 +160,11 @@ class AncoraMenu
         }
 
         $modules = $user->isSuperadmin()
-            ? SystemModule::query()->orderBy('sort_order')->get()
-            : $user->modules()->orderBy('sort_order')->get();
+            ? SystemModule::query()->get()
+            : $user->modules()->get();
+
+        // Cards do hub em ordem alfabetica pelo nome (case-insensitive).
+        $modules = $modules->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         return $modules->map(function (SystemModule $module) {
             $descriptions = [
