@@ -15,6 +15,12 @@
                 <option value="despesa">Despesa</option>
             </select>
             <input type="text" name="name" placeholder="Nome" required class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+            <select name="parent_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <option value="">Categoria principal (sem pai)</option>
+                @foreach($parentOptions as $parent)
+                    <option value="{{ $parent->id }}">{{ $parent->name }}</option>
+                @endforeach
+            </select>
             <input type="text" name="description" placeholder="Descricao" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
             <select name="dre_group" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                 <option value="">Grupo DRE</option>
@@ -35,7 +41,7 @@
                     <div class="flex items-center gap-3">
                         <span class="inline-flex h-5 w-5 rounded-full border border-gray-200 dark:border-gray-700" style="background: {{ $item->color_hex ?: '#94a3b8' }}"></span>
                         <div>
-                            <div class="font-semibold text-gray-900 dark:text-white">{{ $item->name }}</div>
+                            <div class="font-semibold text-gray-900 dark:text-white">{{ $item->parent ? $item->parent->name . ' › ' : '' }}{{ $item->name }}</div>
                             <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $item->type }} - {{ $dreGroups[$item->dre_group] ?? ($item->dre_group ?: 'Sem grupo DRE') }}</div>
                         </div>
                     </div>
@@ -48,6 +54,14 @@
                         <option value="despesa" @selected($item->type === 'despesa')>Despesa</option>
                     </select>
                     <input type="text" name="name" value="{{ $item->name }}" required class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                    <select name="parent_id" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                        <option value="">Categoria principal (sem pai)</option>
+                        @foreach($parentOptions as $parent)
+                            @if($parent->id !== $item->id)
+                                <option value="{{ $parent->id }}" @selected($item->parent_id === $parent->id)>{{ $parent->name }}</option>
+                            @endif
+                        @endforeach
+                    </select>
                     <input type="text" name="description" value="{{ $item->description }}" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                     <select name="dre_group" class="h-11 rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                         <option value="">Grupo DRE</option>

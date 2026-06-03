@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAgendaEventRequest;
 use App\Http\Requests\UpdateAgendaEventRequest;
 use App\Jobs\SyncAgendaEventToCalendarsJob;
 use App\Models\AgendaEvent;
+use App\Models\AgendaEventAttachment;
 use App\Models\CalendarConnection;
 use App\Models\ClientEntity;
 use App\Models\Contract;
@@ -22,8 +23,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AgendaController extends Controller
 {
@@ -205,6 +208,7 @@ class AgendaController extends Controller
             'item' => null,
             'draft' => $draft,
             'parentProcess' => $process,
+            'selectedParticipants' => [],
         ]));
     }
 
@@ -213,19 +217,82 @@ class AgendaController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
-        $event = AgendaEvent::query()->create(array_merge($this->normalizedPayload($request), [
-            'created_by' => $user->id,
-            'updated_by' => $user->id,
-        ]));
+        $payload = $this->normalizedPayload($request);
+        $participants = collect((array) $request->input('participants', []))->map(fn ($id) => (int) $id)->filter()->unique()->all();
 
-        SyncAgendaEventToCalendarsJob::dispatch($event->id, 'upsert');
+        $starts = $this->expandRecurrence($payload);
+        $duration = $this->durationMinutes($payload);
+        $hasEnd = !empty($payload['end_at']);
+        $group = count($starts) > 1 ? (string) Str::uuid() : null;
+        $first = null;
 
-        return redirect()->route('agenda.show', $event)->with('success', 'Compromisso criado com sucesso.');
+        foreach ($starts as $start) {
+            $event = AgendaEvent::query()->create(array_merge($payload, [
+                'start_at' => $start->format('Y-m-d H:i:s'),
+                'end_at' => $hasEnd ? $start->copy()->addMinutes($duration)->format('Y-m-d H:i:s') : null,
+                'recurrence_group' => $group,
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+            ]));
+
+            if ($participants !== []) {
+                $event->participants()->sync($participants);
+            }
+
+            SyncAgendaEventToCalendarsJob::dispatch($event->id, 'upsert');
+            $first ??= $event;
+        }
+
+        $message = count($starts) > 1
+            ? count($starts) . ' compromissos criados na recorrencia.'
+            : 'Compromisso criado com sucesso.';
+
+        return redirect()->route('agenda.show', $first)->with('success', $message);
+    }
+
+    /**
+     * Expande a recorrencia em datas de inicio. Sem recorrencia (ou sem data limite), retorna so a inicial.
+     */
+    private function expandRecurrence(array $payload): array
+    {
+        $start = Carbon::parse($payload['start_at']);
+        $recurrence = (string) ($payload['recurrence'] ?? '');
+        $until = !empty($payload['recurrence_until']) ? Carbon::parse($payload['recurrence_until'])->endOfDay() : null;
+
+        if ($recurrence === '' || !$until || $until->lt($start)) {
+            return [$start];
+        }
+
+        $dates = [];
+        $cursor = $start->copy();
+        $guard = 0;
+        while ($cursor->lte($until) && $guard < 366) {
+            $dates[] = $cursor->copy();
+            $cursor = match ($recurrence) {
+                'daily' => $cursor->copy()->addDay(),
+                'weekly' => $cursor->copy()->addWeek(),
+                'biweekly' => $cursor->copy()->addWeeks(2),
+                'monthly' => $cursor->copy()->addMonthNoOverflow(),
+                default => $until->copy()->addDay(), // encerra
+            };
+            $guard++;
+        }
+
+        return $dates ?: [$start];
+    }
+
+    private function durationMinutes(array $payload): int
+    {
+        if (empty($payload['end_at'])) {
+            return 0;
+        }
+
+        return (int) Carbon::parse($payload['start_at'])->diffInMinutes(Carbon::parse($payload['end_at']));
     }
 
     public function show(AgendaEvent $evento): View
     {
-        $evento->load(['responsible', 'requester', 'process', 'demand', 'client', 'contract', 'completer']);
+        $evento->load(['responsible', 'requester', 'process', 'demand', 'client', 'contract', 'completer', 'participants', 'attachments.uploader']);
 
         return view('pages.agenda.show', [
             'title' => $evento->title,
@@ -237,12 +304,15 @@ class AgendaController extends Controller
 
     public function edit(AgendaEvent $evento): View
     {
+        $evento->load('participants');
+
         return view('pages.agenda.form', array_merge($this->formOptions(), [
             'title' => 'Editar compromisso',
             'mode' => 'edit',
             'item' => $evento,
             'draft' => $evento->toArray(),
             'parentProcess' => null,
+            'selectedParticipants' => $evento->participants->pluck('id')->all(),
         ]));
     }
 
@@ -254,6 +324,9 @@ class AgendaController extends Controller
         $evento->update(array_merge($this->normalizedPayload($request), [
             'updated_by' => $user->id,
         ]));
+
+        $participants = collect((array) $request->input('participants', []))->map(fn ($id) => (int) $id)->filter()->unique()->all();
+        $evento->participants()->sync($participants);
 
         SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
 
@@ -289,6 +362,54 @@ class AgendaController extends Controller
         return redirect()->route('agenda.index')->with('success', 'Compromisso removido.');
     }
 
+    public function uploadAttachment(Request $request, AgendaEvent $evento): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:20480'], // 20 MB
+        ]);
+
+        $file = $request->file('file');
+        $storedName = 'agenda-' . $evento->id . '-' . now()->format('YmdHis') . '-' . Str::random(8) . '.' . strtolower((string) ($file->getClientOriginalExtension() ?: 'bin'));
+        $relativePath = 'agenda/' . $evento->id . '/' . $storedName;
+
+        Storage::disk('public')->putFileAs('agenda/' . $evento->id, $file, $storedName);
+
+        AgendaEventAttachment::query()->create([
+            'agenda_event_id' => $evento->id,
+            'original_name' => (string) $file->getClientOriginalName(),
+            'stored_name' => $storedName,
+            'relative_path' => $relativePath,
+            'mime_type' => (string) ($file->getClientMimeType() ?: ''),
+            'file_size' => (int) $file->getSize(),
+            'uploaded_by' => $user->id,
+        ]);
+
+        return back()->with('success', 'Anexo enviado com sucesso.');
+    }
+
+    public function downloadAttachment(AgendaEvent $evento, AgendaEventAttachment $attachment): BinaryFileResponse
+    {
+        abort_unless((int) $attachment->agenda_event_id === (int) $evento->id, 404);
+
+        $path = Storage::disk('public')->path($attachment->relative_path);
+        abort_unless(is_file($path), 404);
+
+        return response()->download($path, $attachment->original_name);
+    }
+
+    public function deleteAttachment(Request $request, AgendaEvent $evento, AgendaEventAttachment $attachment): RedirectResponse
+    {
+        abort_unless((int) $attachment->agenda_event_id === (int) $evento->id, 404);
+
+        Storage::disk('public')->delete($attachment->relative_path);
+        $attachment->delete();
+
+        return back()->with('success', 'Anexo removido.');
+    }
+
     private function normalizedPayload(Request $request): array
     {
         $data = $request->validated();
@@ -304,6 +425,8 @@ class AgendaController extends Controller
             'all_day' => $request->boolean('all_day'),
             'start_at' => $data['start_at'],
             'end_at' => $data['end_at'] ?? null,
+            'recurrence' => trim((string) ($data['recurrence'] ?? '')) ?: null,
+            'recurrence_until' => $data['recurrence_until'] ?? null,
             'location' => trim((string) ($data['location'] ?? '')) ?: null,
             'reminder_minutes' => ($data['reminder_minutes'] ?? null) !== null && $data['reminder_minutes'] !== ''
                 ? (int) $data['reminder_minutes']

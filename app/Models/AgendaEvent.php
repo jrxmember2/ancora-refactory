@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AgendaEvent extends Model
@@ -24,6 +26,7 @@ class AgendaEvent extends Model
             'end_at' => 'datetime',
             'reminder_minutes' => 'integer',
             'reminder_sent_at' => 'datetime',
+            'recurrence_until' => 'date',
             'completed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -64,6 +67,16 @@ class AgendaEvent extends Model
     public function completer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function participants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'agenda_event_participants', 'agenda_event_id', 'user_id')->withTimestamps();
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(AgendaEventAttachment::class, 'agenda_event_id')->orderByDesc('id');
     }
 
     public function scopeOpen(Builder $query): Builder

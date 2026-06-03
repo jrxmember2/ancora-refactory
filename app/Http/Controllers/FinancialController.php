@@ -872,7 +872,8 @@ class FinancialController extends Controller
     {
         return view('pages.financeiro.categories.index', array_merge($this->financialFormOptions(), [
             'title' => 'Categorias Financeiras',
-            'items' => FinancialCategory::query()->orderBy('type')->orderBy('name')->get(),
+            'items' => FinancialCategory::query()->with('parent')->orderBy('type')->orderBy('name')->get(),
+            'parentOptions' => FinancialCategory::query()->whereNull('parent_id')->orderBy('type')->orderBy('name')->get(),
         ]));
     }
 
@@ -881,6 +882,7 @@ class FinancialController extends Controller
         $validated = $request->validate([
             'type' => ['required', 'string'],
             'name' => ['required', 'string', 'max:180'],
+            'parent_id' => ['nullable', 'integer', 'exists:financial_categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
             'dre_group' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::dreGroups()))],
             'color_hex' => ['nullable', 'string', 'max:20'],
@@ -890,6 +892,7 @@ class FinancialController extends Controller
         FinancialCategory::query()->create([
             'type' => $validated['type'],
             'name' => $validated['name'],
+            'parent_id' => $this->resolveCategoryParentId($validated['parent_id'] ?? null, null),
             'description' => $validated['description'] ?? null,
             'dre_group' => $validated['dre_group'] ?? null,
             'color_hex' => $validated['color_hex'] ?? null,
@@ -904,6 +907,7 @@ class FinancialController extends Controller
         $validated = $request->validate([
             'type' => ['required', 'string'],
             'name' => ['required', 'string', 'max:180'],
+            'parent_id' => ['nullable', 'integer', 'exists:financial_categories,id'],
             'description' => ['nullable', 'string', 'max:255'],
             'dre_group' => ['nullable', 'string', Rule::in(array_keys(FinancialCatalog::dreGroups()))],
             'color_hex' => ['nullable', 'string', 'max:20'],
@@ -913,6 +917,7 @@ class FinancialController extends Controller
         $category->update([
             'type' => $validated['type'],
             'name' => $validated['name'],
+            'parent_id' => $this->resolveCategoryParentId($validated['parent_id'] ?? null, $category->id),
             'description' => $validated['description'] ?? null,
             'dre_group' => $validated['dre_group'] ?? null,
             'color_hex' => $validated['color_hex'] ?? null,
@@ -920,6 +925,25 @@ class FinancialController extends Controller
         ]);
 
         return back()->with('success', 'Categoria atualizada com sucesso.');
+    }
+
+    /**
+     * Resolve o pai de uma categoria evitando ciclos: nao permite ser pai de si mesma e o pai
+     * deve ser uma categoria raiz (hierarquia de 1 nivel), mantendo o DRE simples.
+     */
+    private function resolveCategoryParentId(mixed $parentId, ?int $selfId): ?int
+    {
+        $parentId = (int) $parentId;
+        if ($parentId <= 0 || $parentId === (int) $selfId) {
+            return null;
+        }
+
+        $parent = FinancialCategory::query()->find($parentId);
+        if (!$parent || $parent->parent_id !== null) {
+            return null; // pai precisa ser categoria raiz (sem avo)
+        }
+
+        return $parent->id;
     }
 
     public function categoriesDestroy(FinancialCategory $category): RedirectResponse

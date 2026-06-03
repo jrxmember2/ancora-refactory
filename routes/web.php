@@ -248,6 +248,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::match(['post', 'put'], '/{evento}', [AgendaController::class, 'update'])->name('agenda.update')->middleware('ancora.route:agenda.update');
         Route::post('/{evento}/concluir', [AgendaController::class, 'complete'])->name('agenda.complete')->middleware('ancora.route:agenda.complete');
         Route::get('/{evento}/ics', [AgendaController::class, 'downloadIcs'])->name('agenda.ics')->middleware('ancora.route:agenda.show');
+        Route::post('/{evento}/anexos/upload', [AgendaController::class, 'uploadAttachment'])->name('agenda.attachments.upload')->middleware('ancora.route:agenda.edit');
+        Route::get('/{evento}/anexos/{attachment}/download', [AgendaController::class, 'downloadAttachment'])->name('agenda.attachments.download')->middleware('ancora.route:agenda.show');
+        Route::match(['post', 'delete'], '/{evento}/anexos/{attachment}', [AgendaController::class, 'deleteAttachment'])->name('agenda.attachments.delete')->middleware('ancora.route:agenda.edit');
         Route::match(['post', 'delete'], '/{evento}/excluir', [AgendaController::class, 'destroy'])->name('agenda.delete')->middleware('ancora.route:agenda.delete');
     });
 

@@ -36,6 +36,17 @@ class AgendaCatalog
         ];
     }
 
+    public static function recurrences(): array
+    {
+        return [
+            '' => 'Nao se repete',
+            'daily' => 'Diariamente',
+            'weekly' => 'Semanalmente',
+            'biweekly' => 'Quinzenalmente',
+            'monthly' => 'Mensalmente',
+        ];
+    }
+
     public static function reminderOptions(): array
     {
         return [

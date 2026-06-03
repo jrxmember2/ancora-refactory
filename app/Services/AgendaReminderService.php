@@ -79,12 +79,28 @@ class AgendaReminderService
         $email = false;
         $whatsapp = false;
 
-        $address = trim((string) ($responsible->email ?? ''));
-        if ($address !== '') {
+        $recipients = collect([$responsible->email ?? null]);
+
+        // Inclui os participantes (guardado: a tabela pode nao existir em ambientes minimos/testes).
+        try {
+            if (Schema::hasTable('agenda_event_participants')) {
+                $recipients = $recipients->merge($event->participants()->pluck('email'));
+            }
+        } catch (\Throwable) {
+            // ignora; participantes sao opcionais
+        }
+
+        $recipients = $recipients
+            ->map(fn ($e) => trim((string) $e))
+            ->filter(fn ($e) => $e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
+
+        if ($recipients->isNotEmpty()) {
             try {
                 AncoraMail::applySmtpSettings();
-                Mail::raw($message, function ($mail) use ($address, $event) {
-                    $mail->to($address)->subject('Lembrete de agenda: ' . $event->title);
+                Mail::raw($message, function ($mail) use ($recipients, $event) {
+                    $mail->to($recipients->all())->subject('Lembrete de agenda: ' . $event->title);
                 });
                 $email = true;
             } catch (\Throwable $e) {

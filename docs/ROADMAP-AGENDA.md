@@ -44,6 +44,15 @@
 - Coluna `agenda_events.color` (hex). Seletor de cor + "Aplicar cor" no formulário. Cor de fundo nos chips
   do calendário e ponto colorido na lista, com **cor da letra contrastante automática** (`App\Support\ColorContrast`, luminância WCAG).
 
+## Extra — Recorrência, participantes, anexos e importação 🟢 ← **concluída**
+- **Recorrência**: `recurrence` (diária/semanal/quinzenal/mensal) + `recurrence_until` geram a série na criação
+  (ligados por `recurrence_group`). Lógica testada (`AgendaRecurrenceTest`).
+- **Participantes**: `agenda_event_participants` (N:N com users); multi-select no form, exibidos no evento e
+  **incluídos no lembrete por e-mail**.
+- **Anexos**: `agenda_event_attachments` (upload/download/excluir, disco `public`), card no evento.
+- **Importar eventos externos**: ramo opcional no inbound (Fase 3) que cria compromissos a partir de eventos
+  criados direto no Google/Outlook — **desligado por padrão** (`*_CALENDAR_IMPORT_EXTERNAL`).
+
 ## Fase 3 — Sincronização bidirecional (Nível 3) 🔴 ← **código concluído** (verificação live pendente)
 - **Desligada por padrão** (`GOOGLE_CALENDAR_WEBHOOKS_ENABLED` / `MICROSOFT_CALENDAR_WEBHOOKS_ENABLED`).
 - Webhooks públicos (sem CSRF/sessão, em `routes/api.php`): `/api/agenda/webhooks/google` e `/api/agenda/webhooks/microsoft`

@@ -43,7 +43,31 @@
                 <div><span class="text-gray-500">Cliente:</span> {{ $item->client?->display_name ?: '-' }}</div>
                 <div><span class="text-gray-500">Contrato:</span> @if($item->contract)<a href="{{ route('contratos.show', $item->contract) }}" class="text-brand-600 underline dark:text-brand-300">{{ $item->contract->code ?: $item->contract->title }}</a>@else-@endif</div>
                 @if($item->status === 'concluido')<div><span class="text-gray-500">Concluido em:</span> {{ $item->completed_at?->format('d/m/Y H:i') }} ({{ $item->completer?->name }})</div>@endif
+                @if($item->participants->isNotEmpty())
+                    <div><span class="text-gray-500">Participantes:</span> {{ $item->participants->pluck('name')->implode(', ') }}</div>
+                @endif
             </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Anexos</h3>
+            <form method="post" action="{{ route('agenda.attachments.upload', $item) }}" enctype="multipart/form-data" class="mt-3 flex flex-col gap-2 sm:flex-row">
+                @csrf
+                <input type="file" name="file" required class="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-gray-700">
+                <button class="rounded-xl bg-brand-500 px-4 py-2 text-sm font-medium text-white">Enviar</button>
+            </form>
+            <ul class="mt-3 space-y-2 text-sm">
+                @forelse($item->attachments as $attachment)
+                    <li class="flex items-center justify-between gap-2">
+                        <a href="{{ route('agenda.attachments.download', [$item, $attachment]) }}" class="truncate text-brand-600 underline dark:text-brand-300">{{ $attachment->original_name }}</a>
+                        <form method="post" action="{{ route('agenda.attachments.delete', [$item, $attachment]) }}">@csrf @method('DELETE')
+                            <button class="text-xs text-error-600 dark:text-error-300">remover</button>
+                        </form>
+                    </li>
+                @empty
+                    <li class="text-gray-400">Nenhum anexo.</li>
+                @endforelse
+            </ul>
         </div>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">

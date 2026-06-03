@@ -55,6 +55,8 @@ return [
         'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET', ''),
         // Fase 3 (sincronizacao bidirecional via webhooks). Desligado por padrao.
         'webhooks_enabled' => env('GOOGLE_CALENDAR_WEBHOOKS_ENABLED', false),
+        // Importar eventos criados diretamente no calendario externo (cria compromissos no Ancora).
+        'import_external' => env('GOOGLE_CALENDAR_IMPORT_EXTERNAL', false),
     ],
 
     // Integracao da Agenda com Microsoft 365 / Outlook (Microsoft Graph).
@@ -64,6 +66,7 @@ return [
         // 'common' aceita contas pessoais e de organizacao; use o tenant id para restringir.
         'tenant' => env('MICROSOFT_CALENDAR_TENANT', 'common'),
         'webhooks_enabled' => env('MICROSOFT_CALENDAR_WEBHOOKS_ENABLED', false),
+        'import_external' => env('MICROSOFT_CALENDAR_IMPORT_EXTERNAL', false),
     ],
 
 ];

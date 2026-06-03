@@ -99,6 +99,21 @@
                     @endforeach
                 </select>
             </div>
+            @if(($mode ?? 'create') !== 'edit')
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Repeticao</label>
+                <select name="recurrence" class="{{ $inputClass }}">
+                    @foreach(\App\Support\Agenda\AgendaCatalog::recurrences() as $key => $label)
+                        <option value="{{ $key }}" @selected((string) $valueOf('recurrence', '') === (string) $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Repetir ate</label>
+                <input type="date" name="recurrence_until" value="{{ $valueOf('recurrence_until') }}" class="{{ $inputClass }}">
+                <span class="mt-1 block text-xs text-gray-400">Cria varios compromissos da serie ate esta data.</span>
+            </div>
+            @endif
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Local / vara / link</label>
                 <input name="location" value="{{ $valueOf('location') }}" class="{{ $inputClass }}">
@@ -130,6 +145,16 @@
                         <option value="{{ $u->id }}" @selected((string) $valueOf('requester_user_id') === (string) $u->id)>{{ $u->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="md:col-span-2 xl:col-span-3">
+                @php $selectedParticipants = collect(old('participants', $selectedParticipants ?? []))->map(fn ($id) => (int) $id)->all(); @endphp
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Participantes</label>
+                <select name="participants[]" multiple size="4" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+                    @foreach($users as $u)
+                        <option value="{{ $u->id }}" @selected(in_array((int) $u->id, $selectedParticipants, true))>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+                <span class="mt-1 block text-xs text-gray-400">Segure Ctrl/Cmd para selecionar varios. Eles recebem o lembrete por e-mail.</span>
             </div>
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Processo</label>

@@ -37,7 +37,13 @@ class CalendarInboundSyncService
             ->first();
 
         if (!$sync) {
-            return false; // evento nao pertence ao Ancora -> ignorado de proposito
+            // Evento criado diretamente no calendario externo: importa como novo compromisso
+            // apenas se a importacao estiver habilitada para o provedor (default desligado).
+            if ($this->importEnabled($connection->provider) && empty($data['deleted'])) {
+                return $this->importExternalEvent($connection, $externalId, $data);
+            }
+
+            return false; // por padrao, eventos externos nao sao importados
         }
 
         $event = AgendaEvent::withTrashed()->find($sync->agenda_event_id);
@@ -136,6 +142,40 @@ class CalendarInboundSyncService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function importEnabled(string $provider): bool
+    {
+        return (bool) config('services.' . $provider . '_calendar.import_external', false);
+    }
+
+    private function importExternalEvent(CalendarConnection $connection, string $externalId, array $data): bool
+    {
+        if (empty($data['start_at'])) {
+            return false;
+        }
+
+        $event = AgendaEvent::query()->create([
+            'title' => trim((string) ($data['title'] ?? '')) ?: 'Compromisso importado',
+            'description' => $data['description'] ?? null,
+            'location' => $data['location'] ?? null,
+            'type' => 'compromisso',
+            'status' => 'aberto',
+            'all_day' => (bool) ($data['all_day'] ?? false),
+            'start_at' => $data['start_at'],
+            'end_at' => $data['end_at'] ?? null,
+            'responsible_user_id' => $connection->user_id,
+        ]);
+
+        AgendaEventSync::query()->create([
+            'agenda_event_id' => $event->id,
+            'connection_id' => $connection->id,
+            'provider' => $connection->provider,
+            'external_event_id' => $externalId,
+            'last_synced_at' => now(),
+        ]);
+
+        return true;
     }
 
     private function webhookProvider(CalendarConnection $connection): ?CalendarWebhookProviderInterface
