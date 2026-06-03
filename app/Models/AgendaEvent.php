@@ -94,6 +94,16 @@ class AgendaEvent extends Model
         return $this->status === 'aberto' && $this->start_at && $this->start_at->isPast();
     }
 
+    public function hasColor(): bool
+    {
+        return \App\Support\ColorContrast::normalizeHex($this->color) !== null;
+    }
+
+    public function textColor(): string
+    {
+        return \App\Support\ColorContrast::idealTextColor($this->color);
+    }
+
     public function effectiveStatus(): string
     {
         return $this->isOverdue() ? 'atrasado' : (string) $this->status;

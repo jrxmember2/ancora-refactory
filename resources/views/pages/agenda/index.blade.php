@@ -63,7 +63,10 @@
                             @if($event->is_fatal)<span class="ml-1 rounded bg-warning-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning-700 dark:bg-warning-500/10 dark:text-warning-300">Fatal</span>@endif
                         </td>
                         <td class="px-4 py-3">{{ $typeOptions[$event->type] ?? $event->type }}</td>
-                        <td class="px-4 py-3 font-medium text-gray-900 dark:text-white"><a href="{{ route('agenda.show', $event) }}" class="hover:underline">{{ $event->title }}</a></td>
+                        <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                            @if($event->hasColor())<span class="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style="background-color: {{ $event->color }}"></span>@endif
+                            <a href="{{ route('agenda.show', $event) }}" class="hover:underline">{{ $event->title }}</a>
+                        </td>
                         <td class="px-4 py-3">{{ $event->responsible?->name ?: '-' }}</td>
                         <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
                             @if($event->process){{ $event->process->process_number }}@elseif($event->client){{ $event->client->display_name }}@else-@endif

@@ -25,12 +25,24 @@
 - Assinável no Google Calendar / Outlook / Apple. Somente leitura (Âncora→calendário), sem credenciais.
 - Obs.: locale do Carbon fixado em pt_BR no `AppServiceProvider` (meses por extenso em portugues).
 
-## Fase 2 — Push via OAuth (Nível 2, uma via) 🟡
+## Fase 2 — Push via OAuth (Nível 2, uma via) 🟡 ← **código concluído** (ativa com credenciais)
 - Conectar conta Google (Google Cloud + escopo `calendar.events`) e Microsoft (Azure AD + `Calendars.ReadWrite`).
-- Tokens OAuth por usuário (criptografados); cria/atualiza/remove eventos numa agenda "Âncora".
-- Tela "Conectar Google/Outlook" no perfil. Atualização imediata, ainda unidirecional.
-- **Requer credenciais provisionadas** (projeto Google + registro Azure); escopo de calendário do Google
-  pode exigir verificação se usado por contas externas.
+- Tokens OAuth por usuário **criptografados** (`calendar_connections`, cast `encrypted`); mapeamento
+  evento↔externo em `agenda_event_syncs`. Cria/atualiza/remove no calendário do responsável.
+- Fluxo OAuth: `agenda.calendar.connect`/`callback`/`disconnect` (`CalendarConnectionController`, state anti-CSRF).
+- Provedores: `GoogleCalendarProvider` + `MicrosoftCalendarProvider` (interface comum, `CalendarProviders`).
+- Sincronização via `CalendarSyncService` disparada por `SyncAgendaEventToCalendarsJob` (fila), **totalmente
+  guardada** (try/catch por conexão, nunca derruba o request; renova token via refresh).
+- UI: card "Sincronizar com Google/Outlook" no calendário (Conectar/Desconectar) — só aparece se o provedor
+  tiver credenciais (`isConfigured`).
+- **Para ativar (env):** `GOOGLE_CALENDAR_CLIENT_ID/SECRET`, `MICROSOFT_CALENDAR_CLIENT_ID/SECRET`
+  (+ `MICROSOFT_CALENDAR_TENANT`). Redirect URIs a registrar:
+  `/agenda/integracoes/google/callback` e `/agenda/integracoes/microsoft/callback`.
+  Sem credenciais, os botões não aparecem e a sincronização é no-op. Verificação live pendente de credenciais.
+
+## Extra — Cores customizadas nos compromissos 🟢 ← **concluída**
+- Coluna `agenda_events.color` (hex). Seletor de cor + "Aplicar cor" no formulário. Cor de fundo nos chips
+  do calendário e ponto colorido na lista, com **cor da letra contrastante automática** (`App\Support\ColorContrast`, luminância WCAG).
 
 ## Fase 3 — Sincronização bidirecional (Nível 3) 🔴
 - Webhooks Google (`watch`) / Microsoft Graph (`subscriptions`) + sync tokens + resolução de conflitos.

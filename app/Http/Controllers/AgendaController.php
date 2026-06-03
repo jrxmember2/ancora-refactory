@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAgendaEventRequest;
 use App\Http\Requests\UpdateAgendaEventRequest;
+use App\Jobs\SyncAgendaEventToCalendarsJob;
 use App\Models\AgendaEvent;
+use App\Models\CalendarConnection;
 use App\Models\ClientEntity;
 use App\Models\Contract;
 use App\Models\Demand;
 use App\Models\ProcessCase;
 use App\Models\User;
+use App\Services\Calendar\CalendarProviders;
 use App\Support\Agenda\AgendaCatalog;
 use App\Support\Agenda\IcsBuilder;
 use App\Support\AncoraAuth;
@@ -68,7 +71,40 @@ class AgendaController extends Controller
             'nextMonth' => $reference->copy()->addMonthNoOverflow(),
             'typeLabels' => AgendaCatalog::types(),
             'feedUrl' => $feedUrl,
+            'calendarIntegrations' => $this->calendarIntegrations($user),
         ]);
+    }
+
+    /**
+     * Estado das integracoes OAuth (Google/Microsoft) para o usuario atual, apenas para os
+     * provedores com credenciais configuradas. Guardado para nunca quebrar a pagina.
+     */
+    private function calendarIntegrations(?User $user): array
+    {
+        if (!$user || !Schema::hasTable('calendar_connections')) {
+            return [];
+        }
+
+        $providers = app(CalendarProviders::class)->configured();
+        if ($providers === []) {
+            return [];
+        }
+
+        $existing = CalendarConnection::query()
+            ->where('user_id', $user->id)
+            ->get()
+            ->keyBy('provider');
+
+        $integrations = [];
+        foreach ($providers as $key => $provider) {
+            $integrations[] = [
+                'key' => $key,
+                'label' => $provider->label(),
+                'connection' => $existing->get($key),
+            ];
+        }
+
+        return $integrations;
     }
 
     public function feed(string $token): Response
@@ -182,6 +218,8 @@ class AgendaController extends Controller
             'updated_by' => $user->id,
         ]));
 
+        SyncAgendaEventToCalendarsJob::dispatch($event->id, 'upsert');
+
         return redirect()->route('agenda.show', $event)->with('success', 'Compromisso criado com sucesso.');
     }
 
@@ -217,6 +255,8 @@ class AgendaController extends Controller
             'updated_by' => $user->id,
         ]));
 
+        SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
+
         return redirect()->route('agenda.show', $evento)->with('success', 'Compromisso atualizado com sucesso.');
     }
 
@@ -232,6 +272,8 @@ class AgendaController extends Controller
                 'completed_by' => $user->id,
                 'updated_by' => $user->id,
             ]);
+
+            SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
         }
 
         return back()->with('success', 'Compromisso concluido.');
@@ -239,7 +281,10 @@ class AgendaController extends Controller
 
     public function destroy(AgendaEvent $evento): RedirectResponse
     {
+        $eventId = (int) $evento->id;
         $evento->delete();
+
+        SyncAgendaEventToCalendarsJob::dispatch($eventId, 'delete');
 
         return redirect()->route('agenda.index')->with('success', 'Compromisso removido.');
     }
@@ -254,6 +299,7 @@ class AgendaController extends Controller
             'type' => $data['type'],
             'status' => $data['status'] ?? 'aberto',
             'priority' => $data['priority'] ?? null,
+            'color' => $request->boolean('apply_color') ? \App\Support\ColorContrast::normalizeHex($data['color'] ?? null) : null,
             'is_fatal' => $request->boolean('is_fatal'),
             'all_day' => $request->boolean('all_day'),
             'start_at' => $data['start_at'],

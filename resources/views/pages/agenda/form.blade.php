@@ -65,6 +65,14 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Cor de fundo</label>
+                <div class="flex h-11 items-center gap-3">
+                    <input type="color" name="color" value="{{ $valueOf('color') ?: '#3b82f6' }}" class="h-9 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200"><input type="checkbox" name="apply_color" value="1" @checked(!empty($valueOf('color')))> Aplicar cor</label>
+                </div>
+                <span class="mt-1 block text-xs text-gray-400">A cor da letra ajusta-se automaticamente para contrastar.</span>
+            </div>
             @if($mode === 'edit')
             <div>
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>

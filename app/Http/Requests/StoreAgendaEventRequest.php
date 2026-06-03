@@ -21,6 +21,8 @@ class StoreAgendaEventRequest extends FormRequest
             'type' => ['required', 'string', Rule::in(array_keys(AgendaCatalog::types()))],
             'status' => ['nullable', 'string', Rule::in(array_keys(AgendaCatalog::statuses()))],
             'priority' => ['nullable', 'string', Rule::in(array_keys(AgendaCatalog::priorities()))],
+            'apply_color' => ['nullable', 'boolean'],
+            'color' => ['nullable', 'string', 'regex:/^#?[0-9a-fA-F]{6}$/'],
             'is_fatal' => ['nullable', 'boolean'],
             'all_day' => ['nullable', 'boolean'],
             'start_at' => ['required', 'date'],

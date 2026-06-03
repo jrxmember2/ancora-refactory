@@ -49,4 +49,18 @@ return [
         ),
     ],
 
+    // Integracao da Agenda com Google Calendar (Fase 2 - push uma-via).
+    'google_calendar' => [
+        'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID', ''),
+        'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET', ''),
+    ],
+
+    // Integracao da Agenda com Microsoft 365 / Outlook (Microsoft Graph).
+    'microsoft_calendar' => [
+        'client_id' => env('MICROSOFT_CALENDAR_CLIENT_ID', ''),
+        'client_secret' => env('MICROSOFT_CALENDAR_CLIENT_SECRET', ''),
+        // 'common' aceita contas pessoais e de organizacao; use o tenant id para restringir.
+        'tenant' => env('MICROSOFT_CALENDAR_TENANT', 'common'),
+    ],
+
 ];
