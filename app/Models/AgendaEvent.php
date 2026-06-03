@@ -23,6 +23,7 @@ class AgendaEvent extends Model
             'start_at' => 'datetime',
             'end_at' => 'datetime',
             'reminder_minutes' => 'integer',
+            'reminder_sent_at' => 'datetime',
             'completed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

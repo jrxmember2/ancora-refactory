@@ -4,11 +4,13 @@ namespace App\Services\Calendar;
 
 use App\Models\AgendaEvent;
 use App\Models\CalendarConnection;
+use App\Services\Calendar\Contracts\CalendarWebhookProviderInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
-class GoogleCalendarProvider implements CalendarProviderInterface
+class GoogleCalendarProvider implements CalendarProviderInterface, CalendarWebhookProviderInterface
 {
     private const SCOPES = 'openid email https://www.googleapis.com/auth/calendar.events';
     private const TIMEZONE = 'America/Sao_Paulo';
@@ -122,6 +124,109 @@ class GoogleCalendarProvider implements CalendarProviderInterface
         if (!$response->successful() && $response->status() !== 404 && $response->status() !== 410) {
             $response->throw();
         }
+    }
+
+    public function webhooksEnabled(): bool
+    {
+        return $this->isConfigured() && (bool) config('services.google_calendar.webhooks_enabled');
+    }
+
+    public function createSubscription(string $accessToken, string $notificationUrl, string $clientState): array
+    {
+        $channelId = (string) Str::uuid();
+        $response = Http::withToken($accessToken)->post(
+            'https://www.googleapis.com/calendar/v3/calendars/primary/events/watch',
+            [
+                'id' => $channelId,
+                'type' => 'web_hook',
+                'address' => $notificationUrl,
+                'token' => $clientState,
+            ]
+        )->throw()->json();
+
+        $expiration = isset($response['expiration']) ? Carbon::createFromTimestampMs((int) $response['expiration']) : null;
+
+        return [
+            'subscription_id' => $channelId,
+            'resource_id' => (string) ($response['resourceId'] ?? ''),
+            'client_state' => $clientState,
+            'expires_at' => $expiration,
+        ];
+    }
+
+    public function deleteSubscription(string $accessToken, string $subscriptionId, ?string $resourceId = null): void
+    {
+        $response = Http::withToken($accessToken)->post('https://www.googleapis.com/calendar/v3/channels/stop', [
+            'id' => $subscriptionId,
+            'resourceId' => (string) $resourceId,
+        ]);
+
+        if (!$response->successful() && $response->status() !== 404) {
+            $response->throw();
+        }
+    }
+
+    public function fetchEvent(string $accessToken, string $externalId): ?array
+    {
+        $response = Http::withToken($accessToken)->get(
+            'https://www.googleapis.com/calendar/v3/calendars/primary/events/' . rawurlencode($externalId)
+        );
+
+        if ($response->status() === 404 || $response->status() === 410) {
+            return ['deleted' => true];
+        }
+
+        return $this->normalize($response->throw()->json());
+    }
+
+    public function listChanges(string $accessToken, ?string $syncToken): array
+    {
+        $changes = [];
+        $params = $syncToken ? ['syncToken' => $syncToken] : ['timeMin' => now()->subDays(30)->toRfc3339String()];
+        $nextSync = $syncToken;
+        $pageToken = null;
+        $guard = 0;
+
+        do {
+            $query = $params;
+            if ($pageToken) {
+                $query['pageToken'] = $pageToken;
+            }
+
+            $response = Http::withToken($accessToken)->get('https://www.googleapis.com/calendar/v3/calendars/primary/events', $query);
+            if ($response->status() === 410) {
+                // sync token invalido: reinicia sem token na proxima rodada
+                return ['changes' => [], 'sync_token' => null];
+            }
+            $json = $response->throw()->json();
+
+            foreach (($json['items'] ?? []) as $item) {
+                $normalized = $this->normalize($item);
+                $normalized['external_event_id'] = (string) ($item['id'] ?? '');
+                $changes[] = $normalized;
+            }
+
+            $pageToken = $json['nextPageToken'] ?? null;
+            $nextSync = $json['nextSyncToken'] ?? $nextSync;
+            $guard++;
+        } while ($pageToken && $guard < 20);
+
+        return ['changes' => $changes, 'sync_token' => $nextSync];
+    }
+
+    private function normalize(array $event): array
+    {
+        $allDay = isset($event['start']['date']);
+
+        return [
+            'deleted' => ($event['status'] ?? '') === 'cancelled',
+            'title' => (string) ($event['summary'] ?? ''),
+            'description' => (string) ($event['description'] ?? ''),
+            'location' => (string) ($event['location'] ?? ''),
+            'all_day' => $allDay,
+            'start_at' => $event['start']['dateTime'] ?? ($event['start']['date'] ?? null),
+            'end_at' => $event['end']['dateTime'] ?? ($event['end']['date'] ?? null),
+        ];
     }
 
     private function payload(AgendaEvent $event): array

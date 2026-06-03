@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarConnection;
 use App\Services\Calendar\CalendarProviders;
+use App\Services\Calendar\CalendarSubscriptionManager;
 use App\Support\AncoraAuth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,8 +12,10 @@ use Illuminate\Support\Str;
 
 class CalendarConnectionController extends Controller
 {
-    public function __construct(private readonly CalendarProviders $providers)
-    {
+    public function __construct(
+        private readonly CalendarProviders $providers,
+        private readonly CalendarSubscriptionManager $subscriptions,
+    ) {
     }
 
     public function connect(Request $request, string $provider): RedirectResponse
@@ -75,10 +78,13 @@ class CalendarConnectionController extends Controller
             $attributes['refresh_token'] = (string) $tokens['refresh_token'];
         }
 
-        CalendarConnection::query()->updateOrCreate(
+        $connection = CalendarConnection::query()->updateOrCreate(
             ['user_id' => $user->id, 'provider' => $provider],
             $attributes
         );
+
+        // Fase 3: cria a inscricao de webhooks (no-op se nao habilitado). Nunca quebra a conexao.
+        $this->subscriptions->ensureSubscription($connection->fresh());
 
         return redirect()->route('agenda.calendar')->with('success', $driver->label() . ' conectado com sucesso.');
     }
@@ -88,10 +94,15 @@ class CalendarConnectionController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
-        CalendarConnection::query()
+        $connection = CalendarConnection::query()
             ->where('user_id', $user->id)
             ->where('provider', $provider)
-            ->delete();
+            ->first();
+
+        if ($connection) {
+            $this->subscriptions->removeSubscription($connection); // remove webhook antes de excluir
+            $connection->delete();
+        }
 
         return redirect()->route('agenda.calendar')->with('success', 'Integracao removida.');
     }

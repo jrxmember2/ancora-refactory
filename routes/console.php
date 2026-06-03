@@ -1,6 +1,8 @@
 <?php
 
 use App\Services\Ai\AiUsageLimiter;
+use App\Services\AgendaReminderService;
+use App\Services\Calendar\CalendarSubscriptionManager;
 use App\Services\ProcessDataJudService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -65,8 +67,37 @@ Artisan::command('ai:reset-monthly-usage', function (AiUsageLimiter $limiter) {
     return 0;
 })->purpose('Reseta o uso mensal de IA dos usuarios ativos do Portal do Cliente');
 
+Artisan::command('agenda:send-reminders', function (AgendaReminderService $service) {
+    $result = $service->run();
+    $this->info(sprintf(
+        'Agenda: %d lembrete(s) enviado(s) (%d e-mail, %d WhatsApp).',
+        $result['sent'],
+        $result['emailed'],
+        $result['whatsapped']
+    ));
+
+    return 0;
+})->purpose('Envia lembretes de prazos e compromissos da agenda por e-mail e WhatsApp');
+
 Schedule::command('processos:datajud-sync')
     ->dailyAt('06:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(120)
     ->appendOutputTo(storage_path('logs/datajud-sync.log'));
+
+Schedule::command('agenda:send-reminders')
+    ->everyFiveMinutes()
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(10);
+
+Artisan::command('agenda:renew-calendar-subscriptions', function (CalendarSubscriptionManager $manager) {
+    $renewed = $manager->renewExpiring();
+    $this->info(sprintf('Agenda: %d inscricao(oes) de webhook renovada(s).', $renewed));
+
+    return 0;
+})->purpose('Renova as inscricoes de webhooks da agenda (Google/Microsoft) proximas de expirar');
+
+Schedule::command('agenda:renew-calendar-subscriptions')
+    ->everySixHours()
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(30);

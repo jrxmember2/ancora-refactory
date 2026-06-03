@@ -18,6 +18,12 @@
                 <input type="email" name="email" value="{{ old('email', $user->email) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" required>
             </div>
 
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone / WhatsApp</label>
+                <input type="text" name="phone" value="{{ old('phone', $user->phone ?? '') }}" placeholder="Ex.: 5527999990000" class="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+                <span class="mt-1 block text-xs text-gray-400">Usado para enviar lembretes de prazos por WhatsApp (com DDI/DDD).</span>
+            </div>
+
             <div class="md:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Foto do perfil</label>
                 <label class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 px-4 py-4 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-300 dark:hover:bg-brand-500/10">

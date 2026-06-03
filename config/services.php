@@ -53,6 +53,8 @@ return [
     'google_calendar' => [
         'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID', ''),
         'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET', ''),
+        // Fase 3 (sincronizacao bidirecional via webhooks). Desligado por padrao.
+        'webhooks_enabled' => env('GOOGLE_CALENDAR_WEBHOOKS_ENABLED', false),
     ],
 
     // Integracao da Agenda com Microsoft 365 / Outlook (Microsoft Graph).
@@ -61,6 +63,7 @@ return [
         'client_secret' => env('MICROSOFT_CALENDAR_CLIENT_SECRET', ''),
         // 'common' aceita contas pessoais e de organizacao; use o tenant id para restringir.
         'tenant' => env('MICROSOFT_CALENDAR_TENANT', 'common'),
+        'webhooks_enabled' => env('MICROSOFT_CALENDAR_WEBHOOKS_ENABLED', false),
     ],
 
 ];

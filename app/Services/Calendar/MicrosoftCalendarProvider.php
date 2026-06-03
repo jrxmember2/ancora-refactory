@@ -4,11 +4,12 @@ namespace App\Services\Calendar;
 
 use App\Models\AgendaEvent;
 use App\Models\CalendarConnection;
+use App\Services\Calendar\Contracts\CalendarWebhookProviderInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
-class MicrosoftCalendarProvider implements CalendarProviderInterface
+class MicrosoftCalendarProvider implements CalendarProviderInterface, CalendarWebhookProviderInterface
 {
     private const SCOPES = 'offline_access openid email User.Read Calendars.ReadWrite';
     private const TIMEZONE = 'America/Sao_Paulo';
@@ -128,6 +129,68 @@ class MicrosoftCalendarProvider implements CalendarProviderInterface
         if (!$response->successful() && $response->status() !== 404) {
             $response->throw();
         }
+    }
+
+    public function webhooksEnabled(): bool
+    {
+        return $this->isConfigured() && (bool) config('services.microsoft_calendar.webhooks_enabled');
+    }
+
+    public function createSubscription(string $accessToken, string $notificationUrl, string $clientState): array
+    {
+        // Microsoft exige expiracao curta para eventos (~3 dias). Usamos ~2 dias.
+        $expires = now()->addMinutes(2880);
+
+        $response = Http::withToken($accessToken)->post('https://graph.microsoft.com/v1.0/subscriptions', [
+            'changeType' => 'updated,deleted',
+            'notificationUrl' => $notificationUrl,
+            'resource' => 'me/events',
+            'expirationDateTime' => $expires->toIso8601String(),
+            'clientState' => $clientState,
+        ])->throw()->json();
+
+        return [
+            'subscription_id' => (string) ($response['id'] ?? ''),
+            'client_state' => $clientState,
+            'expires_at' => isset($response['expirationDateTime']) ? Carbon::parse((string) $response['expirationDateTime']) : $expires,
+        ];
+    }
+
+    public function deleteSubscription(string $accessToken, string $subscriptionId, ?string $resourceId = null): void
+    {
+        $response = Http::withToken($accessToken)->delete('https://graph.microsoft.com/v1.0/subscriptions/' . rawurlencode($subscriptionId));
+
+        if (!$response->successful() && $response->status() !== 404) {
+            $response->throw();
+        }
+    }
+
+    public function fetchEvent(string $accessToken, string $externalId): ?array
+    {
+        $response = Http::withToken($accessToken)->get('https://graph.microsoft.com/v1.0/me/events/' . rawurlencode($externalId));
+
+        if ($response->status() === 404) {
+            return ['deleted' => true];
+        }
+
+        $event = $response->throw()->json();
+
+        return [
+            'deleted' => (bool) ($event['isCancelled'] ?? false),
+            'title' => (string) ($event['subject'] ?? ''),
+            'description' => (string) ($event['bodyPreview'] ?? ''),
+            'location' => (string) ($event['location']['displayName'] ?? ''),
+            'all_day' => (bool) ($event['isAllDay'] ?? false),
+            'start_at' => $event['start']['dateTime'] ?? null,
+            'end_at' => $event['end']['dateTime'] ?? null,
+        ];
+    }
+
+    public function listChanges(string $accessToken, ?string $syncToken): array
+    {
+        // Microsoft Graph entrega o id do evento na propria notificacao (processSingleEvent),
+        // portanto nao usamos o modelo de sync token incremental aqui.
+        return ['changes' => [], 'sync_token' => $syncToken];
     }
 
     private function payload(AgendaEvent $event): array

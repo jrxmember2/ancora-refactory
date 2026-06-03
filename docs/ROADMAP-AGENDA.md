@@ -44,10 +44,23 @@
 - Coluna `agenda_events.color` (hex). Seletor de cor + "Aplicar cor" no formulário. Cor de fundo nos chips
   do calendário e ponto colorido na lista, com **cor da letra contrastante automática** (`App\Support\ColorContrast`, luminância WCAG).
 
-## Fase 3 — Sincronização bidirecional (Nível 3) 🔴
-- Webhooks Google (`watch`) / Microsoft Graph (`subscriptions`) + sync tokens + resolução de conflitos.
-- Reaproveita fila (`database`) e infra de webhooks (hoje Evolution/Assinafy) + HTTPS do EasyPanel.
-- Tabelas de vínculo (`agenda_event_syncs`: provider, external_event_id, sync_token) e conexões por usuário.
+## Fase 3 — Sincronização bidirecional (Nível 3) 🔴 ← **código concluído** (verificação live pendente)
+- **Desligada por padrão** (`GOOGLE_CALENDAR_WEBHOOKS_ENABLED` / `MICROSOFT_CALENDAR_WEBHOOKS_ENABLED`).
+- Webhooks públicos (sem CSRF/sessão, em `routes/api.php`): `/api/agenda/webhooks/google` e `/api/agenda/webhooks/microsoft`
+  (handshake de validação do Graph + verificação de `clientState`/`X-Goog-Channel-Token`).
+- Inscrições em `calendar_subscriptions`; criadas ao conectar (se habilitado) e renovadas por
+  `agenda:renew-calendar-subscriptions` (a cada 6h). Google via `events/watch` + sync token; Microsoft via `subscriptions`.
+- **Não-destrutivo e bounded:** só atualiza eventos que o Âncora criou (mapeados em `agenda_event_syncs`);
+  exclusão externa → marca `status=cancelado` (reversível); **não importa** eventos externos arbitrários.
+- `CalendarInboundSyncService` (aplicação testada), `ProcessCalendarWebhookJob` (fila), providers implementam
+  `CalendarWebhookProviderInterface`. Tudo guardado (nunca lança no request).
+- **Verificação ponta-a-ponta pendente de staging** com credenciais + URL pública HTTPS (não testável aqui).
+
+## Extra — Lembretes de prazos por e-mail/WhatsApp 🟢 ← **concluída**
+- `agenda_events.reminder_sent_at` + `users.phone` (campo no perfil "Meus dados").
+- `AgendaReminderService` + comando `agenda:send-reminders` (agendado a cada 5 min) envia ao responsável:
+  e-mail (SMTP do app) e WhatsApp (Evolution API) — cada canal guardado, idempotente (`reminder_sent_at`).
+- **Requer o scheduler rodando** (`php artisan schedule:run` por cron a cada minuto) além do worker de fila.
 
 ## Decisões assumidas (padrões)
 Tipos conforme acima; calendário mensal server-side primeiro; alertas só in-app na Fase 1

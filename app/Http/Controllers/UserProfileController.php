@@ -34,6 +34,7 @@ class UserProfileController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:30'],
             'avatar' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'current_password' => ['nullable', 'string'],
             'password' => ['nullable', 'string', 'min:6', 'confirmed'],
@@ -53,6 +54,7 @@ class UserProfileController extends Controller
         $payload = [
             'name' => trim((string) $validated['name']),
             'email' => Str::lower(trim((string) $validated['email'])),
+            'phone' => trim((string) ($validated['phone'] ?? '')) ?: null,
             'avatar_path' => $avatarPath,
         ];
 

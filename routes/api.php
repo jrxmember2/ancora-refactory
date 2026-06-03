@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Mobile\V1\LemeController as MobileLemeController;
 use App\Http\Controllers\Api\Mobile\V1\NotificationController as MobileNotificationController;
 use App\Http\Controllers\Api\Mobile\V1\ProcessController as MobileProcessController;
 use App\Http\Controllers\AssinafyWebhookController;
+use App\Http\Controllers\CalendarWebhookController;
 use App\Http\Controllers\EvolutionWebhookController;
 use App\Http\Controllers\Internal\AutomationController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,10 @@ Route::prefix('internal')
 
 Route::post('/integrations/assinafy/webhook', AssinafyWebhookController::class)
     ->name('integrations.assinafy.webhook');
+
+// Webhooks da Agenda (Fase 3 - sincronizacao bidirecional). Sem CSRF/sessao.
+Route::match(['get', 'post'], '/agenda/webhooks/google', [CalendarWebhookController::class, 'google'])->name('agenda.webhooks.google');
+Route::match(['get', 'post'], '/agenda/webhooks/microsoft', [CalendarWebhookController::class, 'microsoft'])->name('agenda.webhooks.microsoft');
 
 Route::post('/integrations/evolution/webhook/{token}/{event?}', EvolutionWebhookController::class)
     ->where('event', '.*')
