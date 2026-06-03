@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Cobranca;
 
-use App\Http\Controllers\CobrancaController;
+use App\Http\Controllers\Cobranca\CobrancaMonetaryStandaloneController;
 use App\Models\ClientEntity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -30,14 +30,14 @@ class CobrancaStandaloneMonetaryUpdateTest extends TestCase
             'quotas' => [
                 [
                     'selected' => '1',
-                    'reference_label' => '052026',
+                    'reference_label' => '05/2026',
                     'due_date' => '2026-05-10',
                     'original_amount' => '1.250,80',
                 ],
             ],
         ]);
 
-        $controller = $this->app->make(CobrancaController::class);
+        $controller = $this->app->make(CobrancaMonetaryStandaloneController::class);
         [$metadata, $errors, $quotaRows, $options] = $this->invokePrivate($controller, 'standaloneMonetaryPayloadFromRequest', [$request, true]);
 
         $this->assertSame([], $errors);
@@ -73,7 +73,7 @@ class CobrancaStandaloneMonetaryUpdateTest extends TestCase
             ],
         ]);
 
-        $controller = $this->app->make(CobrancaController::class);
+        $controller = $this->app->make(CobrancaMonetaryStandaloneController::class);
         [, $errors, $quotaRows] = $this->invokePrivate($controller, 'standaloneMonetaryPayloadFromRequest', [$request, true]);
 
         $this->assertSame([], $quotaRows);
