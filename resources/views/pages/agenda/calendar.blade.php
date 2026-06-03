@@ -4,7 +4,7 @@
 <x-ancora.section-header title="Agenda" subtitle="Prazos, audiencias, reunioes e compromissos do escritorio.">
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('agenda.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Ver em lista</a>
-        <a href="{{ route('agenda.create') }}" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo compromisso</a>
+        <button type="button" onclick="window.agendaCreate && window.agendaCreate()" class="rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white">Novo compromisso</button>
     </div>
 </x-ancora.section-header>
 
@@ -49,45 +49,112 @@
 </div>
 @endif
 
-<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-    <div class="mb-4 flex items-center justify-between">
-        <a href="{{ route('agenda.calendar', ['month' => $prevMonth->format('Y-m')]) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">&larr; {{ $prevMonth->translatedFormat('M/Y') }}</a>
-        <h3 class="text-base font-semibold capitalize text-gray-900 dark:text-white">{{ $reference->translatedFormat('F \d\e Y') }}</h3>
-        <a href="{{ route('agenda.calendar', ['month' => $nextMonth->format('Y-m')]) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">{{ $nextMonth->translatedFormat('M/Y') }} &rarr;</a>
+<style>
+    [x-cloak]{display:none !important;}
+    /* Ajustes do FullCalendar para o tema escuro */
+    .dark .fc{color:#e5e7eb;}
+    .dark .fc .fc-col-header-cell-cushion,.dark .fc .fc-daygrid-day-number,.dark .fc .fc-list-day-text{color:#e5e7eb;}
+    .dark .fc-theme-standard td,.dark .fc-theme-standard th,.dark .fc-theme-standard .fc-scrollgrid{border-color:#374151;}
+    .dark .fc .fc-day-today{background:rgba(59,130,246,0.12) !important;}
+    .fc .fc-button-primary{background:#3b82f6;border-color:#3b82f6;}
+    .fc .fc-button-primary:not(:disabled).fc-button-active,.fc .fc-button-primary:hover{background:#2563eb;border-color:#2563eb;}
+    .fc a{cursor:pointer;}
+</style>
+
+<div x-data="{
+        open: {{ ($errors->any() && old('_modal')) ? 'true' : 'false' }},
+        close(){ this.open = false; },
+        prefill(date){ this.$nextTick(() => { const el = document.getElementById('agenda-start-modal'); if(el && date){ el.value = (date.length <= 10) ? (date + 'T09:00') : date.slice(0,16); } }); }
+    }"
+    x-on:agenda-create.window="open = true; prefill($event.detail && $event.detail.date)">
+
+    <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+        <div id="agenda-calendar"></div>
     </div>
 
-    <div class="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-gray-100 bg-gray-100 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400">
-        @foreach(['Dom','Seg','Ter','Qua','Qui','Sex','Sab'] as $weekday)
-            <div class="bg-white py-2 dark:bg-gray-900">{{ $weekday }}</div>
-        @endforeach
-    </div>
-
-    <div class="grid grid-cols-7 gap-px overflow-hidden rounded-b-xl border-x border-b border-gray-100 bg-gray-100 dark:border-gray-800 dark:bg-gray-800">
-        @foreach($weeks as $week)
-            @foreach($week as $day)
-                <div class="min-h-[110px] bg-white p-2 align-top dark:bg-gray-900 {{ $day['in_month'] ? '' : 'opacity-50' }}">
-                    <div class="mb-1 flex items-center justify-between">
-                        <span class="text-xs font-semibold {{ $day['is_today'] ? 'flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white' : 'text-gray-500 dark:text-gray-400' }}">{{ $day['date']->day }}</span>
-                        <a href="{{ route('agenda.create', ['month' => $reference->format('Y-m')]) }}" class="text-xs text-gray-300 hover:text-brand-500">+</a>
-                    </div>
-                    <div class="space-y-1">
-                        @foreach($day['events'] as $event)
-                            @php
-                                $overdue = $event->isOverdue();
-                                $hasColor = $event->hasColor();
-                                $chip = $overdue ? 'bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-300'
-                                    : ($event->is_fatal ? 'bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-300'
-                                    : 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-200');
-                                $style = $hasColor ? 'background-color:' . $event->color . ';color:' . $event->textColor() . ';' : '';
-                            @endphp
-                            <a href="{{ route('agenda.show', $event) }}" class="block truncate rounded-md px-2 py-1 text-xs {{ $hasColor ? '' : $chip }}" style="{{ $style }}" title="{{ $event->title }}">
-                                <span class="font-medium">{{ $event->all_day ? '' : $event->start_at->format('H:i') }}</span> {{ $event->title }}
-                            </a>
-                        @endforeach
-                    </div>
+    {{-- Modal de criacao (desktop). No mobile/app a criacao usa a pagina normal. --}}
+    <div x-show="open" x-cloak class="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto p-4 sm:p-6" style="display:none;">
+        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="close()"></div>
+        <div class="relative z-10 mt-6 w-full max-w-3xl rounded-2xl bg-gray-50 p-5 shadow-2xl dark:bg-gray-900 sm:p-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Novo compromisso</h3>
+                <button type="button" @click="close()" class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-white/[0.05]"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            @if($errors->any() && old('_modal'))
+                <div class="mb-4 rounded-xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-300">
+                    <ul class="list-disc pl-5">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
                 </div>
-            @endforeach
-        @endforeach
+            @endif
+            @include('pages.agenda.partials._form', ['mode' => 'create', 'item' => null, 'inModal' => true, 'parentProcess' => null])
+        </div>
     </div>
 </div>
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js"></script>
+<script>
+(function(){
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const eventsUrl = @json(route('agenda.events.json'));
+    const createUrl = @json(route('agenda.create'));
+    const rescheduleBase = @json(url('/agenda'));
+
+    // Abre criacao: no mobile vai para a pagina; no desktop abre o modal.
+    window.agendaCreate = function(date){
+        if (window.innerWidth < 768){
+            const url = new URL(createUrl, window.location.origin);
+            if (date) url.searchParams.set('start', date);
+            window.location = url.toString();
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('agenda-create', { detail: { date: date || null } }));
+    };
+
+    function toLocalIso(d){
+        if(!d) return null;
+        return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,19);
+    }
+
+    function reschedule(info){
+        const ev = info.event;
+        fetch(rescheduleBase + '/' + ev.id + '/reagendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+            body: JSON.stringify({ start_at: toLocalIso(ev.start), end_at: toLocalIso(ev.end), all_day: ev.allDay ? 1 : 0 })
+        }).then(r => { if(!r.ok) info.revert(); }).catch(() => info.revert());
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+        const el = document.getElementById('agenda-calendar');
+        if(!el || typeof FullCalendar === 'undefined') return;
+
+        const calendar = new FullCalendar.Calendar(el, {
+            locale: 'pt-br',
+            timeZone: 'local',
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            nowIndicator: true,
+            editable: true,
+            dayMaxEvents: true,
+            headerToolbar: {
+                left: 'novo today prev,next',
+                center: 'title',
+                right: 'multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            buttonText: { today: 'Hoje', month: 'Mes', week: 'Semana', day: 'Dia' },
+            views: { multiMonthYear: { buttonText: 'Ano' } },
+            customButtons: {
+                novo: { text: '+ Novo', click: function(){ window.agendaCreate(); } }
+            },
+            events: { url: eventsUrl },
+            dateClick: function(info){ window.agendaCreate(info.dateStr); },
+            eventDrop: reschedule,
+            eventResize: reschedule
+        });
+        calendar.render();
+    });
+})();
+</script>
+@endpush
 @endsection

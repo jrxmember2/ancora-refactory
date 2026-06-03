@@ -22,6 +22,9 @@ class AgendaEvent extends Model
         return [
             'is_fatal' => 'boolean',
             'all_day' => 'boolean',
+            'remind_email' => 'boolean',
+            'remind_whatsapp' => 'boolean',
+            'copy_enabled' => 'boolean',
             'start_at' => 'datetime',
             'end_at' => 'datetime',
             'reminder_minutes' => 'integer',
@@ -77,6 +80,11 @@ class AgendaEvent extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(AgendaEventAttachment::class, 'agenda_event_id')->orderByDesc('id');
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(AgendaEventReminder::class, 'agenda_event_id')->orderBy('minutes_before');
     }
 
     public function scopeOpen(Builder $query): Builder

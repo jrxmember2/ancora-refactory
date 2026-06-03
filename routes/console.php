@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Ai\AiUsageLimiter;
+use App\Services\AgendaDailyDigestService;
 use App\Services\AgendaReminderService;
 use App\Services\Calendar\CalendarSubscriptionManager;
 use App\Services\ProcessDataJudService;
@@ -99,5 +100,27 @@ Artisan::command('agenda:renew-calendar-subscriptions', function (CalendarSubscr
 
 Schedule::command('agenda:renew-calendar-subscriptions')
     ->everySixHours()
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(30);
+
+Artisan::command('agenda:daily-digest', function (AgendaDailyDigestService $service) {
+    $result = $service->run();
+    $this->info(sprintf(
+        'Agenda: resumo diario enviado para %d de %d responsavel(eis) com compromisso hoje.',
+        $result['sent'],
+        $result['users']
+    ));
+
+    if (!empty($result['skipped'])) {
+        $this->warn('Ignorado: ' . $result['skipped']);
+    }
+
+    return 0;
+})->purpose('Envia por WhatsApp o resumo da agenda do dia para cada responsavel');
+
+// Dias uteis as 05h: resumo da agenda do dia no WhatsApp do responsavel.
+Schedule::command('agenda:daily-digest')
+    ->weekdays()
+    ->at('05:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(30);

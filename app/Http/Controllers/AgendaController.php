@@ -18,6 +18,7 @@ use App\Support\Agenda\AgendaCatalog;
 use App\Support\Agenda\IcsBuilder;
 use App\Support\AncoraAuth;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -66,7 +67,7 @@ class AgendaController extends Controller
             $feedUrl = route('agenda.feed', ['token' => $this->feedTokenForUser($user)]);
         }
 
-        return view('pages.agenda.calendar', [
+        return view('pages.agenda.calendar', array_merge($this->formOptions(), [
             'title' => 'Agenda',
             'reference' => $reference,
             'weeks' => $weeks,
@@ -75,7 +76,87 @@ class AgendaController extends Controller
             'typeLabels' => AgendaCatalog::types(),
             'feedUrl' => $feedUrl,
             'calendarIntegrations' => $this->calendarIntegrations($user),
+            // Dados para o modal de criacao embutido no calendario (desktop).
+            'mode' => 'create',
+            'item' => null,
+            'draft' => [
+                'type' => 'compromisso',
+                'status' => 'aberto',
+                'start_at' => now()->format('Y-m-d\TH:i'),
+            ],
+            'selectedParticipants' => [],
+        ]));
+    }
+
+    /**
+     * Eventos para o FullCalendar (carregados por intervalo via fetch).
+     */
+    public function eventsJson(Request $request): JsonResponse
+    {
+        $query = AgendaEvent::query()->with('responsible');
+
+        try {
+            if ($request->filled('start')) {
+                $query->where('start_at', '>=', Carbon::parse($request->query('start')));
+            }
+            if ($request->filled('end')) {
+                $query->where('start_at', '<=', Carbon::parse($request->query('end')));
+            }
+        } catch (\Throwable) {
+            // intervalo invalido: ignora o filtro e devolve os mais recentes
+        }
+
+        $events = $query->orderBy('start_at')->limit(2000)->get();
+
+        return response()->json($events->map(function (AgendaEvent $event) {
+            $bg = $event->hasColor()
+                ? $event->color
+                : ($event->isOverdue() ? '#ef4444' : ($event->is_fatal ? '#f59e0b' : '#3b82f6'));
+            $text = $event->hasColor() ? $event->textColor() : '#ffffff';
+
+            return [
+                'id' => $event->id,
+                'title' => $event->title,
+                'start' => optional($event->start_at)->toIso8601String(),
+                'end' => optional($event->end_at)->toIso8601String(),
+                'allDay' => (bool) $event->all_day,
+                'url' => route('agenda.show', $event),
+                'backgroundColor' => $bg,
+                'borderColor' => $bg,
+                'textColor' => $text,
+                'extendedProps' => [
+                    'fatal' => (bool) $event->is_fatal,
+                    'overdue' => $event->isOverdue(),
+                    'responsible' => $event->responsible->name ?? null,
+                ],
+            ];
+        })->all());
+    }
+
+    /**
+     * Reagenda um evento (drag-and-drop / resize no FullCalendar).
+     */
+    public function reschedule(Request $request, AgendaEvent $evento): JsonResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $data = $request->validate([
+            'start_at' => ['required', 'date'],
+            'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
+            'all_day' => ['nullable', 'boolean'],
         ]);
+
+        $evento->update([
+            'start_at' => Carbon::parse($data['start_at']),
+            'end_at' => !empty($data['end_at']) ? Carbon::parse($data['end_at']) : null,
+            'all_day' => $request->boolean('all_day', (bool) $evento->all_day),
+            'updated_by' => $user->id,
+        ]);
+
+        SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -183,10 +264,23 @@ class AgendaController extends Controller
 
     public function create(Request $request): View
     {
+        $startAt = now()->format('Y-m-d\TH:i');
+        if ($request->filled('start')) {
+            try {
+                $parsed = Carbon::parse((string) $request->query('start'));
+                // Datas sem hora (clique no mes/dia inteiro) assumem 09:00.
+                $startAt = ($parsed->format('H:i') === '00:00' && strlen((string) $request->query('start')) <= 10)
+                    ? $parsed->setTime(9, 0)->format('Y-m-d\TH:i')
+                    : $parsed->format('Y-m-d\TH:i');
+            } catch (\Throwable) {
+                // ignora start invalido
+            }
+        }
+
         $draft = [
             'type' => 'compromisso',
             'status' => 'aberto',
-            'start_at' => now()->format('Y-m-d\TH:i'),
+            'start_at' => $startAt,
         ];
 
         $process = $request->filled('process')
@@ -219,6 +313,7 @@ class AgendaController extends Controller
 
         $payload = $this->normalizedPayload($request);
         $participants = collect((array) $request->input('participants', []))->map(fn ($id) => (int) $id)->filter()->unique()->all();
+        $reminderMinutes = $this->collectReminderMinutes($request);
 
         $starts = $this->expandRecurrence($payload);
         $duration = $this->durationMinutes($payload);
@@ -241,6 +336,8 @@ class AgendaController extends Controller
             if ($participants !== []) {
                 $event->participants()->sync($participants);
             }
+
+            $this->syncReminders($event, $reminderMinutes);
 
             SyncAgendaEventToCalendarsJob::dispatch($event->id, 'upsert');
             $first ??= $event;
@@ -330,6 +427,8 @@ class AgendaController extends Controller
 
         $participants = collect((array) $request->input('participants', []))->map(fn ($id) => (int) $id)->filter()->unique()->all();
         $evento->participants()->sync($participants);
+
+        $this->syncReminders($evento, $this->collectReminderMinutes($request));
 
         SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
 
@@ -431,9 +530,15 @@ class AgendaController extends Controller
             'recurrence' => trim((string) ($data['recurrence'] ?? '')) ?: null,
             'recurrence_until' => $data['recurrence_until'] ?? null,
             'location' => trim((string) ($data['location'] ?? '')) ?: null,
-            'reminder_minutes' => ($data['reminder_minutes'] ?? null) !== null && $data['reminder_minutes'] !== ''
-                ? (int) $data['reminder_minutes']
-                : null,
+            // reminder_minutes legado = menor lembrete (compatibilidade ICS); os lembretes
+            // completos ficam em agenda_event_reminders via syncReminders().
+            'reminder_minutes' => $this->collectReminderMinutes($request)[0] ?? null,
+            'remind_email' => $request->boolean('remind_email'),
+            'remind_whatsapp' => $request->boolean('remind_whatsapp'),
+            'copy_enabled' => $request->boolean('copy_enabled'),
+            'copy_name' => $request->boolean('copy_enabled') ? (trim((string) ($data['copy_name'] ?? '')) ?: null) : null,
+            'copy_phone' => $request->boolean('copy_enabled') ? (preg_replace('/\D+/', '', (string) ($data['copy_phone'] ?? '')) ?: null) : null,
+            'copy_email' => $request->boolean('copy_enabled') ? (trim((string) ($data['copy_email'] ?? '')) ?: null) : null,
             'responsible_user_id' => $data['responsible_user_id'] ?? null,
             'requester_user_id' => $data['requester_user_id'] ?? null,
             'process_id' => $data['process_id'] ?? null,
@@ -441,6 +546,48 @@ class AgendaController extends Controller
             'client_id' => $data['client_id'] ?? null,
             'contract_id' => $data['contract_id'] ?? null,
         ];
+    }
+
+    /**
+     * Lista de antecedencias (minutos) dos lembretes, deduplicada e ordenada.
+     * Aceita o campo novo reminders[] e o legado reminder_minutes.
+     *
+     * @return array<int, int>
+     */
+    private function collectReminderMinutes(Request $request): array
+    {
+        $list = collect((array) $request->input('reminders', []))
+            ->map(fn ($m) => (int) $m)
+            ->filter(fn ($m) => $m > 0);
+
+        $legacy = (int) $request->integer('reminder_minutes');
+        if ($legacy > 0) {
+            $list->push($legacy);
+        }
+
+        return $list->unique()->sort()->values()->all();
+    }
+
+    /**
+     * Sincroniza as linhas de lembrete do evento, preservando o sent_at dos que continuam.
+     *
+     * @param array<int, int> $minutes
+     */
+    private function syncReminders(AgendaEvent $event, array $minutes): void
+    {
+        if (!Schema::hasTable('agenda_event_reminders')) {
+            return;
+        }
+
+        $existing = $event->reminders()->pluck('minutes_before')->all();
+
+        // Remove os que sairam.
+        $event->reminders()->whereNotIn('minutes_before', $minutes ?: [-1])->delete();
+
+        // Cria apenas os novos (mantem sent_at dos preservados).
+        foreach (array_diff($minutes, $existing) as $m) {
+            $event->reminders()->create(['minutes_before' => (int) $m]);
+        }
     }
 
     private function applyFilters(Builder $query, array $filters): void

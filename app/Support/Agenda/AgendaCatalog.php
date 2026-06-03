@@ -51,6 +51,9 @@ class AgendaCatalog
     {
         return [
             '' => 'Sem lembrete',
+            '5' => '5 minutos antes',
+            '10' => '10 minutos antes',
+            '15' => '15 minutos antes',
             '30' => '30 minutos antes',
             '60' => '1 hora antes',
             '120' => '2 horas antes',
@@ -58,6 +61,27 @@ class AgendaCatalog
             '2880' => '2 dias antes',
             '10080' => '1 semana antes',
         ];
+    }
+
+    /**
+     * Opcoes para adicionar lembretes (sem a entrada "sem lembrete").
+     *
+     * @return array<int, string>
+     */
+    public static function reminderChoices(): array
+    {
+        $options = self::reminderOptions();
+        unset($options['']);
+
+        return array_combine(
+            array_map('intval', array_keys($options)),
+            array_values($options)
+        );
+    }
+
+    public static function reminderLabel(int $minutes): string
+    {
+        return self::reminderChoices()[$minutes] ?? ($minutes . ' minutos antes');
     }
 
     public static function typeLabel(?string $type): string

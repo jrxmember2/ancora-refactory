@@ -241,6 +241,8 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/lista', [AgendaController::class, 'index'])->name('agenda.index')->middleware('ancora.route:agenda.index');
         Route::get('/novo', [AgendaController::class, 'create'])->name('agenda.create')->middleware('ancora.route:agenda.create');
         Route::post('/store', [AgendaController::class, 'store'])->name('agenda.store')->middleware('ancora.route:agenda.store');
+        Route::get('/eventos.json', [AgendaController::class, 'eventsJson'])->name('agenda.events.json')->middleware('ancora.route:agenda.calendar');
+        Route::match(['post', 'patch'], '/{evento}/reagendar', [AgendaController::class, 'reschedule'])->name('agenda.reschedule')->middleware('ancora.route:agenda.update');
         Route::get('/integracoes/{provider}/conectar', [CalendarConnectionController::class, 'connect'])->name('agenda.calendar.connect')->middleware('ancora.route:agenda.calendar')->where('provider', 'google|microsoft');
         Route::get('/integracoes/{provider}/callback', [CalendarConnectionController::class, 'callback'])->name('agenda.calendar.callback')->middleware('ancora.route:agenda.calendar')->where('provider', 'google|microsoft');
         Route::post('/integracoes/{provider}/desconectar', [CalendarConnectionController::class, 'disconnect'])->name('agenda.calendar.disconnect')->middleware('ancora.route:agenda.calendar')->where('provider', 'google|microsoft');
