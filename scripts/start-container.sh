@@ -38,4 +38,6 @@ fix_permissions "$APP_ROOT/public/assets/uploads"
 fix_permissions "$APP_ROOT/public/branding"
 fix_permissions "$APP_ROOT/public/build"
 
-exec apache2-foreground
+# Sobe Apache + worker de fila + scheduler sob o Supervisor (auto-restart).
+ensure_dir /var/log/supervisor
+exec supervisord -c "$APP_ROOT/docker/supervisord.conf" -n

@@ -36,7 +36,7 @@ FROM php:8.3-apache AS runtime
 WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip zip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv chromium poppler-utils fonts-dejavu-core fonts-liberation \
+    git unzip zip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libicu-dev libonig-dev libxml2-dev python3 python3-pip python3-venv chromium poppler-utils fonts-dejavu-core fonts-liberation supervisor \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql intl zip mbstring gd \
     && python3 -m venv /opt/pyenv \
