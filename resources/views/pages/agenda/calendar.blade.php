@@ -69,7 +69,9 @@
     x-on:agenda-create.window="open = true; prefill($event.detail && $event.detail.date)">
 
     <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-        <div id="agenda-calendar"></div>
+        <div id="agenda-calendar">
+            <div id="agenda-calendar-fallback" class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">Carregando calendario...</div>
+        </div>
     </div>
 
     {{-- Modal de criacao (desktop). No mobile/app a criacao usa a pagina normal. --}}
@@ -91,13 +93,14 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/index.global.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.15/locales/pt-br.global.min.js"></script>
 <script>
 (function(){
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const eventsUrl = @json(route('agenda.events.json'));
     const createUrl = @json(route('agenda.create'));
+    const listUrl = @json(route('agenda.index'));
     const rescheduleBase = @json(url('/agenda'));
 
     // Abre criacao: no mobile vai para a pagina; no desktop abre o modal.
@@ -127,8 +130,14 @@
 
     document.addEventListener('DOMContentLoaded', function(){
         const el = document.getElementById('agenda-calendar');
-        if(!el || typeof FullCalendar === 'undefined') return;
+        if(!el) return;
 
+        if (typeof FullCalendar === 'undefined'){
+            el.innerHTML = '<div class="p-8 text-center text-sm text-error-600 dark:text-error-300">Nao foi possivel carregar o calendario (script externo bloqueado pela rede/CSP). <a href="' + listUrl + '" class="underline">Abrir em lista</a>.</div>';
+            return;
+        }
+
+        el.innerHTML = '';
         const calendar = new FullCalendar.Calendar(el, {
             locale: 'pt-br',
             timeZone: 'local',
