@@ -173,6 +173,16 @@ class AuditLogPresenter
             'config.users.update' => 'Atualizou usuário',
             'config.users.delete' => 'Excluiu usuário',
 
+            'financeiro.payables.store' => 'Criou conta a pagar',
+            'financeiro.payables.update' => 'Atualizou conta a pagar',
+            'financeiro.payables.delete' => 'Excluiu conta a pagar',
+            'financeiro.payables.duplicate' => 'Duplicou conta a pagar',
+            'financeiro.payables.settle' => 'Registrou pagamento de conta a pagar',
+            'financeiro.receivables.store' => 'Criou conta a receber',
+            'financeiro.receivables.update' => 'Atualizou conta a receber',
+            'financeiro.receivables.delete' => 'Excluiu conta a receber',
+            'financeiro.receivables.settle' => 'Registrou baixa de conta a receber',
+
             'profile.update' => 'Atualizou meus dados',
             'profile.theme' => 'Alterou tema do sistema',
             'password.reset.update' => 'Redefiniu senha',
@@ -227,6 +237,9 @@ class AuditLogPresenter
             'ai_document_chunks' => 'Blocos de IA',
             'config' => 'Configurações',
             'password' => 'Senha',
+            'financeiro' => 'Financeiro 360',
+            'financial_payables' => 'Contas a pagar',
+            'financial_receivables' => 'Contas a receber',
         ];
 
         return $labels[$entityType] ?? Str::of($entityType)->replace(['_', '-'], ' ')->title()->toString();
@@ -250,6 +263,9 @@ class AuditLogPresenter
             Str::startsWith($routeName, 'contratos') => 'contracts',
             Str::startsWith($routeName, 'assinador') => 'electronic_signature_documents',
             Str::startsWith($routeName, 'propostas') => 'propostas',
+            Str::startsWith($routeName, 'financeiro.payables') => 'financial_payables',
+            Str::startsWith($routeName, 'financeiro.receivables') => 'financial_receivables',
+            Str::startsWith($routeName, 'financeiro') => 'financeiro',
             Str::startsWith($routeName, 'profile') => 'users',
             Str::startsWith($routeName, 'ia.office-chat') => 'ai_office_chat_conversations',
             Str::startsWith($routeName, 'config.ai.chat-history') => 'ai_chat_messages',

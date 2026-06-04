@@ -8,7 +8,13 @@
 
 <x-ancora.section-header :title="$item->code ?: $item->title" subtitle="Detalhamento da conta a pagar, liquidacoes, anexos e rastreabilidade da despesa.">
     <div class="flex flex-wrap gap-3">
+        <a href="{{ route('financeiro.payables.index') }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Lista</a>
         <a href="{{ route('financeiro.payables.edit', $item) }}" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">Editar</a>
+        <form method="post" action="{{ route('financeiro.payables.delete', $item) }}" onsubmit="return confirm('Excluir definitivamente esta conta a pagar?\n\nA exclusao sera registrada na auditoria com data, usuario e detalhes do lancamento.');">
+            @csrf
+            @method('DELETE')
+            <button class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-600 dark:border-rose-900 dark:bg-white/[0.03] dark:text-rose-300">Excluir</button>
+        </form>
     </div>
 </x-ancora.section-header>
 

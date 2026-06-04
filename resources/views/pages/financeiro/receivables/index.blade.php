@@ -133,6 +133,7 @@
                                     <a href="{{ route('financeiro.receivables.edit', $item) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Editar</a>
                                     <form method="post" action="{{ route('financeiro.receivables.duplicate', $item) }}">@csrf<button class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Duplicar</button></form>
                                     <a href="{{ route('financeiro.receivables.receipt', $item) }}" class="rounded-xl bg-brand-500 px-3 py-2 text-xs font-medium text-white">Recibo</a>
+                                    <form method="post" action="{{ route('financeiro.receivables.delete', $item) }}" onsubmit="return confirm('Excluir esta conta a receber?\n\nA exclusao sera registrada na auditoria.');">@csrf @method('DELETE')<button class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-600 dark:border-rose-900 dark:text-rose-300">Excluir</button></form>
                                 </div>
                             </td>
                         </tr>

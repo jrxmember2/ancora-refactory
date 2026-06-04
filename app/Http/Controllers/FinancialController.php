@@ -9,6 +9,7 @@ use App\Http\Requests\StoreFinancialReceivableRequest;
 use App\Http\Requests\UpdateFinancialAccountRequest;
 use App\Http\Requests\UpdateFinancialPayableRequest;
 use App\Http\Requests\UpdateFinancialReceivableRequest;
+use App\Models\AuditLog;
 use App\Models\Contract;
 use App\Models\FinancialAccount;
 use App\Models\FinancialAttachment;
@@ -33,6 +34,7 @@ use App\Services\FinancialReportingService;
 use App\Support\AncoraAuth;
 use App\Support\BrazilianCurrencyFormatter;
 use App\Support\Financeiro\FinancialCatalog;
+use App\Support\Financeiro\FinancialColumns;
 use App\Support\FinancialSettings;
 use App\Support\Financeiro\FinancialValue;
 use App\Support\SortableQuery;
@@ -245,15 +247,31 @@ class FinancialController extends Controller
             $user->id
         );
 
-        if ($result['created']->count() === 1 && $result['series_total'] === 1) {
+        $created = $result['created'];
+        $first = $created->first();
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.store',
+            'financial_receivables',
+            $first?->id,
+            sprintf(
+                'Criou %d conta(s) a receber [%s] — %s — total da serie %s.',
+                $created->count(),
+                $created->map(fn (FinancialReceivable $r) => $r->code ?: ('#' . $r->id))->implode(', ') ?: 'sem codigo',
+                $first ? $this->receivableAuditSummary($first) : '-',
+                FinancialValue::money($created->sum(fn (FinancialReceivable $r) => (float) $r->final_amount))
+            )
+        );
+
+        if ($created->count() === 1 && $result['series_total'] === 1) {
             return redirect()
-                ->route('financeiro.receivables.show', $result['created']->first())
+                ->route('financeiro.receivables.show', $first)
                 ->with('success', 'Conta a receber criada com sucesso.');
         }
 
         return redirect()
             ->route('financeiro.receivables.index')
-            ->with('success', $result['created']->count() . ' conta(s) a receber criada(s) na serie.');
+            ->with('success', $created->count() . ' conta(s) a receber criada(s) na serie.');
     }
 
     public function receivablesShow(FinancialReceivable $receivable): View
@@ -291,9 +309,25 @@ class FinancialController extends Controller
         return redirect()->route('financeiro.receivables.show', $receivable)->with('success', 'Conta a receber atualizada com sucesso.');
     }
 
-    public function receivablesDestroy(FinancialReceivable $receivable): RedirectResponse
+    public function receivablesDestroy(Request $request, FinancialReceivable $receivable): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $settlementsCount = (int) $receivable->transactions()->count();
+        $details = sprintf(
+            'Excluiu conta a receber %s — %s · recebido %s · baixas vinculadas: %d.',
+            $receivable->code ?: ('#' . $receivable->id),
+            $this->receivableAuditSummary($receivable),
+            FinancialValue::money($receivable->received_amount),
+            $settlementsCount
+        );
+
+        $receivableId = $receivable->id;
         $receivable->delete();
+
+        $this->logFinancialAction($request, 'financeiro.receivables.delete', 'financial_receivables', $receivableId, $details);
+
         return redirect()->route('financeiro.receivables.index')->with('success', 'Conta a receber excluida com sucesso.');
     }
 
@@ -330,14 +364,31 @@ class FinancialController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
+        $amount = $this->moneyToDecimal($validated['settlement_amount']);
         $this->ledgerService->recordReceivableSettlement(
             $receivable,
-            $this->moneyToDecimal($validated['settlement_amount']),
+            $amount,
             $validated['settlement_date'] ? Carbon::parse($validated['settlement_date']) : now(),
             $this->intOrNull($validated['account_id'] ?? null),
             $validated['payment_method'] ?? null,
             $validated['description'] ?? null,
             $user->id
+        );
+        $receivable->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.settle',
+            'financial_receivables',
+            $receivable->id,
+            sprintf(
+                'Registrou baixa de %s na conta a receber %s — recebido %s, saldo %s, status %s.',
+                FinancialValue::money($amount),
+                $receivable->code ?: ('#' . $receivable->id),
+                FinancialValue::money($receivable->received_amount),
+                FinancialValue::money((float) $receivable->final_amount - (float) $receivable->received_amount),
+                $receivable->status
+            )
         );
 
         return back()->with('success', 'Baixa registrada com sucesso.');
@@ -489,15 +540,31 @@ class FinancialController extends Controller
         $payload = $this->normalizedPayablePayload($request);
         $result = $this->storePayableSeries($payload, $request, $user->id);
 
-        if ($result['created']->count() === 1 && $result['series_total'] === 1) {
+        $created = $result['created'];
+        $first = $created->first();
+        $this->logFinancialAction(
+            $request,
+            'financeiro.payables.store',
+            'financial_payables',
+            $first?->id,
+            sprintf(
+                'Criou %d conta(s) a pagar [%s] — %s — total da serie %s.',
+                $created->count(),
+                $created->map(fn (FinancialPayable $p) => $p->code ?: ('#' . $p->id))->implode(', ') ?: 'sem codigo',
+                $first ? $this->payableAuditSummary($first) : '-',
+                FinancialValue::money($created->sum(fn (FinancialPayable $p) => (float) $p->amount))
+            )
+        );
+
+        if ($created->count() === 1 && $result['series_total'] === 1) {
             return redirect()
-                ->route('financeiro.payables.show', $result['created']->first())
+                ->route('financeiro.payables.show', $first)
                 ->with('success', 'Conta a pagar criada com sucesso.');
         }
 
         return redirect()
             ->route('financeiro.payables.index')
-            ->with('success', $result['created']->count() . ' conta(s) a pagar criada(s) na serie.');
+            ->with('success', $created->count() . ' conta(s) a pagar criada(s) na serie.');
     }
 
     public function payablesShow(FinancialPayable $payable): View
@@ -526,18 +593,53 @@ class FinancialController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
+        $before = sprintf(
+            'valores anteriores -> %s',
+            $this->payableAuditSummary($payable)
+        );
+
         $payload = $this->normalizedPayablePayload($request);
         $payload['updated_by'] = $user->id;
 
         $payable->update($payload);
         $this->ledgerService->syncPayable($payable->fresh());
+        $payable->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.payables.update',
+            'financial_payables',
+            $payable->id,
+            sprintf(
+                'Atualizou conta a pagar %s — %s. (%s)',
+                $payable->code ?: ('#' . $payable->id),
+                $this->payableAuditSummary($payable),
+                $before
+            )
+        );
 
         return redirect()->route('financeiro.payables.show', $payable)->with('success', 'Conta a pagar atualizada com sucesso.');
     }
 
-    public function payablesDestroy(FinancialPayable $payable): RedirectResponse
+    public function payablesDestroy(Request $request, FinancialPayable $payable): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $paymentsCount = (int) $payable->transactions()->count();
+        $details = sprintf(
+            'Excluiu conta a pagar %s — %s · pago %s · pagamentos vinculados: %d.',
+            $payable->code ?: ('#' . $payable->id),
+            $this->payableAuditSummary($payable),
+            FinancialValue::money($payable->paid_amount),
+            $paymentsCount
+        );
+
+        $payableId = $payable->id;
         $payable->delete();
+
+        $this->logFinancialAction($request, 'financeiro.payables.delete', 'financial_payables', $payableId, $details);
+
         return redirect()->route('financeiro.payables.index')->with('success', 'Conta a pagar excluida com sucesso.');
     }
 
@@ -555,6 +657,19 @@ class FinancialController extends Controller
         $clone->updated_by = $user->id;
         $clone->save();
 
+        $this->logFinancialAction(
+            $request,
+            'financeiro.payables.duplicate',
+            'financial_payables',
+            $clone->id,
+            sprintf(
+                'Duplicou conta a pagar %s a partir de %s — %s.',
+                $clone->code ?: ('#' . $clone->id),
+                $payable->code ?: ('#' . $payable->id),
+                $this->payableAuditSummary($clone)
+            )
+        );
+
         return redirect()->route('financeiro.payables.edit', $clone)->with('success', 'Conta a pagar duplicada com sucesso.');
     }
 
@@ -571,14 +686,31 @@ class FinancialController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
+        $amount = $this->moneyToDecimal($validated['settlement_amount']);
         $this->ledgerService->recordPayableSettlement(
             $payable,
-            $this->moneyToDecimal($validated['settlement_amount']),
+            $amount,
             $validated['settlement_date'] ? Carbon::parse($validated['settlement_date']) : now(),
             $this->intOrNull($validated['account_id'] ?? null),
             $validated['payment_method'] ?? null,
             $validated['description'] ?? null,
             $user->id
+        );
+        $payable->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.payables.settle',
+            'financial_payables',
+            $payable->id,
+            sprintf(
+                'Registrou pagamento de %s na conta a pagar %s — pago %s, saldo %s, status %s.',
+                FinancialValue::money($amount),
+                $payable->code ?: ('#' . $payable->id),
+                FinancialValue::money($payable->paid_amount),
+                FinancialValue::money((float) $payable->amount - (float) $payable->paid_amount),
+                $payable->status
+            )
         );
 
         return back()->with('success', 'Pagamento registrado com sucesso.');
@@ -1476,7 +1608,7 @@ class FinancialController extends Controller
                     'updated_by' => $userId,
                 ]);
 
-                $item = FinancialReceivable::query()->create($itemPayload);
+                $item = FinancialReceivable::query()->create(FinancialColumns::filter('financial_receivables', $itemPayload));
                 $this->ledgerService->syncReceivable($item);
                 $created->push($item);
             }
@@ -1554,7 +1686,7 @@ class FinancialController extends Controller
                 // 'reference' nao existe em financial_payables; garantimos que nao vai no insert.
                 unset($itemPayload['reference']);
 
-                $item = FinancialPayable::query()->create($itemPayload);
+                $item = FinancialPayable::query()->create(FinancialColumns::filter('financial_payables', $itemPayload));
                 $this->ledgerService->syncPayable($item);
                 $created->push($item);
             }
@@ -1655,5 +1787,78 @@ class FinancialController extends Controller
         });
 
         return back()->with('success', 'Parcelamento gerado com sucesso.');
+    }
+
+    /**
+     * Resumo legível de uma conta a pagar para a trilha de auditoria.
+     */
+    private function payableAuditSummary(FinancialPayable $payable): string
+    {
+        $parts = [
+            'titulo: ' . ($payable->title ?: '-'),
+            'valor: ' . FinancialValue::money($payable->amount),
+        ];
+
+        if ($payable->due_date) {
+            $parts[] = 'vencimento: ' . $payable->due_date->format('d/m/Y');
+        }
+
+        $supplier = $payable->supplier?->display_name ?: $payable->supplier_name_snapshot;
+        if ($supplier) {
+            $parts[] = 'fornecedor: ' . $supplier;
+        }
+
+        $parts[] = 'status: ' . $payable->status;
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Resumo legível de uma conta a receber para a trilha de auditoria.
+     */
+    private function receivableAuditSummary(FinancialReceivable $receivable): string
+    {
+        $parts = [
+            'titulo: ' . ($receivable->title ?: '-'),
+            'valor: ' . FinancialValue::money($receivable->final_amount),
+        ];
+
+        if ($receivable->due_date) {
+            $parts[] = 'vencimento: ' . $receivable->due_date->format('d/m/Y');
+        }
+
+        $client = $receivable->client?->display_name ?: $receivable->condominium?->name;
+        if ($client) {
+            $parts[] = 'cliente: ' . $client;
+        }
+
+        $parts[] = 'status: ' . $receivable->status;
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Registra uma entrada detalhada na trilha de auditoria do módulo financeiro e
+     * sinaliza ao middleware (audit.activity) para não duplicar com o log genérico.
+     */
+    private function logFinancialAction(Request $request, string $action, string $entityType, ?int $entityId, string $details): void
+    {
+        try {
+            $user = AncoraAuth::user($request);
+            AuditLog::query()->create([
+                'user_id' => $user?->id,
+                'user_email' => $user?->email ?? 'desconhecido',
+                'action' => $action,
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'details' => $details,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                'created_at' => now(),
+            ]);
+            $request->attributes->set('audit.skip_generic', true);
+        } catch (\Throwable) {
+            // Auditoria nunca deve derrubar a operação principal do usuário.
+        }
     }
 }
