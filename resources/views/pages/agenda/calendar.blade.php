@@ -174,6 +174,21 @@
     </div>
 </div>
 
+{{-- Modal generico de visualizar/editar compromisso (carregado via fetch) --}}
+<div id="agenda-event-modal" x-data="{ close(){ window.agendaModalClose && window.agendaModalClose(); } }"
+     class="fixed inset-0 z-[99999] hidden items-start justify-center overflow-y-auto p-4 sm:p-6">
+    <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" data-agenda-close></div>
+    <div class="relative z-10 mt-6 w-full max-w-3xl rounded-2xl bg-gray-50 p-5 shadow-2xl dark:bg-gray-900 sm:p-6">
+        <div class="mb-4 flex items-center justify-between">
+            <h3 id="agenda-event-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">Compromisso</h3>
+            <button type="button" data-agenda-close class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-white/[0.05]"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="agenda-event-modal-body">
+            <div class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">Carregando...</div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script src="{{ asset('vendor/fullcalendar/index.global.min.js') }}"></script>
 <script src="{{ asset('vendor/fullcalendar/locales/pt-br.global.min.js') }}"></script>
@@ -243,10 +258,111 @@
             },
             events: { url: eventsUrl },
             dateClick: function(info){ window.agendaCreate(info.dateStr); },
+            eventClick: function(info){ info.jsEvent.preventDefault(); openAgendaModal(info.event.url, info.event.title); },
             eventDrop: reschedule,
             eventResize: reschedule
         });
         calendar.render();
+
+        // ===== Modal de visualizar / editar compromisso (carregado via fetch) =====
+        const modalEl = document.getElementById('agenda-event-modal');
+        const modalBody = document.getElementById('agenda-event-modal-body');
+        const modalTitle = document.getElementById('agenda-event-modal-title');
+
+        function withModal(u){ const url = new URL(u, window.location.origin); url.searchParams.set('modal', '1'); return url.toString(); }
+        function showModal(){ modalEl.classList.remove('hidden'); modalEl.classList.add('flex'); document.body.style.overflow = 'hidden'; }
+        function closeAgendaModal(){ modalEl.classList.add('hidden'); modalEl.classList.remove('flex'); modalBody.innerHTML = ''; document.body.style.overflow = ''; }
+        window.agendaModalClose = closeAgendaModal;
+
+        function initAlpine(node){ if (window.Alpine && typeof window.Alpine.initTree === 'function') window.Alpine.initTree(node); }
+
+        function openAgendaModal(url, title){
+            modalTitle.textContent = title || 'Compromisso';
+            modalBody.innerHTML = '<div class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">Carregando...</div>';
+            showModal();
+            fetch(withModal(url), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+                .then(r => r.text())
+                .then(html => { modalBody.innerHTML = html; initAlpine(modalBody); })
+                .catch(() => { modalBody.innerHTML = '<div class="p-8 text-center text-sm text-error-600 dark:text-error-300">Nao foi possivel carregar o compromisso.</div>'; });
+        }
+
+        function toast(msg){
+            if (!msg) return;
+            const t = document.createElement('div');
+            t.className = 'fixed bottom-5 right-5 z-[100000] rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-2xl dark:bg-gray-700';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2200);
+        }
+
+        function showFormErrors(form, errors){
+            let box = form.querySelector('[data-modal-errors]');
+            if (!box){
+                box = document.createElement('div');
+                box.setAttribute('data-modal-errors', '');
+                box.className = 'mb-4 rounded-xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-300';
+                form.prepend(box);
+            }
+            const msgs = [];
+            Object.keys(errors || {}).forEach(k => (errors[k] || []).forEach(m => msgs.push(m)));
+            box.innerHTML = '<ul class="list-disc pl-5">' + msgs.map(m => '<li>' + m + '</li>').join('') + '</ul>';
+            box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Fechar: backdrop, botao X e ESC
+        modalEl.addEventListener('click', function(e){ if (e.target.closest('[data-agenda-close]')) closeAgendaModal(); });
+        document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !modalEl.classList.contains('hidden')) closeAgendaModal(); });
+
+        // Links internos que trocam o fragmento (ex.: "Editar")
+        modalBody.addEventListener('click', function(e){
+            const a = e.target.closest('a[data-modal-load]');
+            if (!a) return;
+            e.preventDefault();
+            openAgendaModal(a.getAttribute('href'), a.getAttribute('data-modal-title') || 'Compromisso');
+        });
+
+        // Envio de qualquer formulario do modal via fetch
+        modalBody.addEventListener('submit', function(e){
+            const form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            e.preventDefault();
+
+            const confirmMsg = form.getAttribute('data-confirm');
+            if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+            const after = form.getAttribute('data-after') || 'close';
+            const detailUrl = form.getAttribute('data-detail-url');
+            const submitBtn = form.querySelector('button[type="submit"], button:not([type])');
+            const fd = new FormData(form);
+            fd.set('_modal', '1');
+            if (submitBtn) submitBtn.disabled = true;
+
+            fetch(form.getAttribute('action'), {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                credentials: 'same-origin',
+                body: fd
+            }).then(async function(r){
+                if (r.ok){
+                    let data = {};
+                    try { data = await r.json(); } catch (_) {}
+                    calendar.refetchEvents();
+                    if (after === 'reload' && detailUrl) openAgendaModal(detailUrl, modalTitle.textContent);
+                    else closeAgendaModal();
+                    toast(data.message);
+                } else if (r.status === 422){
+                    const data = await r.json().catch(() => ({}));
+                    if (submitBtn) submitBtn.disabled = false;
+                    showFormErrors(form, data.errors || {});
+                } else {
+                    if (submitBtn) submitBtn.disabled = false;
+                    showFormErrors(form, { erro: ['Nao foi possivel salvar. Tente novamente.'] });
+                }
+            }).catch(function(){
+                if (submitBtn) submitBtn.disabled = false;
+                showFormErrors(form, { erro: ['Falha de conexao.'] });
+            });
+        });
     });
 })();
 </script>

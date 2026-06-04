@@ -320,7 +320,7 @@ class AgendaController extends Controller
         ]));
     }
 
-    public function store(StoreAgendaEventRequest $request): RedirectResponse
+    public function store(StoreAgendaEventRequest $request): RedirectResponse|JsonResponse
     {
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
@@ -361,7 +361,14 @@ class AgendaController extends Controller
             ? count($starts) . ' compromissos criados na recorrencia.'
             : 'Compromisso criado com sucesso.';
 
-        return redirect()->route('agenda.show', $first)->with('success', $message);
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => $message]);
+        }
+
+        // Criacao via modal volta para o calendario; via pagina, vai para o detalhe.
+        return $request->boolean('_modal')
+            ? redirect()->route('agenda.calendar')->with('success', $message)
+            : redirect()->route('agenda.show', $first)->with('success', $message);
     }
 
     /**
@@ -404,33 +411,40 @@ class AgendaController extends Controller
         return (int) Carbon::parse($payload['start_at'])->diffInMinutes(Carbon::parse($payload['end_at']));
     }
 
-    public function show(AgendaEvent $evento): View
+    public function show(Request $request, AgendaEvent $evento): View
     {
         $evento->load(['responsible', 'requester', 'process', 'demand', 'client', 'contract', 'completer', 'participants', 'attachments.uploader']);
 
-        return view('pages.agenda.show', [
+        $data = [
             'title' => $evento->title,
             'item' => $evento,
             'typeLabels' => AgendaCatalog::types(),
             'statusLabels' => AgendaCatalog::statuses(),
-        ]);
+        ];
+
+        // ?modal=1 (clique no calendario) devolve apenas o fragmento para injetar no modal.
+        return view($request->boolean('modal') ? 'pages.agenda.partials._detail' : 'pages.agenda.show', $data);
     }
 
-    public function edit(AgendaEvent $evento): View
+    public function edit(Request $request, AgendaEvent $evento): View
     {
         $evento->load('participants');
 
-        return view('pages.agenda.form', array_merge($this->formOptions(), [
+        $data = array_merge($this->formOptions(), [
             'title' => 'Editar compromisso',
             'mode' => 'edit',
             'item' => $evento,
             'draft' => $evento->toArray(),
             'parentProcess' => null,
             'selectedParticipants' => $evento->participants->pluck('id')->all(),
-        ]));
+        ]);
+
+        return $request->boolean('modal')
+            ? view('pages.agenda.partials._form', array_merge($data, ['inModal' => true]))
+            : view('pages.agenda.form', $data);
     }
 
-    public function update(UpdateAgendaEventRequest $request, AgendaEvent $evento): RedirectResponse
+    public function update(UpdateAgendaEventRequest $request, AgendaEvent $evento): RedirectResponse|JsonResponse
     {
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
@@ -446,10 +460,18 @@ class AgendaController extends Controller
 
         SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
 
-        return redirect()->route('agenda.show', $evento)->with('success', 'Compromisso atualizado com sucesso.');
+        $message = 'Compromisso atualizado com sucesso.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => $message]);
+        }
+
+        return redirect()
+            ->route($request->boolean('_modal') ? 'agenda.calendar' : 'agenda.show', $request->boolean('_modal') ? [] : ['evento' => $evento])
+            ->with('success', $message);
     }
 
-    public function complete(Request $request, AgendaEvent $evento): RedirectResponse
+    public function complete(Request $request, AgendaEvent $evento): RedirectResponse|JsonResponse
     {
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
@@ -465,15 +487,23 @@ class AgendaController extends Controller
             SyncAgendaEventToCalendarsJob::dispatch($evento->id, 'upsert');
         }
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Compromisso concluido.']);
+        }
+
         return back()->with('success', 'Compromisso concluido.');
     }
 
-    public function destroy(AgendaEvent $evento): RedirectResponse
+    public function destroy(Request $request, AgendaEvent $evento): RedirectResponse|JsonResponse
     {
         $eventId = (int) $evento->id;
         $evento->delete();
 
         SyncAgendaEventToCalendarsJob::dispatch($eventId, 'delete');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Compromisso removido.']);
+        }
 
         return redirect()->route('agenda.index')->with('success', 'Compromisso removido.');
     }
