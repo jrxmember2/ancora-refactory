@@ -7,6 +7,7 @@ use App\Models\AgendaEventSync;
 use App\Models\CalendarConnection;
 use App\Models\CalendarSubscription;
 use App\Services\Calendar\Contracts\CalendarWebhookProviderInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -155,27 +156,41 @@ class CalendarInboundSyncService
             return false;
         }
 
-        $event = AgendaEvent::query()->create([
-            'title' => trim((string) ($data['title'] ?? '')) ?: 'Compromisso importado',
-            'description' => $data['description'] ?? null,
-            'location' => $data['location'] ?? null,
-            'type' => 'compromisso',
-            'status' => 'aberto',
-            'all_day' => (bool) ($data['all_day'] ?? false),
-            'start_at' => $data['start_at'],
-            'end_at' => $data['end_at'] ?? null,
-            'responsible_user_id' => $connection->user_id,
-        ]);
+        // Idempotente: trava a faixa (connection, external) e reverifica dentro da transacao,
+        // para que webhooks concorrentes nao importem o mesmo evento do Google mais de uma vez.
+        return DB::transaction(function () use ($connection, $externalId, $data) {
+            $already = AgendaEventSync::query()
+                ->where('connection_id', $connection->id)
+                ->where('external_event_id', $externalId)
+                ->lockForUpdate()
+                ->exists();
 
-        AgendaEventSync::query()->create([
-            'agenda_event_id' => $event->id,
-            'connection_id' => $connection->id,
-            'provider' => $connection->provider,
-            'external_event_id' => $externalId,
-            'last_synced_at' => now(),
-        ]);
+            if ($already) {
+                return false;
+            }
 
-        return true;
+            $event = AgendaEvent::query()->create([
+                'title' => trim((string) ($data['title'] ?? '')) ?: 'Compromisso importado',
+                'description' => $data['description'] ?? null,
+                'location' => $data['location'] ?? null,
+                'type' => 'compromisso',
+                'status' => 'aberto',
+                'all_day' => (bool) ($data['all_day'] ?? false),
+                'start_at' => $data['start_at'],
+                'end_at' => $data['end_at'] ?? null,
+                'responsible_user_id' => $connection->user_id,
+            ]);
+
+            AgendaEventSync::query()->create([
+                'agenda_event_id' => $event->id,
+                'connection_id' => $connection->id,
+                'provider' => $connection->provider,
+                'external_event_id' => $externalId,
+                'last_synced_at' => now(),
+            ]);
+
+            return true;
+        });
     }
 
     private function webhookProvider(CalendarConnection $connection): ?CalendarWebhookProviderInterface
