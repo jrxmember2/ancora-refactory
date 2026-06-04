@@ -51,14 +51,96 @@
 
 <style>
     [x-cloak]{display:none !important;}
-    /* Ajustes do FullCalendar para o tema escuro */
-    .dark .fc{color:#e5e7eb;}
-    .dark .fc .fc-col-header-cell-cushion,.dark .fc .fc-daygrid-day-number,.dark .fc .fc-list-day-text{color:#e5e7eb;}
-    .dark .fc-theme-standard td,.dark .fc-theme-standard th,.dark .fc-theme-standard .fc-scrollgrid{border-color:#374151;}
-    .dark .fc .fc-day-today{background:rgba(59,130,246,0.12) !important;}
-    .fc .fc-button-primary{background:#3b82f6;border-color:#3b82f6;}
-    .fc .fc-button-primary:not(:disabled).fc-button-active,.fc .fc-button-primary:hover{background:#2563eb;border-color:#2563eb;}
+
+    /* ===== Tema FullCalendar estilo Google Agenda ===== */
+    .fc{
+        --fc-border-color:#e8eaed;
+        --fc-today-bg-color:rgba(59,130,246,0.06);
+        --fc-now-indicator-color:#ea4335;
+        --fc-page-bg-color:transparent;
+        font-family:inherit;
+    }
+    .dark .fc{
+        --fc-border-color:#1f2937;
+        --fc-today-bg-color:rgba(59,130,246,0.10);
+        color:#e5e7eb;
+    }
     .fc a{cursor:pointer;}
+    .fc .fc-scrollgrid{border-radius:14px;overflow:hidden;}
+
+    /* Cabecalho dos dias da semana */
+    .fc .fc-col-header-cell{background:transparent;}
+    .fc .fc-col-header-cell-cushion{
+        padding:10px 6px;font-size:.7rem;font-weight:600;
+        text-transform:uppercase;letter-spacing:.05em;color:#70757a;
+    }
+    .dark .fc .fc-col-header-cell-cushion{color:#9aa0a6;}
+
+    /* Numero do dia */
+    .fc .fc-daygrid-day-number{padding:6px 8px;font-size:.8rem;font-weight:500;color:#3c4043;}
+    .dark .fc .fc-daygrid-day-number{color:#d1d5db;}
+    .fc .fc-day-other .fc-daygrid-day-number{opacity:.4;}
+    .fc .fc-daygrid-day-frame{min-height:5.5rem;}
+
+    /* "Hoje": numero em circulo azul (Google) e fundo neutro */
+    .fc .fc-day-today{background:var(--fc-today-bg-color) !important;}
+    .fc .fc-day-today .fc-daygrid-day-number{
+        background:#1a73e8;color:#fff;border-radius:9999px;margin:4px;padding:0;
+        min-width:1.7rem;height:1.7rem;display:inline-flex;align-items:center;justify-content:center;
+        font-weight:600;
+    }
+
+    /* Eventos como "chips" coloridos preenchidos */
+    .fc .fc-daygrid-event{
+        border:none;border-radius:6px;margin:1px 4px 2px;padding:1px 7px;
+        font-size:.74rem;line-height:1.45;box-shadow:0 1px 1px rgba(60,64,67,.12);
+        transition:filter .12s ease,transform .12s ease;
+    }
+    .fc .fc-daygrid-event:hover{filter:brightness(.93);}
+    .fc .fc-event,.fc .fc-event-title,.fc .fc-event-time{font-weight:500 !important;}
+    .fc .fc-daygrid-block-event .fc-event-time{opacity:.85;padding-right:3px;}
+    .fc .fc-daygrid-event .fc-event-title{overflow:hidden;text-overflow:ellipsis;}
+
+    /* Eventos na semana/dia (timeGrid) */
+    .fc .fc-timegrid-event{
+        border:none;border-radius:6px;box-shadow:0 1px 2px rgba(60,64,67,.18);padding:1px 5px;
+    }
+    .fc .fc-timegrid-event:hover{filter:brightness(.95);}
+
+    /* Link "+N mais" */
+    .fc .fc-daygrid-more-link{
+        font-size:.72rem;font-weight:600;color:#5f6368;border-radius:4px;padding:0 4px;
+    }
+    .dark .fc .fc-daygrid-more-link{color:#9aa0a6;}
+    .fc .fc-daygrid-more-link:hover{background:rgba(0,0,0,.06);}
+
+    /* Titulo do mes/periodo */
+    .fc .fc-toolbar-title{font-size:1.3rem;font-weight:600;color:#202124;}
+    .dark .fc .fc-toolbar-title{color:#f1f3f4;}
+    .fc .fc-toolbar.fc-header-toolbar{margin-bottom:1.25rem;flex-wrap:wrap;gap:.5rem;}
+
+    /* Botoes da barra: claros, arredondados (Google) */
+    .fc .fc-button-primary{
+        background:#fff;border:1px solid #dadce0;color:#3c4043;box-shadow:none;
+        text-transform:none;font-weight:500;font-size:.82rem;border-radius:9999px;padding:.45em .95em;
+    }
+    .fc .fc-button-primary:hover{background:#f1f3f4;border-color:#dadce0;color:#202124;}
+    .fc .fc-button-primary:focus{box-shadow:0 0 0 3px rgba(26,115,232,.2);}
+    .fc .fc-button-primary:not(:disabled).fc-button-active{background:#e8f0fe;border-color:#1a73e8;color:#1a73e8;}
+    .fc .fc-button-primary:disabled{opacity:.5;}
+    .dark .fc .fc-button-primary{background:#1f2937;border-color:#374151;color:#e5e7eb;}
+    .dark .fc .fc-button-primary:hover{background:#374151;color:#fff;}
+    .dark .fc .fc-button-primary:not(:disabled).fc-button-active{background:#1a73e8;border-color:#1a73e8;color:#fff;}
+
+    /* Botao "+ Novo" em destaque (brand) */
+    .fc .fc-novo-button{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:600;}
+    .fc .fc-novo-button:hover{background:#1765cc;border-color:#1765cc;color:#fff;}
+
+    /* Popover do "+N mais" e tema escuro */
+    .dark .fc .fc-popover{background:#1f2937;border-color:#374151;}
+    .dark .fc .fc-popover-header{background:#111827;color:#e5e7eb;}
+    .dark .fc .fc-list-day-text,.dark .fc .fc-list-day-side-text{color:#e5e7eb;}
+    .dark .fc-theme-standard td,.dark .fc-theme-standard th,.dark .fc-theme-standard .fc-scrollgrid{border-color:#1f2937;}
 </style>
 
 <div x-data="{
@@ -145,7 +227,10 @@
             height: 'auto',
             nowIndicator: true,
             editable: true,
-            dayMaxEvents: true,
+            eventDisplay: 'block',
+            dayMaxEvents: 3,
+            fixedWeekCount: false,
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             headerToolbar: {
                 left: 'novo today prev,next',
                 center: 'title',

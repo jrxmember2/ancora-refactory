@@ -108,10 +108,24 @@ class AgendaController extends Controller
 
         $events = $query->orderBy('start_at')->limit(2000)->get();
 
-        return response()->json($events->map(function (AgendaEvent $event) {
+        // Paleta por tipo (estilo Google Agenda) quando o evento nao tem cor propria.
+        $typePalette = [
+            'prazo' => '#3f51b5',       // azul indigo
+            'audiencia' => '#0b8043',   // verde
+            'reuniao' => '#039be5',     // azul claro
+            'tarefa' => '#7986cb',      // lavanda
+            'compromisso' => '#009688', // teal
+            'diligencia' => '#f4511e',  // laranja
+            'pericia' => '#8e24aa',     // roxo
+            'outro' => '#616161',       // grafite
+        ];
+
+        return response()->json($events->map(function (AgendaEvent $event) use ($typePalette) {
             $bg = $event->hasColor()
                 ? $event->color
-                : ($event->isOverdue() ? '#ef4444' : ($event->is_fatal ? '#f59e0b' : '#3b82f6'));
+                : ($event->isOverdue() ? '#ef4444'
+                    : ($event->is_fatal ? '#f59e0b'
+                        : ($typePalette[$event->type] ?? '#3b82f6')));
             $text = $event->hasColor() ? $event->textColor() : '#ffffff';
 
             return [
