@@ -141,7 +141,7 @@ class FinancialController extends Controller
             'document_number' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $this->ledgerService->recordStandaloneTransaction([
+        $transaction = $this->ledgerService->recordStandaloneTransaction([
             'transaction_type' => $validated['transaction_type'],
             'account_id' => $this->intOrNull($validated['account_id'] ?? null),
             'destination_account_id' => $this->intOrNull($validated['destination_account_id'] ?? null),
@@ -156,6 +156,18 @@ class FinancialController extends Controller
             'created_by' => $user->id,
             'direction' => $validated['transaction_type'] === 'entrada' ? 'entrada' : 'saida',
         ]);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.cash-flow.store',
+            'financial_transactions',
+            $transaction->id,
+            sprintf(
+                'Registrou movimentacao %s — %s.',
+                $transaction->code ?: ('#' . $transaction->id),
+                $this->transactionAuditSummary($transaction->loadMissing(['account', 'destinationAccount', 'category']))
+            )
+        );
 
         return back()->with('success', 'Movimentacao registrada com sucesso.');
     }
@@ -300,11 +312,22 @@ class FinancialController extends Controller
         $user = AncoraAuth::user($request);
         abort_unless($user, 401);
 
+        $before = 'valores anteriores -> ' . $this->receivableAuditSummary($receivable);
+
         $payload = $this->normalizedReceivablePayload($request);
         $payload['updated_by'] = $user->id;
 
         $receivable->update($payload);
         $this->ledgerService->syncReceivable($receivable->fresh());
+        $receivable->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.update',
+            'financial_receivables',
+            $receivable->id,
+            sprintf('Atualizou conta a receber %s — %s. (%s)', $receivable->code ?: ('#' . $receivable->id), $this->receivableAuditSummary($receivable), $before)
+        );
 
         return redirect()->route('financeiro.receivables.show', $receivable)->with('success', 'Conta a receber atualizada com sucesso.');
     }
@@ -347,6 +370,19 @@ class FinancialController extends Controller
         $clone->created_by = $user->id;
         $clone->updated_by = $user->id;
         $clone->save();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.duplicate',
+            'financial_receivables',
+            $clone->id,
+            sprintf(
+                'Duplicou conta a receber %s a partir de %s — %s.',
+                $clone->code ?: ('#' . $clone->id),
+                $receivable->code ?: ('#' . $receivable->id),
+                $this->receivableAuditSummary($clone)
+            )
+        );
 
         return redirect()->route('financeiro.receivables.edit', $clone)->with('success', 'Conta a receber duplicada com sucesso.');
     }
@@ -411,7 +447,22 @@ class FinancialController extends Controller
 
     public function receivablesRenegotiate(Request $request, FinancialReceivable $receivable): RedirectResponse
     {
+        $previousStatus = $receivable->status;
         $receivable->forceFill(['status' => 'negociado'])->save();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.renegotiate',
+            'financial_receivables',
+            $receivable->id,
+            sprintf(
+                'Marcou conta a receber %s como negociada (status anterior: %s) — %s.',
+                $receivable->code ?: ('#' . $receivable->id),
+                $previousStatus,
+                $this->receivableAuditSummary($receivable)
+            )
+        );
+
         return back()->with('success', 'Recebivel marcado como negociado.');
     }
 
@@ -452,7 +503,17 @@ class FinancialController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->storeAttachments($request->file('files', []), 'receivable', $receivable->id, $request->input('file_type'), $request->input('description'), $user->id);
+        $files = $request->file('files', []);
+        $this->storeAttachments($files, 'receivable', $receivable->id, $request->input('file_type'), $request->input('description'), $user->id);
+
+        $names = collect($files)->map(fn ($f) => $f instanceof UploadedFile ? $f->getClientOriginalName() : null)->filter()->implode(', ');
+        $this->logFinancialAction(
+            $request,
+            'financeiro.receivables.attachments.upload',
+            'financial_receivables',
+            $receivable->id,
+            sprintf('Anexou %d arquivo(s) na conta a receber %s [%s].', is_array($files) ? count($files) : 0, $receivable->code ?: ('#' . $receivable->id), $names ?: '-')
+        );
 
         return back()->with('success', 'Anexo(s) enviado(s) com sucesso.');
     }
@@ -473,7 +534,16 @@ class FinancialController extends Controller
         if (is_file($path)) {
             File::delete($path);
         }
+        $attachmentName = $attachment->original_name;
         $attachment->delete();
+
+        $this->logFinancialAction(
+            request(),
+            'financeiro.receivables.attachments.delete',
+            'financial_receivables',
+            $receivable->id,
+            sprintf('Excluiu anexo "%s" da conta a receber %s.', $attachmentName, $receivable->code ?: ('#' . $receivable->id))
+        );
 
         return back()->with('success', 'Anexo removido com sucesso.');
     }
@@ -728,7 +798,17 @@ class FinancialController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->storeAttachments($request->file('files', []), 'payable', $payable->id, $request->input('file_type'), $request->input('description'), $user->id);
+        $files = $request->file('files', []);
+        $this->storeAttachments($files, 'payable', $payable->id, $request->input('file_type'), $request->input('description'), $user->id);
+
+        $names = collect($files)->map(fn ($f) => $f instanceof UploadedFile ? $f->getClientOriginalName() : null)->filter()->implode(', ');
+        $this->logFinancialAction(
+            $request,
+            'financeiro.payables.attachments.upload',
+            'financial_payables',
+            $payable->id,
+            sprintf('Anexou %d arquivo(s) na conta a pagar %s [%s].', is_array($files) ? count($files) : 0, $payable->code ?: ('#' . $payable->id), $names ?: '-')
+        );
 
         return back()->with('success', 'Anexo(s) enviado(s) com sucesso.');
     }
@@ -749,7 +829,16 @@ class FinancialController extends Controller
         if (is_file($path)) {
             File::delete($path);
         }
+        $attachmentName = $attachment->original_name;
         $attachment->delete();
+
+        $this->logFinancialAction(
+            request(),
+            'financeiro.payables.attachments.delete',
+            'financial_payables',
+            $payable->id,
+            sprintf('Excluiu anexo "%s" da conta a pagar %s.', $attachmentName, $payable->code ?: ('#' . $payable->id))
+        );
 
         return back()->with('success', 'Anexo removido com sucesso.');
     }
@@ -797,6 +886,23 @@ class FinancialController extends Controller
             $user->id
         );
 
+        $createdTotal = $result['created']->sum(fn ($r) => (float) ($r->final_amount ?? 0));
+        $this->logFinancialAction(
+            $request,
+            'financeiro.billing.generate-contract',
+            'contracts',
+            $contract->id,
+            sprintf(
+                'Gerou faturamento do contrato %s (periodo %s a %s) — %d cobranca(s) criada(s) [total %s], %d pulada(s) por duplicidade.',
+                $contract->code ?: ('#' . $contract->id),
+                Carbon::parse($validated['from'])->format('d/m/Y'),
+                Carbon::parse($validated['to'])->format('d/m/Y'),
+                $result['created']->count(),
+                FinancialValue::money($createdTotal),
+                count($result['skipped'])
+            )
+        );
+
         return back()->with('success', 'Faturamento processado: ' . $result['created']->count() . ' cobranca(s) criada(s) e ' . count($result['skipped']) . ' pulada(s) por duplicidade.');
     }
 
@@ -819,7 +925,15 @@ class FinancialController extends Controller
             FinancialAccount::query()->update(['is_primary' => false]);
         }
 
-        FinancialAccount::query()->create($payload);
+        $account = FinancialAccount::query()->create($payload);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.accounts.store',
+            'financial_accounts',
+            $account->id,
+            sprintf('Criou conta financeira %s — %s.', $account->code ?: ('#' . $account->id), $this->accountAuditSummary($account))
+        );
 
         return back()->with('success', 'Conta financeira criada com sucesso.');
     }
@@ -832,14 +946,38 @@ class FinancialController extends Controller
             FinancialAccount::query()->whereKeyNot($account->id)->update(['is_primary' => false]);
         }
 
+        $before = 'valores anteriores -> ' . $this->accountAuditSummary($account);
         $account->update($payload);
+        $account->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.accounts.update',
+            'financial_accounts',
+            $account->id,
+            sprintf('Atualizou conta financeira %s — %s. (%s)', $account->code ?: ('#' . $account->id), $this->accountAuditSummary($account), $before)
+        );
 
         return back()->with('success', 'Conta financeira atualizada com sucesso.');
     }
 
-    public function accountsDestroy(FinancialAccount $account): RedirectResponse
+    public function accountsDestroy(Request $request, FinancialAccount $account): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $accountId = $account->id;
+        $movements = (int) $account->transactions()->count();
+        $details = sprintf(
+            'Excluiu conta financeira %s — %s · movimentacoes vinculadas: %d.',
+            $account->code ?: ('#' . $account->id),
+            $this->accountAuditSummary($account),
+            $movements
+        );
         $account->delete();
+
+        $this->logFinancialAction($request, 'financeiro.accounts.delete', 'financial_accounts', $accountId, $details);
+
         return back()->with('success', 'Conta financeira excluida com sucesso.');
     }
 
@@ -911,6 +1049,21 @@ class FinancialController extends Controller
             ]);
         });
 
+        $this->logFinancialAction(
+            $request,
+            'financeiro.reconciliation.conciliate',
+            'financial_statements',
+            $statement->id,
+            sprintf(
+                'Conciliou extrato #%d (%s) com a movimentacao #%d — valor %s%s.',
+                $statement->id,
+                optional($statement->statement_date)->format('d/m/Y') ?: '-',
+                (int) $validated['transaction_id'],
+                FinancialValue::money($statement->amount),
+                !empty($validated['notes']) ? ' · obs: ' . Str::limit((string) $validated['notes'], 120) : ''
+            )
+        );
+
         return back()->with('success', 'Lancamento conciliado com sucesso.');
     }
 
@@ -968,11 +1121,19 @@ class FinancialController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        FinancialCostCenter::query()->create([
+        $costCenter = FinancialCostCenter::query()->create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active', true),
         ]);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.cost-centers.store',
+            'financial_cost_centers',
+            $costCenter->id,
+            sprintf('Criou centro de custo "%s"%s.', $costCenter->name, $costCenter->is_active ? '' : ' (inativo)')
+        );
 
         return back()->with('success', 'Centro de custo criado com sucesso.');
     }
@@ -985,18 +1146,36 @@ class FinancialController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $before = sprintf('antes: "%s" (%s)', $costCenter->name, $costCenter->is_active ? 'ativo' : 'inativo');
         $costCenter->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active'),
         ]);
+        $costCenter->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.cost-centers.update',
+            'financial_cost_centers',
+            $costCenter->id,
+            sprintf('Atualizou centro de custo "%s" (%s). %s', $costCenter->name, $costCenter->is_active ? 'ativo' : 'inativo', $before)
+        );
 
         return back()->with('success', 'Centro de custo atualizado com sucesso.');
     }
 
-    public function costCentersDestroy(FinancialCostCenter $costCenter): RedirectResponse
+    public function costCentersDestroy(Request $request, FinancialCostCenter $costCenter): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $costCenterId = $costCenter->id;
+        $details = sprintf('Excluiu centro de custo "%s".', $costCenter->name);
         $costCenter->delete();
+
+        $this->logFinancialAction($request, 'financeiro.cost-centers.delete', 'financial_cost_centers', $costCenterId, $details);
+
         return back()->with('success', 'Centro de custo excluido com sucesso.');
     }
 
@@ -1021,7 +1200,7 @@ class FinancialController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        FinancialCategory::query()->create([
+        $category = FinancialCategory::query()->create([
             'type' => $validated['type'],
             'name' => $validated['name'],
             'parent_id' => $this->resolveCategoryParentId($validated['parent_id'] ?? null, null),
@@ -1030,6 +1209,20 @@ class FinancialController extends Controller
             'color_hex' => $validated['color_hex'] ?? null,
             'is_active' => $request->boolean('is_active', true),
         ]);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.categories.store',
+            'financial_categories',
+            $category->id,
+            sprintf(
+                'Criou categoria "%s" (tipo: %s, grupo DRE: %s)%s.',
+                $category->name,
+                $category->type,
+                $category->dre_group ?: '-',
+                $category->parent_id ? ', subcategoria de #' . $category->parent_id : ''
+            )
+        );
 
         return back()->with('success', 'Categoria criada com sucesso.');
     }
@@ -1046,6 +1239,7 @@ class FinancialController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $before = sprintf('antes: "%s" (tipo: %s, grupo DRE: %s)', $category->name, $category->type, $category->dre_group ?: '-');
         $category->update([
             'type' => $validated['type'],
             'name' => $validated['name'],
@@ -1055,6 +1249,15 @@ class FinancialController extends Controller
             'color_hex' => $validated['color_hex'] ?? null,
             'is_active' => $request->boolean('is_active'),
         ]);
+        $category->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.categories.update',
+            'financial_categories',
+            $category->id,
+            sprintf('Atualizou categoria "%s" (tipo: %s, grupo DRE: %s). %s', $category->name, $category->type, $category->dre_group ?: '-', $before)
+        );
 
         return back()->with('success', 'Categoria atualizada com sucesso.');
     }
@@ -1078,9 +1281,17 @@ class FinancialController extends Controller
         return $parent->id;
     }
 
-    public function categoriesDestroy(FinancialCategory $category): RedirectResponse
+    public function categoriesDestroy(Request $request, FinancialCategory $category): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $categoryId = $category->id;
+        $details = sprintf('Excluiu categoria "%s" (tipo: %s, grupo DRE: %s).', $category->name, $category->type, $category->dre_group ?: '-');
         $category->delete();
+
+        $this->logFinancialAction($request, 'financeiro.categories.delete', 'financial_categories', $categoryId, $details);
+
         return back()->with('success', 'Categoria excluida com sucesso.');
     }
 
@@ -1122,9 +1333,24 @@ class FinancialController extends Controller
         return $this->createInstallmentsForReceivable($request, $receivable, (int) $validated['installment_total'], Carbon::parse($validated['first_due_date']));
     }
 
-    public function installmentsDestroy(FinancialInstallment $installment): RedirectResponse
+    public function installmentsDestroy(Request $request, FinancialInstallment $installment): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $installmentId = $installment->id;
+        $details = sprintf(
+            'Excluiu parcela %s (%d/%d) — valor %s, vencimento %s.',
+            $installment->code ?: ('#' . $installment->id),
+            (int) $installment->installment_number,
+            (int) $installment->installment_total,
+            FinancialValue::money($installment->amount),
+            optional($installment->due_date)->format('d/m/Y') ?: '-'
+        );
         $installment->delete();
+
+        $this->logFinancialAction($request, 'financeiro.installments.delete', 'financial_installments', $installmentId, $details);
+
         return back()->with('success', 'Parcela removida com sucesso.');
     }
 
@@ -1156,7 +1382,15 @@ class FinancialController extends Controller
     {
         $validated = $this->validateReimbursement($request);
         $validated['code'] = $this->codeService->next('financial_reimbursements', 'entry_prefix', 'RMB');
-        FinancialReimbursement::query()->create($validated);
+        $reimbursement = FinancialReimbursement::query()->create($validated);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.reimbursements.store',
+            'financial_reimbursements',
+            $reimbursement->id,
+            sprintf('Criou reembolso %s — %s.', $reimbursement->code ?: ('#' . $reimbursement->id), $this->reimbursementAuditSummary($reimbursement))
+        );
 
         return redirect()->route('financeiro.reimbursements.index')->with('success', 'Reembolso criado com sucesso.');
     }
@@ -1172,13 +1406,32 @@ class FinancialController extends Controller
 
     public function reimbursementsUpdate(Request $request, FinancialReimbursement $reimbursement): RedirectResponse
     {
+        $before = 'valores anteriores -> ' . $this->reimbursementAuditSummary($reimbursement);
         $reimbursement->update($this->validateReimbursement($request));
+        $reimbursement->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.reimbursements.update',
+            'financial_reimbursements',
+            $reimbursement->id,
+            sprintf('Atualizou reembolso %s — %s. (%s)', $reimbursement->code ?: ('#' . $reimbursement->id), $this->reimbursementAuditSummary($reimbursement), $before)
+        );
+
         return redirect()->route('financeiro.reimbursements.index')->with('success', 'Reembolso atualizado com sucesso.');
     }
 
-    public function reimbursementsDestroy(FinancialReimbursement $reimbursement): RedirectResponse
+    public function reimbursementsDestroy(Request $request, FinancialReimbursement $reimbursement): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $reimbursementId = $reimbursement->id;
+        $details = sprintf('Excluiu reembolso %s — %s.', $reimbursement->code ?: ('#' . $reimbursement->id), $this->reimbursementAuditSummary($reimbursement));
         $reimbursement->delete();
+
+        $this->logFinancialAction($request, 'financeiro.reimbursements.delete', 'financial_reimbursements', $reimbursementId, $details);
+
         return back()->with('success', 'Reembolso excluido com sucesso.');
     }
 
@@ -1210,7 +1463,15 @@ class FinancialController extends Controller
     {
         $validated = $this->validateProcessCost($request);
         $validated['code'] = $this->codeService->next('financial_process_costs', 'entry_prefix', 'CST');
-        FinancialProcessCost::query()->create($validated);
+        $processCost = FinancialProcessCost::query()->create($validated);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.process-costs.store',
+            'financial_process_costs',
+            $processCost->id,
+            sprintf('Criou custa processual %s — %s.', $processCost->code ?: ('#' . $processCost->id), $this->processCostAuditSummary($processCost))
+        );
 
         return redirect()->route('financeiro.process-costs.index')->with('success', 'Custa processual criada com sucesso.');
     }
@@ -1226,13 +1487,32 @@ class FinancialController extends Controller
 
     public function processCostsUpdate(Request $request, FinancialProcessCost $processCost): RedirectResponse
     {
+        $before = 'valores anteriores -> ' . $this->processCostAuditSummary($processCost);
         $processCost->update($this->validateProcessCost($request));
+        $processCost->refresh();
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.process-costs.update',
+            'financial_process_costs',
+            $processCost->id,
+            sprintf('Atualizou custa processual %s — %s. (%s)', $processCost->code ?: ('#' . $processCost->id), $this->processCostAuditSummary($processCost), $before)
+        );
+
         return redirect()->route('financeiro.process-costs.index')->with('success', 'Custa processual atualizada com sucesso.');
     }
 
-    public function processCostsDestroy(FinancialProcessCost $processCost): RedirectResponse
+    public function processCostsDestroy(Request $request, FinancialProcessCost $processCost): RedirectResponse
     {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $processCostId = $processCost->id;
+        $details = sprintf('Excluiu custa processual %s — %s.', $processCost->code ?: ('#' . $processCost->id), $this->processCostAuditSummary($processCost));
         $processCost->delete();
+
+        $this->logFinancialAction($request, 'financeiro.process-costs.delete', 'financial_process_costs', $processCostId, $details);
+
         return back()->with('success', 'Custa processual excluida com sucesso.');
     }
 
@@ -1355,12 +1635,25 @@ class FinancialController extends Controller
             'default_state' => ['nullable', 'string', 'max:10'],
         ]);
 
+        $changed = [];
         foreach (FinancialSettings::defaults() as $key => $default) {
-            FinancialSetting::query()->updateOrCreate(
-                ['key' => $key],
-                ['value' => (string) ($validated[$key] ?? ($request->boolean($key) ? '1' : ($request->has($key) ? '0' : $default)))]
-            );
+            $newValue = (string) ($validated[$key] ?? ($request->boolean($key) ? '1' : ($request->has($key) ? '0' : $default)));
+            $previous = (string) FinancialSettings::get($key, $default);
+            FinancialSetting::query()->updateOrCreate(['key' => $key], ['value' => $newValue]);
+            if ($previous !== $newValue) {
+                $changed[] = sprintf('%s: "%s" -> "%s"', $key, $previous, $newValue);
+            }
         }
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.settings.save',
+            'financeiro',
+            null,
+            $changed === []
+                ? 'Salvou configuracoes financeiras sem alteracoes de valores.'
+                : 'Alterou configuracoes financeiras — ' . implode(' · ', $changed) . '.'
+        );
 
         return back()->with('success', 'Configuracoes financeiras atualizadas com sucesso.');
     }
@@ -1786,6 +2079,20 @@ class FinancialController extends Controller
             }
         });
 
+        $this->logFinancialAction(
+            $request,
+            'financeiro.installments.store',
+            'financial_installments',
+            $receivable->id,
+            sprintf(
+                'Gerou parcelamento em %dx da conta a receber %s — saldo parcelado %s, 1o vencimento %s.',
+                $totalInstallments,
+                $receivable->code ?: ('#' . $receivable->id),
+                FinancialValue::money($remaining),
+                $firstDueDate->format('d/m/Y')
+            )
+        );
+
         return back()->with('success', 'Parcelamento gerado com sucesso.');
     }
 
@@ -1833,6 +2140,124 @@ class FinancialController extends Controller
         }
 
         $parts[] = 'status: ' . $receivable->status;
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Resumo legível de uma movimentação do fluxo de caixa (transação) para auditoria.
+     */
+    private function transactionAuditSummary(FinancialTransaction $transaction): string
+    {
+        $typeLabel = FinancialCatalog::transactionTypes()[$transaction->transaction_type] ?? $transaction->transaction_type;
+        $parts = [
+            'tipo: ' . $typeLabel,
+            'valor: ' . FinancialValue::money($transaction->amount),
+        ];
+
+        if ($transaction->transaction_date) {
+            $parts[] = 'data: ' . $transaction->transaction_date->format('d/m/Y H:i');
+        }
+        if ($transaction->account) {
+            $parts[] = 'conta: ' . $transaction->account->name;
+        }
+        if ($transaction->destinationAccount) {
+            $parts[] = 'conta destino: ' . $transaction->destinationAccount->name;
+        }
+        if ($transaction->category) {
+            $parts[] = 'categoria: ' . $transaction->category->name;
+        }
+        $method = FinancialCatalog::paymentMethods()[$transaction->payment_method] ?? $transaction->payment_method;
+        if ($method) {
+            $parts[] = 'forma: ' . $method;
+        }
+        if ($transaction->document_number) {
+            $parts[] = 'documento: ' . $transaction->document_number;
+        }
+        if ($transaction->description) {
+            $parts[] = 'descricao: ' . Str::limit($transaction->description, 120);
+        }
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Resumo legível de um reembolso para auditoria.
+     */
+    private function reimbursementAuditSummary(FinancialReimbursement $reimbursement): string
+    {
+        $parts = [
+            'tipo: ' . ($reimbursement->type ?: '-'),
+            'valor: ' . FinancialValue::money($reimbursement->amount),
+            'reembolsado: ' . FinancialValue::money($reimbursement->reimbursed_amount),
+        ];
+
+        $client = $reimbursement->client?->display_name;
+        if ($client) {
+            $parts[] = 'cliente: ' . $client;
+        }
+        if ($reimbursement->process_id) {
+            $parts[] = 'processo: #' . $reimbursement->process_id;
+        }
+        if ($reimbursement->due_date) {
+            $parts[] = 'vencimento: ' . $reimbursement->due_date->format('d/m/Y');
+        }
+        $parts[] = 'status: ' . $reimbursement->status;
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Resumo legível de uma custa processual para auditoria.
+     */
+    private function processCostAuditSummary(FinancialProcessCost $processCost): string
+    {
+        $parts = [
+            'tipo: ' . ($processCost->cost_type ?: '-'),
+            'valor: ' . FinancialValue::money($processCost->amount),
+            'reembolsado: ' . FinancialValue::money($processCost->reimbursed_amount),
+        ];
+
+        if ($processCost->process_id) {
+            $parts[] = 'processo: #' . $processCost->process_id;
+        }
+        $client = $processCost->client?->display_name;
+        if ($client) {
+            $parts[] = 'cliente: ' . $client;
+        }
+        if ($processCost->category) {
+            $parts[] = 'categoria: ' . $processCost->category->name;
+        }
+        if ($processCost->cost_date) {
+            $parts[] = 'data: ' . $processCost->cost_date->format('d/m/Y');
+        }
+        $parts[] = 'status: ' . $processCost->status;
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Resumo legível de uma conta bancária/financeira para auditoria.
+     */
+    private function accountAuditSummary(FinancialAccount $account): string
+    {
+        $typeLabel = FinancialCatalog::accountTypes()[$account->account_type] ?? $account->account_type;
+        $parts = [
+            'nome: ' . ($account->name ?: '-'),
+            'tipo: ' . $typeLabel,
+        ];
+
+        if ($account->bank_name) {
+            $parts[] = 'banco: ' . $account->bank_name;
+        }
+        if ($account->account_number) {
+            $parts[] = 'conta: ' . $account->account_number . ($account->account_digit ? '-' . $account->account_digit : '');
+        }
+        $parts[] = 'saldo inicial: ' . FinancialValue::money($account->opening_balance);
+        if ($account->is_primary) {
+            $parts[] = 'principal';
+        }
+        $parts[] = $account->is_active ? 'ativa' : 'inativa';
 
         return implode(' · ', $parts);
     }
