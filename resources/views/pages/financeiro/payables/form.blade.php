@@ -41,8 +41,16 @@
                 <input type="text" name="supplier_name_snapshot" value="{{ old('supplier_name_snapshot', $item->supplier_name_snapshot ?? '') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
             </label>
             <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                <span>Categoria</span>
-                <select name="category_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <span class="flex items-center justify-between">
+                    <span>Categoria</span>
+                    <button type="button"
+                        data-quick-category
+                        data-url="{{ route('financeiro.categories.quick-store') }}"
+                        data-type="despesa"
+                        data-token="{{ csrf_token() }}"
+                        class="text-xs font-medium text-brand-500 hover:underline">+ Nova categoria</button>
+                </span>
+                <select name="category_id" data-category-select class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                     <option value="">Selecione</option>
                     @foreach($categories as $category)
                         <option value="{{ $category->id }}" @selected((string) old('category_id', $item->category_id ?? '') === (string) $category->id)>{{ $category->name }}</option>
@@ -97,6 +105,11 @@
                 </select>
             </label>
             <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                <span>Data de pagamento</span>
+                <input type="date" name="paid_at" value="{{ old('paid_at', optional($item->paid_at ?? null)->format('Y-m-d')) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <span class="block text-xs text-gray-400">Ao marcar o status como "Pago", informe a data da baixa.</span>
+            </label>
+            <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
                 <span>Forma de pagamento</span>
                 <select name="payment_method" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                     <option value="">Selecione</option>
@@ -147,4 +160,6 @@
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">{{ $isEdit ? 'Salvar alteracoes' : 'Criar conta a pagar' }}</button>
     </div>
 </form>
+
+@include('pages.financeiro.partials._quick-category')
 @endsection

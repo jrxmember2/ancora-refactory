@@ -241,6 +241,9 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/lista', [AgendaController::class, 'index'])->name('agenda.index')->middleware('ancora.route:agenda.index');
         Route::get('/novo', [AgendaController::class, 'create'])->name('agenda.create')->middleware('ancora.route:agenda.create');
         Route::post('/store', [AgendaController::class, 'store'])->name('agenda.store')->middleware('ancora.route:agenda.store');
+        // Acoes em lote (precisam vir antes das rotas /{evento} para nao colidir com o binding).
+        Route::post('/lote/concluir', [AgendaController::class, 'bulkComplete'])->name('agenda.bulk-complete')->middleware('ancora.route:agenda.complete');
+        Route::match(['post', 'delete'], '/lote/excluir', [AgendaController::class, 'bulkDelete'])->name('agenda.bulk-delete')->middleware('ancora.route:agenda.delete');
         Route::get('/eventos.json', [AgendaController::class, 'eventsJson'])->name('agenda.events.json')->middleware('ancora.route:agenda.calendar');
         Route::match(['post', 'patch'], '/{evento}/reagendar', [AgendaController::class, 'reschedule'])->name('agenda.reschedule')->middleware('ancora.route:agenda.update');
         Route::get('/integracoes/{provider}/conectar', [CalendarConnectionController::class, 'connect'])->name('agenda.calendar.connect')->middleware('ancora.route:agenda.calendar')->where('provider', 'google|microsoft');
@@ -317,6 +320,8 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
         Route::get('/dashboard', [FinancialController::class, 'dashboard'])->name('financeiro.dashboard')->middleware('ancora.route:financeiro.dashboard');
         Route::match(['get', 'post'], '/fluxo-caixa', [FinancialController::class, 'cashFlowIndex'])->name('financeiro.cash-flow.index')->middleware('ancora.route:financeiro.cash-flow.index');
         Route::post('/fluxo-caixa/store', [FinancialController::class, 'cashFlowStore'])->name('financeiro.cash-flow.store')->middleware('ancora.route:financeiro.cash-flow.store');
+        // Exclusao de um lancamento (movimentacao/baixa). Reusa a permissao de cadastro de movimentacao.
+        Route::match(['post', 'delete'], '/movimentacoes/{transaction}/excluir', [FinancialController::class, 'transactionsDestroy'])->name('financeiro.transactions.delete')->middleware('ancora.route:financeiro.cash-flow.store');
 
         Route::get('/contas-receber', [FinancialController::class, 'receivablesIndex'])->name('financeiro.receivables.index')->middleware('ancora.route:financeiro.receivables.index');
         Route::get('/contas-receber/nova', [FinancialController::class, 'receivablesCreate'])->name('financeiro.receivables.create')->middleware('ancora.route:financeiro.receivables.create');
@@ -370,6 +375,8 @@ Route::middleware(['ancora.auth', 'ancora.activity', 'audit.activity'])->group(f
 
         Route::get('/categorias-financeiras', [FinancialController::class, 'categoriesIndex'])->name('financeiro.categories.index')->middleware('ancora.route:financeiro.categories.index');
         Route::post('/categorias-financeiras/store', [FinancialController::class, 'categoriesStore'])->name('financeiro.categories.store')->middleware('ancora.route:financeiro.categories.store');
+        // Criacao rapida (AJAX) de categoria a partir dos formularios de contas a pagar/receber.
+        Route::post('/categorias-financeiras/rapida', [FinancialController::class, 'categoriesQuickStore'])->name('financeiro.categories.quick-store')->middleware('ancora.route:financeiro.categories.store');
         Route::match(['post', 'put'], '/categorias-financeiras/{category}', [FinancialController::class, 'categoriesUpdate'])->name('financeiro.categories.update')->middleware('ancora.route:financeiro.categories.update');
         Route::match(['post', 'delete'], '/categorias-financeiras/{category}/excluir', [FinancialController::class, 'categoriesDestroy'])->name('financeiro.categories.delete')->middleware('ancora.route:financeiro.categories.delete');
 

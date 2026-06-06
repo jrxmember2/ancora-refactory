@@ -40,11 +40,26 @@
     </form>
 </div>
 
-<div class="mt-5 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+<form method="post" id="agenda-bulk-form">
+    @csrf
+    <div class="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+        <span class="text-gray-500 dark:text-gray-400"><span data-selected-count>0</span> selecionado(s)</span>
+        <div class="ml-auto flex flex-wrap gap-2">
+            <button type="submit" formaction="{{ route('agenda.bulk-complete') }}"
+                onclick="return document.querySelectorAll('[data-select-item]:checked').length ? confirm('Concluir os compromissos selecionados?') : (alert('Selecione ao menos um compromisso.'), false);"
+                class="rounded-xl border border-success-300 bg-success-50 px-4 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-300">Concluir selecionados</button>
+            <button type="submit" formaction="{{ route('agenda.bulk-delete') }}"
+                onclick="return document.querySelectorAll('[data-select-item]:checked').length ? confirm('Excluir os compromissos selecionados? Esta acao nao pode ser desfeita.') : (alert('Selecione ao menos um compromisso.'), false);"
+                class="rounded-xl border border-rose-200 px-4 py-2 text-xs font-medium text-rose-600 dark:border-rose-900 dark:text-rose-300">Excluir selecionados</button>
+        </div>
+    </div>
+
+    <div class="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
     <div class="overflow-x-auto">
         <table class="min-w-full text-left text-sm">
             <thead class="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
                 <tr>
+                    <th class="px-4 py-3"><input type="checkbox" data-select-all class="rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-700"></th>
                     <th class="px-4 py-3">Quando</th>
                     <th class="px-4 py-3">Tipo</th>
                     <th class="px-4 py-3">Titulo</th>
@@ -57,6 +72,7 @@
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                 @forelse($events as $event)
                     <tr>
+                        <td class="px-4 py-3"><input type="checkbox" name="selected[]" value="{{ $event->id }}" data-select-item class="rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-700"></td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ $event->start_at->format('d/m/Y') }}
                             <span class="text-gray-400">{{ $event->all_day ? '' : $event->start_at->format('H:i') }}</span>
@@ -86,12 +102,46 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-4 py-10"><x-ancora.empty-state icon="fa-solid fa-calendar-days" title="Nenhum compromisso" subtitle="Crie prazos e compromissos para acompanhar a agenda." /></td></tr>
+                    <tr><td colspan="8" class="px-4 py-10"><x-ancora.empty-state icon="fa-solid fa-calendar-days" title="Nenhum compromisso" subtitle="Crie prazos e compromissos para acompanhar a agenda." /></td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-</div>
+    </div>
 
-<div class="mt-4">{{ $events->links() }}</div>
+    <div class="mt-4">{{ $events->links() }}</div>
+</form>
+
+<script>
+(function () {
+    var form = document.getElementById('agenda-bulk-form');
+    if (!form) {
+        return;
+    }
+
+    var selectAll = form.querySelector('[data-select-all]');
+    var counter = form.querySelector('[data-selected-count]');
+
+    function refreshCount() {
+        if (counter) {
+            counter.textContent = form.querySelectorAll('[data-select-item]:checked').length;
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            form.querySelectorAll('[data-select-item]').forEach(function (checkbox) {
+                checkbox.checked = selectAll.checked;
+            });
+            refreshCount();
+        });
+    }
+
+    form.querySelectorAll('[data-select-item]').forEach(function (checkbox) {
+        checkbox.addEventListener('change', refreshCount);
+    });
+
+    refreshCount();
+})();
+</script>
 @endsection

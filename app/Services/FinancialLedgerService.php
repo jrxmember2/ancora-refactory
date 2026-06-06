@@ -174,6 +174,29 @@ class FinancialLedgerService
         ])->save();
     }
 
+    /**
+     * Exclui um lançamento (transação) e reverte os efeitos colaterais: remove o espelho no fluxo
+     * de caixa e re-sincroniza o título a receber/pagar vinculado (recompondo saldo e status).
+     */
+    public function deleteTransaction(FinancialTransaction $transaction): void
+    {
+        DB::transaction(function () use ($transaction) {
+            $receivable = $transaction->receivable_id ? $transaction->receivable()->first() : null;
+            $payable = $transaction->payable_id ? $transaction->payable()->first() : null;
+
+            // Remove o espelho do fluxo de caixa (a FK em financial_reconciliations é nullOnDelete).
+            FinancialCashFlow::query()->where('transaction_id', $transaction->id)->delete();
+            $transaction->delete();
+
+            if ($receivable) {
+                $this->syncReceivable($receivable->fresh());
+            }
+            if ($payable) {
+                $this->syncPayable($payable->fresh());
+            }
+        });
+    }
+
     public function receivableFinalAmount(FinancialReceivable $receivable): float
     {
         $computed = (float) $receivable->original_amount

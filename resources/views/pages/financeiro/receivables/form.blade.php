@@ -110,8 +110,16 @@
                 </select>
             </label>
             <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                <span>Categoria</span>
-                <select id="receivable-category-id" name="category_id" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <span class="flex items-center justify-between">
+                    <span>Categoria</span>
+                    <button type="button"
+                        data-quick-category
+                        data-url="{{ route('financeiro.categories.quick-store') }}"
+                        data-type="receita"
+                        data-token="{{ csrf_token() }}"
+                        class="text-xs font-medium text-brand-500 hover:underline">+ Nova categoria</button>
+                </span>
+                <select id="receivable-category-id" name="category_id" data-category-select class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                     <option value="">Selecione</option>
                     @foreach($categories as $category)
                         <option value="{{ $category->id }}" @selected((string) old('category_id', $item->category_id ?? '') === (string) $category->id)>{{ $category->name }}</option>
@@ -201,6 +209,11 @@
                 </select>
             </label>
             <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
+                <span>Data de recebimento</span>
+                <input type="date" name="received_at" value="{{ old('received_at', optional($item->received_at ?? null)->format('Y-m-d')) }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                <span class="block text-xs text-gray-400">Ao marcar o status como "Recebido", informe a data da baixa.</span>
+            </label>
+            <label class="space-y-2 text-sm text-gray-700 dark:text-gray-200">
                 <span>Etapa de cobranca</span>
                 <select name="collection_stage" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
                     <option value="">Selecione</option>
@@ -240,6 +253,8 @@
         <button class="rounded-xl bg-brand-500 px-5 py-3 text-sm font-medium text-white">{{ $isEdit ? 'Salvar alteracoes' : 'Criar conta a receber' }}</button>
     </div>
 </form>
+
+@include('pages.financeiro.partials._quick-category')
 @endsection
 
 @push('scripts')

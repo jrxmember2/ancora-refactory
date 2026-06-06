@@ -39,6 +39,7 @@ use App\Support\FinancialSettings;
 use App\Support\Financeiro\FinancialValue;
 use App\Support\SortableQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -170,6 +171,73 @@ class FinancialController extends Controller
         );
 
         return back()->with('success', 'Movimentacao registrada com sucesso.');
+    }
+
+    /**
+     * Exclui um lançamento (movimentação/baixa) do fluxo de caixa. Reverte o espelho de fluxo de
+     * caixa e re-sincroniza o título a receber/pagar vinculado (saldo e status voltam ao correto).
+     */
+    public function transactionsDestroy(Request $request, FinancialTransaction $transaction): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $transaction->loadMissing(['account', 'destinationAccount', 'category']);
+        $transactionId = $transaction->id;
+        $code = $transaction->code ?: ('#' . $transaction->id);
+        $summary = $this->transactionAuditSummary($transaction);
+
+        $this->ledgerService->deleteTransaction($transaction);
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.transactions.delete',
+            'financial_transactions',
+            $transactionId,
+            sprintf('Excluiu lancamento %s — %s.', $code, $summary)
+        );
+
+        return back()->with('success', 'Lancamento excluido com sucesso.');
+    }
+
+    /**
+     * Criação rápida de categoria financeira a partir dos formulários de contas a pagar/receber.
+     * Responde JSON para a interface inserir a nova opção sem recarregar o formulário.
+     */
+    public function categoriesQuickStore(Request $request): JsonResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:180'],
+            'type' => ['nullable', 'string', Rule::in(['receita', 'despesa'])],
+        ]);
+
+        $type = $validated['type'] ?? 'despesa';
+        $name = trim($validated['name']);
+
+        $category = FinancialCategory::query()->firstOrCreate(
+            ['type' => $type, 'name' => $name],
+            ['is_active' => true]
+        );
+
+        $this->logFinancialAction(
+            $request,
+            'financeiro.categories.quick-store',
+            'financial_categories',
+            $category->id,
+            sprintf('Criou categoria rapida "%s" (tipo: %s).', $category->name, $category->type)
+        );
+
+        return response()->json([
+            'ok' => true,
+            'category' => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'type' => $category->type,
+            ],
+        ]);
     }
 
     public function receivablesIndex(Request $request): View
@@ -316,10 +384,29 @@ class FinancialController extends Controller
 
         $payload = $this->normalizedReceivablePayload($request);
         $payload['updated_by'] = $user->id;
+        $requestedStatus = $payload['status'];
+        $manualReceiptDate = $request->filled('received_at') ? Carbon::parse($request->input('received_at')) : null;
 
         $receivable->update($payload);
         $this->ledgerService->syncReceivable($receivable->fresh());
         $receivable->refresh();
+
+        // Respeita o status definido manualmente no formulário quando não há baixas lançadas — o
+        // syncReceivable acima recalcula sempre a partir das transações (que aqui inexistem) e
+        // reverteria para aberto/vencido. Para "recebido", grava o valor cheio e a data informada.
+        if ((float) $receivable->received_amount <= 0.0
+            && in_array($requestedStatus, ['recebido', 'cancelado', 'negociado'], true)
+            && $receivable->status !== $requestedStatus) {
+            $receivable->forceFill([
+                'status' => $requestedStatus,
+                'received_amount' => $requestedStatus === 'recebido' ? round((float) $receivable->final_amount, 2) : $receivable->received_amount,
+                'received_at' => $requestedStatus === 'recebido' ? ($manualReceiptDate ?? $receivable->received_at ?? now()) : $receivable->received_at,
+            ])->save();
+            $receivable->refresh();
+        } elseif ($manualReceiptDate && (float) $receivable->received_amount > 0.0) {
+            $receivable->forceFill(['received_at' => $manualReceiptDate])->save();
+            $receivable->refresh();
+        }
 
         $this->logFinancialAction(
             $request,
@@ -670,10 +757,29 @@ class FinancialController extends Controller
 
         $payload = $this->normalizedPayablePayload($request);
         $payload['updated_by'] = $user->id;
+        $requestedStatus = $payload['status'];
+        $manualPaymentDate = $request->filled('paid_at') ? Carbon::parse($request->input('paid_at')) : null;
 
         $payable->update($payload);
         $this->ledgerService->syncPayable($payable->fresh());
         $payable->refresh();
+
+        // Respeita o status definido manualmente no formulário quando não há baixas lançadas — o
+        // syncPayable acima recalcula sempre a partir das transações (que aqui inexistem) e
+        // reverteria para aberto/vencido. Para "pago", grava o valor cheio e a data informada.
+        if ((float) $payable->paid_amount <= 0.0
+            && in_array($requestedStatus, ['pago', 'cancelado'], true)
+            && $payable->status !== $requestedStatus) {
+            $payable->forceFill([
+                'status' => $requestedStatus,
+                'paid_amount' => $requestedStatus === 'pago' ? round((float) $payable->amount, 2) : $payable->paid_amount,
+                'paid_at' => $requestedStatus === 'pago' ? ($manualPaymentDate ?? $payable->paid_at ?? now()) : $payable->paid_at,
+            ])->save();
+            $payable->refresh();
+        } elseif ($manualPaymentDate && (float) $payable->paid_amount > 0.0) {
+            $payable->forceFill(['paid_at' => $manualPaymentDate])->save();
+            $payable->refresh();
+        }
 
         $this->logFinancialAction(
             $request,

@@ -62,6 +62,7 @@
                                 <th class="px-4 py-3">Descricao</th>
                                 <th class="px-4 py-3">Forma</th>
                                 <th class="px-4 py-3">Valor</th>
+                                <th class="px-4 py-3 text-right">Acoes</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -72,6 +73,12 @@
                                     <td class="px-4 py-3">{{ $transaction->description ?: '-' }}</td>
                                     <td class="px-4 py-3">{{ $paymentMethods[$transaction->payment_method] ?? ($transaction->payment_method ?: '-') }}</td>
                                     <td class="px-4 py-3 text-emerald-600 dark:text-emerald-300">{{ $money($transaction->amount) }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <form method="post" action="{{ route('financeiro.transactions.delete', $transaction) }}" onsubmit="return confirm('Excluir esta baixa?\n\nO valor recebido e o status do titulo serao recalculados.');">
+                                            @csrf @method('DELETE')
+                                            <button class="rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-600 dark:border-rose-900 dark:text-rose-300">Excluir</button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

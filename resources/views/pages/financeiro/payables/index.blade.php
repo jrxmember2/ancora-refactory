@@ -92,6 +92,18 @@
                             <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $payableStatuses[$item->status] ?? $item->status }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap justify-end gap-2">
+                                    @php($rowBalance = max(0, (float) $item->amount - (float) $item->paid_amount))
+                                    @if($rowBalance > 0 && !in_array($item->status, ['cancelado', 'pago'], true))
+                                        <form method="post" action="{{ route('financeiro.payables.settle', $item) }}">
+                                            @csrf
+                                            <input type="hidden" name="settlement_amount" value="{{ number_format($rowBalance, 2, ',', '.') }}">
+                                            <input type="hidden" name="settlement_date" value="{{ now()->format('Y-m-d') }}">
+                                            <input type="hidden" name="account_id" value="{{ $item->account_id }}">
+                                            <input type="hidden" name="payment_method" value="{{ $item->payment_method }}">
+                                            <input type="hidden" name="description" value="Baixa rapida registrada pela listagem de contas a pagar.">
+                                            <button onclick="return confirm('Registrar pagamento integral desta conta agora?')" class="rounded-xl border border-success-300 bg-success-50 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-300">Baixa rapida</button>
+                                        </form>
+                                    @endif
                                     <a href="{{ route('financeiro.payables.show', $item) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Visualizar</a>
                                     <a href="{{ route('financeiro.payables.edit', $item) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Editar</a>
                                     <form method="post" action="{{ route('financeiro.payables.duplicate', $item) }}">@csrf<button class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Duplicar</button></form>

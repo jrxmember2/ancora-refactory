@@ -508,6 +508,73 @@ class AgendaController extends Controller
         return redirect()->route('agenda.index')->with('success', 'Compromisso removido.');
     }
 
+    /**
+     * IDs selecionados em ações de lote (lista da agenda), saneados e únicos.
+     *
+     * @return array<int, int>
+     */
+    private function selectedEventIds(Request $request): array
+    {
+        return collect((array) $request->input('selected', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Conclui (dá baixa) em vários compromissos de uma vez a partir da lista.
+     */
+    public function bulkComplete(Request $request): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $ids = $this->selectedEventIds($request);
+        if ($ids === []) {
+            return back()->with('error', 'Selecione ao menos um compromisso.');
+        }
+
+        $events = AgendaEvent::query()->whereIn('id', $ids)->where('status', '!=', 'concluido')->get();
+        foreach ($events as $event) {
+            $event->update([
+                'status' => 'concluido',
+                'completed_at' => now(),
+                'completed_by' => $user->id,
+                'updated_by' => $user->id,
+            ]);
+            SyncAgendaEventToCalendarsJob::dispatch($event->id, 'upsert');
+        }
+
+        return back()->with('success', $events->count() . ' compromisso(s) concluido(s).');
+    }
+
+    /**
+     * Exclui vários compromissos de uma vez a partir da lista (útil para limpar duplicados).
+     */
+    public function bulkDelete(Request $request): RedirectResponse
+    {
+        $user = AncoraAuth::user($request);
+        abort_unless($user, 401);
+
+        $ids = $this->selectedEventIds($request);
+        if ($ids === []) {
+            return back()->with('error', 'Selecione ao menos um compromisso.');
+        }
+
+        $events = AgendaEvent::query()->whereIn('id', $ids)->get();
+        $removed = 0;
+        foreach ($events as $event) {
+            $eventId = (int) $event->id;
+            $event->delete();
+            SyncAgendaEventToCalendarsJob::dispatch($eventId, 'delete');
+            $removed++;
+        }
+
+        return back()->with('success', $removed . ' compromisso(s) removido(s).');
+    }
+
     public function uploadAttachment(Request $request, AgendaEvent $evento): RedirectResponse
     {
         $user = AncoraAuth::user($request);

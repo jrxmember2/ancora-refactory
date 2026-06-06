@@ -63,6 +63,7 @@
                                 <th class="px-4 py-3">Origem</th>
                                 <th class="px-4 py-3"><x-ancora.sort-link field="amount" label="Valor" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                                 <th class="px-4 py-3"><x-ancora.sort-link field="status" label="Status" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
+                                <th class="px-4 py-3 text-right">Acoes</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -76,6 +77,12 @@
                                     <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $item->source ?: '-' }}</td>
                                     <td class="px-4 py-3 {{ in_array($item->transaction_type, ['entrada'], true) ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300' }}">{{ $money($item->amount) }}</td>
                                     <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ $item->reconciliation_status }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <form method="post" action="{{ route('financeiro.transactions.delete', $item) }}" onsubmit="return confirm('Excluir este lancamento?\n\nO saldo da conta e o status do titulo vinculado serao recalculados. A exclusao sera registrada na auditoria.');">
+                                            @csrf @method('DELETE')
+                                            <button class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-600 dark:border-rose-900 dark:text-rose-300">Excluir</button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
