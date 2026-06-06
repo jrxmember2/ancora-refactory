@@ -26,6 +26,7 @@ class Contract extends Model
             'monthly_value' => 'decimal:2',
             'total_value' => 'decimal:2',
             'installment_quantity' => 'integer',
+            'installment_plan' => 'array',
             'next_adjustment_date' => 'date',
             'penalty_value' => 'decimal:2',
             'penalty_percentage' => 'decimal:2',

@@ -973,6 +973,7 @@ class ContractController extends Controller
             'installment_quantity' => ($value('installment_quantity') !== null && $value('installment_quantity') !== '')
                 ? max(1, (int) $value('installment_quantity'))
                 : null,
+            'installment_plan' => $this->normalizedInstallmentPlan($value('installment_plan')),
             'due_day' => $value('due_day'),
             'recurrence' => trim((string) ($value('recurrence') ?? '')) ?: null,
             'adjustment_index' => trim((string) ($value('adjustment_index') ?? '')) ?: null,
@@ -991,6 +992,39 @@ class ContractController extends Controller
             'notes' => trim((string) ($value('notes') ?? '')) ?: null,
             'responsible_user_id' => $value('responsible_user_id'),
         ];
+    }
+
+    /**
+     * Normaliza o plano de parcelas com valores diferentes vindo do formulario (ou herdado do
+     * contrato em edicao). Retorna uma lista [['amount' => float, 'due_date' => 'Y-m-d'|null]] ou
+     * null quando nao ha parcelas validas. Linhas sem valor e sem data sao descartadas.
+     */
+    private function normalizedInstallmentPlan(mixed $raw): ?array
+    {
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        $rows = [];
+        foreach ($raw as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $amount = $this->renderService->moneyFromInput($entry['amount'] ?? null);
+            $dueDate = trim((string) ($entry['due_date'] ?? '')) ?: null;
+
+            if (($amount === null || $amount <= 0) && $dueDate === null) {
+                continue;
+            }
+
+            $rows[] = [
+                'amount' => $amount !== null ? round($amount, 2) : 0.0,
+                'due_date' => $dueDate,
+            ];
+        }
+
+        return $rows === [] ? null : array_values($rows);
     }
 
     private function applyConditionalContractPayload(array $payload, ?Contract $contract = null): array
@@ -1093,6 +1127,15 @@ class ContractController extends Controller
             $payload['recurrence'] = null;
         }
 
+        // O plano de parcelas com valores diferentes so faz sentido para cobranca parcelada.
+        // Em qualquer outra forma, descarta o plano; quando parcelada com plano informado, a
+        // quantidade de parcelas passa a refletir o numero de linhas do plano.
+        if ($billingType !== 'parcelada') {
+            $payload['installment_plan'] = null;
+        } elseif (!empty($payload['installment_plan']) && is_array($payload['installment_plan'])) {
+            $payload['installment_quantity'] = max(1, count($payload['installment_plan']));
+        }
+
         return $payload;
     }
 
@@ -1144,6 +1187,32 @@ class ContractController extends Controller
 
         if ($billingType === 'parcelada' && $installmentQuantity < 2) {
             $errors[] = 'A quantidade de parcelas deve ser de no minimo 2 quando a forma de cobranca for Parcelado.';
+        }
+
+        $plan = $payload['installment_plan'] ?? null;
+        if ($billingType === 'parcelada' && is_array($plan) && $plan !== []) {
+            $sum = 0.0;
+            $hasInvalidAmount = false;
+            foreach ($plan as $row) {
+                $amount = (float) ($row['amount'] ?? 0);
+                if ($amount <= 0) {
+                    $hasInvalidAmount = true;
+                }
+                $sum += $amount;
+            }
+
+            if ($hasInvalidAmount) {
+                $errors[] = 'Cada parcela personalizada deve ter um valor maior que zero.';
+            }
+
+            $total = (float) ($payload['total_value'] ?? 0);
+            if ($total > 0 && abs($sum - $total) > 0.05) {
+                $errors[] = sprintf(
+                    'A soma das parcelas (R$ %s) deve ser igual ao valor total do contrato (R$ %s).',
+                    number_format($sum, 2, ',', '.'),
+                    number_format($total, 2, ',', '.')
+                );
+            }
         }
 
         if ($billingType === 'unica' && $installmentQuantity > 1) {

@@ -154,6 +154,11 @@ class FinancialReceivableSeriesService
 
     private function buildInstallmentContractRows(Contract $contract, int $dueDay): array
     {
+        $plan = is_array($contract->installment_plan) ? array_values($contract->installment_plan) : [];
+        if ($plan !== []) {
+            return $this->buildCustomInstallmentContractRows($contract, $dueDay, $plan);
+        }
+
         $count = max(0, (int) ($contract->installment_quantity ?: 0));
         $total = round((float) ($contract->total_value ?: 0), 2);
         if ($count < 1 || $total <= 0) {
@@ -173,6 +178,45 @@ class FinancialReceivableSeriesService
                 'reference' => 'Parcela ' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '/' . str_pad((string) $count, 2, '0', STR_PAD_LEFT),
                 'billing_type' => 'parcela',
                 'amount' => $amounts[$index],
+                'due_date' => $dueDate,
+                'competence_date' => $dueDate->copy()->startOfMonth(),
+                'installment_number' => $number,
+                'installment_total' => $count,
+                'recurrence' => $count > 1 ? 'mensal' : 'unica',
+                'notes' => 'Gerado automaticamente a partir do contrato ' . ($contract->code ?: ('#' . $contract->id)) . '.',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Gera as parcelas a partir de um plano com valores (e, opcionalmente, vencimentos) diferentes
+     * por parcela. Quando a linha nao traz vencimento, mantem a cadencia mensal a partir do primeiro
+     * vencimento calculado pelo dia de vencimento do contrato.
+     */
+    private function buildCustomInstallmentContractRows(Contract $contract, int $dueDay, array $plan): array
+    {
+        $start = $contract->start_date?->copy()->startOfDay() ?: now()->startOfDay();
+        $firstDueDate = $this->firstDueDate($start, $dueDay);
+        $count = count($plan);
+        $rows = [];
+
+        foreach (array_values($plan) as $index => $entry) {
+            $amount = round((float) ($entry['amount'] ?? 0), 2);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $dueDate = $this->resolveDate($entry['due_date'] ?? null)
+                ?? $firstDueDate->copy()->addMonthsNoOverflow($index);
+            $number = $index + 1;
+
+            $rows[] = [
+                'title' => $contract->title . ' - Parcela ' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '/' . str_pad((string) $count, 2, '0', STR_PAD_LEFT),
+                'reference' => 'Parcela ' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) . '/' . str_pad((string) $count, 2, '0', STR_PAD_LEFT),
+                'billing_type' => 'parcela',
+                'amount' => $amount,
                 'due_date' => $dueDate,
                 'competence_date' => $dueDate->copy()->startOfMonth(),
                 'installment_number' => $number,

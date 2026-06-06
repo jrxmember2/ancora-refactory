@@ -21,6 +21,24 @@
 
         return 'R$ ' . number_format((float) $value, 2, ',', '.');
     };
+
+    // Plano de parcelas com valores diferentes (valor + vencimento por parcela). Vem do old() em
+    // caso de falha de validacao ou do proprio contrato em edicao. Valores numericos sao formatados
+    // como moeda para casar com a mascara do formulario.
+    $installmentPlanInitial = collect(old('installment_plan', $contract?->installment_plan ?? []))
+        ->map(function ($row) {
+            $row = is_array($row) ? $row : [];
+            $amount = $row['amount'] ?? '';
+            if ($amount !== '' && is_numeric($amount)) {
+                $amount = 'R$ ' . number_format((float) $amount, 2, ',', '.');
+            }
+
+            return [
+                'amount' => (string) $amount,
+                'due_date' => (string) ($row['due_date'] ?? ''),
+            ];
+        })
+        ->values();
 @endphp
 
 @section('content')
@@ -159,23 +177,33 @@
                             @endforeach
                         </select>
                     </div>
+                    @php $selectedProposalId = (int) $valueOf('proposal_id'); @endphp
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Proposta vinculada</label>
-                        <select name="proposal_id" class="{{ $inputClass }}">
-                            <option value="">Selecione</option>
+                        <input type="hidden" name="proposal_id" id="contract-proposal-id" value="{{ $selectedProposalId ?: '' }}" data-combobox-id>
+                        <input type="text" id="contract-proposal-search" autocomplete="off" list="contract-proposal-options"
+                            data-combobox-input data-combobox-target="contract-proposal-id"
+                            class="{{ $inputClass }}" placeholder="Digite o codigo da proposta e selecione">
+                        <datalist id="contract-proposal-options">
                             @foreach($proposals as $proposal)
-                                <option value="{{ $proposal->id }}" @selected((int) $valueOf('proposal_id') === (int) $proposal->id)>{{ $proposal->proposal_code }} · {{ $proposal->client_name }}</option>
+                                <option data-id="{{ $proposal->id }}" value="{{ $proposal->proposal_code }} · {{ $proposal->client_name }}"></option>
                             @endforeach
-                        </select>
+                        </datalist>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Comece a digitar para buscar; deixe em branco se nao houver proposta.</p>
                     </div>
+                    @php $selectedProcessId = (int) $valueOf('process_id'); @endphp
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Processo vinculado</label>
-                        <select name="process_id" class="{{ $inputClass }}">
-                            <option value="">Selecione</option>
+                        <input type="hidden" name="process_id" id="contract-process-id" value="{{ $selectedProcessId ?: '' }}" data-combobox-id>
+                        <input type="text" id="contract-process-search" autocomplete="off" list="contract-process-options"
+                            data-combobox-input data-combobox-target="contract-process-id"
+                            class="{{ $inputClass }}" placeholder="Digite o numero do processo e selecione">
+                        <datalist id="contract-process-options">
                             @foreach($processes as $process)
-                                <option value="{{ $process->id }}" @selected((int) $valueOf('process_id') === (int) $process->id)>{{ $process->process_number ?: ('Processo #' . $process->id) }} · {{ $process->client_name_snapshot }}</option>
+                                <option data-id="{{ $process->id }}" value="{{ $process->process_number ?: ('Processo #' . $process->id) }} · {{ $process->client_name_snapshot }}"></option>
                             @endforeach
-                        </select>
+                        </datalist>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Comece a digitar o numero para buscar; deixe em branco se nao houver processo.</p>
                     </div>
                 </div>
             </div>
@@ -231,6 +259,30 @@
                     <div data-contract-field="installment_quantity">
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade de parcelas</label>
                         <input type="number" min="1" step="1" name="installment_quantity" id="contract-installment-quantity" data-contract-input="installment_quantity" value="{{ $valueOf('installment_quantity') }}" class="{{ $inputClass }}" placeholder="Ex.: 1, 6, 12">
+                    </div>
+                    <div class="md:col-span-2 xl:col-span-3 hidden" data-installment-plan data-initial-plan='@json($installmentPlanInitial)'>
+                        <div class="rounded-xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900 dark:text-white">Parcelas com valores diferentes</div>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Defina o valor (e, se quiser, o vencimento) de cada parcela. A soma deve ser igual ao valor total do contrato. Deixe em branco para dividir igualmente.</p>
+                                </div>
+                                <button type="button" data-installment-distribute class="rounded-xl border border-brand-300 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-200">Distribuir valor total igualmente</button>
+                            </div>
+                            <div class="mt-4 space-y-2" data-installment-rows></div>
+                            <div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 text-sm dark:border-gray-700">
+                                <span class="text-gray-500 dark:text-gray-400">Soma das parcelas</span>
+                                <span class="font-semibold text-gray-900 dark:text-white" data-installment-sum>R$ 0,00</span>
+                            </div>
+                            <p class="mt-2 hidden text-xs font-medium text-error-600 dark:text-error-400" data-installment-mismatch>A soma das parcelas nao confere com o valor total do contrato.</p>
+                        </div>
+                        <template data-installment-row-template>
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-[110px,1fr,1fr] sm:items-center" data-installment-row>
+                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400" data-installment-label>Parcela</span>
+                                <input type="text" data-installment-amount class="{{ $inputClass }}" placeholder="R$ 0,00" data-money inputmode="numeric">
+                                <input type="date" data-installment-due class="{{ $inputClass }}">
+                            </div>
+                        </template>
                     </div>
                     <div data-contract-field="financial_account_id">
                         <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Banco / conta</label>
@@ -1606,6 +1658,231 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+});
+</script>
+@endpush
+
+@push('scripts')
+<script>
+// Comboboxes pesquisaveis (processo / proposta): o usuario digita parte do numero/codigo e o
+// campo resolve o id correspondente no input hidden. Usa <datalist> nativo (mesmo padrao do
+// cadastro de processos) para nao depender de bibliotecas externas.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-combobox-input]').forEach(function (input) {
+        var hidden = document.getElementById(input.dataset.comboboxTarget);
+        var list = document.getElementById(input.getAttribute('list'));
+        if (!hidden || !list) {
+            return;
+        }
+
+        var options = Array.from(list.querySelectorAll('option'));
+        var byLabel = new Map(options.map(function (option) {
+            return [option.value.trim().toLowerCase(), option.dataset.id];
+        }));
+
+        // Em edicao/old: preenche o texto visivel a partir do id ja salvo.
+        if (hidden.value) {
+            var current = options.find(function (option) {
+                return String(option.dataset.id) === String(hidden.value);
+            });
+            if (current) {
+                input.value = current.value;
+            }
+        }
+
+        function resolve() {
+            var key = input.value.trim().toLowerCase();
+            if (key === '') {
+                hidden.value = '';
+                return;
+            }
+            if (byLabel.has(key)) {
+                hidden.value = byLabel.get(key);
+                return;
+            }
+            var partial = options.filter(function (option) {
+                return option.value.toLowerCase().indexOf(key) !== -1;
+            });
+            hidden.value = partial.length === 1 ? partial[0].dataset.id : '';
+        }
+
+        input.addEventListener('input', resolve);
+        input.addEventListener('change', resolve);
+        input.form && input.form.addEventListener('submit', resolve);
+    });
+});
+
+// Parcelas com valores diferentes: gera dinamicamente uma linha por parcela (valor + vencimento),
+// mantida em sincronia com a quantidade de parcelas. So aparece para a cobranca "Parcelada".
+document.addEventListener('DOMContentLoaded', function () {
+    var wrap = document.querySelector('[data-installment-plan]');
+    var billingTypeSelect = document.querySelector('#contract-billing-type');
+    var installmentInput = document.querySelector('#contract-installment-quantity');
+    var totalValueInput = document.querySelector('#contract-total-value');
+    if (!wrap || !billingTypeSelect) {
+        return;
+    }
+
+    var rowsContainer = wrap.querySelector('[data-installment-rows]');
+    var template = wrap.querySelector('[data-installment-row-template]');
+    var sumEl = wrap.querySelector('[data-installment-sum]');
+    var mismatchEl = wrap.querySelector('[data-installment-mismatch]');
+    var distributeBtn = wrap.querySelector('[data-installment-distribute]');
+
+    var initialPlan = [];
+    try {
+        initialPlan = JSON.parse(wrap.dataset.initialPlan || '[]');
+        if (!Array.isArray(initialPlan)) {
+            initialPlan = [];
+        }
+    } catch (e) {
+        initialPlan = [];
+    }
+
+    function normalize(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function parseDecimal(value) {
+        var normalized = String(value || '')
+            .replace(/\s/g, '')
+            .replace(/[R$r$ ]/g, '')
+            .replace(/\./g, '')
+            .replace(',', '.')
+            .replace(/[^0-9.-]/g, '');
+        var number = Number(normalized);
+        return Number.isFinite(number) ? number : 0;
+    }
+
+    function formatMoney(amount) {
+        return 'R$ ' + Number(amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function maskAmountField(field) {
+        var digits = String(field.value || '').replace(/\D/g, '');
+        field.value = digits ? formatMoney(Number(digits) / 100) : '';
+    }
+
+    function isParcelada() {
+        return normalize(billingTypeSelect.value) === 'parcelada';
+    }
+
+    function currentRows() {
+        return Array.from(rowsContainer.querySelectorAll('[data-installment-row]'));
+    }
+
+    function recalcSum() {
+        var sum = currentRows().reduce(function (acc, row) {
+            return acc + parseDecimal(row.querySelector('[data-installment-amount]').value);
+        }, 0);
+        sumEl.textContent = formatMoney(sum);
+
+        var total = parseDecimal(totalValueInput ? totalValueInput.value : 0);
+        var mismatch = total > 0 && Math.abs(sum - total) > 0.05;
+        mismatchEl.classList.toggle('hidden', !mismatch);
+    }
+
+    function makeRow(index, values) {
+        var fragment = template.content.cloneNode(true);
+        var row = fragment.querySelector('[data-installment-row]');
+        var label = row.querySelector('[data-installment-label]');
+        var amount = row.querySelector('[data-installment-amount]');
+        var due = row.querySelector('[data-installment-due]');
+
+        label.textContent = 'Parcela ' + String(index + 1).padStart(2, '0');
+        amount.name = 'installment_plan[' + index + '][amount]';
+        due.name = 'installment_plan[' + index + '][due_date]';
+        amount.value = (values && values.amount) ? values.amount : '';
+        due.value = (values && values.due_date) ? values.due_date : '';
+        maskAmountField(amount);
+
+        amount.addEventListener('input', function () { maskAmountField(amount); recalcSum(); });
+        amount.addEventListener('blur', function () { maskAmountField(amount); recalcSum(); });
+        due.addEventListener('change', recalcSum);
+
+        rowsContainer.appendChild(fragment);
+    }
+
+    function snapshot() {
+        return currentRows().map(function (row) {
+            return {
+                amount: row.querySelector('[data-installment-amount]').value,
+                due_date: row.querySelector('[data-installment-due]').value,
+            };
+        });
+    }
+
+    function buildRows(targetCount, seed) {
+        var preserved = seed || snapshot();
+        rowsContainer.innerHTML = '';
+        for (var index = 0; index < targetCount; index++) {
+            makeRow(index, preserved[index]);
+        }
+        recalcSum();
+    }
+
+    function desiredCount() {
+        if (initialPlan.length && !rowsContainer.children.length) {
+            return initialPlan.length;
+        }
+        var quantity = parseInt(installmentInput ? installmentInput.value : '0', 10) || 0;
+        return Math.max(2, quantity);
+    }
+
+    function refreshVisibility() {
+        if (isParcelada()) {
+            wrap.classList.remove('hidden');
+            var seed = (initialPlan.length && !rowsContainer.children.length) ? initialPlan : null;
+            buildRows(desiredCount(), seed);
+        } else {
+            wrap.classList.add('hidden');
+            rowsContainer.innerHTML = ''; // nao envia plano quando nao for parcelada
+        }
+    }
+
+    if (distributeBtn) {
+        distributeBtn.addEventListener('click', function () {
+            var rows = currentRows();
+            var count = rows.length;
+            if (!count) {
+                return;
+            }
+            var totalCents = Math.round(parseDecimal(totalValueInput ? totalValueInput.value : 0) * 100);
+            var base = Math.floor(totalCents / count);
+            var remainder = totalCents % count;
+            rows.forEach(function (row, index) {
+                var cents = base + (index < remainder ? 1 : 0);
+                var amount = row.querySelector('[data-installment-amount]');
+                amount.value = formatMoney(cents / 100);
+            });
+            recalcSum();
+        });
+    }
+
+    billingTypeSelect.addEventListener('change', refreshVisibility);
+    if (installmentInput) {
+        installmentInput.addEventListener('input', function () {
+            if (isParcelada()) {
+                buildRows(Math.max(1, parseInt(installmentInput.value, 10) || 1));
+            }
+        });
+        installmentInput.addEventListener('change', function () {
+            if (isParcelada()) {
+                buildRows(Math.max(1, parseInt(installmentInput.value, 10) || 1));
+            }
+        });
+    }
+    if (totalValueInput) {
+        totalValueInput.addEventListener('input', recalcSum);
+        totalValueInput.addEventListener('blur', recalcSum);
+    }
+
+    refreshVisibility();
 });
 </script>
 @endpush
