@@ -169,6 +169,27 @@ class CalendarInboundSyncService
                 return false;
             }
 
+            // Mesmo evento do Google ja importado por OUTRA conexao (ex.: dois usuarios conectaram
+            // o mesmo calendario). Reaproveita o compromisso existente e apenas mapeia esta conexao,
+            // para nao duplicar o evento na agenda compartilhada.
+            $existing = AgendaEventSync::query()
+                ->where('provider', $connection->provider)
+                ->where('external_event_id', $externalId)
+                ->orderBy('agenda_event_id')
+                ->first();
+
+            if ($existing && AgendaEvent::withTrashed()->whereKey($existing->agenda_event_id)->exists()) {
+                AgendaEventSync::query()->create([
+                    'agenda_event_id' => $existing->agenda_event_id,
+                    'connection_id' => $connection->id,
+                    'provider' => $connection->provider,
+                    'external_event_id' => $externalId,
+                    'last_synced_at' => now(),
+                ]);
+
+                return false;
+            }
+
             $event = AgendaEvent::query()->create([
                 'title' => trim((string) ($data['title'] ?? '')) ?: 'Compromisso importado',
                 'description' => $data['description'] ?? null,
