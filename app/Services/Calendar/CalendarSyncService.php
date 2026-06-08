@@ -95,7 +95,12 @@ class CalendarSyncService
         if ($action === 'delete' || $event->status === 'cancelado' || $event->trashed()) {
             if ($sync) {
                 $provider->deleteEvent($connection, $token, (string) $sync->external_event_id);
-                $sync->delete();
+                // Mantem o mapeamento como "tombstone" (apontando para um evento
+                // cancelado/na lixeira) em vez de apaga-lo. Assim, se o evento ainda
+                // existir no calendario externo ou um webhook de importacao chegar
+                // depois, o sync de entrada reconhece o external_event_id e nao recria
+                // o compromisso na agenda (evitando que ele volte a aparecer no alerta).
+                $sync->forceFill(['last_synced_at' => now()])->save();
             }
 
             return;

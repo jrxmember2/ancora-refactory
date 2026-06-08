@@ -119,15 +119,36 @@
                                 <div class="flex flex-wrap justify-end gap-2">
                                     @php($rowBalance = max(0, (float) $item->final_amount - (float) $item->received_amount))
                                     @if($rowBalance > 0 && !in_array($item->status, ['cancelado', 'recebido'], true))
-                                        <form method="post" action="{{ route('financeiro.receivables.settle', $item) }}">
-                                            @csrf
-                                            <input type="hidden" name="settlement_amount" value="{{ number_format($rowBalance, 2, ',', '.') }}">
-                                            <input type="hidden" name="settlement_date" value="{{ now()->format('Y-m-d') }}">
-                                            <input type="hidden" name="account_id" value="{{ $item->account_id }}">
-                                            <input type="hidden" name="payment_method" value="{{ $item->payment_method }}">
-                                            <input type="hidden" name="description" value="Baixa rapida registrada pela listagem de contas a receber.">
-                                            <button onclick="return confirm('Registrar baixa integral deste titulo agora?')" class="rounded-xl border border-success-300 bg-success-50 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-300">Baixa rapida</button>
-                                        </form>
+                                        <button type="button" onclick="document.getElementById('settle-receivable-{{ $item->id }}').showModal()" class="rounded-xl border border-success-300 bg-success-50 px-3 py-2 text-xs font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-300">Baixar</button>
+                                        <dialog id="settle-receivable-{{ $item->id }}" class="fixed inset-0 m-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-0 shadow-2xl backdrop:bg-black/60 dark:border-gray-700 dark:bg-gray-900">
+                                            <form method="post" action="{{ route('financeiro.receivables.settle', $item) }}" class="p-6 text-left">
+                                                @csrf
+                                                <input type="hidden" name="account_id" value="{{ $item->account_id }}">
+                                                <input type="hidden" name="payment_method" value="{{ $item->payment_method }}">
+                                                <input type="hidden" name="description" value="Baixa registrada pela listagem de contas a receber.">
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Registrar baixa</h3>
+                                                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Conta <strong>{{ $item->title }}</strong></p>
+                                                    </div>
+                                                    <button type="button" onclick="document.getElementById('settle-receivable-{{ $item->id }}').close()" class="rounded-full border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Fechar</button>
+                                                </div>
+                                                <div class="mt-5 space-y-3">
+                                                    <label class="block text-sm">
+                                                        <span class="mb-1 block font-medium text-gray-700 dark:text-gray-200">Valor recebido</span>
+                                                        <input type="text" name="settlement_amount" value="{{ number_format($rowBalance, 2, ',', '.') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                                                    </label>
+                                                    <label class="block text-sm">
+                                                        <span class="mb-1 block font-medium text-gray-700 dark:text-gray-200">Data do recebimento</span>
+                                                        <input type="date" name="settlement_date" value="{{ now()->format('Y-m-d') }}" class="h-11 w-full rounded-xl border border-gray-300 bg-transparent px-4 dark:border-gray-700">
+                                                    </label>
+                                                </div>
+                                                <div class="mt-6 flex justify-end gap-3">
+                                                    <button type="button" onclick="document.getElementById('settle-receivable-{{ $item->id }}').close()" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">Cancelar</button>
+                                                    <button class="rounded-xl border border-success-300 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 dark:border-success-800 dark:bg-success-500/10 dark:text-success-200">Registrar baixa</button>
+                                                </div>
+                                            </form>
+                                        </dialog>
                                     @endif
                                     <a href="{{ route('financeiro.receivables.show', $item) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Visualizar</a>
                                     <a href="{{ route('financeiro.receivables.edit', $item) }}" class="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium dark:border-gray-700">Editar</a>

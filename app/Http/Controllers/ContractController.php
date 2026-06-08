@@ -1423,10 +1423,24 @@ class ContractController extends Controller
 
     private function generatedCode(Contract $contract): string
     {
-        $prefix = trim((string) ContractSettings::get('code_prefix', 'CTR')) ?: 'CTR';
+        $prefix = strtoupper(trim((string) ContractSettings::get('code_prefix', 'CTR')) ?: 'CTR');
         $year = (int) ($contract->created_at?->year ?: now()->year);
 
-        return strtoupper($prefix) . '-' . $year . '-' . str_pad((string) $contract->id, 5, '0', STR_PAD_LEFT);
+        // Comeca pelo id do contrato, mas garante unicidade incrementando
+        // a sequencia caso o codigo ja exista (inclui registros na lixeira,
+        // codigos informados manualmente e ids reaproveitados).
+        $sequence = (int) $contract->id;
+
+        do {
+            $code = $prefix . '-' . $year . '-' . str_pad((string) $sequence, 5, '0', STR_PAD_LEFT);
+            $exists = Contract::withTrashed()
+                ->where('code', $code)
+                ->whereKeyNot($contract->id)
+                ->exists();
+            $sequence++;
+        } while ($exists);
+
+        return $code;
     }
 
     private function isExpired(Contract $contract): bool

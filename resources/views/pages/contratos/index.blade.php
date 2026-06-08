@@ -82,7 +82,6 @@
                         <th class="px-6 py-4"><x-ancora.sort-link field="start" label="Inicio" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="end" label="Termino" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                         <th class="px-6 py-4"><x-ancora.sort-link field="status" label="Status" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
-                        <th class="px-6 py-4"><x-ancora.sort-link field="responsible" label="Responsavel" :sort="$sortState['sort']" :direction="$sortState['direction']" /></th>
                         <th class="px-6 py-4 text-right w-[240px] min-w-[240px]">Acoes</th>
                     </tr>
                 </thead>
@@ -101,7 +100,6 @@
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ optional($item->start_date)->format('d/m/Y') ?: '-' }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->indefinite_term ? 'Prazo indeterminado' : (optional($item->end_date)->format('d/m/Y') ?: '-') }}</td>
                             <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $statusLabels[$item->status] ?? $item->status }}</td>
-                            <td class="px-6 py-4 text-gray-700 dark:text-gray-200">{{ $item->responsible?->name ?: '-' }}</td>
                             <td class="px-6 py-4 align-top">
                                 <div class="ml-auto grid w-full max-w-[240px] min-w-[220px] grid-cols-2 gap-2">
                                     @if(($filters['scope'] ?? 'active') === 'trash')
